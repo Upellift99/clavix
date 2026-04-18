@@ -43,11 +43,15 @@ pub fn derive_master_key(
             })?;
 
             let salt: [u8; 32] = Sha256::digest(email_lower.as_bytes()).into();
-            let params =
-                Params::new(memory_mib.saturating_mul(1024), iterations, parallelism, Some(32))
-                    .map_err(|e| Error::Crypto {
-                        reason: format!("invalid Argon2 parameters: {e}"),
-                    })?;
+            let params = Params::new(
+                memory_mib.saturating_mul(1024),
+                iterations,
+                parallelism,
+                Some(32),
+            )
+            .map_err(|e| Error::Crypto {
+                reason: format!("invalid Argon2 parameters: {e}"),
+            })?;
             let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
             let mut out = [0u8; 32];
@@ -67,10 +71,7 @@ pub fn derive_master_password_hash(
     master_key: &MasterKey,
     password: &SecretString,
 ) -> MasterPasswordHash {
-    let hash = pbkdf2_hmac_array::<Sha256, 32>(
-        &master_key.0,
-        password.expose_secret().as_bytes(),
-        1,
-    );
+    let hash =
+        pbkdf2_hmac_array::<Sha256, 32>(&master_key.0, password.expose_secret().as_bytes(), 1);
     MasterPasswordHash(STANDARD.encode(hash))
 }

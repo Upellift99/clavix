@@ -32,14 +32,18 @@ impl VaultwardenClient {
         self.base_url
             .join("api/")
             .and_then(|u| u.join(path))
-            .map_err(|_| Error::InvalidUrl { url: path.to_string() })
+            .map_err(|_| Error::InvalidUrl {
+                url: path.to_string(),
+            })
     }
 
     fn identity_endpoint(&self, path: &str) -> Result<Url> {
         self.base_url
             .join("identity/")
             .and_then(|u| u.join(path))
-            .map_err(|_| Error::InvalidUrl { url: path.to_string() })
+            .map_err(|_| Error::InvalidUrl {
+                url: path.to_string(),
+            })
     }
 
     pub async fn prelogin(&self, email: &str) -> Result<Prelogin> {
@@ -63,7 +67,9 @@ impl VaultwardenClient {
         response
             .json::<Prelogin>()
             .await
-            .map_err(|e| Error::InvalidResponse { reason: e.to_string() })
+            .map_err(|e| Error::InvalidResponse {
+                reason: e.to_string(),
+            })
     }
 
     pub async fn login(
@@ -77,12 +83,7 @@ impl VaultwardenClient {
 
     pub async fn sync(&self, access_token: &str) -> Result<SyncResponse> {
         let url = self.api_endpoint("sync")?;
-        let response = self
-            .http
-            .get(url)
-            .bearer_auth(access_token)
-            .send()
-            .await?;
+        let response = self.http.get(url).bearer_auth(access_token).send().await?;
 
         let status = response.status();
         if !status.is_success() {
@@ -96,7 +97,9 @@ impl VaultwardenClient {
         response
             .json::<SyncResponse>()
             .await
-            .map_err(|e| Error::InvalidResponse { reason: e.to_string() })
+            .map_err(|e| Error::InvalidResponse {
+                reason: e.to_string(),
+            })
     }
 
     pub async fn login_with_two_factor(
@@ -149,8 +152,10 @@ impl VaultwardenClient {
         let body = response.bytes().await?;
 
         if status.is_success() {
-            let tokens: TokenSet = serde_json::from_slice(&body)
-                .map_err(|e| Error::InvalidResponse { reason: e.to_string() })?;
+            let tokens: TokenSet =
+                serde_json::from_slice(&body).map_err(|e| Error::InvalidResponse {
+                    reason: e.to_string(),
+                })?;
             return Ok(LoginResult::Success(tokens));
         }
 
@@ -220,7 +225,11 @@ fn extract_auth_error_message(value: &serde_json::Value) -> String {
 }
 
 fn extract_two_factor_providers(value: &serde_json::Value) -> Option<Vec<TwoFactorProvider>> {
-    for key in ["TwoFactorProviders", "twoFactorProviders", "two_factor_providers"] {
+    for key in [
+        "TwoFactorProviders",
+        "twoFactorProviders",
+        "two_factor_providers",
+    ] {
         if let Some(arr) = value.get(key).and_then(|v| v.as_array()) {
             let providers = collect_known_providers(arr.iter().filter_map(|v| v.as_u64()));
             if !providers.is_empty() {
@@ -231,7 +240,8 @@ fn extract_two_factor_providers(value: &serde_json::Value) -> Option<Vec<TwoFact
 
     for key in ["TwoFactorProviders2", "twoFactorProviders2"] {
         if let Some(obj) = value.get(key).and_then(|v| v.as_object()) {
-            let providers = collect_known_providers(obj.keys().filter_map(|k| k.parse::<u64>().ok()));
+            let providers =
+                collect_known_providers(obj.keys().filter_map(|k| k.parse::<u64>().ok()));
             if !providers.is_empty() {
                 return Some(providers);
             }
@@ -241,16 +251,16 @@ fn extract_two_factor_providers(value: &serde_json::Value) -> Option<Vec<TwoFact
     None
 }
 
-fn collect_known_providers(
-    ids: impl Iterator<Item = u64>,
-) -> Vec<TwoFactorProvider> {
+fn collect_known_providers(ids: impl Iterator<Item = u64>) -> Vec<TwoFactorProvider> {
     ids.filter_map(|n| u8::try_from(n).ok())
         .filter_map(|n| TwoFactorProvider::try_from(n).ok())
         .collect()
 }
 
 fn normalize_base_url(input: &str) -> Result<Url> {
-    let mut url = Url::parse(input.trim()).map_err(|_| Error::InvalidUrl { url: input.to_string() })?;
+    let mut url = Url::parse(input.trim()).map_err(|_| Error::InvalidUrl {
+        url: input.to_string(),
+    })?;
     if !url.path().ends_with('/') {
         let new_path = format!("{}/", url.path());
         url.set_path(&new_path);
