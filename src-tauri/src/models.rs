@@ -201,7 +201,7 @@ pub struct TypeCounts {
 #[serde(rename_all = "camelCase")]
 pub struct FolderSummary {
     pub id: String,
-    pub encrypted_name: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -209,54 +209,8 @@ pub struct FolderSummary {
 pub struct CipherSummary {
     pub id: String,
     pub kind: u8,
-    pub encrypted_name: String,
+    pub name: String,
     pub folder_id: Option<String>,
     pub organization_id: Option<String>,
     pub favorite: bool,
-}
-
-impl From<&SyncResponse> for SyncSummary {
-    fn from(r: &SyncResponse) -> Self {
-        let mut type_counts = TypeCounts::default();
-        for c in &r.ciphers {
-            match c.kind {
-                CipherType::Login => type_counts.login += 1,
-                CipherType::SecureNote => type_counts.secure_note += 1,
-                CipherType::Card => type_counts.card += 1,
-                CipherType::Identity => type_counts.identity += 1,
-                CipherType::SshKey => type_counts.ssh_key += 1,
-            }
-        }
-
-        SyncSummary {
-            email: r.profile.email.clone(),
-            name: r.profile.name.clone(),
-            item_count: r.ciphers.len(),
-            folder_count: r.folders.len(),
-            collection_count: r.collections.len(),
-            organization_count: r.profile.organizations.len(),
-            type_counts,
-            folders: r
-                .folders
-                .iter()
-                .map(|f| FolderSummary {
-                    id: f.id.clone(),
-                    encrypted_name: f.name.clone(),
-                })
-                .collect(),
-            cipher_preview: r
-                .ciphers
-                .iter()
-                .take(10)
-                .map(|c| CipherSummary {
-                    id: c.id.clone(),
-                    kind: c.kind as u8,
-                    encrypted_name: c.name.clone(),
-                    folder_id: c.folder_id.clone(),
-                    organization_id: c.organization_id.clone(),
-                    favorite: c.favorite,
-                })
-                .collect(),
-        }
-    }
 }

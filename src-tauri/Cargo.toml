@@ -34,6 +34,12 @@ base64 = "0.22"
 zeroize = { version = "1", features = ["derive"] }
 secrecy = "0.10"
 uuid = { version = "1", features = ["v4"] }
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
+hmac = "0.12"
+hkdf = "0.12"
+rsa = "0.9"
+sha1 = "0.10"
 
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.

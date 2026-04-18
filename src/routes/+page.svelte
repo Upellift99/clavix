@@ -24,12 +24,12 @@
     sshKey: number;
   };
 
-  type FolderSummary = { id: string; encryptedName: string };
+  type FolderSummary = { id: string; name: string };
 
   type CipherSummary = {
     id: string;
     kind: number;
-    encryptedName: string;
+    name: string;
     folderId: string | null;
     organizationId: string | null;
     favorite: boolean;
@@ -281,24 +281,24 @@
         </dl>
 
         {#if syncSummary.folders.length > 0}
-          <h3>Folders <small>(noms chiffrés bruts)</small></h3>
+          <h3>Folders</h3>
           <ul class="enc-list">
             {#each syncSummary.folders as f (f.id)}
               <li>
                 <span class="idish">{f.id.slice(0, 8)}</span>
-                <code>{truncate(f.encryptedName, 56)}</code>
+                <span class="name">{f.name}</span>
               </li>
             {/each}
           </ul>
         {/if}
 
         {#if syncSummary.cipherPreview.length > 0}
-          <h3>Aperçu items <small>(10 premiers, chiffrés)</small></h3>
+          <h3>Aperçu items <small>(10 premiers)</small></h3>
           <ul class="enc-list">
             {#each syncSummary.cipherPreview as c (c.id)}
               <li>
                 <span class="badge">{cipherTypeLabel(c.kind)}</span>
-                <code>{truncate(c.encryptedName, 40)}</code>
+                <span class="name">{c.name}</span>
                 {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
               </li>
             {/each}
@@ -513,6 +513,11 @@
     font-weight: 500;
     min-width: 3.5rem;
     text-align: center;
+  }
+
+  .name {
+    overflow-wrap: anywhere;
+    flex: 1;
   }
 
   .star {
