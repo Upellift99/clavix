@@ -2,13 +2,21 @@ use reqwest::Client;
 use serde_json::json;
 use url::Url;
 
+use crate::crypto::MasterPasswordHash;
 use crate::error::{Error, Result};
-use crate::models::Prelogin;
+use crate::models::{LoginResult, Prelogin, TokenSet, TwoFactorProvider};
 
 #[derive(Debug, Clone)]
 pub struct VaultwardenClient {
     http: Client,
     base_url: Url,
+}
+
+#[derive(Debug, Clone)]
+pub struct DeviceInfo {
+    pub identifier: String,
+    pub name: String,
+    pub device_type: u8,
 }
 
 impl VaultwardenClient {
@@ -23,6 +31,13 @@ impl VaultwardenClient {
     fn api_endpoint(&self, path: &str) -> Result<Url> {
         self.base_url
             .join("api/")
+            .and_then(|u| u.join(path))
+            .map_err(|_| Error::InvalidUrl(path.to_string()))
+    }
+
+    fn identity_endpoint(&self, path: &str) -> Result<Url> {
+        self.base_url
+            .join("identity/")
             .and_then(|u| u.join(path))
             .map_err(|_| Error::InvalidUrl(path.to_string()))
     }
@@ -50,6 +65,132 @@ impl VaultwardenClient {
             .await
             .map_err(|e| Error::InvalidResponse(e.to_string()))
     }
+
+    pub async fn login(
+        &self,
+        email: &str,
+        password_hash: &MasterPasswordHash,
+        device: &DeviceInfo,
+    ) -> Result<LoginResult> {
+        self.login_inner(email, password_hash, device, None).await
+    }
+
+    pub async fn login_with_two_factor(
+        &self,
+        email: &str,
+        password_hash: &MasterPasswordHash,
+        device: &DeviceInfo,
+        provider: TwoFactorProvider,
+        code: &str,
+    ) -> Result<TokenSet> {
+        match self
+            .login_inner(email, password_hash, device, Some((provider, code)))
+            .await?
+        {
+            LoginResult::Success(tokens) => Ok(tokens),
+            LoginResult::TwoFactorRequired { .. } => Err(Error::AuthFailed(
+                "Code 2FA refusé par le serveur".into(),
+            )),
+        }
+    }
+
+    async fn login_inner(
+        &self,
+        email: &str,
+        password_hash: &MasterPasswordHash,
+        device: &DeviceInfo,
+        two_factor: Option<(TwoFactorProvider, &str)>,
+    ) -> Result<LoginResult> {
+        let url = self.identity_endpoint("connect/token")?;
+        let email_lower = email.trim().to_ascii_lowercase();
+
+        let mut form: Vec<(&str, String)> = vec![
+            ("grant_type", "password".into()),
+            ("scope", "api offline_access".into()),
+            ("client_id", "connector".into()),
+            ("username", email_lower),
+            ("password", password_hash.as_str().into()),
+            ("deviceType", device.device_type.to_string()),
+            ("deviceIdentifier", device.identifier.clone()),
+            ("deviceName", device.name.clone()),
+        ];
+        if let Some((provider, code)) = two_factor {
+            form.push(("twoFactorToken", code.into()));
+            form.push(("twoFactorProvider", (provider as u8).to_string()));
+            form.push(("twoFactorRemember", "0".into()));
+        }
+
+        let response = self.http.post(url).form(&form).send().await?;
+        let status = response.status();
+        let body = response.bytes().await?;
+
+        if status.is_success() {
+            let tokens: TokenSet = serde_json::from_slice(&body)
+                .map_err(|e| Error::InvalidResponse(e.to_string()))?;
+            return Ok(LoginResult::Success(tokens));
+        }
+
+        if status.as_u16() == 400 {
+            eprintln!(
+                "[clavix] login 400 body: {}",
+                String::from_utf8_lossy(&body)
+            );
+
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
+                if let Some(providers) = extract_two_factor_providers(&value) {
+                    return Ok(LoginResult::TwoFactorRequired { providers });
+                }
+
+                let description = value
+                    .get("error_description")
+                    .or_else(|| value.get("ErrorModel").and_then(|m| m.get("Message")))
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string);
+                let error_code = value
+                    .get("error")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("auth_error");
+
+                let message = description.unwrap_or_else(|| error_code.to_string());
+                return Err(Error::AuthFailed(message));
+            }
+        }
+
+        Err(Error::HttpStatus {
+            status: status.as_u16(),
+            message: String::from_utf8_lossy(&body).into_owned(),
+        })
+    }
+}
+
+fn extract_two_factor_providers(value: &serde_json::Value) -> Option<Vec<TwoFactorProvider>> {
+    for key in ["TwoFactorProviders", "twoFactorProviders", "two_factor_providers"] {
+        if let Some(arr) = value.get(key).and_then(|v| v.as_array()) {
+            let providers = collect_known_providers(arr.iter().filter_map(|v| v.as_u64()));
+            if !providers.is_empty() {
+                return Some(providers);
+            }
+        }
+    }
+
+    for key in ["TwoFactorProviders2", "twoFactorProviders2"] {
+        if let Some(obj) = value.get(key).and_then(|v| v.as_object()) {
+            let providers = collect_known_providers(obj.keys().filter_map(|k| k.parse::<u64>().ok()));
+            if !providers.is_empty() {
+                return Some(providers);
+            }
+        }
+    }
+
+    None
+}
+
+fn collect_known_providers(
+    ids: impl Iterator<Item = u64>,
+) -> Vec<TwoFactorProvider> {
+    ids.filter_map(|n| u8::try_from(n).ok())
+        .filter_map(|n| TwoFactorProvider::try_from(n).ok())
+        .collect()
 }
 
 fn normalize_base_url(input: &str) -> Result<Url> {

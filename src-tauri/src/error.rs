@@ -14,6 +14,15 @@ pub enum Error {
 
     #[error("Le serveur a renvoyé une erreur HTTP {status} : {message}")]
     HttpStatus { status: u16, message: String },
+
+    #[error("Identifiants invalides : {0}")]
+    AuthFailed(String),
+
+    #[error("Erreur de dérivation cryptographique : {0}")]
+    Crypto(String),
+
+    #[error("Provider 2FA non supporté : {0}")]
+    TwoFactorProviderUnsupported(u8),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

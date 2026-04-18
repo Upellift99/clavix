@@ -27,4 +27,16 @@ serde_repr = "0.1"
 thiserror = "2"
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
+pbkdf2 = "0.12"
+sha2 = "0.10"
+argon2 = "0.5"
+base64 = "0.22"
+zeroize = { version = "1", features = ["derive"] }
+secrecy = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+# Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
+# qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.
+[profile.dev.package."*"]
+opt-level = 3
 

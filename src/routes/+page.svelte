@@ -1,82 +1,186 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
 
-  type Prelogin = {
-    kdf: 0 | 1;
-    kdfIterations: number;
-    kdfMemory: number | null;
-    kdfParallelism: number | null;
+  type TokenSet = {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    token_type: string;
+    key: string | null;
+    privateKey: string | null;
+    kdf: 0 | 1 | null;
+    kdfIterations: number | null;
   };
+
+  type LoginResult =
+    | { type: "success"; data: TokenSet }
+    | { type: "twoFactorRequired"; data: { providers: number[] } };
+
+  type Phase = "idle" | "authenticating" | "twoFactor" | "loggedIn" | "error";
+
+  const TOTP_PATTERN = "[0-9]{6}";
 
   let serverUrl = $state("https://vault.example.com");
   let email = $state("");
-  let result = $state<Prelogin | null>(null);
-  let error = $state<string | null>(null);
-  let loading = $state(false);
+  let password = $state("");
+  let totpCode = $state("");
+  let phase = $state<Phase>("idle");
+  let errorMsg = $state<string | null>(null);
+  let tokens = $state<TokenSet | null>(null);
+  let pendingProviders = $state<number[]>([]);
 
-  async function runPrelogin(event: Event) {
+  async function onLoginSubmit(event: Event) {
     event.preventDefault();
-    loading = true;
-    error = null;
-    result = null;
+    phase = "authenticating";
+    errorMsg = null;
     try {
-      result = await invoke<Prelogin>("prelogin", { serverUrl, email });
+      const result = await invoke<LoginResult>("login", { serverUrl, email, password });
+      if (result.type === "success") {
+        tokens = result.data;
+        phase = "loggedIn";
+      } else {
+        pendingProviders = result.data.providers;
+        phase = "twoFactor";
+      }
     } catch (e) {
-      error = String(e);
-    } finally {
-      loading = false;
+      errorMsg = String(e);
+      phase = "error";
     }
   }
 
-  const kdfLabel = (k: 0 | 1) => (k === 0 ? "PBKDF2" : "Argon2id");
+  async function onTwoFactorSubmit(event: Event) {
+    event.preventDefault();
+    const codeSnapshot = totpCode;
+    phase = "authenticating";
+    errorMsg = null;
+    try {
+      const result = await invoke<TokenSet>("login_with_two_factor", {
+        serverUrl,
+        email,
+        password,
+        code: codeSnapshot,
+        provider: 0,
+      });
+      tokens = result;
+      totpCode = "";
+      phase = "loggedIn";
+    } catch (e) {
+      errorMsg = String(e);
+      phase = "twoFactor";
+    }
+  }
+
+  function reset() {
+    phase = "idle";
+    errorMsg = null;
+    totpCode = "";
+    tokens = null;
+    pendingProviders = [];
+    password = "";
+  }
+
+  function truncate(s: string, n: number = 24): string {
+    return s.length > n ? `${s.slice(0, n)}…` : s;
+  }
+
+  function formatExpiry(seconds: number): string {
+    const minutes = Math.round(seconds / 60);
+    if (minutes >= 60) return `${(minutes / 60).toFixed(1)} h`;
+    return `${minutes} min`;
+  }
+
+  const providerLabel = (p: number): string => {
+    switch (p) {
+      case 0: return "TOTP (Authenticator)";
+      case 1: return "Email";
+      case 2: return "Duo";
+      case 3: return "YubiKey OTP";
+      case 7: return "WebAuthn / FIDO2";
+      default: return `Provider #${p}`;
+    }
+  };
 </script>
 
 <main class="container">
   <h1>Clavix</h1>
-  <p class="subtitle">Étape 2a : test du endpoint <code>prelogin</code></p>
+  <p class="subtitle">Étape 2b : login Vaultwarden + 2FA TOTP</p>
 
-  <form onsubmit={runPrelogin}>
-    <label>
-      Serveur Vaultwarden
-      <input type="url" bind:value={serverUrl} required />
-    </label>
-    <label>
-      Email
-      <input type="email" bind:value={email} placeholder="toi@exemple.fr" required />
-    </label>
-    <button type="submit" disabled={loading}>
-      {loading ? "Requête en cours…" : "Prelogin"}
-    </button>
-  </form>
+  {#if phase === "idle" || phase === "authenticating" || phase === "error"}
+    <form onsubmit={onLoginSubmit}>
+      <label>
+        Serveur Vaultwarden
+        <input type="url" bind:value={serverUrl} required disabled={phase === "authenticating"} />
+      </label>
+      <label>
+        Email
+        <input type="email" bind:value={email} placeholder="toi@exemple.fr" required disabled={phase === "authenticating"} />
+      </label>
+      <label>
+        Mot de passe maître
+        <input type="password" bind:value={password} required disabled={phase === "authenticating"} />
+      </label>
+      <button type="submit" disabled={phase === "authenticating"}>
+        {phase === "authenticating" ? "Connexion…" : "Connexion"}
+      </button>
+    </form>
+  {/if}
 
-  {#if error}
-    <section class="box error">
-      <h2>Erreur</h2>
-      <pre>{error}</pre>
+  {#if phase === "twoFactor"}
+    <section class="box">
+      <h2>Double authentification</h2>
+      <p class="hint">
+        Providers annoncés par le serveur : {pendingProviders.map(providerLabel).join(", ")}
+      </p>
+      <form onsubmit={onTwoFactorSubmit}>
+        <label>
+          Code TOTP (6 chiffres)
+          <input
+            type="text"
+            bind:value={totpCode}
+            inputmode="numeric"
+            pattern={TOTP_PATTERN}
+            maxlength="6"
+            autocomplete="one-time-code"
+            required
+          />
+        </label>
+        <div class="row">
+          <button type="button" class="secondary" onclick={reset}>Annuler</button>
+          <button type="submit">Valider</button>
+        </div>
+      </form>
     </section>
   {/if}
 
-  {#if result}
+  {#if phase === "loggedIn" && tokens}
     <section class="box result">
-      <h2>Résultat</h2>
+      <h2>Connecté</h2>
       <dl>
-        <dt>KDF</dt>
-        <dd>{kdfLabel(result.kdf)} <small>(kdf = {result.kdf})</small></dd>
-        <dt>Itérations</dt>
-        <dd>{result.kdfIterations.toLocaleString("fr-FR")}</dd>
-        {#if result.kdfMemory !== null}
-          <dt>Mémoire (KiB)</dt>
-          <dd>{result.kdfMemory}</dd>
+        <dt>access_token</dt>
+        <dd><code>{truncate(tokens.access_token)}</code></dd>
+        <dt>refresh_token</dt>
+        <dd><code>{truncate(tokens.refresh_token)}</code></dd>
+        <dt>token_type</dt>
+        <dd>{tokens.token_type}</dd>
+        <dt>expires_in</dt>
+        <dd>{formatExpiry(tokens.expires_in)}</dd>
+        {#if tokens.kdf !== null && tokens.kdfIterations !== null}
+          <dt>KDF du compte</dt>
+          <dd>{tokens.kdf === 0 ? "PBKDF2" : "Argon2id"} / {tokens.kdfIterations.toLocaleString("fr-FR")} itérations</dd>
         {/if}
-        {#if result.kdfParallelism !== null}
-          <dt>Parallélisme</dt>
-          <dd>{result.kdfParallelism}</dd>
+        {#if tokens.key}
+          <dt>Key (chiffrée)</dt>
+          <dd><code>{truncate(tokens.key, 32)}</code></dd>
         {/if}
       </dl>
-      <details>
-        <summary>JSON brut</summary>
-        <pre>{JSON.stringify(result, null, 2)}</pre>
-      </details>
+      <button type="button" class="secondary" onclick={reset}>Se déconnecter</button>
+    </section>
+  {/if}
+
+  {#if errorMsg}
+    <section class="box error">
+      <h2>Erreur</h2>
+      <pre>{errorMsg}</pre>
     </section>
   {/if}
 </main>
@@ -146,13 +250,25 @@
     font-weight: 500;
   }
 
+  button.secondary {
+    background: #fff;
+    color: #333;
+    border-color: #d0d0d0;
+  }
+
   button:hover:not(:disabled) {
-    background: #2f5bc7;
+    filter: brightness(0.95);
   }
 
   button:disabled {
     opacity: 0.6;
     cursor: progress;
+  }
+
+  .row {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
   }
 
   .box {
@@ -178,11 +294,17 @@
     margin: 0;
   }
 
+  .hint {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    color: #555;
+  }
+
   dl {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 0.4rem 1rem;
-    margin: 0;
+    margin: 0 0 1rem;
   }
 
   dt {
@@ -192,16 +314,7 @@
 
   dd {
     margin: 0;
-  }
-
-  details {
-    margin-top: 0.75rem;
-  }
-
-  summary {
-    cursor: pointer;
-    color: #555;
-    font-size: 0.85rem;
+    overflow-wrap: anywhere;
   }
 
   pre {
@@ -229,10 +342,11 @@
     label { color: #ccc; }
     input, button { background: #1e1e1e; color: #f6f6f6; border-color: #3a3a3a; }
     button { background: #396cd8; border-color: #396cd8; }
+    button.secondary { background: #2b2b2b; color: #ddd; border-color: #3a3a3a; }
     dt { color: #ccc; }
     .box.error pre { color: #ff8a8a; }
+    .hint { color: #aaa; }
     pre { background: #181818; }
     code { background: #333; }
-    summary { color: #aaa; }
   }
 </style>
