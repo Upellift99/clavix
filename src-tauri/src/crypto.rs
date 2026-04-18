@@ -35,20 +35,27 @@ pub fn derive_master_key(
             pbkdf2_hmac_array::<Sha256, 32>(password_bytes, email_lower.as_bytes(), iterations)
         }
         KdfType::Argon2id => {
-            let memory_mib = memory
-                .ok_or_else(|| Error::Crypto("kdfMemory requis pour Argon2id".into()))?;
-            let parallelism = parallelism
-                .ok_or_else(|| Error::Crypto("kdfParallelism requis pour Argon2id".into()))?;
+            let memory_mib = memory.ok_or_else(|| Error::Crypto {
+                reason: "kdfMemory required for Argon2id".into(),
+            })?;
+            let parallelism = parallelism.ok_or_else(|| Error::Crypto {
+                reason: "kdfParallelism required for Argon2id".into(),
+            })?;
 
             let salt: [u8; 32] = Sha256::digest(email_lower.as_bytes()).into();
-            let params = Params::new(memory_mib.saturating_mul(1024), iterations, parallelism, Some(32))
-                .map_err(|e| Error::Crypto(format!("paramètres Argon2 invalides : {e}")))?;
+            let params =
+                Params::new(memory_mib.saturating_mul(1024), iterations, parallelism, Some(32))
+                    .map_err(|e| Error::Crypto {
+                        reason: format!("invalid Argon2 parameters: {e}"),
+                    })?;
             let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
             let mut out = [0u8; 32];
             argon
                 .hash_password_into(password_bytes, &salt, &mut out)
-                .map_err(|e| Error::Crypto(format!("dérivation Argon2id échouée : {e}")))?;
+                .map_err(|e| Error::Crypto {
+                    reason: format!("Argon2id derivation failed: {e}"),
+                })?;
             out
         }
     };

@@ -88,7 +88,7 @@ async fn login_with_two_factor(
     provider: u8,
 ) -> Result<TokenSet> {
     let typed_provider = TwoFactorProvider::try_from(provider)
-        .map_err(|_| Error::TwoFactorProviderUnsupported(provider))?;
+        .map_err(|_| Error::TwoFactorProviderUnsupported { provider })?;
     let password: SecretString = password.into();
     let (client, hash) = prepare_credentials(&server_url, &email, password).await?;
     let tokens = client

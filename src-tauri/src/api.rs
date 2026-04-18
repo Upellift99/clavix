@@ -32,14 +32,14 @@ impl VaultwardenClient {
         self.base_url
             .join("api/")
             .and_then(|u| u.join(path))
-            .map_err(|_| Error::InvalidUrl(path.to_string()))
+            .map_err(|_| Error::InvalidUrl { url: path.to_string() })
     }
 
     fn identity_endpoint(&self, path: &str) -> Result<Url> {
         self.base_url
             .join("identity/")
             .and_then(|u| u.join(path))
-            .map_err(|_| Error::InvalidUrl(path.to_string()))
+            .map_err(|_| Error::InvalidUrl { url: path.to_string() })
     }
 
     pub async fn prelogin(&self, email: &str) -> Result<Prelogin> {
@@ -63,7 +63,7 @@ impl VaultwardenClient {
         response
             .json::<Prelogin>()
             .await
-            .map_err(|e| Error::InvalidResponse(e.to_string()))
+            .map_err(|e| Error::InvalidResponse { reason: e.to_string() })
     }
 
     pub async fn login(
@@ -96,7 +96,7 @@ impl VaultwardenClient {
         response
             .json::<SyncResponse>()
             .await
-            .map_err(|e| Error::InvalidResponse(e.to_string()))
+            .map_err(|e| Error::InvalidResponse { reason: e.to_string() })
     }
 
     pub async fn login_with_two_factor(
@@ -112,9 +112,9 @@ impl VaultwardenClient {
             .await?
         {
             LoginResult::Success(tokens) => Ok(tokens),
-            LoginResult::TwoFactorRequired { .. } => Err(Error::AuthFailed(
-                "Code 2FA refusé par le serveur".into(),
-            )),
+            LoginResult::TwoFactorRequired { .. } => Err(Error::AuthFailed {
+                message: "2FA code rejected by the server".into(),
+            }),
         }
     }
 
@@ -150,7 +150,7 @@ impl VaultwardenClient {
 
         if status.is_success() {
             let tokens: TokenSet = serde_json::from_slice(&body)
-                .map_err(|e| Error::InvalidResponse(e.to_string()))?;
+                .map_err(|e| Error::InvalidResponse { reason: e.to_string() })?;
             return Ok(LoginResult::Success(tokens));
         }
 
@@ -165,18 +165,9 @@ impl VaultwardenClient {
                     return Ok(LoginResult::TwoFactorRequired { providers });
                 }
 
-                let description = value
-                    .get("error_description")
-                    .or_else(|| value.get("ErrorModel").and_then(|m| m.get("Message")))
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string);
-                let error_code = value
-                    .get("error")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("auth_error");
-
-                let message = description.unwrap_or_else(|| error_code.to_string());
-                return Err(Error::AuthFailed(message));
+                return Err(Error::AuthFailed {
+                    message: extract_auth_error_message(&value),
+                });
             }
         }
 
@@ -185,6 +176,47 @@ impl VaultwardenClient {
             message: String::from_utf8_lossy(&body).into_owned(),
         })
     }
+}
+
+fn extract_auth_error_message(value: &serde_json::Value) -> String {
+    let string_candidates = [
+        value.get("message"),
+        value.get("errorModel").and_then(|m| m.get("message")),
+        value.get("ErrorModel").and_then(|m| m.get("Message")),
+        value.get("error_description"),
+    ];
+
+    for candidate in string_candidates {
+        if let Some(s) = candidate.and_then(|v| v.as_str()) {
+            let trimmed = s.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+    }
+
+    if let Some(obj) = value.get("validationErrors").and_then(|v| v.as_object()) {
+        let messages: Vec<String> = obj
+            .values()
+            .filter_map(|v| v.as_array())
+            .flat_map(|a| a.iter())
+            .filter_map(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect();
+        if !messages.is_empty() {
+            return messages.join("; ");
+        }
+    }
+
+    value
+        .get("error")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("auth_error")
+        .to_string()
 }
 
 fn extract_two_factor_providers(value: &serde_json::Value) -> Option<Vec<TwoFactorProvider>> {
@@ -218,7 +250,7 @@ fn collect_known_providers(
 }
 
 fn normalize_base_url(input: &str) -> Result<Url> {
-    let mut url = Url::parse(input.trim()).map_err(|_| Error::InvalidUrl(input.to_string()))?;
+    let mut url = Url::parse(input.trim()).map_err(|_| Error::InvalidUrl { url: input.to_string() })?;
     if !url.path().ends_with('/') {
         let new_path = format!("{}/", url.path());
         url.set_path(&new_path);

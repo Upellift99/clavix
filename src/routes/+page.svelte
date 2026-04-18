@@ -49,6 +49,16 @@
 
   type Phase = "idle" | "authenticating" | "twoFactor" | "loggedIn" | "error";
 
+  type TauriError = { code: string; message: string; data?: Record<string, unknown> };
+
+  function formatError(e: unknown): string {
+    if (e && typeof e === "object" && "message" in e) {
+      const m = (e as { message?: unknown }).message;
+      if (typeof m === "string") return m;
+    }
+    return String(e);
+  }
+
   const TOTP_PATTERN = "[0-9]{6}";
 
   let serverUrl = $state("https://vault.example.com");
@@ -77,7 +87,7 @@
         phase = "twoFactor";
       }
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = formatError(e);
       phase = "error";
     }
   }
@@ -100,7 +110,7 @@
       totpCode = "";
       phase = "loggedIn";
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = formatError(e);
       phase = "twoFactor";
     }
   }
@@ -111,7 +121,7 @@
     try {
       syncSummary = await invoke<SyncSummary>("sync");
     } catch (e) {
-      errorMsg = String(e);
+      errorMsg = formatError(e);
     } finally {
       syncing = false;
     }

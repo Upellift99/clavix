@@ -3,38 +3,77 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("URL invalide : {0}")]
-    InvalidUrl(String),
+    #[error("Invalid URL: {url}")]
+    InvalidUrl { url: String },
 
-    #[error("Erreur réseau : {0}")]
-    Network(#[from] reqwest::Error),
+    #[error("Network error: {source}")]
+    Network {
+        #[from]
+        source: reqwest::Error,
+    },
 
-    #[error("Réponse serveur invalide : {0}")]
-    InvalidResponse(String),
+    #[error("Invalid server response: {reason}")]
+    InvalidResponse { reason: String },
 
-    #[error("Le serveur a renvoyé une erreur HTTP {status} : {message}")]
+    #[error("HTTP error {status}: {message}")]
     HttpStatus { status: u16, message: String },
 
-    #[error("Identifiants invalides : {0}")]
-    AuthFailed(String),
+    #[error("Authentication failed: {message}")]
+    AuthFailed { message: String },
 
-    #[error("Erreur de dérivation cryptographique : {0}")]
-    Crypto(String),
+    #[error("Crypto derivation error: {reason}")]
+    Crypto { reason: String },
 
-    #[error("Provider 2FA non supporté : {0}")]
-    TwoFactorProviderUnsupported(u8),
+    #[error("Unsupported 2FA provider: {provider}")]
+    TwoFactorProviderUnsupported { provider: u8 },
 
-    #[error("Aucune session active — connectez-vous d'abord")]
+    #[error("No active session — please sign in")]
     NotAuthenticated,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Serialize)]
+struct ErrorPayload<'a> {
+    code: &'a str,
+    message: String,
+    data: serde_json::Value,
+}
 
 impl Serialize for Error {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        let (code, data): (&'static str, serde_json::Value) = match self {
+            Error::InvalidUrl { url } => ("invalid_url", serde_json::json!({ "url": url })),
+            Error::Network { source } => (
+                "network_error",
+                serde_json::json!({ "cause": source.to_string() }),
+            ),
+            Error::InvalidResponse { reason } => {
+                ("invalid_response", serde_json::json!({ "reason": reason }))
+            }
+            Error::HttpStatus { status, message } => (
+                "http_status",
+                serde_json::json!({ "status": status, "message": message }),
+            ),
+            Error::AuthFailed { message } => {
+                ("auth_failed", serde_json::json!({ "message": message }))
+            }
+            Error::Crypto { reason } => ("crypto_error", serde_json::json!({ "reason": reason })),
+            Error::TwoFactorProviderUnsupported { provider } => (
+                "two_factor_provider_unsupported",
+                serde_json::json!({ "provider": provider }),
+            ),
+            Error::NotAuthenticated => ("not_authenticated", serde_json::json!({})),
+        };
+
+        ErrorPayload {
+            code,
+            message: self.to_string(),
+            data,
+        }
+        .serialize(serializer)
     }
 }
