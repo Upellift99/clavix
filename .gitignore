@@ -1,0 +1,30 @@
+# ---- Frontend (Node / Vite / SvelteKit) ----
+node_modules/
+/build
+/.svelte-kit
+/package
+.env
+.env.*
+!.env.example
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# ---- Backend (Rust / Tauri) ----
+src-tauri/target/
+src-tauri/gen/
+src-tauri/WixTools/
+
+# ---- Éditeurs & OS ----
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.qodo/
+
+# ---- Logs et artefacts ----
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
