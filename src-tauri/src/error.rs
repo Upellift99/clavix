@@ -23,6 +23,9 @@ pub enum Error {
 
     #[error("Provider 2FA non supporté : {0}")]
     TwoFactorProviderUnsupported(u8),
+
+    #[error("Aucune session active — connectez-vous d'abord")]
+    NotAuthenticated,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

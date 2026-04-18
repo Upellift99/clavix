@@ -16,6 +16,37 @@
     | { type: "success"; data: TokenSet }
     | { type: "twoFactorRequired"; data: { providers: number[] } };
 
+  type TypeCounts = {
+    login: number;
+    secureNote: number;
+    card: number;
+    identity: number;
+    sshKey: number;
+  };
+
+  type FolderSummary = { id: string; encryptedName: string };
+
+  type CipherSummary = {
+    id: string;
+    kind: number;
+    encryptedName: string;
+    folderId: string | null;
+    organizationId: string | null;
+    favorite: boolean;
+  };
+
+  type SyncSummary = {
+    email: string;
+    name: string | null;
+    itemCount: number;
+    folderCount: number;
+    collectionCount: number;
+    organizationCount: number;
+    typeCounts: TypeCounts;
+    folders: FolderSummary[];
+    cipherPreview: CipherSummary[];
+  };
+
   type Phase = "idle" | "authenticating" | "twoFactor" | "loggedIn" | "error";
 
   const TOTP_PATTERN = "[0-9]{6}";
@@ -28,6 +59,8 @@
   let errorMsg = $state<string | null>(null);
   let tokens = $state<TokenSet | null>(null);
   let pendingProviders = $state<number[]>([]);
+  let syncSummary = $state<SyncSummary | null>(null);
+  let syncing = $state(false);
 
   async function onLoginSubmit(event: Event) {
     event.preventDefault();
@@ -37,6 +70,7 @@
       const result = await invoke<LoginResult>("login", { serverUrl, email, password });
       if (result.type === "success") {
         tokens = result.data;
+        password = "";
         phase = "loggedIn";
       } else {
         pendingProviders = result.data.providers;
@@ -62,12 +96,34 @@
         provider: 0,
       });
       tokens = result;
+      password = "";
       totpCode = "";
       phase = "loggedIn";
     } catch (e) {
       errorMsg = String(e);
       phase = "twoFactor";
     }
+  }
+
+  async function onSync() {
+    syncing = true;
+    errorMsg = null;
+    try {
+      syncSummary = await invoke<SyncSummary>("sync");
+    } catch (e) {
+      errorMsg = String(e);
+    } finally {
+      syncing = false;
+    }
+  }
+
+  async function onLogout() {
+    try {
+      await invoke("logout");
+    } catch {
+      // best-effort, on reset de toute façon
+    }
+    reset();
   }
 
   function reset() {
@@ -77,6 +133,7 @@
     tokens = null;
     pendingProviders = [];
     password = "";
+    syncSummary = null;
   }
 
   function truncate(s: string, n: number = 24): string {
@@ -99,11 +156,22 @@
       default: return `Provider #${p}`;
     }
   };
+
+  const cipherTypeLabel = (k: number): string => {
+    switch (k) {
+      case 1: return "Login";
+      case 2: return "Note";
+      case 3: return "Carte";
+      case 4: return "Identité";
+      case 5: return "Clé SSH";
+      default: return `Type ${k}`;
+    }
+  };
 </script>
 
 <main class="container">
   <h1>Clavix</h1>
-  <p class="subtitle">Étape 2b : login Vaultwarden + 2FA TOTP</p>
+  <p class="subtitle">Étape 2c : sync du coffre</p>
 
   {#if phase === "idle" || phase === "authenticating" || phase === "error"}
     <form onsubmit={onLoginSubmit}>
@@ -129,7 +197,7 @@
     <section class="box">
       <h2>Double authentification</h2>
       <p class="hint">
-        Providers annoncés par le serveur : {pendingProviders.map(providerLabel).join(", ")}
+        Providers annoncés : {pendingProviders.map(providerLabel).join(", ")}
       </p>
       <form onsubmit={onTwoFactorSubmit}>
         <label>
@@ -153,28 +221,86 @@
   {/if}
 
   {#if phase === "loggedIn" && tokens}
-    <section class="box result">
-      <h2>Connecté</h2>
+    <section class="box">
+      <h2>Session active</h2>
       <dl>
         <dt>access_token</dt>
         <dd><code>{truncate(tokens.access_token)}</code></dd>
-        <dt>refresh_token</dt>
-        <dd><code>{truncate(tokens.refresh_token)}</code></dd>
-        <dt>token_type</dt>
-        <dd>{tokens.token_type}</dd>
         <dt>expires_in</dt>
         <dd>{formatExpiry(tokens.expires_in)}</dd>
-        {#if tokens.kdf !== null && tokens.kdfIterations !== null}
-          <dt>KDF du compte</dt>
-          <dd>{tokens.kdf === 0 ? "PBKDF2" : "Argon2id"} / {tokens.kdfIterations.toLocaleString("fr-FR")} itérations</dd>
-        {/if}
-        {#if tokens.key}
-          <dt>Key (chiffrée)</dt>
-          <dd><code>{truncate(tokens.key, 32)}</code></dd>
-        {/if}
       </dl>
-      <button type="button" class="secondary" onclick={reset}>Se déconnecter</button>
+      <div class="row">
+        <button type="button" class="secondary" onclick={onLogout}>Se déconnecter</button>
+        <button type="button" onclick={onSync} disabled={syncing}>
+          {syncing ? "Synchronisation…" : (syncSummary ? "Resynchroniser" : "Synchroniser")}
+        </button>
+      </div>
     </section>
+
+    {#if syncSummary}
+      <section class="box">
+        <h2>Coffre synchronisé</h2>
+
+        <dl>
+          <dt>Compte</dt>
+          <dd>{syncSummary.name ?? syncSummary.email}</dd>
+          <dt>Items</dt>
+          <dd>{syncSummary.itemCount}</dd>
+          <dt>Folders</dt>
+          <dd>{syncSummary.folderCount}</dd>
+          <dt>Collections</dt>
+          <dd>{syncSummary.collectionCount}</dd>
+          <dt>Organisations</dt>
+          <dd>{syncSummary.organizationCount}</dd>
+        </dl>
+
+        <h3>Répartition par type</h3>
+        <dl>
+          <dt>Logins</dt>
+          <dd>{syncSummary.typeCounts.login}</dd>
+          <dt>Notes</dt>
+          <dd>{syncSummary.typeCounts.secureNote}</dd>
+          <dt>Cartes</dt>
+          <dd>{syncSummary.typeCounts.card}</dd>
+          <dt>Identités</dt>
+          <dd>{syncSummary.typeCounts.identity}</dd>
+          {#if syncSummary.typeCounts.sshKey > 0}
+            <dt>Clés SSH</dt>
+            <dd>{syncSummary.typeCounts.sshKey}</dd>
+          {/if}
+        </dl>
+
+        {#if syncSummary.folders.length > 0}
+          <h3>Folders <small>(noms chiffrés bruts)</small></h3>
+          <ul class="enc-list">
+            {#each syncSummary.folders as f (f.id)}
+              <li>
+                <span class="idish">{f.id.slice(0, 8)}</span>
+                <code>{truncate(f.encryptedName, 56)}</code>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+
+        {#if syncSummary.cipherPreview.length > 0}
+          <h3>Aperçu items <small>(10 premiers, chiffrés)</small></h3>
+          <ul class="enc-list">
+            {#each syncSummary.cipherPreview as c (c.id)}
+              <li>
+                <span class="badge">{cipherTypeLabel(c.kind)}</span>
+                <code>{truncate(c.encryptedName, 40)}</code>
+                {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+              </li>
+            {/each}
+          </ul>
+          {#if syncSummary.itemCount > syncSummary.cipherPreview.length}
+            <p class="hint">
+              … et {syncSummary.itemCount - syncSummary.cipherPreview.length} autres.
+            </p>
+          {/if}
+        {/if}
+      </section>
+    {/if}
   {/if}
 
   {#if errorMsg}
@@ -195,13 +321,29 @@
   }
 
   .container {
-    max-width: 540px;
+    max-width: 620px;
     margin: 0 auto;
     padding: 3rem 1.5rem;
   }
 
   h1 {
     margin: 0 0 0.25rem;
+  }
+
+  h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+
+  h3 {
+    margin: 1rem 0 0.5rem;
+    font-size: 0.9rem;
+    color: #444;
+  }
+
+  h3 small {
+    color: #888;
+    font-weight: 400;
   }
 
   .subtitle {
@@ -279,11 +421,6 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
-  .box h2 {
-    margin: 0 0 0.75rem;
-    font-size: 1rem;
-  }
-
   .box.error {
     border-left: 4px solid #d63a3a;
   }
@@ -295,7 +432,7 @@
   }
 
   .hint {
-    margin: 0 0 1rem;
+    margin: 0.5rem 0 0;
     font-size: 0.85rem;
     color: #555;
   }
@@ -303,8 +440,8 @@
   dl {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.4rem 1rem;
-    margin: 0 0 1rem;
+    gap: 0.35rem 1rem;
+    margin: 0 0 0.5rem;
   }
 
   dt {
@@ -330,6 +467,46 @@
     padding: 0.1rem 0.35rem;
     border-radius: 4px;
     font-size: 0.85em;
+    word-break: break-all;
+  }
+
+  .enc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .enc-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .idish {
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    color: #888;
+    min-width: 4.5rem;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    background: #eef2ff;
+    color: #3751c4;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    min-width: 3.5rem;
+    text-align: center;
+  }
+
+  .star {
+    color: #f0a500;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -337,7 +514,8 @@
       color: #f6f6f6;
       background-color: #1e1e1e;
     }
-    .subtitle { color: #aaa; }
+    .subtitle, h3 small, .hint { color: #aaa; }
+    h3 { color: #ccc; }
     form, .box { background: #2b2b2b; box-shadow: none; }
     label { color: #ccc; }
     input, button { background: #1e1e1e; color: #f6f6f6; border-color: #3a3a3a; }
@@ -345,8 +523,9 @@
     button.secondary { background: #2b2b2b; color: #ddd; border-color: #3a3a3a; }
     dt { color: #ccc; }
     .box.error pre { color: #ff8a8a; }
-    .hint { color: #aaa; }
     pre { background: #181818; }
     code { background: #333; }
+    .idish { color: #999; }
+    .badge { background: #1f2a54; color: #aabaff; }
   }
 </style>

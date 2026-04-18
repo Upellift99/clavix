@@ -4,7 +4,7 @@ use url::Url;
 
 use crate::crypto::MasterPasswordHash;
 use crate::error::{Error, Result};
-use crate::models::{LoginResult, Prelogin, TokenSet, TwoFactorProvider};
+use crate::models::{LoginResult, Prelogin, SyncResponse, TokenSet, TwoFactorProvider};
 
 #[derive(Debug, Clone)]
 pub struct VaultwardenClient {
@@ -73,6 +73,30 @@ impl VaultwardenClient {
         device: &DeviceInfo,
     ) -> Result<LoginResult> {
         self.login_inner(email, password_hash, device, None).await
+    }
+
+    pub async fn sync(&self, access_token: &str) -> Result<SyncResponse> {
+        let url = self.api_endpoint("sync")?;
+        let response = self
+            .http
+            .get(url)
+            .bearer_auth(access_token)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+
+        response
+            .json::<SyncResponse>()
+            .await
+            .map_err(|e| Error::InvalidResponse(e.to_string()))
     }
 
     pub async fn login_with_two_factor(
