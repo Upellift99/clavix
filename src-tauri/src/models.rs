@@ -354,6 +354,75 @@ pub struct LoginInput {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CardInput {
+    #[serde(default)]
+    pub cardholder_name: Option<String>,
+    #[serde(default)]
+    pub brand: Option<String>,
+    #[serde(default)]
+    pub number: Option<String>,
+    #[serde(default)]
+    pub exp_month: Option<String>,
+    #[serde(default)]
+    pub exp_year: Option<String>,
+    #[serde(default)]
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdentityInput {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub first_name: Option<String>,
+    #[serde(default)]
+    pub middle_name: Option<String>,
+    #[serde(default)]
+    pub last_name: Option<String>,
+    #[serde(default)]
+    pub address1: Option<String>,
+    #[serde(default)]
+    pub address2: Option<String>,
+    #[serde(default)]
+    pub address3: Option<String>,
+    #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default)]
+    pub postal_code: Option<String>,
+    #[serde(default)]
+    pub country: Option<String>,
+    #[serde(default)]
+    pub company: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub ssn: Option<String>,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub passport_number: Option<String>,
+    #[serde(default)]
+    pub license_number: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshKeyInput {
+    #[serde(default)]
+    pub private_key: Option<String>,
+    #[serde(default)]
+    pub public_key: Option<String>,
+    #[serde(default)]
+    pub key_fingerprint: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CipherCreateInput {
     pub name: String,
     #[serde(default)]
@@ -364,6 +433,20 @@ pub struct CipherCreateInput {
     pub notes: Option<String>,
     #[serde(default)]
     pub login: Option<LoginInput>,
+    #[serde(default)]
+    pub card: Option<CardInput>,
+    #[serde(default)]
+    pub identity: Option<IdentityInput>,
+    #[serde(default)]
+    pub ssh_key: Option<SshKeyInput>,
+    /// Discriminator chosen by the UI. Accepted values: 1 (Login),
+    /// 2 (SecureNote), 3 (Card), 4 (Identity), 5 (SshKey).
+    #[serde(default = "default_cipher_type")]
+    pub cipher_type: u8,
+}
+
+fn default_cipher_type() -> u8 {
+    1
 }
 
 // ============ Sync summary (vers Svelte) ============

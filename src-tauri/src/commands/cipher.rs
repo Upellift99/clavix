@@ -6,7 +6,7 @@ use crate::models::{
     CardDetail, CipherCreateInput, CipherDetail, IdentityDetail, LoginDetail, SshKeyDetail,
 };
 use crate::services::auth::ensure_fresh_tokens;
-use crate::services::cipher::build_login_cipher_body;
+use crate::services::cipher::{build_cipher_body, build_login_cipher_body};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -134,6 +134,60 @@ pub async fn update_login_cipher(
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let body = build_login_cipher_body(&input, &s.user_key)?;
+        (s.client.clone(), s.tokens.access_token.clone(), body)
+    };
+    let updated = client
+        .update_cipher(&access_token, &cipher_id, &body)
+        .await?;
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(slot) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                *slot = updated;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Generic creation — accepts any cipher type (Login, SecureNote, Card,
+/// Identity, SshKey) based on `input.cipher_type`.
+#[tauri::command]
+pub async fn create_cipher(
+    state: State<'_, AppState>,
+    input: CipherCreateInput,
+) -> Result<String> {
+    ensure_fresh_tokens(&state).await?;
+    let (client, access_token, body) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let body = build_cipher_body(&input, &s.user_key)?;
+        (s.client.clone(), s.tokens.access_token.clone(), body)
+    };
+    let created = client.create_cipher(&access_token, &body).await?;
+    let id = created.id.clone();
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            vault.ciphers.push(created);
+        }
+    }
+    Ok(id)
+}
+
+#[tauri::command]
+pub async fn update_cipher(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    input: CipherCreateInput,
+) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
+    let (client, access_token, body) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let body = build_cipher_body(&input, &s.user_key)?;
         (s.client.clone(), s.tokens.access_token.clone(), body)
     };
     let updated = client

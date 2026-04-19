@@ -134,8 +134,47 @@ export type CipherDetail = {
   sshKey: SshKeyDetail | null;
 };
 
+export type CipherKind = 1 | 2 | 3 | 4 | 5;
+
+export type CardFields = {
+  cardholderName: string;
+  brand: string;
+  number: string;
+  expMonth: string;
+  expYear: string;
+  code: string;
+};
+
+export type IdentityFields = {
+  title: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  address1: string;
+  address2: string;
+  address3: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  company: string;
+  email: string;
+  phone: string;
+  ssn: string;
+  username: string;
+  passportNumber: string;
+  licenseNumber: string;
+};
+
+export type SshKeyFields = {
+  privateKey: string;
+  publicKey: string;
+  keyFingerprint: string;
+};
+
 export type EditorInitial = {
   id: string | null;
+  cipherType: CipherKind;
   name: string;
   folderId: string | null;
   favorite: boolean;
@@ -144,10 +183,50 @@ export type EditorInitial = {
   password: string;
   uris: string[];
   totp: string;
+  card: CardFields;
+  identity: IdentityFields;
+  sshKey: SshKeyFields;
+};
+
+export const EMPTY_CARD_FIELDS: CardFields = {
+  cardholderName: "",
+  brand: "",
+  number: "",
+  expMonth: "",
+  expYear: "",
+  code: "",
+};
+
+export const EMPTY_IDENTITY_FIELDS: IdentityFields = {
+  title: "",
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  address1: "",
+  address2: "",
+  address3: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  country: "",
+  company: "",
+  email: "",
+  phone: "",
+  ssn: "",
+  username: "",
+  passportNumber: "",
+  licenseNumber: "",
+};
+
+export const EMPTY_SSH_FIELDS: SshKeyFields = {
+  privateKey: "",
+  publicKey: "",
+  keyFingerprint: "",
 };
 
 export const EMPTY_EDITOR_INITIAL: EditorInitial = {
   id: null,
+  cipherType: 1,
   name: "",
   folderId: null,
   favorite: false,
@@ -156,18 +235,12 @@ export const EMPTY_EDITOR_INITIAL: EditorInitial = {
   password: "",
   uris: [],
   totp: "",
+  card: { ...EMPTY_CARD_FIELDS },
+  identity: { ...EMPTY_IDENTITY_FIELDS },
+  sshKey: { ...EMPTY_SSH_FIELDS },
 };
 
-export type EditorPayload = {
-  name: string;
-  folderId: string | null;
-  favorite: boolean;
-  notes: string;
-  username: string;
-  password: string;
-  uris: string[];
-  totp: string;
-};
+export type EditorPayload = Omit<EditorInitial, "id">;
 
 export type SshAgentStatus = {
   running: boolean;

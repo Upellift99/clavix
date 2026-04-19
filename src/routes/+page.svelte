@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
-  import LoginEditor from "$lib/LoginEditor.svelte";
+  import CipherEditor from "$lib/CipherEditor.svelte";
   import AuthGate from "$lib/AuthGate.svelte";
   import SessionBar from "$lib/SessionBar.svelte";
   import VaultSidebar from "$lib/VaultSidebar.svelte";
@@ -251,7 +251,7 @@
 />
 
 {#key prefs.currentLocale}
-  <LoginEditor
+  <CipherEditor
     open={vault.editorOpen}
     mode={vault.editorMode}
     initial={vault.editorInitial}

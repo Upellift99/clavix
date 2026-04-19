@@ -31,6 +31,8 @@ pub fn run() {
             commands::cipher::get_cipher,
             commands::cipher::create_login_cipher,
             commands::cipher::update_login_cipher,
+            commands::cipher::create_cipher,
+            commands::cipher::update_cipher,
             commands::cipher::restore_cipher,
             commands::cipher::delete_cipher,
             commands::move_share::move_cipher_to_folder,

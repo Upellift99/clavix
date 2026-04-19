@@ -63,7 +63,7 @@
         <button type="button" class="small" onclick={() => onDeleteForever(detail.id)}>
           {m.action_delete_forever()}
         </button>
-      {:else if detail.kind === 1}
+      {:else}
         <button type="button" class="secondary small" onclick={onEdit}>
           {m.action_edit()}
         </button>

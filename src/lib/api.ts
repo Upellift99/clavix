@@ -10,6 +10,67 @@ import type {
   TokenSet,
 } from "./types";
 
+function nullIfEmpty(s: string): string | null {
+  return s.length > 0 ? s : null;
+}
+
+function payloadToRust(input: EditorPayload): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    cipherType: input.cipherType,
+    name: input.name,
+    folderId: input.folderId,
+    favorite: input.favorite,
+    notes: nullIfEmpty(input.notes),
+  };
+  if (input.cipherType === 1) {
+    base.login = {
+      username: nullIfEmpty(input.username),
+      password: nullIfEmpty(input.password),
+      uris: input.uris,
+      totp: nullIfEmpty(input.totp),
+    };
+  } else if (input.cipherType === 3) {
+    base.card = {
+      cardholderName: nullIfEmpty(input.card.cardholderName),
+      brand: nullIfEmpty(input.card.brand),
+      number: nullIfEmpty(input.card.number),
+      expMonth: nullIfEmpty(input.card.expMonth),
+      expYear: nullIfEmpty(input.card.expYear),
+      code: nullIfEmpty(input.card.code),
+    };
+  } else if (input.cipherType === 4) {
+    const id = input.identity;
+    base.identity = {
+      title: nullIfEmpty(id.title),
+      firstName: nullIfEmpty(id.firstName),
+      middleName: nullIfEmpty(id.middleName),
+      lastName: nullIfEmpty(id.lastName),
+      address1: nullIfEmpty(id.address1),
+      address2: nullIfEmpty(id.address2),
+      address3: nullIfEmpty(id.address3),
+      city: nullIfEmpty(id.city),
+      state: nullIfEmpty(id.state),
+      postalCode: nullIfEmpty(id.postalCode),
+      country: nullIfEmpty(id.country),
+      company: nullIfEmpty(id.company),
+      email: nullIfEmpty(id.email),
+      phone: nullIfEmpty(id.phone),
+      ssn: nullIfEmpty(id.ssn),
+      username: nullIfEmpty(id.username),
+      passportNumber: nullIfEmpty(id.passportNumber),
+      licenseNumber: nullIfEmpty(id.licenseNumber),
+    };
+  } else if (input.cipherType === 5) {
+    base.sshKey = {
+      privateKey: nullIfEmpty(input.sshKey.privateKey),
+      publicKey: nullIfEmpty(input.sshKey.publicKey),
+      keyFingerprint: nullIfEmpty(input.sshKey.keyFingerprint),
+    };
+  }
+  // type 2 (SecureNote): name + notes only, no extra field
+  return base;
+}
+
 export const api = {
   storedAccount: () => invoke<StoredAccount | null>("stored_account"),
 
@@ -43,38 +104,11 @@ export const api = {
 
   getCipher: (id: string) => invoke<CipherDetail>("get_cipher", { id }),
 
-  createLoginCipher: (input: Omit<EditorPayload, "id">) =>
-    invoke<string>("create_login_cipher", {
-      input: {
-        name: input.name,
-        folderId: input.folderId,
-        favorite: input.favorite,
-        notes: input.notes || null,
-        login: {
-          username: input.username || null,
-          password: input.password || null,
-          uris: input.uris,
-          totp: input.totp || null,
-        },
-      },
-    }),
+  createCipher: (input: EditorPayload) =>
+    invoke<string>("create_cipher", { input: payloadToRust(input) }),
 
-  updateLoginCipher: (cipherId: string, input: Omit<EditorPayload, "id">) =>
-    invoke<void>("update_login_cipher", {
-      cipherId,
-      input: {
-        name: input.name,
-        folderId: input.folderId,
-        favorite: input.favorite,
-        notes: input.notes || null,
-        login: {
-          username: input.username || null,
-          password: input.password || null,
-          uris: input.uris,
-          totp: input.totp || null,
-        },
-      },
-    }),
+  updateCipher: (cipherId: string, input: EditorPayload) =>
+    invoke<void>("update_cipher", { cipherId, input: payloadToRust(input) }),
 
   restoreCipher: (cipherId: string) => invoke<void>("restore_cipher", { cipherId }),
 

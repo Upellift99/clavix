@@ -235,18 +235,54 @@ export class VaultController {
   }
 
   openEditEditor() {
-    if (!this.detail || !this.detail.login) return;
+    if (!this.detail) return;
     const currentCipher = this.summary?.ciphers.find((c) => c.id === this.detail!.id);
+    const kind = (this.detail.kind as 1 | 2 | 3 | 4 | 5) ?? 1;
     this.editorInitial = {
+      ...EMPTY_EDITOR_INITIAL,
       id: this.detail.id,
+      cipherType: kind,
       name: currentCipher?.name ?? "",
       folderId: currentCipher?.folderId ?? null,
       favorite: currentCipher?.favorite ?? false,
-      notes: "",
-      username: this.detail.login.username ?? "",
-      password: this.detail.login.password ?? "",
-      uris: this.detail.login.uris ?? [],
-      totp: this.detail.login.totp ?? "",
+      notes: this.detail.notes ?? "",
+      username: this.detail.login?.username ?? "",
+      password: this.detail.login?.password ?? "",
+      uris: this.detail.login?.uris ?? [],
+      totp: this.detail.login?.totp ?? "",
+      card: {
+        cardholderName: this.detail.card?.cardholderName ?? "",
+        brand: this.detail.card?.brand ?? "",
+        number: this.detail.card?.number ?? "",
+        expMonth: this.detail.card?.expMonth ?? "",
+        expYear: this.detail.card?.expYear ?? "",
+        code: this.detail.card?.code ?? "",
+      },
+      identity: {
+        title: this.detail.identity?.title ?? "",
+        firstName: this.detail.identity?.firstName ?? "",
+        middleName: this.detail.identity?.middleName ?? "",
+        lastName: this.detail.identity?.lastName ?? "",
+        address1: this.detail.identity?.address1 ?? "",
+        address2: this.detail.identity?.address2 ?? "",
+        address3: this.detail.identity?.address3 ?? "",
+        city: this.detail.identity?.city ?? "",
+        state: this.detail.identity?.state ?? "",
+        postalCode: this.detail.identity?.postalCode ?? "",
+        country: this.detail.identity?.country ?? "",
+        company: this.detail.identity?.company ?? "",
+        email: this.detail.identity?.email ?? "",
+        phone: this.detail.identity?.phone ?? "",
+        ssn: this.detail.identity?.ssn ?? "",
+        username: this.detail.identity?.username ?? "",
+        passportNumber: this.detail.identity?.passportNumber ?? "",
+        licenseNumber: this.detail.identity?.licenseNumber ?? "",
+      },
+      sshKey: {
+        privateKey: this.detail.sshKey?.privateKey ?? "",
+        publicKey: this.detail.sshKey?.publicKey ?? "",
+        keyFingerprint: this.detail.sshKey?.keyFingerprint ?? "",
+      },
     };
     this.editorMode = "edit";
     this.editorOpen = true;
@@ -259,11 +295,11 @@ export class VaultController {
   async submitEditor(input: EditorPayload) {
     try {
       if (this.editorMode === "create") {
-        const newId = await api.createLoginCipher(input);
+        const newId = await api.createCipher(input);
         await this.sync();
         await this.openCipher(newId);
       } else if (this.editorInitial.id) {
-        await api.updateLoginCipher(this.editorInitial.id, input);
+        await api.updateCipher(this.editorInitial.id, input);
         await this.sync();
         await this.openCipher(this.editorInitial.id);
       }
