@@ -5,6 +5,44 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-04-19
+
+### Added
+- **Onboarding screen** on first launch, explaining what Clavix does and
+  pointing to the alpha-stage disclaimer. Dismissed permanently once
+  acknowledged (stored in `localStorage`).
+- **Password security audit** via the Have I Been Pwned range API,
+  using k-anonymity: only the first 5 hex characters of the SHA-1 hash
+  ever leave your machine. Results listed per compromised item with a
+  jump-to-item shortcut. Accessible from the shield button (🛡) in the
+  tree toolbar.
+- **Password generator** with configurable length, character classes
+  and ambiguous-character filter (🎲 button in the tree toolbar).
+- **Quick filter by cipher type** (Login / Note / Card / Identity /
+  SSH) in the sidebar, with per-type counts.
+- **Trash actions**: restore a deleted item or permanently delete it
+  from the detail panel.
+- **YubiKey OTP support** as a 2FA provider (provider 3): a dedicated
+  input captures the 44-character Modhex code and auto-submits once
+  the YubiKey has finished typing it. If the server offers both TOTP
+  and YubiKey, a method picker is shown.
+
+### Security
+- Activated Dependabot alerts, Dependabot security updates, secret
+  scanning and push protection on the public repository.
+- Added a CodeQL workflow running on every push, PR and weekly schedule
+  for JavaScript/TypeScript analysis.
+- `cookie` transitive dep pinned to `>= 0.7.0` via a pnpm override
+  (fixes GHSA-pxg6-pf52-xh8x).
+
+### Changed
+- The onboarding screen lives in its own component
+  (`src/lib/Onboarding.svelte`), a first step towards splitting the
+  large `+page.svelte` into smaller units.
+- Added `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, GitHub issue and pull
+  request templates, and a Dependabot config for routine dependency
+  updates.
+
 ## [0.1.2] — 2026-04-19
 
 ### Added
@@ -89,6 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.3]: https://github.com/Upellift99/clavix/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Upellift99/clavix/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Upellift99/clavix/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Upellift99/clavix/releases/tag/v0.1.0
