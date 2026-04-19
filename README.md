@@ -211,8 +211,3 @@ opened once the first usable release ships (phase 1 complete).
 ## License
 
 [GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html).
-
-## About
-
-Clavix is part of **Clavix Labs**, a future umbrella for FOSS tools
-centered on self-hosting, digital sovereignty, and GDPR.
