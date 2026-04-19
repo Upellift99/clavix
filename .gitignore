@@ -24,6 +24,7 @@ Thumbs.db
 *.swo
 .idea/
 .qodo/
+.claude/
 
 # ---- Logs et artefacts ----
 *.log
