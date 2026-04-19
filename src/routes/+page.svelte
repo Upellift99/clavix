@@ -58,6 +58,7 @@
     primaryUri: string | null;
     username: string | null;
     revisionDate: string | null;
+    deletedDate: string | null;
   };
 
   type SyncSummary = {
@@ -316,15 +317,24 @@
     const byFolder = new Map<string, number>();
     const byCollection = new Map<string, number>();
     const byOrg = new Map<string, number>();
-    if (!syncSummary) return { byFolder, byCollection, byOrg };
+    let favorites = 0;
+    let trash = 0;
+    const byType = new Map<number, number>();
+    if (!syncSummary) return { byFolder, byCollection, byOrg, favorites, trash, byType };
     for (const c of syncSummary.ciphers) {
+      if (c.deletedDate !== null) {
+        trash += 1;
+        continue;
+      }
+      if (c.favorite) favorites += 1;
+      byType.set(c.kind, (byType.get(c.kind) ?? 0) + 1);
       if (c.folderId) byFolder.set(c.folderId, (byFolder.get(c.folderId) ?? 0) + 1);
       if (c.organizationId) byOrg.set(c.organizationId, (byOrg.get(c.organizationId) ?? 0) + 1);
       for (const cid of c.collectionIds) {
         byCollection.set(cid, (byCollection.get(cid) ?? 0) + 1);
       }
     }
-    return { byFolder, byCollection, byOrg };
+    return { byFolder, byCollection, byOrg, favorites, trash, byType };
   });
 
   const folderTree = $derived.by<TreeNode | null>(() => {
@@ -476,6 +486,25 @@
   let sortKey = $state<SortKey>("name");
   let sortAsc = $state<boolean>(true);
 
+  type QuickFilter = "all" | "favorites" | "trash" | `type:${number}`;
+  let quickFilter = $state<QuickFilter>("all");
+
+  function selectQuickFilter(f: QuickFilter) {
+    quickFilter = f;
+    selectedKey = null;
+  }
+
+  function matchesQuickFilter(c: CipherSummary): boolean {
+    if (quickFilter === "trash") return c.deletedDate !== null;
+    if (c.deletedDate !== null) return false;
+    if (quickFilter === "favorites") return c.favorite;
+    if (quickFilter.startsWith("type:")) {
+      const k = parseInt(quickFilter.slice(5), 10);
+      return c.kind === k;
+    }
+    return true;
+  }
+
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
       sortAsc = !sortAsc;
@@ -497,7 +526,7 @@
   const filteredCiphers = $derived.by(() => {
     if (!syncSummary) return [];
     const q = searchDebounced.trim().toLowerCase();
-    let items = syncSummary.ciphers;
+    let items = syncSummary.ciphers.filter(matchesQuickFilter);
 
     if (selectedKey) {
       const node = findNodeInTrees(selectedKey);
@@ -1329,15 +1358,33 @@
               <button
                 type="button"
                 class="tree-all"
-                class:selected={selectedKey === null}
+                class:selected={selectedKey === null && quickFilter === "all"}
                 class:drop-over={dragOverKey === "__all__"}
-                onclick={() => (selectedKey = null)}
+                onclick={() => selectQuickFilter("all")}
                 ondragover={(e) => onNodeDragOver(e, "__all__")}
                 ondragleave={() => onNodeDragLeave("__all__")}
                 ondrop={onDropOnFolderRoot}
               >
                 <span>{m.tree_all_items()}</span>
-                <span class="tree-count">{syncSummary.itemCount.toLocaleString(currentLocale === "fr" ? "fr-FR" : "en-US")}</span>
+                <span class="tree-count">{(syncSummary.itemCount - cipherIndex.trash).toLocaleString(currentLocale === "fr" ? "fr-FR" : "en-US")}</span>
+              </button>
+              <button
+                type="button"
+                class="tree-all"
+                class:selected={quickFilter === "favorites"}
+                onclick={() => selectQuickFilter("favorites")}
+              >
+                <span>★ {m.tree_favorites()}</span>
+                <span class="tree-count">{cipherIndex.favorites}</span>
+              </button>
+              <button
+                type="button"
+                class="tree-all"
+                class:selected={quickFilter === "trash"}
+                onclick={() => selectQuickFilter("trash")}
+              >
+                <span>🗑 {m.tree_trash()}</span>
+                <span class="tree-count">{cipherIndex.trash}</span>
               </button>
               {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
                 <div class="tree-toolbar">

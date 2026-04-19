@@ -400,4 +400,5 @@ pub struct CipherSummary {
     pub primary_uri: Option<String>,
     pub username: Option<String>,
     pub revision_date: Option<String>,
+    pub deleted_date: Option<String>,
 }

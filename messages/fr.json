@@ -35,6 +35,9 @@
   "session_title": "Session active",
 
   "tree_all_items": "Tous les items",
+  "tree_favorites": "Favoris",
+  "tree_trash": "Corbeille",
+  "tree_types": "Par type",
   "tree_folders": "Folders",
   "tree_organizations": "Organisations",
   "tree_expand_all": "Tout déplier",

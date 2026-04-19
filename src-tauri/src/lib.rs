@@ -366,6 +366,7 @@ fn build_sync_summary(
                 primary_uri,
                 username,
                 revision_date: c.revision_date.clone(),
+                deleted_date: c.deleted_date.clone(),
             }
         })
         .collect();

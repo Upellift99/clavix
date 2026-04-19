@@ -35,6 +35,9 @@
   "session_title": "Active session",
 
   "tree_all_items": "All items",
+  "tree_favorites": "Favourites",
+  "tree_trash": "Trash",
+  "tree_types": "By type",
   "tree_folders": "Folders",
   "tree_organizations": "Organizations",
   "tree_expand_all": "Expand all",
