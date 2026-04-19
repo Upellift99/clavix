@@ -81,6 +81,46 @@ impl VaultwardenClient {
         self.login_inner(email, password_hash, device, None).await
     }
 
+    pub async fn refresh_token(
+        &self,
+        refresh_token: &str,
+        device: &DeviceInfo,
+    ) -> Result<TokenSet> {
+        let url = self.identity_endpoint("connect/token")?;
+
+        let form: Vec<(&str, String)> = vec![
+            ("grant_type", "refresh_token".into()),
+            ("refresh_token", refresh_token.to_string()),
+            ("client_id", "connector".into()),
+            ("deviceType", device.device_type.to_string()),
+            ("deviceIdentifier", device.identifier.clone()),
+            ("deviceName", device.name.clone()),
+        ];
+
+        let response = self.http.post(url).form(&form).send().await?;
+        let status = response.status();
+        let body = response.bytes().await?;
+
+        if status.is_success() {
+            return serde_json::from_slice(&body).map_err(|e| Error::InvalidResponse {
+                reason: e.to_string(),
+            });
+        }
+
+        if status.as_u16() == 400 {
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
+                return Err(Error::AuthFailed {
+                    message: extract_auth_error_message(&value),
+                });
+            }
+        }
+
+        Err(Error::HttpStatus {
+            status: status.as_u16(),
+            message: String::from_utf8_lossy(&body).into_owned(),
+        })
+    }
+
     pub async fn sync(&self, access_token: &str) -> Result<SyncResponse> {
         let url = self.api_endpoint("sync")?;
         let response = self.http.get(url).bearer_auth(access_token).send().await?;

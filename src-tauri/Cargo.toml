@@ -40,6 +40,7 @@ hmac = "0.12"
 hkdf = "0.12"
 rsa = "0.9"
 sha1 = "0.10"
+dirs = "5"
 
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.

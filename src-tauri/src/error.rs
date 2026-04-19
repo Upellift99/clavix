@@ -29,6 +29,9 @@ pub enum Error {
 
     #[error("No active session — please sign in")]
     NotAuthenticated,
+
+    #[error("Local storage error: {reason}")]
+    Storage { reason: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -67,6 +70,7 @@ impl Serialize for Error {
                 serde_json::json!({ "provider": provider }),
             ),
             Error::NotAuthenticated => ("not_authenticated", serde_json::json!({})),
+            Error::Storage { reason } => ("storage_error", serde_json::json!({ "reason": reason })),
         };
 
         ErrorPayload {

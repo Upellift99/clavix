@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { onMount } from "svelte";
 
   type TokenSet = {
     access_token: string;
@@ -47,7 +48,16 @@
     cipherPreview: CipherSummary[];
   };
 
-  type Phase = "idle" | "authenticating" | "twoFactor" | "loggedIn" | "error";
+  type Phase =
+    | "init"
+    | "idle"
+    | "authenticating"
+    | "twoFactor"
+    | "unlock"
+    | "loggedIn"
+    | "error";
+
+  type StoredAccount = { serverUrl: string; email: string };
 
   type TauriError = { code: string; message: string; data?: Record<string, unknown> };
 
@@ -65,12 +75,30 @@
   let email = $state("");
   let password = $state("");
   let totpCode = $state("");
-  let phase = $state<Phase>("idle");
+  let phase = $state<Phase>("init");
   let errorMsg = $state<string | null>(null);
   let tokens = $state<TokenSet | null>(null);
   let pendingProviders = $state<number[]>([]);
   let syncSummary = $state<SyncSummary | null>(null);
   let syncing = $state(false);
+  let storedAccount = $state<StoredAccount | null>(null);
+
+  onMount(async () => {
+    try {
+      const account = await invoke<StoredAccount | null>("stored_account");
+      if (account) {
+        storedAccount = account;
+        serverUrl = account.serverUrl;
+        email = account.email;
+        phase = "unlock";
+      } else {
+        phase = "idle";
+      }
+    } catch (e) {
+      errorMsg = formatError(e);
+      phase = "idle";
+    }
+  });
 
   async function onLoginSubmit(event: Event) {
     event.preventDefault();
@@ -80,6 +108,7 @@
       const result = await invoke<LoginResult>("login", { serverUrl, email, password });
       if (result.type === "success") {
         tokens = result.data;
+        storedAccount = { serverUrl, email };
         password = "";
         phase = "loggedIn";
       } else {
@@ -106,6 +135,7 @@
         provider: 0,
       });
       tokens = result;
+      storedAccount = { serverUrl, email };
       password = "";
       totpCode = "";
       phase = "loggedIn";
@@ -113,6 +143,51 @@
       errorMsg = formatError(e);
       phase = "twoFactor";
     }
+  }
+
+  async function onUnlockSubmit(event: Event) {
+    event.preventDefault();
+    phase = "authenticating";
+    errorMsg = null;
+    try {
+      tokens = await invoke<TokenSet>("unlock", { password });
+      password = "";
+      phase = "loggedIn";
+    } catch (e) {
+      errorMsg = formatError(e);
+      phase = "unlock";
+    }
+  }
+
+  async function onLock() {
+    try {
+      await invoke("lock");
+    } catch {
+      // best-effort
+    }
+    password = "";
+    totpCode = "";
+    tokens = null;
+    syncSummary = null;
+    pendingProviders = [];
+    errorMsg = null;
+    phase = storedAccount ? "unlock" : "idle";
+  }
+
+  async function switchAccount() {
+    try {
+      await invoke("logout");
+    } catch {
+      // best-effort
+    }
+    storedAccount = null;
+    password = "";
+    totpCode = "";
+    tokens = null;
+    syncSummary = null;
+    pendingProviders = [];
+    errorMsg = null;
+    phase = "idle";
   }
 
   async function onSync() {
@@ -127,17 +202,8 @@
     }
   }
 
-  async function onLogout() {
-    try {
-      await invoke("logout");
-    } catch {
-      // best-effort, on reset de toute façon
-    }
-    reset();
-  }
-
   function reset() {
-    phase = "idle";
+    phase = storedAccount ? "unlock" : "idle";
     errorMsg = null;
     totpCode = "";
     tokens = null;
@@ -181,9 +247,12 @@
 
 <main class="container">
   <h1>Clavix</h1>
-  <p class="subtitle">Étape 2c : sync du coffre</p>
 
-  {#if phase === "idle" || phase === "authenticating" || phase === "error"}
+  {#if phase === "init"}
+    <p class="subtitle">Chargement…</p>
+  {/if}
+
+  {#if phase === "idle" || (phase === "authenticating" && !storedAccount) || phase === "error"}
     <form onsubmit={onLoginSubmit}>
       <label>
         Serveur Vaultwarden
@@ -201,6 +270,27 @@
         {phase === "authenticating" ? "Connexion…" : "Connexion"}
       </button>
     </form>
+  {/if}
+
+  {#if phase === "unlock" || (phase === "authenticating" && storedAccount)}
+    <section class="box">
+      <h2>Déverrouiller</h2>
+      <p class="hint">
+        {storedAccount?.email} sur {storedAccount?.serverUrl}
+      </p>
+      <form onsubmit={onUnlockSubmit}>
+        <label>
+          Mot de passe maître
+          <input type="password" bind:value={password} required disabled={phase === "authenticating"} />
+        </label>
+        <div class="row">
+          <button type="button" class="secondary" onclick={switchAccount}>Changer de compte</button>
+          <button type="submit" disabled={phase === "authenticating"}>
+            {phase === "authenticating" ? "Déverrouillage…" : "Déverrouiller"}
+          </button>
+        </div>
+      </form>
+    </section>
   {/if}
 
   {#if phase === "twoFactor"}
@@ -240,7 +330,8 @@
         <dd>{formatExpiry(tokens.expires_in)}</dd>
       </dl>
       <div class="row">
-        <button type="button" class="secondary" onclick={onLogout}>Se déconnecter</button>
+        <button type="button" class="secondary" onclick={switchAccount}>Se déconnecter</button>
+        <button type="button" class="secondary" onclick={onLock}>Verrouiller</button>
         <button type="button" onclick={onSync} disabled={syncing}>
           {syncing ? "Synchronisation…" : (syncSummary ? "Resynchroniser" : "Synchroniser")}
         </button>

@@ -3,14 +3,14 @@ mod crypto;
 mod error;
 mod models;
 mod state;
+mod store;
 
 use std::collections::HashMap;
-use std::sync::OnceLock;
 
 use rsa::RsaPrivateKey;
 use secrecy::SecretString;
+use serde::Serialize;
 use tauri::State;
-use uuid::Uuid;
 
 use api::{DeviceInfo, VaultwardenClient};
 use crypto::{
@@ -23,34 +23,33 @@ use models::{
     TokenSet, TwoFactorProvider, TypeCounts,
 };
 use state::{AppState, Session};
+use store::PersistedSession;
 
-fn device_info() -> DeviceInfo {
-    static ID: OnceLock<String> = OnceLock::new();
-    let identifier = ID.get_or_init(|| Uuid::new_v4().to_string()).clone();
-    DeviceInfo {
-        identifier,
+fn device_info() -> Result<DeviceInfo> {
+    Ok(DeviceInfo {
+        identifier: store::get_or_create_device_id()?,
         name: "Clavix".to_string(),
         device_type: 8,
-    }
+    })
 }
 
 async fn prepare_credentials(
     server_url: &str,
     email: &str,
-    password: SecretString,
-) -> Result<(VaultwardenClient, MasterKey, MasterPasswordHash)> {
+    password: &SecretString,
+) -> Result<(VaultwardenClient, Prelogin, MasterKey, MasterPasswordHash)> {
     let client = VaultwardenClient::new(server_url)?;
     let pre = client.prelogin(email).await?;
     let master_key = derive_master_key(
-        &password,
+        password,
         email,
         pre.kdf,
         pre.kdf_iterations,
         pre.kdf_memory,
         pre.kdf_parallelism,
     )?;
-    let hash = derive_master_password_hash(&master_key, &password);
-    Ok((client, master_key, hash))
+    let hash = derive_master_password_hash(&master_key, password);
+    Ok((client, pre, master_key, hash))
 }
 
 fn extract_session_keys(
@@ -89,6 +88,40 @@ fn store_session(
     });
 }
 
+fn persist_session(server_url: &str, email: &str, pre: &Prelogin, tokens: &TokenSet) -> Result<()> {
+    let encrypted_user_key = tokens.key.clone().ok_or_else(|| Error::Crypto {
+        reason: "TokenSet is missing the 'key' field — cannot persist session".into(),
+    })?;
+
+    let persisted = PersistedSession {
+        server_url: server_url.to_string(),
+        email: email.to_string(),
+        refresh_token: tokens.refresh_token.clone(),
+        kdf: pre.kdf,
+        kdf_iterations: pre.kdf_iterations,
+        kdf_memory: pre.kdf_memory,
+        kdf_parallelism: pre.kdf_parallelism,
+        encrypted_user_key,
+        encrypted_private_key: tokens.private_key.clone(),
+    };
+    store::save_session(&persisted)
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredAccount {
+    pub server_url: String,
+    pub email: String,
+}
+
+#[tauri::command]
+fn stored_account() -> Result<Option<StoredAccount>> {
+    Ok(store::load_session()?.map(|s| StoredAccount {
+        server_url: s.server_url,
+        email: s.email,
+    }))
+}
+
 #[tauri::command]
 async fn prelogin(server_url: String, email: String) -> Result<Prelogin> {
     let client = VaultwardenClient::new(&server_url)?;
@@ -103,11 +136,14 @@ async fn login(
     password: String,
 ) -> Result<LoginResult> {
     let password: SecretString = password.into();
-    let (client, master_key, hash) = prepare_credentials(&server_url, &email, password).await?;
-    let result = client.login(&email, &hash, &device_info()).await?;
+    let (client, pre, master_key, hash) =
+        prepare_credentials(&server_url, &email, &password).await?;
+    let device = device_info()?;
+    let result = client.login(&email, &hash, &device).await?;
 
     if let LoginResult::Success(ref tokens) = result {
         let (user_key, private_key) = extract_session_keys(&master_key, tokens)?;
+        persist_session(&server_url, &email, &pre, tokens)?;
         store_session(&state, client, tokens.clone(), user_key, private_key);
     }
 
@@ -126,12 +162,56 @@ async fn login_with_two_factor(
     let typed_provider = TwoFactorProvider::try_from(provider)
         .map_err(|_| Error::TwoFactorProviderUnsupported { provider })?;
     let password: SecretString = password.into();
-    let (client, master_key, hash) = prepare_credentials(&server_url, &email, password).await?;
+    let (client, pre, master_key, hash) =
+        prepare_credentials(&server_url, &email, &password).await?;
+    let device = device_info()?;
     let tokens = client
-        .login_with_two_factor(&email, &hash, &device_info(), typed_provider, &code)
+        .login_with_two_factor(&email, &hash, &device, typed_provider, &code)
         .await?;
 
     let (user_key, private_key) = extract_session_keys(&master_key, &tokens)?;
+    persist_session(&server_url, &email, &pre, &tokens)?;
+    store_session(&state, client, tokens.clone(), user_key, private_key);
+    Ok(tokens)
+}
+
+#[tauri::command]
+async fn unlock(state: State<'_, AppState>, password: String) -> Result<TokenSet> {
+    let persisted = store::load_session()?.ok_or_else(|| Error::Storage {
+        reason: "no stored session to unlock".into(),
+    })?;
+
+    let password: SecretString = password.into();
+    let master_key = derive_master_key(
+        &password,
+        &persisted.email,
+        persisted.kdf,
+        persisted.kdf_iterations,
+        persisted.kdf_memory,
+        persisted.kdf_parallelism,
+    )?;
+
+    let user_key = decrypt_user_key(&master_key, &persisted.encrypted_user_key)?;
+    let private_key = persisted
+        .encrypted_private_key
+        .as_deref()
+        .map(|pk| decrypt_private_key(&user_key, pk))
+        .transpose()?;
+
+    let client = VaultwardenClient::new(&persisted.server_url)?;
+    let device = device_info()?;
+    let mut tokens = client
+        .refresh_token(&persisted.refresh_token, &device)
+        .await?;
+
+    if tokens.refresh_token.is_empty() {
+        tokens.refresh_token = persisted.refresh_token.clone();
+    }
+
+    let mut updated = persisted.clone();
+    updated.refresh_token = tokens.refresh_token.clone();
+    store::save_session(&updated)?;
+
     store_session(&state, client, tokens.clone(), user_key, private_key);
     Ok(tokens)
 }
@@ -241,9 +321,19 @@ fn decrypt_or_placeholder(encrypted: &str, key: &SymmetricKey) -> String {
 }
 
 #[tauri::command]
-fn logout(state: State<'_, AppState>) -> Result<()> {
+fn lock(state: State<'_, AppState>) -> Result<()> {
     let mut guard = state.session.lock().unwrap();
     *guard = None;
+    Ok(())
+}
+
+#[tauri::command]
+fn logout(state: State<'_, AppState>) -> Result<()> {
+    {
+        let mut guard = state.session.lock().unwrap();
+        *guard = None;
+    }
+    store::clear_session()?;
     Ok(())
 }
 
@@ -256,8 +346,11 @@ pub fn run() {
             prelogin,
             login,
             login_with_two_factor,
+            unlock,
             sync,
-            logout
+            lock,
+            logout,
+            stored_account
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
