@@ -83,13 +83,126 @@
   let syncing = $state(false);
   let storedAccount = $state<StoredAccount | null>(null);
   let search = $state("");
+  let selectedFolderPath = $state<string | null>(null);
+  let expanded = $state<Set<string>>(new Set());
+
+  type TreeNode = {
+    key: string;
+    label: string;
+    path: string;
+    folderId: string | null;
+    children: TreeNode[];
+    itemCount: number;
+  };
+
+  const folderTree = $derived.by(() => {
+    if (!syncSummary) return null;
+    const root: TreeNode = {
+      key: "__root__",
+      label: "",
+      path: "",
+      folderId: null,
+      children: [],
+      itemCount: 0,
+    };
+    for (const f of syncSummary.folders) {
+      const segments = f.name.split("/").map((s) => s.trim()).filter((s) => s.length > 0);
+      if (segments.length === 0) continue;
+      insertFolder(root, segments, f.id);
+    }
+    computeFolderCounts(root, syncSummary.ciphers);
+    sortTree(root);
+    return root;
+  });
+
+  function insertFolder(root: TreeNode, segments: string[], folderId: string) {
+    let current = root;
+    let acc = "";
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      acc = acc ? `${acc}/${seg}` : seg;
+      let child = current.children.find((c) => c.label === seg);
+      if (!child) {
+        child = {
+          key: acc,
+          label: seg,
+          path: acc,
+          folderId: null,
+          children: [],
+          itemCount: 0,
+        };
+        current.children.push(child);
+      }
+      if (i === segments.length - 1) {
+        child.folderId = folderId;
+      }
+      current = child;
+    }
+  }
+
+  function computeFolderCounts(node: TreeNode, ciphers: CipherSummary[]): number {
+    const direct = node.folderId
+      ? ciphers.filter((c) => c.folderId === node.folderId).length
+      : 0;
+    let total = direct;
+    for (const child of node.children) {
+      total += computeFolderCounts(child, ciphers);
+    }
+    node.itemCount = total;
+    return total;
+  }
+
+  function sortTree(node: TreeNode) {
+    node.children.sort((a, b) => a.label.localeCompare(b.label, "fr"));
+    for (const child of node.children) sortTree(child);
+  }
+
+  function findNodeByPath(root: TreeNode, path: string): TreeNode | null {
+    if (root.path === path && path !== "") return root;
+    for (const c of root.children) {
+      const found = findNodeByPath(c, path);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function collectFolderIds(node: TreeNode, ids: Set<string>) {
+    if (node.folderId) ids.add(node.folderId);
+    for (const c of node.children) collectFolderIds(c, ids);
+  }
+
+  const allowedFolderIds = $derived.by<Set<string> | null>(() => {
+    if (!folderTree || !selectedFolderPath) return null;
+    const node = findNodeByPath(folderTree, selectedFolderPath);
+    if (!node) return null;
+    const ids = new Set<string>();
+    collectFolderIds(node, ids);
+    return ids;
+  });
 
   const filteredCiphers = $derived.by(() => {
     if (!syncSummary) return [];
     const q = search.trim().toLowerCase();
-    if (!q) return syncSummary.ciphers;
-    return syncSummary.ciphers.filter((c) => c.name.toLowerCase().includes(q));
+    let items = syncSummary.ciphers;
+    if (allowedFolderIds) {
+      items = items.filter((c) => c.folderId !== null && allowedFolderIds.has(c.folderId));
+    }
+    if (q) {
+      items = items.filter((c) => c.name.toLowerCase().includes(q));
+    }
+    return items;
   });
+
+  function toggleExpanded(key: string) {
+    const next = new Set(expanded);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    expanded = next;
+  }
+
+  function selectFolder(path: string) {
+    selectedFolderPath = selectedFolderPath === path ? null : path;
+  }
 
   onMount(async () => {
     try {
@@ -392,40 +505,104 @@
         {/if}
 
         {#if syncSummary.ciphers.length > 0}
-          <h3>
-            Items
-            <small>
-              ({filteredCiphers.length.toLocaleString("fr-FR")}
-              {#if search.trim()}/{syncSummary.ciphers.length.toLocaleString("fr-FR")}{/if})
-            </small>
-          </h3>
-          <div class="search-row">
-            <input
-              type="search"
-              bind:value={search}
-              placeholder="Rechercher un item…"
-              class="search"
-            />
-            {#if search.trim()}
-              <button type="button" class="secondary small" onclick={() => (search = "")}>
-                Effacer
+          <div class="vault-layout">
+            <aside class="tree-pane">
+              <button
+                type="button"
+                class="tree-all"
+                class:selected={selectedFolderPath === null}
+                onclick={() => (selectedFolderPath = null)}
+              >
+                <span>Tous les items</span>
+                <span class="tree-count">{syncSummary.itemCount.toLocaleString("fr-FR")}</span>
               </button>
-            {/if}
+              {#if folderTree && folderTree.children.length > 0}
+                <h4>Folders</h4>
+                <ul class="tree-root">
+                  {#each folderTree.children as node (node.key)}
+                    {@render treeNode(node)}
+                  {/each}
+                </ul>
+              {/if}
+            </aside>
+
+            <section class="list-pane">
+              <h3>
+                Items
+                <small>
+                  ({filteredCiphers.length.toLocaleString("fr-FR")}
+                  {#if search.trim() || selectedFolderPath}/{syncSummary.ciphers.length.toLocaleString("fr-FR")}{/if})
+                </small>
+              </h3>
+              <div class="search-row">
+                <input
+                  type="search"
+                  bind:value={search}
+                  placeholder="Rechercher un item…"
+                  class="search"
+                />
+                {#if search.trim()}
+                  <button type="button" class="secondary small" onclick={() => (search = "")}>
+                    Effacer
+                  </button>
+                {/if}
+              </div>
+              {#if filteredCiphers.length === 0}
+                <p class="hint">
+                  {#if search.trim()}
+                    Aucun item ne correspond à « {search} ».
+                  {:else}
+                    Aucun item dans ce dossier.
+                  {/if}
+                </p>
+              {:else}
+                <ul class="enc-list">
+                  {#each filteredCiphers as c (c.id)}
+                    <li>
+                      <span class="badge">{cipherTypeLabel(c.kind)}</span>
+                      <span class="name">{c.name}</span>
+                      {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            </section>
           </div>
-          {#if filteredCiphers.length === 0}
-            <p class="hint">Aucun item ne correspond à « {search} ».</p>
-          {:else}
-            <ul class="enc-list">
-              {#each filteredCiphers as c (c.id)}
-                <li>
-                  <span class="badge">{cipherTypeLabel(c.kind)}</span>
-                  <span class="name">{c.name}</span>
-                  {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
-                </li>
-              {/each}
-            </ul>
-          {/if}
         {/if}
+
+        {#snippet treeNode(node: TreeNode)}
+          <li>
+            <div class="tree-row" class:selected={selectedFolderPath === node.path}>
+              {#if node.children.length > 0}
+                <button
+                  type="button"
+                  class="tree-toggle"
+                  onclick={() => toggleExpanded(node.key)}
+                  aria-label={expanded.has(node.key) ? "Réduire" : "Déplier"}
+                >
+                  {expanded.has(node.key) ? "▼" : "▶"}
+                </button>
+              {:else}
+                <span class="tree-spacer"></span>
+              {/if}
+              <button
+                type="button"
+                class="tree-label"
+                onclick={() => selectFolder(node.path)}
+              >
+                <span class="tree-label-text">{node.label}</span>
+                <span class="tree-count">{node.itemCount}</span>
+              </button>
+            </div>
+            {#if expanded.has(node.key) && node.children.length > 0}
+              <ul class="tree-children">
+                {#each node.children as child (child.key)}
+                  {@render treeNode(child)}
+                {/each}
+              </ul>
+            {/if}
+          </li>
+        {/snippet}
       </section>
     {/if}
   {/if}
@@ -448,9 +625,9 @@
   }
 
   .container {
-    max-width: 620px;
+    max-width: 960px;
     margin: 0 auto;
-    padding: 3rem 1.5rem;
+    padding: 2rem 1.5rem;
   }
 
   h1 {
@@ -654,6 +831,173 @@
   button.small {
     padding: 0.4rem 0.75rem;
     font-size: 0.9rem;
+  }
+
+  .vault-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .tree-pane {
+    background: #fff;
+    border-radius: 10px;
+    padding: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .tree-pane h4 {
+    margin: 0.75rem 0 0.3rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #888;
+  }
+
+  .tree-root,
+  .tree-children {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .tree-children {
+    padding-left: 0.9rem;
+    margin-left: 0.5rem;
+    border-left: 1px solid #e5e5e5;
+  }
+
+  .tree-row {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+
+  .tree-toggle,
+  .tree-spacer {
+    width: 1.3rem;
+    min-width: 1.3rem;
+    height: 1.3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tree-toggle {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.6rem;
+    color: #777;
+    padding: 0;
+  }
+
+  .tree-label {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 0.2rem 0.4rem;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  .tree-label-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tree-label:hover {
+    background: #f0f0f0;
+  }
+
+  .tree-row.selected > .tree-label {
+    background: #e3ecff;
+    color: #1e3a8a;
+    font-weight: 500;
+  }
+
+  .tree-count {
+    font-size: 0.72rem;
+    color: #888;
+    background: #f1f1f1;
+    padding: 0.05rem 0.4rem;
+    border-radius: 10px;
+    min-width: 1.5rem;
+    text-align: center;
+  }
+
+  .tree-row.selected > .tree-label .tree-count {
+    background: #c5d6ff;
+    color: #1e3a8a;
+  }
+
+  .tree-all {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.6rem;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    font-weight: 500;
+  }
+
+  .tree-all:hover {
+    background: #f0f0f0;
+  }
+
+  .tree-all.selected {
+    background: #e3ecff;
+    color: #1e3a8a;
+  }
+
+  @media (max-width: 760px) {
+    .vault-layout {
+      grid-template-columns: 1fr;
+    }
+    .tree-pane {
+      max-height: 40vh;
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .tree-pane {
+      background: #2b2b2b;
+      box-shadow: none;
+    }
+    .tree-pane h4 { color: #aaa; }
+    .tree-label:hover, .tree-all:hover { background: #333; }
+    .tree-row.selected > .tree-label,
+    .tree-all.selected {
+      background: #1f2a54;
+      color: #aabaff;
+    }
+    .tree-count {
+      background: #333;
+      color: #aaa;
+    }
+    .tree-row.selected > .tree-label .tree-count {
+      background: #2a3870;
+      color: #aabaff;
+    }
+    .tree-children { border-left-color: #444; }
   }
 
   @media (prefers-color-scheme: dark) {
