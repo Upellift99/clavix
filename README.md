@@ -1,94 +1,109 @@
 # Clavix
 
-**Client desktop moderne pour Vaultwarden et Bitwarden.**
+**A modern desktop client for Vaultwarden and Bitwarden.**
 
-Clavix est une alternative au client officiel Bitwarden et à Keyguard,
-pensée pour la communauté self-hosted Vaultwarden. L'objectif : offrir
-enfin une gestion d'arborescence confortable avec drag & drop, comme
-KeePassXC le propose depuis des années.
+Clavix is an alternative to the official Bitwarden client and Keyguard,
+built for the self-hosted Vaultwarden community. The goal: finally
+provide a comfortable tree-based vault with drag & drop, the way
+KeePassXC has offered for years.
 
-> **Statut : en cours de développement.** Aucune version utilisable
-> n'est encore publiée.
+> **Status: work in progress.** No usable release has shipped yet,
+> but the core is in place: login, 2FA, sync, full decryption, tree
+> navigation with drag & drop.
 
-## Où en est Clavix aujourd'hui
+## What Clavix can do today
 
-Clavix sait déjà, contre une instance Vaultwarden réelle :
+Against a real Vaultwarden instance, Clavix already:
 
-- se connecter (email + mot de passe maître, KDF PBKDF2 et Argon2id) ;
-- passer un challenge 2FA TOTP ;
-- synchroniser le coffre complet (items, folders, collections,
-  organisations) ;
-- **déchiffrer côté client** les noms de folders et d'items, aussi
-  bien pour le coffre personnel (AES-256-CBC + HMAC-SHA256) que pour
-  les items d'organisations dont la clé est chiffrée en RSA-OAEP-SHA1
-  via la clé privée de l'utilisateur ;
-- afficher un récapitulatif du coffre (compteurs + aperçu d'items en
-  clair).
+- signs you in (email + master password, PBKDF2 and Argon2id KDFs);
+- handles a TOTP 2FA challenge;
+- **persists the session locally** under `~/.local/share/clavix/` —
+  on restart you land on an *Unlock* screen that only asks for the
+  master password (no 2FA again, OAuth2 token refreshed
+  automatically);
+- syncs the full vault (items, folders, collections, organizations);
+- **decrypts everything client-side**: AES-256-CBC + HMAC-SHA256 for
+  the personal vault, RSA-OAEP-SHA1 for organization keys;
+- shows the complete list of items with a live substring search;
+- navigates through a hierarchical **TreeView** built from the
+  Bitwarden `/` naming convention (personal folders + collections
+  per organization);
+- shows item details: username, hidden password, URLs, notes. The
+  *Copy* button places the value on the clipboard and **automatically
+  clears it after 30 seconds**;
+- **drag & drop** an item onto a folder or a collection;
+- **drag & drop a whole folder** to rearrange the tree — all its
+  sub-folders are renamed in cascade on the server.
 
-Le mot de passe maître ne touche jamais le serveur ni le disque :
-seules des valeurs dérivées transitent (master password hash pour
-l'authentification, master key pour le déchiffrement local). Toutes
-les clés sensibles (`MasterKey`, `SymmetricKey`) s'effacent de la
-mémoire à leur destruction via `zeroize`.
+The master password never hits the server nor the disk: only derived
+values are exchanged (master password hash for authentication, master
+key for local decryption). Every sensitive key (`MasterKey`,
+`SymmetricKey`) derives `ZeroizeOnDrop` to wipe its memory on
+destruction.
 
-Ce qui manque encore pour la release utilisable : recherche, détail
-d'item, copie presse-papier, cache local persistant. Voir la roadmap.
+What's still missing before a usable release: a persistent local
+cache for offline reading. See the roadmap.
 
 ---
 
-## Pourquoi ce projet
+## Why this project
 
-Le client officiel Bitwarden (Electron) a une UX datée et n'offre pas
-de vrai drag & drop d'arbre. Keyguard, l'alternative la plus sérieuse,
-est en lecture seule sans abonnement premium et gère mal les
-hiérarchies profondes. Clavix vise à combler ce manque pour la
-communauté self-hosted.
+The official Bitwarden client (Electron) has a dated UX and does not
+offer real tree-drag-and-drop. Keyguard, the most serious alternative,
+is read-only without a premium subscription and handles deep
+hierarchies poorly. Clavix aims to fill that gap for the self-hosted
+community.
 
-## Stack technique
+## Tech stack
 
-- **Framework** — [Tauri 2](https://tauri.app) (Rust + WebView natif)
+- **Framework** — [Tauri 2](https://tauri.app) (Rust + native WebView)
 - **Frontend** — [Svelte 5](https://svelte.dev) + TypeScript + Vite
-- **Backend** — Rust (crypto Bitwarden inspirée de [rbw](https://github.com/doy/rbw))
-- **Drag & drop** — `svelte-dnd-action`
-- **Cache local** — SQLite chiffré (`rusqlite`)
-- **Secrets OS** — `keyring-rs` (trousseau système)
+- **Backend** — Rust (Bitwarden crypto inspired by [rbw](https://github.com/doy/rbw))
+- **Drag & drop** — native HTML5 (svelte-dnd-action only if sortable
+  lists become needed later)
+- **Local session** — JSON files under `~/.local/share/clavix/` with
+  0600 permissions (cross-platform via the `dirs` crate)
+- **Offline cache** — encrypted SQLite (`rusqlite`), planned
 
-> Clavix n'utilise **pas** le SDK officiel Bitwarden (licence ambiguë).
-> La crypto est réimplémentée côté projet, sous licence GPL-3.0.
+> Clavix does **not** use the official Bitwarden SDK (ambiguous
+> license). The crypto is reimplemented in-project, under GPL-3.0.
 
-## Roadmap MVP
+## MVP roadmap
 
-### Phase 1 — Lecture seule
-- [x] Login contre une instance Vaultwarden (URL custom)
-- [x] Déverrouillage par mot de passe maître (PBKDF2 + Argon2id)
-- [x] 2FA TOTP
-- [x] Sync initial : items, folders, collections, organisations
-- [x] Déchiffrement des noms (AES-CBC + HMAC, RSA-OAEP)
-- [ ] Liste complète avec recherche
-- [ ] Détail d'un item, copie clipboard avec effacement auto (30 s)
-- [ ] Persistance du refresh token via `keyring-rs`
-- [ ] Cache local chiffré (mode offline en lecture)
+### Phase 1 — Read-only
+- [x] Login against a Vaultwarden instance (custom URL)
+- [x] Master password unlock (PBKDF2 + Argon2id)
+- [x] TOTP 2FA
+- [x] Initial sync: items, folders, collections, organizations
+- [x] Decrypt names and fields (AES-CBC + HMAC, RSA-OAEP)
+- [x] Persisted session on disk + *Unlock* screen
+- [x] Full list with live search
+- [x] Item details + clipboard copy with 30 s auto-clear
+- [ ] Encrypted local cache (offline read-only mode)
 
-### Phase 2 — Arborescence
-- [ ] Parsing des noms avec `/` pour construire l'arbre
-- [ ] TreeView avec expand/collapse
-- [ ] Arbre des folders perso **et** des collections d'organisations
+### Phase 2 — Tree view
+- [x] Parse `/`-separated names into a hierarchy
+- [x] TreeView with expand/collapse
+- [x] Tree of personal folders **and** organization collections
 
 ### Phase 3 — Drag & drop (killer feature)
-- [ ] Drag & drop d'items vers un folder ou une collection
-- [ ] Drag & drop de folders entre eux
-- [ ] Rename propagé côté serveur, UI optimiste avec rollback
+- [x] Drag items onto a folder (PUT `/ciphers/{id}/partial`)
+- [x] Drag items onto an organization collection
+- [x] Drag a folder onto another folder, with cascade rename of
+  sub-folders
+- [ ] Share a personal item into an organization collection
+  (`POST /ciphers/{id}/share`)
 
-### Hors scope MVP
+### Out of MVP scope
 
-Création/édition/suppression d'items, génération de mots de passe,
-attachments, Sends, passkeys, auto-fill navigateur, YubiKey/FIDO2
-(phase 4+), import KeePass (phase 5+).
+Creating/editing/deleting items, password generation, attachments,
+Sends, passkeys, browser autofill, YubiKey/FIDO2 (phase 4+), KeePass
+import (phase 5+).
 
-## Prérequis (développement)
+## Development requirements
 
-- **Rust** ≥ 1.85 (edition 2024 requise par les dépendances)
-- **Node.js** ≥ 20 et **pnpm** ≥ 10
+- **Rust** ≥ 1.85 (edition 2024 required by deps)
+- **Node.js** ≥ 20 and **pnpm** ≥ 10
 
 ### Ubuntu / Debian
 
@@ -104,92 +119,100 @@ sudo apt install \
   build-essential curl wget file
 ```
 
-### Autres plateformes
+### Other platforms
 
-Voir la [documentation Tauri](https://tauri.app/start/prerequisites/).
+See the [Tauri prerequisites](https://tauri.app/start/prerequisites/).
 
-## Lancer l'app en développement
+## Run the app in development
 
 ```bash
 pnpm install
 pnpm tauri dev
 ```
 
-La première compilation Rust prend quelques minutes (toutes les
-dépendances Tauri), les suivantes sont incrémentales grâce au cache
-`target/`.
+The first Rust compilation takes a few minutes (full Tauri dependency
+graph). Subsequent compiles are incremental thanks to the `target/`
+cache.
 
-## Structure du dépôt
+## Repository layout
 
 ```
 clavix/
-├── src-tauri/        Backend Rust (Tauri)
+├── src-tauri/        Rust backend (Tauri)
 │   └── src/
-│       ├── main.rs       Entrée binaire
-│       ├── lib.rs        Commandes Tauri exposées à Svelte
-│       ├── api.rs        Client HTTP Vaultwarden (prelogin / login / sync)
-│       ├── crypto.rs     Dérivation de clés, EncString (AES / RSA)
-│       ├── models.rs     Types API et DTO envoyés à l'UI
-│       ├── state.rs      AppState (session en mémoire, clés déchiffrées)
-│       └── error.rs      Type Error unifié, sérialisé { code, message, data }
-├── src/              Frontend SvelteKit (rendu statique, pas de SSR)
+│       ├── main.rs       Binary entry point
+│       ├── lib.rs        Tauri commands exposed to Svelte
+│       ├── api.rs        Vaultwarden HTTP client
+│       ├── crypto.rs     Key derivation, EncString (AES / RSA)
+│       ├── models.rs     API types and DTOs sent to the UI
+│       ├── state.rs      AppState (in-memory session + keys)
+│       ├── store.rs      On-disk session persistence
+│       └── error.rs      Unified Error type, serialized as
+│                         { code, message, data }
+├── src/              SvelteKit frontend (static output, no SSR)
 │   ├── app.html
 │   └── routes/
 │       ├── +layout.ts
-│       └── +page.svelte  Écran unique pour l'instant (login → sync)
-├── .github/workflows/ci.yml   CI (fmt, clippy, cargo audit, svelte-check)
-└── CLAUDE.md         Contexte projet pour pair programming
+│       └── +page.svelte  Single screen for now
+├── .github/workflows/ci.yml   CI (fmt, clippy, cargo audit,
+│                               svelte-check)
+└── CLAUDE.md         Project context for pair programming
 ```
 
-À mesure que l'app grossit, `src/routes/+page.svelte` sera découpé en
-composants dans `src/lib/components/` et en stores dans
+As the app grows, `src/routes/+page.svelte` will be split into
+components under `src/lib/components/` and stores under
 `src/lib/stores/`.
 
-## Sécurité
+## Security
 
-- Le mot de passe maître et les clés symétriques dérivées
-  (`MasterKey`, `SymmetricKey`) dérivent `ZeroizeOnDrop` : leur
-  mémoire est écrasée dès qu'ils sortent du scope. En transit,
-  le mot de passe passe en `SecretString` (crate `secrecy`) qui
-  empêche le `Debug` de le divulguer dans les logs.
-- Tout le déchiffrement se fait **côté client** ; le serveur ne voit
-  jamais les secrets en clair.
-- La vérification HMAC du ciphertext AES-CBC se fait en **temps
-  constant** (`hmac::Mac::verify_slice`) avant le déchiffrement.
-- **En cours de développement**, le refresh token reste en mémoire
-  process — redémarrer l'app exige un relogin. La persistance via
-  `keyring-rs` (trousseau OS) et le cache local SQLite chiffré sont
-  planifiés pour finir la phase 1.
-- Clavix est testé en priorité contre **Vaultwarden**. La
-  compatibilité Bitwarden officiel est un bonus, pas une garantie.
+- The master password and every derived symmetric key (`MasterKey`,
+  `SymmetricKey`) derive `ZeroizeOnDrop`: their memory is wiped on
+  scope exit. The password travels through `SecretString` (`secrecy`
+  crate), which prevents `Debug` from leaking it into logs.
+- All decryption happens **client-side**; the server never sees any
+  secret in clear text.
+- HMAC verification of AES-CBC ciphertext runs in **constant time**
+  (`hmac::Mac::verify_slice`) before decryption.
+- The clipboard is automatically cleared **30 seconds** after a copy,
+  with a banner counting down.
+- The session is persisted to `~/.local/share/clavix/session.json`
+  (0600 permissions on Unix). Sensitive fields (`Key`, `PrivateKey`)
+  stay encrypted by the stretched master key; only the OAuth2 refresh
+  token lives there in clear — Clavix thus assumes your user disk is
+  under your control (full-disk encryption such as LUKS is
+  recommended).
+- Clavix is primarily tested against **Vaultwarden**. Official
+  Bitwarden compatibility is a bonus, not a guarantee.
 
-Les vulnérabilités doivent être signalées en privé au mainteneur avant
-toute divulgation publique.
+Vulnerabilities should be reported privately to the maintainer before
+any public disclosure.
 
-## Qualité / CI
+## Quality / CI
 
-Chaque push et pull request vers `main` ou `master` déclenche un
-workflow GitHub Actions qui vérifie :
+Every push and pull request against `main` or `master` triggers a
+GitHub Actions workflow that runs:
 
-- `cargo fmt --check` — style Rust.
-- `cargo clippy --all-targets -- -D warnings` — lint strict.
-- `cargo audit` — vulnérabilités dans les dépendances.
-- `pnpm check` (svelte-check) — typage TypeScript / Svelte.
+- `cargo fmt --check` — Rust style.
+- `cargo clippy --all-targets -- -D warnings` — strict lint.
+- `cargo audit` — vulnerability scan on dependencies
+  (RUSTSEC-2023-0071 on the `rsa` crate is ignored, see the comment
+  in `.github/workflows/ci.yml`).
+- `pnpm check` (svelte-check) — TypeScript / Svelte typing.
 
-Les dépendances systèmes Tauri sont installées à chaque run ; le
-cache `target/` est géré par `Swatinem/rust-cache`.
+Tauri system libraries are installed on every run; the `target/`
+cache is handled by `Swatinem/rust-cache`.
 
-## Contribuer
+## Contributing
 
-Le projet est encore à ses débuts et l'architecture bouge. Les issues
-et suggestions sont bienvenues ; les PR seront ouvertes à partir de la
-première release utilisable (phase 1 complète).
+The project is at an early stage and the architecture still moves
+around. Issues and suggestions are welcome; pull requests will be
+opened once the first usable release ships (phase 1 complete).
 
-## Licence
+## License
 
 [GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html).
 
-## À propos
+## About
 
-Clavix fait partie de **Clavix Labs**, qui regroupera à terme d'autres
-outils FOSS orientés self-hosting, souveraineté et RGPD.
+Clavix is part of **Clavix Labs**, a future umbrella for FOSS tools
+centered on self-hosting, digital sovereignty, and GDPR.
