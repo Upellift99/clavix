@@ -147,11 +147,33 @@
   type TauriError = { code: string; message: string; data?: Record<string, unknown> };
 
   function formatError(e: unknown): string {
-    if (e && typeof e === "object" && "message" in e) {
-      const m = (e as { message?: unknown }).message;
-      if (typeof m === "string") return m;
+    if (!e || typeof e !== "object") return String(e);
+    const err = e as { code?: string; message?: string; data?: Record<string, unknown> };
+    const data = err.data ?? {};
+    const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+
+    switch (err.code) {
+      case "invalid_url":
+        return m.err_invalid_url({ url: str(data.url) });
+      case "network_error":
+        return m.err_network({ cause: str(data.cause) });
+      case "invalid_response":
+        return m.err_invalid_response({ reason: str(data.reason) });
+      case "http_status":
+        return m.err_http_status({ status: str(data.status), message: str(data.message) });
+      case "auth_failed":
+        return m.err_auth_failed({ message: str(data.message) });
+      case "crypto_error":
+        return m.err_crypto({ reason: str(data.reason) });
+      case "two_factor_provider_unsupported":
+        return m.err_two_factor_provider_unsupported({ provider: str(data.provider) });
+      case "not_authenticated":
+        return m.err_not_authenticated();
+      case "storage_error":
+        return m.err_storage({ reason: str(data.reason) });
+      default:
+        return err.message ?? String(e);
     }
-    return String(e);
   }
 
   const TOTP_PATTERN = "[0-9]{6}";

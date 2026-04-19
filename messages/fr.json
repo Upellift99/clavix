@@ -103,5 +103,15 @@
   "provider_email": "Email",
   "provider_duo": "Duo",
   "provider_yubikey": "YubiKey OTP",
-  "provider_webauthn": "WebAuthn / FIDO2"
+  "provider_webauthn": "WebAuthn / FIDO2",
+
+  "err_invalid_url": "URL invalide : {url}",
+  "err_network": "Erreur réseau : {cause}",
+  "err_invalid_response": "Réponse serveur invalide : {reason}",
+  "err_http_status": "Erreur HTTP {status} : {message}",
+  "err_auth_failed": "Échec d'authentification : {message}",
+  "err_crypto": "Erreur cryptographique : {reason}",
+  "err_two_factor_provider_unsupported": "Provider 2FA non supporté : {provider}",
+  "err_not_authenticated": "Aucune session active — veuillez vous connecter.",
+  "err_storage": "Erreur de stockage local : {reason}"
 }
