@@ -154,10 +154,7 @@ pub async fn update_login_cipher(
 /// Generic creation — accepts any cipher type (Login, SecureNote, Card,
 /// Identity, SshKey) based on `input.cipher_type`.
 #[tauri::command]
-pub async fn create_cipher(
-    state: State<'_, AppState>,
-    input: CipherCreateInput,
-) -> Result<String> {
+pub async fn create_cipher(state: State<'_, AppState>, input: CipherCreateInput) -> Result<String> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token, body) = {
         let guard = state.session.lock().unwrap();

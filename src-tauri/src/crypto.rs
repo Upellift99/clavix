@@ -293,13 +293,17 @@ pub fn reencrypt_with_key(
 }
 
 pub fn encrypt_string(plaintext: &str, key: &SymmetricKey) -> Result<String> {
+    encrypt_bytes(plaintext.as_bytes(), key)
+}
+
+pub fn encrypt_bytes(plaintext: &[u8], key: &SymmetricKey) -> Result<String> {
     let mut iv = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut iv);
 
     let cipher = Aes256CbcEnc::new_from_slices(&key.enc, &iv).map_err(|e| Error::Crypto {
         reason: format!("AES-CBC encrypt init: {e}"),
     })?;
-    let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(plaintext.as_bytes());
+    let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(plaintext);
 
     let mut mac = HmacSha256::new_from_slice(&key.mac).map_err(|e| Error::Crypto {
         reason: format!("HMAC init: {e}"),
@@ -314,4 +318,277 @@ pub fn encrypt_string(plaintext: &str, key: &SymmetricKey) -> Result<String> {
         STANDARD.encode(&ciphertext),
         STANDARD.encode(mac_bytes)
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn deterministic_sym_key(seed: u8) -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8)
+                .wrapping_mul(seed.wrapping_add(1))
+                .wrapping_add(seed);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn split_parts(encoded: &str) -> (String, String, String) {
+        let rest = encoded.strip_prefix("2.").expect("type-2 prefix");
+        let parts: Vec<&str> = rest.split('|').collect();
+        assert_eq!(parts.len(), 3, "type-2 EncString must have 3 b64 parts");
+        (parts[0].into(), parts[1].into(), parts[2].into())
+    }
+
+    #[test]
+    fn encrypt_then_decrypt_string_roundtrip() {
+        let key = deterministic_sym_key(7);
+        let plaintext = "héllo world ✨ — multi-byte content";
+        let encoded = encrypt_string(plaintext, &key).expect("encrypt");
+        let parsed = EncString::parse(&encoded).expect("parse");
+        let decoded = parsed.decrypt_string_sym(&key).expect("decrypt");
+        assert_eq!(decoded, plaintext);
+    }
+
+    #[test]
+    fn encrypt_then_decrypt_bytes_roundtrip() {
+        let key = deterministic_sym_key(11);
+        let plaintext: Vec<u8> = (0u8..=255).collect();
+        let encoded = encrypt_bytes(&plaintext, &key).expect("encrypt");
+        let parsed = EncString::parse(&encoded).expect("parse");
+        let decoded = parsed.decrypt_sym(&key).expect("decrypt");
+        assert_eq!(decoded, plaintext);
+    }
+
+    #[test]
+    fn encrypt_produces_unique_iv_each_call() {
+        let key = deterministic_sym_key(3);
+        let a = encrypt_string("same plaintext", &key).unwrap();
+        let b = encrypt_string("same plaintext", &key).unwrap();
+        assert_ne!(a, b);
+        let (iv_a, _, _) = split_parts(&a);
+        let (iv_b, _, _) = split_parts(&b);
+        assert_ne!(iv_a, iv_b);
+    }
+
+    #[test]
+    fn decrypt_rejects_tampered_mac() {
+        let key = deterministic_sym_key(5);
+        let encoded = encrypt_string("secret", &key).unwrap();
+        let (iv, ct, mac) = split_parts(&encoded);
+        let mut mac_bytes = STANDARD.decode(&mac).unwrap();
+        mac_bytes[0] ^= 0x01;
+        let tampered = format!("2.{iv}|{ct}|{}", STANDARD.encode(&mac_bytes));
+        let parsed = EncString::parse(&tampered).unwrap();
+        assert!(parsed.decrypt_sym(&key).is_err());
+    }
+
+    #[test]
+    fn decrypt_rejects_tampered_ciphertext() {
+        let key = deterministic_sym_key(9);
+        let encoded = encrypt_string("a long enough secret to span a block", &key).unwrap();
+        let (iv, ct, mac) = split_parts(&encoded);
+        let mut ct_bytes = STANDARD.decode(&ct).unwrap();
+        ct_bytes[0] ^= 0x01;
+        let tampered = format!("2.{iv}|{}|{mac}", STANDARD.encode(&ct_bytes));
+        let parsed = EncString::parse(&tampered).unwrap();
+        assert!(parsed.decrypt_sym(&key).is_err());
+    }
+
+    #[test]
+    fn decrypt_rejects_tampered_iv() {
+        let key = deterministic_sym_key(13);
+        let encoded = encrypt_string("a payload", &key).unwrap();
+        let (iv, ct, mac) = split_parts(&encoded);
+        let mut iv_bytes = STANDARD.decode(&iv).unwrap();
+        iv_bytes[0] ^= 0x01;
+        let tampered = format!("2.{}|{ct}|{mac}", STANDARD.encode(&iv_bytes));
+        let parsed = EncString::parse(&tampered).unwrap();
+        assert!(parsed.decrypt_sym(&key).is_err());
+    }
+
+    #[test]
+    fn parse_rejects_bad_iv_length() {
+        let key = deterministic_sym_key(17);
+        let encoded = encrypt_string("payload", &key).unwrap();
+        let (_, ct, mac) = split_parts(&encoded);
+        let short_iv = STANDARD.encode([0u8; 8]);
+        let bad = format!("2.{short_iv}|{ct}|{mac}");
+        assert!(EncString::parse(&bad).is_err());
+    }
+
+    #[test]
+    fn parse_rejects_bad_mac_length() {
+        let key = deterministic_sym_key(19);
+        let encoded = encrypt_string("payload", &key).unwrap();
+        let (iv, ct, _) = split_parts(&encoded);
+        let short_mac = STANDARD.encode([0u8; 16]);
+        let bad = format!("2.{iv}|{ct}|{short_mac}");
+        assert!(EncString::parse(&bad).is_err());
+    }
+
+    #[test]
+    fn parse_rejects_missing_type_separator() {
+        assert!(EncString::parse("foobar").is_err());
+    }
+
+    #[test]
+    fn parse_rejects_unknown_prefix() {
+        assert!(EncString::parse("9.somecontent").is_err());
+        assert!(EncString::parse("0.aGVsbG8=").is_err());
+    }
+
+    #[test]
+    fn parse_rejects_invalid_base64() {
+        assert!(EncString::parse("2.!!!|@@@|###").is_err());
+    }
+
+    #[test]
+    fn parse_rejects_wrong_part_count() {
+        let iv = STANDARD.encode([0u8; 16]);
+        let mac = STANDARD.encode([0u8; 32]);
+        let ct = STANDARD.encode([0u8; 16]);
+        assert!(EncString::parse(&format!("2.{iv}|{ct}")).is_err());
+        assert!(EncString::parse(&format!("2.{iv}|{ct}|{mac}|extra")).is_err());
+    }
+
+    #[test]
+    fn symmetric_key_from_bytes_validates_length() {
+        assert!(SymmetricKey::from_bytes(&[0u8; 32]).is_err());
+        assert!(SymmetricKey::from_bytes(&[0u8; 63]).is_err());
+        assert!(SymmetricKey::from_bytes(&[0u8; 65]).is_err());
+        assert!(SymmetricKey::from_bytes(&[0u8; 64]).is_ok());
+    }
+
+    #[test]
+    fn pbkdf2_normalizes_email_case_and_whitespace() {
+        let pwd: SecretString = "password".to_string().into();
+        let key_a =
+            derive_master_key(&pwd, "User@Example.COM", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let key_b = derive_master_key(
+            &pwd,
+            "  user@example.com  ",
+            KdfType::Pbkdf2,
+            1000,
+            None,
+            None,
+        )
+        .unwrap();
+        let h_a = derive_master_password_hash(&key_a, &pwd);
+        let h_b = derive_master_password_hash(&key_b, &pwd);
+        assert_eq!(h_a.as_str(), h_b.as_str());
+    }
+
+    #[test]
+    fn pbkdf2_iterations_change_output() {
+        let pwd: SecretString = "password".to_string().into();
+        let k1 = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let k2 = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 2000, None, None).unwrap();
+        let h1 = derive_master_password_hash(&k1, &pwd);
+        let h2 = derive_master_password_hash(&k2, &pwd);
+        assert_ne!(h1.as_str(), h2.as_str());
+    }
+
+    #[test]
+    fn pbkdf2_different_passwords_diverge() {
+        let p1: SecretString = "password-one".to_string().into();
+        let p2: SecretString = "password-two".to_string().into();
+        let k1 = derive_master_key(&p1, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let k2 = derive_master_key(&p2, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let h1 = derive_master_password_hash(&k1, &p1);
+        let h2 = derive_master_password_hash(&k2, &p2);
+        assert_ne!(h1.as_str(), h2.as_str());
+    }
+
+    #[test]
+    fn argon2id_requires_memory_and_parallelism() {
+        let pwd: SecretString = "password".to_string().into();
+        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, None, Some(2)).is_err());
+        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, Some(8), None).is_err());
+        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, Some(8), Some(2)).is_ok());
+    }
+
+    #[test]
+    fn master_password_hash_is_b64_32_bytes() {
+        let pwd: SecretString = "password".to_string().into();
+        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let hash = derive_master_password_hash(&mk, &pwd);
+        let raw = STANDARD
+            .decode(hash.as_str())
+            .expect("hash must be valid base64");
+        assert_eq!(raw.len(), 32);
+    }
+
+    #[test]
+    fn stretch_master_key_is_deterministic() {
+        let pwd: SecretString = "password".to_string().into();
+        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let s1 = stretch_master_key(&mk).unwrap();
+        let s2 = stretch_master_key(&mk).unwrap();
+        let payload = "deterministic check";
+        let enc = encrypt_string(payload, &s1).unwrap();
+        let dec = EncString::parse(&enc)
+            .unwrap()
+            .decrypt_string_sym(&s2)
+            .unwrap();
+        assert_eq!(dec, payload);
+    }
+
+    #[test]
+    fn decrypt_user_key_roundtrip() {
+        let pwd: SecretString = "password".to_string().into();
+        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let stretched = stretch_master_key(&mk).unwrap();
+        let user_key_bytes = [42u8; 64];
+        let encoded = encrypt_bytes(&user_key_bytes, &stretched).unwrap();
+        let recovered = decrypt_user_key(&mk, &encoded).expect("recovers user key");
+        // Probe: original and recovered keys must be byte-identical → encrypting with
+        // one and decrypting with the other must work.
+        let original_user_key = SymmetricKey::from_bytes(&user_key_bytes).unwrap();
+        let probe = encrypt_string("probe", &recovered).unwrap();
+        let dec = EncString::parse(&probe)
+            .unwrap()
+            .decrypt_string_sym(&original_user_key)
+            .unwrap();
+        assert_eq!(dec, "probe");
+    }
+
+    #[test]
+    fn reencrypt_with_key_pivots_value_correctly() {
+        let key_a = deterministic_sym_key(23);
+        let key_b = deterministic_sym_key(31);
+        let original = "secret value";
+        let enc_a = encrypt_string(original, &key_a).unwrap();
+        let enc_b = reencrypt_with_key(&enc_a, &key_a, &key_b).unwrap();
+        // Old key MUST NOT be able to decrypt the re-encrypted ciphertext.
+        assert!(EncString::parse(&enc_b)
+            .unwrap()
+            .decrypt_string_sym(&key_a)
+            .is_err());
+        let dec = EncString::parse(&enc_b)
+            .unwrap()
+            .decrypt_string_sym(&key_b)
+            .unwrap();
+        assert_eq!(dec, original);
+    }
+
+    #[test]
+    fn decrypt_sym_rejects_rsa_encstring() {
+        let key = deterministic_sym_key(2);
+        let rsa_enc = EncString::Rsa2048OaepSha1 {
+            ciphertext: vec![0u8; 256],
+        };
+        assert!(rsa_enc.decrypt_sym(&key).is_err());
+    }
+
+    #[test]
+    fn decrypt_string_sym_rejects_non_utf8_payload() {
+        let key = deterministic_sym_key(4);
+        let invalid_utf8 = vec![0xff, 0xfe, 0xfd];
+        let encoded = encrypt_bytes(&invalid_utf8, &key).unwrap();
+        let parsed = EncString::parse(&encoded).unwrap();
+        assert!(parsed.decrypt_sym(&key).is_ok());
+        assert!(parsed.decrypt_string_sym(&key).is_err());
+    }
 }
