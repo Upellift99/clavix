@@ -640,6 +640,32 @@
     showSshPrivate = false;
   }
 
+  async function restoreCipher(id: string) {
+    try {
+      await invoke("restore_cipher", { cipherId: id });
+      if (syncSummary) {
+        const c = syncSummary.ciphers.find((c) => c.id === id);
+        if (c) c.deletedDate = null;
+      }
+      if (detail?.id === id) detail.id = detail.id;
+    } catch (e) {
+      errorMsg = formatError(e);
+    }
+  }
+
+  async function deleteCipherForever(id: string) {
+    if (!confirm(m.action_confirm_delete())) return;
+    try {
+      await invoke("delete_cipher", { cipherId: id });
+      if (syncSummary) {
+        syncSummary.ciphers = syncSummary.ciphers.filter((c) => c.id !== id);
+      }
+      if (detail?.id === id) closeDetail();
+    } catch (e) {
+      errorMsg = formatError(e);
+    }
+  }
+
   async function openCipher(id: string) {
     if (detail?.id === id) {
       detail = null;
@@ -1386,6 +1412,26 @@
                 <span>🗑 {m.tree_trash()}</span>
                 <span class="tree-count">{cipherIndex.trash}</span>
               </button>
+              <details class="tree-types">
+                <summary>{m.tree_types()}</summary>
+                {#each [
+                  [1, "🔐", m.type_login()],
+                  [2, "📝", m.type_note()],
+                  [3, "💳", m.type_card()],
+                  [4, "🪪", m.type_identity()],
+                  [5, "🔑", m.type_ssh_key()],
+                ] as [k, icon, label]}
+                  <button
+                    type="button"
+                    class="tree-all tree-type-btn"
+                    class:selected={quickFilter === `type:${k}`}
+                    onclick={() => selectQuickFilter(`type:${k}` as QuickFilter)}
+                  >
+                    <span>{icon} {label}</span>
+                    <span class="tree-count">{cipherIndex.byType.get(k as number) ?? 0}</span>
+                  </button>
+                {/each}
+              </details>
               {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
                 <div class="tree-toolbar">
                   <button type="button" class="secondary small" onclick={expandAllNodes}>
@@ -1568,7 +1614,17 @@
                   <span class="badge">{cipherTypeLabel(detail.kind)}</span>
                   <h2>{detail.name}</h2>
                 </div>
-                <button type="button" class="secondary small" onclick={closeDetail}>Fermer</button>
+                <div class="row">
+                  {#if syncSummary?.ciphers.find((c) => c.id === detail?.id)?.deletedDate}
+                    <button type="button" class="secondary small" onclick={() => restoreCipher(detail!.id)}>
+                      {m.action_restore()}
+                    </button>
+                    <button type="button" class="small" onclick={() => deleteCipherForever(detail!.id)}>
+                      {m.action_delete_forever()}
+                    </button>
+                  {/if}
+                  <button type="button" class="secondary small" onclick={closeDetail}>{m.action_close()}</button>
+                </div>
               </header>
 
               {#if detail.login}
@@ -1924,6 +1980,20 @@
       <dd>{syncSummary.collectionCount}</dd>
       <dt>{m.stats_organizations()}</dt>
       <dd>{syncSummary.organizationCount}</dd>
+    </dl>
+
+    <h3>{m.settings_title()}</h3>
+    <dl>
+      <dt>{m.settings_language()}</dt>
+      <dd>
+        <select
+          value={currentLocale}
+          onchange={(e) => applyLocale((e.currentTarget as HTMLSelectElement).value as Locale, { reload: true })}
+        >
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </dd>
       <dt>{m.stats_auto_lock()}</dt>
       <dd>
         <select
@@ -1937,16 +2007,6 @@
           <option value={15}>{m.stats_auto_lock_minutes({ count: "15" })}</option>
           <option value={30}>{m.stats_auto_lock_minutes({ count: "30" })}</option>
           <option value={60}>{m.stats_auto_lock_hour()}</option>
-        </select>
-      </dd>
-      <dt>Langue / Language</dt>
-      <dd>
-        <select
-          value={currentLocale}
-          onchange={(e) => applyLocale((e.currentTarget as HTMLSelectElement).value as Locale, { reload: true })}
-        >
-          <option value="fr">Français</option>
-          <option value="en">English</option>
         </select>
       </dd>
     </dl>
@@ -2471,6 +2531,28 @@
 
   .tree-row.org-root > .tree-label {
     font-weight: 500;
+  }
+
+  .tree-types {
+    margin-top: 0.25rem;
+  }
+
+  .tree-types summary {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #888;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .tree-types summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .tree-types .tree-type-btn {
+    padding-left: 1.25rem;
   }
 
   .cipher-list {

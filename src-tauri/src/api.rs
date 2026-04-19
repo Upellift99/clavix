@@ -121,6 +121,39 @@ impl VaultwardenClient {
         })
     }
 
+    pub async fn restore_cipher(&self, access_token: &str, cipher_id: &str) -> Result<()> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/restore"))?;
+        let response = self.http.put(url).bearer_auth(access_token).send().await?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+        Ok(())
+    }
+
+    pub async fn delete_cipher(&self, access_token: &str, cipher_id: &str) -> Result<()> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}"))?;
+        let response = self
+            .http
+            .delete(url)
+            .bearer_auth(access_token)
+            .send()
+            .await?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+        Ok(())
+    }
+
     pub async fn update_cipher_partial(
         &self,
         access_token: &str,

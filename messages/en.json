@@ -25,6 +25,12 @@
   "action_show": "Show",
   "action_hide": "Hide",
   "action_clear_now": "Clear now",
+  "action_restore": "Restore",
+  "action_delete_forever": "Delete permanently",
+  "action_confirm_delete": "This item will be permanently deleted. Continue?",
+
+  "settings_title": "Preferences",
+  "settings_language": "Language",
 
   "unlock_title": "Unlock",
 

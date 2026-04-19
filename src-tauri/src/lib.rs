@@ -698,6 +698,44 @@ async fn move_folder_path(
 }
 
 #[tauri::command]
+async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
+    let (client, access_token) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        (s.client.clone(), s.tokens.access_token.clone())
+    };
+    client.restore_cipher(&access_token, &cipher_id).await?;
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                cipher.deleted_date = None;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
+    let (client, access_token) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        (s.client.clone(), s.tokens.access_token.clone())
+    };
+    client.delete_cipher(&access_token, &cipher_id).await?;
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            vault.ciphers.retain(|c| c.id != cipher_id);
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn share_cipher_to_collection(
     state: State<'_, AppState>,
     cipher_id: String,
@@ -924,7 +962,9 @@ pub fn run() {
             move_cipher_to_collection,
             move_folder_path,
             load_cached_vault,
-            share_cipher_to_collection
+            share_cipher_to_collection,
+            restore_cipher,
+            delete_cipher
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

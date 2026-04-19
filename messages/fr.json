@@ -25,6 +25,12 @@
   "action_show": "Afficher",
   "action_hide": "Masquer",
   "action_clear_now": "Effacer maintenant",
+  "action_restore": "Restaurer",
+  "action_delete_forever": "Supprimer définitivement",
+  "action_confirm_delete": "Cet item sera définitivement supprimé. Continuer ?",
+
+  "settings_title": "Préférences",
+  "settings_language": "Langue",
 
   "unlock_title": "Déverrouiller",
 
