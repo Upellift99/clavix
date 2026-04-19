@@ -19,8 +19,9 @@ use crypto::{
 };
 use error::{Error, Result};
 use models::{
-    CipherSummary, CipherType, CollectionSummary, FolderSummary, LoginResult, OrganizationSummary,
-    Prelogin, SyncResponse, SyncSummary, TokenSet, TwoFactorProvider, TypeCounts,
+    CipherDetail, CipherSummary, CipherType, CollectionSummary, FolderSummary, LoginDetail,
+    LoginResult, OrganizationSummary, Prelogin, SyncResponse, SyncSummary, TokenSet,
+    TwoFactorProvider, TypeCounts,
 };
 use state::{AppState, Session};
 use store::PersistedSession;
@@ -346,6 +347,57 @@ fn decrypt_or_placeholder(encrypted: &str, key: &SymmetricKey) -> String {
 }
 
 #[tauri::command]
+fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail> {
+    let guard = state.session.lock().unwrap();
+    let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+    let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+        reason: "no vault synced yet — synchronise first".into(),
+    })?;
+
+    let cipher = vault
+        .ciphers
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| Error::Storage {
+            reason: format!("cipher not found: {id}"),
+        })?;
+
+    let key = cipher
+        .organization_id
+        .as_ref()
+        .and_then(|oid| session.org_keys.get(oid))
+        .unwrap_or(&session.user_key);
+
+    let decrypt_opt = |s: &str| -> Option<String> { decrypt_name(s, key).ok() };
+
+    let login = cipher.login.as_ref().map(|l| LoginDetail {
+        username: l.username.as_deref().and_then(decrypt_opt),
+        password: l.password.as_deref().and_then(decrypt_opt),
+        uris: l
+            .uris
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|u| u.uri.as_deref().and_then(decrypt_opt))
+            .collect(),
+        totp: l.totp.as_deref().and_then(decrypt_opt),
+    });
+
+    Ok(CipherDetail {
+        id: cipher.id.clone(),
+        kind: cipher.kind as u8,
+        name: decrypt_name(&cipher.name, key).unwrap_or_else(|e| format!("[decrypt failed: {e}]")),
+        notes: cipher.notes.as_deref().and_then(decrypt_opt),
+        organization_id: cipher.organization_id.clone(),
+        folder_id: cipher.folder_id.clone(),
+        collection_ids: cipher.collection_ids.clone(),
+        revision_date: cipher.revision_date.clone(),
+        favorite: cipher.favorite,
+        login,
+    })
+}
+
+#[tauri::command]
 fn lock(state: State<'_, AppState>) -> Result<()> {
     let mut guard = state.session.lock().unwrap();
     *guard = None;
@@ -367,6 +419,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
             prelogin,
             login,
@@ -375,7 +428,8 @@ pub fn run() {
             sync,
             lock,
             logout,
-            stored_account
+            stored_account,
+            get_cipher
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { onMount } from "svelte";
+  import { clear as clearClipboard, writeText } from "@tauri-apps/plugin-clipboard-manager";
+  import { onDestroy, onMount } from "svelte";
 
   type TokenSet = {
     access_token: string;
@@ -53,6 +54,26 @@
     ciphers: CipherSummary[];
   };
 
+  type LoginDetail = {
+    username: string | null;
+    password: string | null;
+    uris: string[];
+    totp: string | null;
+  };
+
+  type CipherDetail = {
+    id: string;
+    kind: number;
+    name: string;
+    notes: string | null;
+    organizationId: string | null;
+    folderId: string | null;
+    collectionIds: string[];
+    revisionDate: string | null;
+    favorite: boolean;
+    login: LoginDetail | null;
+  };
+
   type Phase =
     | "init"
     | "idle"
@@ -90,6 +111,15 @@
   let search = $state("");
   let selectedKey = $state<string | null>(null);
   let expanded = $state<Set<string>>(new Set());
+  let detail = $state<CipherDetail | null>(null);
+  let detailLoading = $state(false);
+  let showPassword = $state(false);
+  let clipboardSecondsLeft = $state<number | null>(null);
+  let clipboardLabel = $state<string | null>(null);
+  let clipboardTimeout: ReturnType<typeof setTimeout> | null = null;
+  let clipboardInterval: ReturnType<typeof setInterval> | null = null;
+
+  const CLIPBOARD_CLEAR_SECONDS = 30;
 
   type TreeNode = {
     key: string;
@@ -289,6 +319,86 @@
   function selectNode(key: string) {
     selectedKey = selectedKey === key ? null : key;
   }
+
+  async function openCipher(id: string) {
+    if (detail?.id === id) {
+      detail = null;
+      showPassword = false;
+      return;
+    }
+    detailLoading = true;
+    errorMsg = null;
+    showPassword = false;
+    try {
+      detail = await invoke<CipherDetail>("get_cipher", { id });
+    } catch (e) {
+      errorMsg = formatError(e);
+      detail = null;
+    } finally {
+      detailLoading = false;
+    }
+  }
+
+  function closeDetail() {
+    detail = null;
+    showPassword = false;
+  }
+
+  async function copyToClipboard(value: string, label: string) {
+    try {
+      await writeText(value);
+      scheduleClipboardClear(label);
+    } catch (e) {
+      errorMsg = formatError(e);
+    }
+  }
+
+  function scheduleClipboardClear(label: string) {
+    clearClipboardTimers();
+    clipboardLabel = label;
+    clipboardSecondsLeft = CLIPBOARD_CLEAR_SECONDS;
+    clipboardInterval = setInterval(() => {
+      if (clipboardSecondsLeft !== null && clipboardSecondsLeft > 0) {
+        clipboardSecondsLeft -= 1;
+      }
+    }, 1000);
+    clipboardTimeout = setTimeout(async () => {
+      try {
+        await clearClipboard();
+      } catch {
+        // ignore
+      }
+      clipboardSecondsLeft = null;
+      clipboardLabel = null;
+      clearClipboardTimers();
+    }, CLIPBOARD_CLEAR_SECONDS * 1000);
+  }
+
+  function clearClipboardTimers() {
+    if (clipboardTimeout !== null) {
+      clearTimeout(clipboardTimeout);
+      clipboardTimeout = null;
+    }
+    if (clipboardInterval !== null) {
+      clearInterval(clipboardInterval);
+      clipboardInterval = null;
+    }
+  }
+
+  async function clearClipboardNow() {
+    clearClipboardTimers();
+    try {
+      await clearClipboard();
+    } catch {
+      // ignore
+    }
+    clipboardSecondsLeft = null;
+    clipboardLabel = null;
+  }
+
+  onDestroy(() => {
+    clearClipboardTimers();
+  });
 
   onMount(async () => {
     try {
@@ -650,18 +760,120 @@
                   {/if}
                 </p>
               {:else}
-                <ul class="enc-list">
+                <ul class="enc-list cipher-list">
                   {#each filteredCiphers as c (c.id)}
                     <li>
-                      <span class="badge">{cipherTypeLabel(c.kind)}</span>
-                      <span class="name">{c.name}</span>
-                      {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                      <button
+                        type="button"
+                        class="cipher-row"
+                        class:selected={detail?.id === c.id}
+                        onclick={() => openCipher(c.id)}
+                      >
+                        <span class="badge">{cipherTypeLabel(c.kind)}</span>
+                        <span class="name">{c.name}</span>
+                        {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                      </button>
                     </li>
                   {/each}
                 </ul>
               {/if}
             </section>
           </div>
+
+          {#if detailLoading}
+            <section class="box">
+              <p class="hint">Déchiffrement de l'item…</p>
+            </section>
+          {/if}
+
+          {#if detail}
+            <section class="box cipher-detail">
+              <header class="detail-header">
+                <div>
+                  <span class="badge">{cipherTypeLabel(detail.kind)}</span>
+                  <h2>{detail.name}</h2>
+                </div>
+                <button type="button" class="secondary small" onclick={closeDetail}>Fermer</button>
+              </header>
+
+              {#if detail.login}
+                {#if detail.login.username}
+                  <dl class="detail-field">
+                    <dt>Identifiant</dt>
+                    <dd>
+                      <code>{detail.login.username}</code>
+                      <button
+                        type="button"
+                        class="secondary small"
+                        onclick={() => copyToClipboard(detail!.login!.username!, "identifiant")}
+                      >
+                        Copier
+                      </button>
+                    </dd>
+                  </dl>
+                {/if}
+
+                {#if detail.login.password}
+                  <dl class="detail-field">
+                    <dt>Mot de passe</dt>
+                    <dd>
+                      <code class="password">
+                        {showPassword ? detail.login.password : "•".repeat(Math.min(detail.login.password.length, 16))}
+                      </code>
+                      <button
+                        type="button"
+                        class="secondary small"
+                        onclick={() => (showPassword = !showPassword)}
+                      >
+                        {showPassword ? "Masquer" : "Afficher"}
+                      </button>
+                      <button
+                        type="button"
+                        class="small"
+                        onclick={() => copyToClipboard(detail!.login!.password!, "mot de passe")}
+                      >
+                        Copier
+                      </button>
+                    </dd>
+                  </dl>
+                {/if}
+
+                {#if detail.login.uris.length > 0}
+                  <dl class="detail-field">
+                    <dt>URL{detail.login.uris.length > 1 ? "s" : ""}</dt>
+                    <dd>
+                      <ul class="uri-list">
+                        {#each detail.login.uris as u}
+                          <li><code>{u}</code></li>
+                        {/each}
+                      </ul>
+                    </dd>
+                  </dl>
+                {/if}
+
+                {#if detail.login.totp}
+                  <dl class="detail-field">
+                    <dt>TOTP</dt>
+                    <dd><code>{detail.login.totp}</code> <small>(génération de code à venir)</small></dd>
+                  </dl>
+                {/if}
+              {/if}
+
+              {#if detail.notes}
+                <dl class="detail-field">
+                  <dt>Notes</dt>
+                  <dd class="notes">{detail.notes}</dd>
+                </dl>
+              {/if}
+
+              <p class="hint detail-footer">
+                Item #{detail.id.slice(0, 8)}
+                {#if detail.organizationId}
+                  · Organisation : {syncSummary?.organizations.find((o) => o.id === detail!.organizationId)?.name ?? "?"}
+                {/if}
+              </p>
+            </section>
+          {/if}
         {/if}
 
         {#snippet treeNode(node: TreeNode)}
@@ -742,6 +954,15 @@
     </section>
   {/if}
 </main>
+
+{#if clipboardSecondsLeft !== null}
+  <aside class="clipboard-toast" role="status">
+    <span>
+      Presse-papier ({clipboardLabel}) effacé dans {clipboardSecondsLeft}s
+    </span>
+    <button type="button" class="secondary small" onclick={clearClipboardNow}>Effacer maintenant</button>
+  </aside>
+{/if}
 
 <style>
   :root {
@@ -1098,6 +1319,131 @@
 
   .tree-row.org-root > .tree-label {
     font-weight: 500;
+  }
+
+  .cipher-list {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .cipher-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  .cipher-row:hover {
+    background: #f0f0f0;
+  }
+
+  .cipher-row.selected {
+    background: #e3ecff;
+    color: #1e3a8a;
+  }
+
+  .cipher-detail {
+    margin-top: 1rem;
+  }
+
+  .detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .detail-header h2 {
+    margin: 0.3rem 0 0;
+    font-size: 1.15rem;
+  }
+
+  .detail-field {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    margin: 0 0 0.6rem;
+  }
+
+  .detail-field dt {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.85rem;
+  }
+
+  .detail-field dd {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .password {
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.1em;
+  }
+
+  .uri-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+  }
+
+  .uri-list code {
+    overflow-wrap: anywhere;
+  }
+
+  .notes {
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+  }
+
+  .detail-footer {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .clipboard-toast {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e3a8a;
+    color: #fff;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+  }
+
+  .clipboard-toast button.secondary {
+    background: #fff;
+    color: #1e3a8a;
+    border-color: #fff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .cipher-row:hover { background: #333; }
+    .cipher-row.selected { background: #1f2a54; color: #aabaff; }
+    .detail-field dt { color: #aaa; }
   }
 
   @media (max-width: 760px) {

@@ -169,6 +169,52 @@ pub struct Cipher {
     pub deleted_date: Option<String>,
     #[serde(default)]
     pub favorite: bool,
+    #[serde(default)]
+    pub login: Option<CipherLogin>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherLogin {
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
+    #[serde(default)]
+    pub uris: Option<Vec<CipherLoginUri>>,
+    #[serde(default)]
+    pub totp: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherLoginUri {
+    #[serde(default)]
+    pub uri: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherDetail {
+    pub id: String,
+    pub kind: u8,
+    pub name: String,
+    pub notes: Option<String>,
+    pub organization_id: Option<String>,
+    pub folder_id: Option<String>,
+    pub collection_ids: Vec<String>,
+    pub revision_date: Option<String>,
+    pub favorite: bool,
+    pub login: Option<LoginDetail>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginDetail {
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub uris: Vec<String>,
+    pub totp: Option<String>,
 }
 
 // ============ Sync summary (vers Svelte) ============
