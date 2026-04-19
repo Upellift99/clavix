@@ -25,6 +25,8 @@ Thumbs.db
 .idea/
 .qodo/
 .claude/
+.codex
+.codex/
 
 # ---- Logs et artefacts ----
 *.log
