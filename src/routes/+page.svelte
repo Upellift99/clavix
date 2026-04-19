@@ -40,6 +40,8 @@
     collectionIds: string[];
     favorite: boolean;
     primaryUri: string | null;
+    username: string | null;
+    revisionDate: string | null;
   };
 
   type SyncSummary = {
@@ -1341,7 +1343,7 @@
                         <li style:height="{ROW_HEIGHT}px">
                           <button
                             type="button"
-                            class="cipher-row"
+                            class="cipher-row cipher-columns"
                             class:selected={detail?.id === c.id}
                             class:dragging={draggingCipherId === c.id}
                             onclick={() => openCipher(c.id)}
@@ -1369,8 +1371,16 @@
                                 <span class="emoji-fallback">{cipherTypeIcon(c.kind)}</span>
                               {/if}
                             </span>
-                            <span class="name">{c.name}</span>
-                            {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                            <span class="col-name">
+                              {c.name}
+                              {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                            </span>
+                            <span class="col-username" title={c.username ?? ""}>
+                              {c.username ?? ""}
+                            </span>
+                            <span class="col-uri" title={c.primaryUri ?? ""}>
+                              {c.primaryUri ?? ""}
+                            </span>
                           </button>
                         </li>
                       {/each}
@@ -2001,10 +2011,6 @@
     text-align: center;
   }
 
-  .name {
-    overflow-wrap: anywhere;
-    flex: 1;
-  }
 
   .star {
     color: #f0a500;
@@ -2308,6 +2314,50 @@
     color: inherit;
     font: inherit;
     text-align: left;
+  }
+
+  .cipher-row.cipher-columns {
+    display: grid;
+    grid-template-columns: 1.6rem minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 2fr);
+    gap: 0.75rem;
+  }
+
+  .col-name,
+  .col-username,
+  .col-uri {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .col-name {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .col-username,
+  .col-uri {
+    color: #666;
+    font-size: 0.9em;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .col-username, .col-uri { color: #aaa; }
+  }
+
+  @media (max-width: 900px) {
+    .cipher-row.cipher-columns {
+      grid-template-columns: 1.6rem minmax(0, 2fr) minmax(0, 1.4fr);
+    }
+    .col-uri { display: none; }
+  }
+
+  @media (max-width: 680px) {
+    .cipher-row.cipher-columns {
+      grid-template-columns: 1.6rem minmax(0, 1fr);
+    }
+    .col-username, .col-uri { display: none; }
   }
 
   .cipher-row:hover {

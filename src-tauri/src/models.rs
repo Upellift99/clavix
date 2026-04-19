@@ -398,4 +398,6 @@ pub struct CipherSummary {
     pub collection_ids: Vec<String>,
     pub favorite: bool,
     pub primary_uri: Option<String>,
+    pub username: Option<String>,
+    pub revision_date: Option<String>,
 }

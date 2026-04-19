@@ -349,6 +349,12 @@ fn build_sync_summary(
                 .and_then(|uris| uris.iter().find_map(|u| u.uri.as_deref()))
                 .and_then(|s| decrypt_name(s, key).ok());
 
+            let username = c
+                .login
+                .as_ref()
+                .and_then(|l| l.username.as_deref())
+                .and_then(|s| decrypt_name(s, key).ok());
+
             CipherSummary {
                 id: c.id.clone(),
                 kind: c.kind as u8,
@@ -358,6 +364,8 @@ fn build_sync_summary(
                 collection_ids: c.collection_ids.clone(),
                 favorite: c.favorite,
                 primary_uri,
+                username,
+                revision_date: c.revision_date.clone(),
             }
         })
         .collect();
