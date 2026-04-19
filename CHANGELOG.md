@@ -5,6 +5,26 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-04-19
+
+### Added
+- **Live TOTP generation** in the detail panel: the stored secret is
+  parsed (plain Base32 or `otpauth://` URI with custom period / digits /
+  algorithm), and the 6-digit code is generated in the browser via Web
+  Crypto, refreshed every second, with a countdown and a Copy button.
+  Algorithm validated against the RFC 6238 test vectors.
+- **Create and edit Login items**: new `＋` button in the tree toolbar
+  opens a modal (`LoginEditor.svelte`) with fields for name, folder,
+  username, password, URLs (one per line), TOTP secret, notes and the
+  favorite flag, plus an inline password generator. The detail panel
+  gets an "Edit" button on non-deleted Login items. Field encryption
+  is performed client-side with the user key before the
+  `POST /ciphers` or `PUT /ciphers/{id}` call.
+
+### Security
+- `.claude/` directory now in `.gitignore` (internal Claude Code files
+  should never be versioned).
+
 ## [0.1.3] — 2026-04-19
 
 ### Added
@@ -127,6 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.4]: https://github.com/Upellift99/clavix/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Upellift99/clavix/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Upellift99/clavix/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Upellift99/clavix/releases/tag/v0.1.1
