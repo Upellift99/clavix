@@ -5,6 +5,38 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] — 2026-04-19
+
+### Added
+- **WebAuthn / FIDO2 in 2FA** (provider 7). Clavix now drives a
+  hardware security key directly over CTAP2/HID (YubiKey, SoloKey,
+  …) — no browser involved. The `clientDataJSON` is built in Rust
+  with `origin = https://{rpId}` so the authenticator's signature
+  is accepted by Vaultwarden even though the app itself doesn't run
+  under the vault's domain. Activates automatically when the server
+  offers WebAuthn as a 2FA method. Closes the SSH-agent companion
+  of issue #1.
+- **Create and edit in an organization / collection**. The cipher
+  editor gained an *Owner* selector (Personal / any org you belong
+  to) and, for org items, a *Collection* picker. Backend splits
+  into `POST /ciphers/create` (with org key and `collectionIds`)
+  vs the existing `POST /ciphers` for personal items. Edits pick
+  the right key from the item's current owner — changing owner in
+  the editor is blocked, the share command handles that.
+- **Import from KeePassXC** (CSV export). `📥` button in the tree
+  toolbar opens a modal that parses the standard KeePassXC CSV
+  columns (Title / Username / Password / URL / Notes / TOTP /
+  Group), previews the first 15 rows, and imports the lot with an
+  option to auto-create a folder per *Group* value.
+
+### Security / CI
+- `libudev-dev` added to the Ubuntu CI and release pipelines
+  (needed by `hidapi` → `ctap-hid-fido2` on Linux). Previous
+  `cargo clippy` failures were caused by this missing dep.
+- Bumped `github/codeql-action` from v3 to v4: clears the
+  deprecation warning for Node.js 20 and gets ahead of the CodeQL
+  Action v3 deprecation scheduled for December 2026.
+
 ## [0.1.8] — 2026-04-19
 
 ### Added
@@ -250,6 +282,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.9]: https://github.com/Upellift99/clavix/releases/tag/v0.1.9
 [0.1.8]: https://github.com/Upellift99/clavix/releases/tag/v0.1.8
 [0.1.7]: https://github.com/Upellift99/clavix/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Upellift99/clavix/releases/tag/v0.1.6
