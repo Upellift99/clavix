@@ -45,7 +45,7 @@
     organizationCount: number;
     typeCounts: TypeCounts;
     folders: FolderSummary[];
-    cipherPreview: CipherSummary[];
+    ciphers: CipherSummary[];
   };
 
   type Phase =
@@ -82,6 +82,14 @@
   let syncSummary = $state<SyncSummary | null>(null);
   let syncing = $state(false);
   let storedAccount = $state<StoredAccount | null>(null);
+  let search = $state("");
+
+  const filteredCiphers = $derived.by(() => {
+    if (!syncSummary) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return syncSummary.ciphers;
+    return syncSummary.ciphers.filter((c) => c.name.toLowerCase().includes(q));
+  });
 
   onMount(async () => {
     try {
@@ -383,21 +391,39 @@
           </ul>
         {/if}
 
-        {#if syncSummary.cipherPreview.length > 0}
-          <h3>Aperçu items <small>(10 premiers)</small></h3>
-          <ul class="enc-list">
-            {#each syncSummary.cipherPreview as c (c.id)}
-              <li>
-                <span class="badge">{cipherTypeLabel(c.kind)}</span>
-                <span class="name">{c.name}</span>
-                {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
-              </li>
-            {/each}
-          </ul>
-          {#if syncSummary.itemCount > syncSummary.cipherPreview.length}
-            <p class="hint">
-              … et {syncSummary.itemCount - syncSummary.cipherPreview.length} autres.
-            </p>
+        {#if syncSummary.ciphers.length > 0}
+          <h3>
+            Items
+            <small>
+              ({filteredCiphers.length.toLocaleString("fr-FR")}
+              {#if search.trim()}/{syncSummary.ciphers.length.toLocaleString("fr-FR")}{/if})
+            </small>
+          </h3>
+          <div class="search-row">
+            <input
+              type="search"
+              bind:value={search}
+              placeholder="Rechercher un item…"
+              class="search"
+            />
+            {#if search.trim()}
+              <button type="button" class="secondary small" onclick={() => (search = "")}>
+                Effacer
+              </button>
+            {/if}
+          </div>
+          {#if filteredCiphers.length === 0}
+            <p class="hint">Aucun item ne correspond à « {search} ».</p>
+          {:else}
+            <ul class="enc-list">
+              {#each filteredCiphers as c (c.id)}
+                <li>
+                  <span class="badge">{cipherTypeLabel(c.kind)}</span>
+                  <span class="name">{c.name}</span>
+                  {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                </li>
+              {/each}
+            </ul>
           {/if}
         {/if}
       </section>
@@ -613,6 +639,21 @@
 
   .star {
     color: #f0a500;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+
+  .search {
+    flex: 1;
+  }
+
+  button.small {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
   }
 
   @media (prefers-color-scheme: dark) {

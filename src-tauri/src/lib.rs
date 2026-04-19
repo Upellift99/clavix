@@ -276,10 +276,9 @@ fn build_sync_summary(
         })
         .collect();
 
-    let cipher_preview: Vec<CipherSummary> = response
+    let ciphers: Vec<CipherSummary> = response
         .ciphers
         .iter()
-        .take(10)
         .map(|c| {
             let key = c
                 .organization_id
@@ -306,7 +305,7 @@ fn build_sync_summary(
         organization_count: response.profile.organizations.len(),
         type_counts,
         folders,
-        cipher_preview,
+        ciphers,
     }
 }
 

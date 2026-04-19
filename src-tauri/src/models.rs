@@ -184,7 +184,7 @@ pub struct SyncSummary {
     pub organization_count: usize,
     pub type_counts: TypeCounts,
     pub folders: Vec<FolderSummary>,
-    pub cipher_preview: Vec<CipherSummary>,
+    pub ciphers: Vec<CipherSummary>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
