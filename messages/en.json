@@ -46,6 +46,10 @@
 
   "editor_create_title": "New login item",
   "editor_create_title_generic": "New item",
+  "qr_title": "Scan a QR code",
+  "qr_hint": "Point the camera at a TOTP QR code (otpauth://). It will be read automatically.",
+  "qr_button_title": "Scan a TOTP QR code",
+  "qr_camera_error": "Cannot access camera: {cause}",
   "editor_type": "Type",
   "identity_title": "Title",
   "identity_first_name": "First name",

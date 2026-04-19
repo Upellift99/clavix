@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import QrScanner from "$lib/QrScanner.svelte";
 
   type FolderSummary = { id: string; name: string };
 
@@ -130,6 +131,7 @@
   let showPassword = $state(false);
   let submitting = $state(false);
   let error = $state<string | null>(null);
+  let qrOpen = $state(false);
 
   $effect(() => {
     if (open) {
@@ -285,7 +287,17 @@
           </label>
           <label>
             {m.detail_field_totp()}
-            <input type="text" bind:value={totp} autocomplete="off" placeholder="otpauth://…" />
+            <div class="totp-row">
+              <input type="text" bind:value={totp} autocomplete="off" placeholder="otpauth://…" />
+              <button
+                type="button"
+                class="secondary small"
+                onclick={() => (qrOpen = true)}
+                title={m.qr_button_title()}
+              >
+                📷
+              </button>
+            </div>
           </label>
         {:else if cipherType === 3}
           <label>
@@ -438,6 +450,15 @@
       </form>
     </div>
   </div>
+
+  <QrScanner
+    open={qrOpen}
+    onCancel={() => (qrOpen = false)}
+    onDetected={(uri) => {
+      totp = uri;
+      qrOpen = false;
+    }}
+  />
 {/if}
 
 <style>
@@ -513,12 +534,14 @@
     font-size: 0.82rem;
   }
 
-  .password-row {
+  .password-row,
+  .totp-row {
     display: flex;
     gap: 0.35rem;
   }
 
-  .password-row input {
+  .password-row input,
+  .totp-row input {
     flex: 1;
   }
 

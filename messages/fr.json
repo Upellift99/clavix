@@ -46,6 +46,10 @@
 
   "editor_create_title": "Nouvel item (login)",
   "editor_create_title_generic": "Nouvel item",
+  "qr_title": "Scanner un QR code",
+  "qr_hint": "Pointez la caméra vers un QR code TOTP (otpauth://). Le code sera lu automatiquement.",
+  "qr_button_title": "Scanner un QR code TOTP",
+  "qr_camera_error": "Accès à la caméra impossible : {cause}",
   "editor_type": "Type",
   "identity_title": "Civilité",
   "identity_first_name": "Prénom",
