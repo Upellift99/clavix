@@ -132,12 +132,30 @@
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
 
-    const onMove = (e: MouseEvent) => {
-      const delta = e.clientX - startX;
-      const next = Math.max(TREE_WIDTH_MIN, Math.min(TREE_WIDTH_MAX, startWidth + delta));
-      treeWidth = next;
+    let pendingX: number | null = null;
+    let rafId: number | null = null;
+
+    const applyPending = () => {
+      rafId = null;
+      if (pendingX === null) return;
+      const delta = pendingX - startX;
+      pendingX = null;
+      treeWidth = Math.max(TREE_WIDTH_MIN, Math.min(TREE_WIDTH_MAX, startWidth + delta));
     };
+
+    const onMove = (e: MouseEvent) => {
+      pendingX = e.clientX;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(applyPending);
+      }
+    };
+
     const onUp = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      applyPending();
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMove);
@@ -148,6 +166,7 @@
         // ignore quota / storage disabled
       }
     };
+
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }
