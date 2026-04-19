@@ -183,6 +183,15 @@
   const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
   let treeWidth = $state(260);
 
+  const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
+  const AUTO_LOCK_DEFAULT_MINUTES = 10;
+  let autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
+  let lastActivityAt = $state<number>(Date.now());
+
+  function onUserActivity() {
+    lastActivityAt = Date.now();
+  }
+
   function onSplitterMouseDown(event: MouseEvent) {
     event.preventDefault();
     const startX = event.clientX;
@@ -610,6 +619,41 @@
     clearClipboardTimers();
   });
 
+  $effect(() => {
+    if (phase !== "loggedIn") return;
+    if (autoLockMinutes <= 0) return;
+
+    lastActivityAt = Date.now();
+    const events: (keyof WindowEventMap)[] = ["mousemove", "keydown", "click"];
+    for (const evt of events) {
+      window.addEventListener(evt, onUserActivity, { passive: true });
+    }
+
+    const lockMs = autoLockMinutes * 60 * 1000;
+    const check = async () => {
+      if (Date.now() - lastActivityAt >= lockMs) {
+        await onLock();
+      }
+    };
+    const interval = setInterval(check, 15000);
+
+    return () => {
+      clearInterval(interval);
+      for (const evt of events) {
+        window.removeEventListener(evt, onUserActivity);
+      }
+    };
+  });
+
+  function persistAutoLockSetting(minutes: number) {
+    autoLockMinutes = minutes;
+    try {
+      localStorage.setItem(AUTO_LOCK_STORAGE_KEY, String(minutes));
+    } catch {
+      // ignore
+    }
+  }
+
   function isTypingContext(): boolean {
     const a = document.activeElement as HTMLElement | null;
     if (!a) return false;
@@ -876,6 +920,13 @@
         const parsed = parseInt(saved, 10);
         if (Number.isFinite(parsed)) {
           treeWidth = Math.max(TREE_WIDTH_MIN, Math.min(TREE_WIDTH_MAX, parsed));
+        }
+      }
+      const savedLock = localStorage.getItem(AUTO_LOCK_STORAGE_KEY);
+      if (savedLock) {
+        const parsed = parseInt(savedLock, 10);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          autoLockMinutes = parsed;
         }
       }
     } catch {
@@ -1697,6 +1748,21 @@
       <dd>{syncSummary.collectionCount}</dd>
       <dt>Organisations</dt>
       <dd>{syncSummary.organizationCount}</dd>
+      <dt>Verrouillage auto</dt>
+      <dd>
+        <select
+          value={autoLockMinutes}
+          onchange={(e) => persistAutoLockSetting(parseInt((e.currentTarget as HTMLSelectElement).value, 10))}
+        >
+          <option value={0}>Jamais</option>
+          <option value={1}>1 min</option>
+          <option value={5}>5 min</option>
+          <option value={10}>10 min</option>
+          <option value={15}>15 min</option>
+          <option value={30}>30 min</option>
+          <option value={60}>1 h</option>
+        </select>
+      </dd>
     </dl>
 
     <h3>Répartition par type</h3>
