@@ -171,6 +171,81 @@ pub struct Cipher {
     pub favorite: bool,
     #[serde(default)]
     pub login: Option<CipherLogin>,
+    #[serde(default)]
+    pub card: Option<CipherCard>,
+    #[serde(default)]
+    pub identity: Option<CipherIdentity>,
+    #[serde(default)]
+    pub ssh_key: Option<CipherSshKey>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherCard {
+    #[serde(default)]
+    pub cardholder_name: Option<String>,
+    #[serde(default)]
+    pub brand: Option<String>,
+    #[serde(default)]
+    pub number: Option<String>,
+    #[serde(default)]
+    pub exp_month: Option<String>,
+    #[serde(default)]
+    pub exp_year: Option<String>,
+    #[serde(default)]
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherIdentity {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub first_name: Option<String>,
+    #[serde(default)]
+    pub middle_name: Option<String>,
+    #[serde(default)]
+    pub last_name: Option<String>,
+    #[serde(default)]
+    pub address1: Option<String>,
+    #[serde(default)]
+    pub address2: Option<String>,
+    #[serde(default)]
+    pub address3: Option<String>,
+    #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default)]
+    pub postal_code: Option<String>,
+    #[serde(default)]
+    pub country: Option<String>,
+    #[serde(default)]
+    pub company: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub ssn: Option<String>,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub passport_number: Option<String>,
+    #[serde(default)]
+    pub license_number: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherSshKey {
+    #[serde(default)]
+    pub private_key: Option<String>,
+    #[serde(default)]
+    pub public_key: Option<String>,
+    #[serde(default)]
+    pub key_fingerprint: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
