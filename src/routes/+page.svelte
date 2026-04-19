@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { clear as clearClipboard, writeText } from "@tauri-apps/plugin-clipboard-manager";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import { onDestroy, onMount } from "svelte";
 
   type TokenSet = {
@@ -162,6 +163,7 @@
   let draggingFolderPath = $state<string | null>(null);
   let dragOverKey = $state<string | null>(null);
   let statsDialog = $state<HTMLDialogElement | null>(null);
+  let searchInput = $state<HTMLInputElement | null>(null);
 
   const TREE_WIDTH_MIN = 180;
   const TREE_WIDTH_MAX = 560;
@@ -542,6 +544,74 @@
   onDestroy(() => {
     clearClipboardTimers();
   });
+
+  function isTypingContext(): boolean {
+    const a = document.activeElement as HTMLElement | null;
+    if (!a) return false;
+    const tag = a.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || a.isContentEditable;
+  }
+
+  async function handleGlobalKeydown(event: KeyboardEvent) {
+    if (phase === "loggedIn") {
+      if (event.key === "Escape" && detail) {
+        event.preventDefault();
+        closeDetail();
+        return;
+      }
+
+      if (event.key === "/" && !isTypingContext()) {
+        event.preventDefault();
+        searchInput?.focus();
+        searchInput?.select();
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        const key = event.key.toLowerCase();
+
+        if (key === "f") {
+          event.preventDefault();
+          searchInput?.focus();
+          searchInput?.select();
+          return;
+        }
+
+        if (key === "l") {
+          event.preventDefault();
+          await onLock();
+          return;
+        }
+
+        if (isTypingContext()) return;
+
+        const selectionLength = window.getSelection()?.toString().length ?? 0;
+        if (!detail || selectionLength > 0) return;
+
+        if (key === "c" && detail.login?.password) {
+          event.preventDefault();
+          await copyToClipboard(detail.login.password, "mot de passe");
+          return;
+        }
+
+        if (key === "b" && detail.login?.username) {
+          event.preventDefault();
+          await copyToClipboard(detail.login.username, "identifiant");
+          return;
+        }
+
+        if (key === "u" && detail.login?.uris?.[0]) {
+          event.preventDefault();
+          try {
+            await openUrl(detail.login.uris[0]);
+          } catch (e) {
+            errorMsg = formatError(e);
+          }
+          return;
+        }
+      }
+    }
+  }
 
   function onCipherDragStart(event: DragEvent, cipherId: string) {
     draggingCipherId = cipherId;
@@ -951,6 +1021,8 @@
   }
 </script>
 
+<svelte:window onkeydown={handleGlobalKeydown} />
+
 <main class="container" class:wide={phase === "loggedIn" && syncSummary !== null}>
   <h1>Clavix</h1>
 
@@ -1119,7 +1191,8 @@
                 <input
                   type="search"
                   bind:value={search}
-                  placeholder="Rechercher un item…"
+                  bind:this={searchInput}
+                  placeholder="Rechercher un item… (/ ou Ctrl+F)"
                   class="search"
                 />
                 {#if search.trim()}
