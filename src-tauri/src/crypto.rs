@@ -283,6 +283,15 @@ pub fn decrypt_name(encrypted: &str, key: &SymmetricKey) -> Result<String> {
     EncString::parse(encrypted)?.decrypt_string_sym(key)
 }
 
+pub fn reencrypt_with_key(
+    encrypted: &str,
+    from_key: &SymmetricKey,
+    to_key: &SymmetricKey,
+) -> Result<String> {
+    let plaintext = EncString::parse(encrypted)?.decrypt_string_sym(from_key)?;
+    encrypt_string(&plaintext, to_key)
+}
+
 pub fn encrypt_string(plaintext: &str, key: &SymmetricKey) -> Result<String> {
     let mut iv = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut iv);
