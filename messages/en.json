@@ -69,7 +69,11 @@
 
   "two_factor_title": "Two-factor authentication",
   "two_factor_providers": "Providers offered: {providers}",
+  "two_factor_method_label": "Method",
   "two_factor_code_label": "TOTP code (6 digits)",
+  "two_factor_yubikey_label": "YubiKey OTP",
+  "two_factor_yubikey_help": "Touch your YubiKey to auto-fill the code (44 characters).",
+  "two_factor_unsupported": "2FA provider \"{provider}\" is not supported by Clavix yet.",
 
   "session_title": "Active session",
 

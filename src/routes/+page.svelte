@@ -185,6 +185,8 @@
   let email = $state("");
   let password = $state("");
   let totpCode = $state("");
+  let yubikeyOtp = $state("");
+  let selectedProvider = $state(0);
   let phase = $state<Phase>("init");
   let errorMsg = $state<string | null>(null);
   let tokens = $state<TokenSet | null>(null);
@@ -1205,6 +1207,10 @@
         await loadCachedVault();
       } else {
         pendingProviders = result.data.providers;
+        const supported = pendingProviders.find((p) => p === 0 || p === 3);
+        selectedProvider = supported ?? pendingProviders[0] ?? 0;
+        totpCode = "";
+        yubikeyOtp = "";
         phase = "twoFactor";
       }
     } catch (e) {
@@ -1215,7 +1221,9 @@
 
   async function onTwoFactorSubmit(event: Event) {
     event.preventDefault();
-    const codeSnapshot = totpCode;
+    const codeSnapshot =
+      selectedProvider === 3 ? yubikeyOtp.trim() : totpCode.trim();
+    if (!codeSnapshot) return;
     phase = "authenticating";
     errorMsg = null;
     try {
@@ -1224,17 +1232,29 @@
         email,
         password,
         code: codeSnapshot,
-        provider: 0,
+        provider: selectedProvider,
       });
       tokens = result;
       storedAccount = { serverUrl, email };
       password = "";
       totpCode = "";
+      yubikeyOtp = "";
       phase = "loggedIn";
       await loadCachedVault();
     } catch (e) {
       errorMsg = formatError(e);
       phase = "twoFactor";
+    }
+  }
+
+  const YUBIKEY_OTP_LENGTH = 44;
+
+  function onYubikeyInput(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const value = input.value.trim().toLowerCase();
+    yubikeyOtp = value;
+    if (value.length === YUBIKEY_OTP_LENGTH) {
+      input.form?.requestSubmit();
     }
   }
 
@@ -1436,26 +1456,61 @@
 
   {#if phase === "twoFactor"}
     <section class="box">
-      <h2>Double authentification</h2>
+      <h2>{m.two_factor_title()}</h2>
       <p class="hint">
-        Providers annoncés : {pendingProviders.map(providerLabel).join(", ")}
+        {m.two_factor_providers({ providers: pendingProviders.map(providerLabel).join(", ") })}
       </p>
       <form onsubmit={onTwoFactorSubmit}>
-        <label>
-          Code TOTP (6 chiffres)
-          <input
-            type="text"
-            bind:value={totpCode}
-            inputmode="numeric"
-            pattern={TOTP_PATTERN}
-            maxlength="6"
-            autocomplete="one-time-code"
-            required
-          />
-        </label>
+        {#if pendingProviders.filter((p) => p === 0 || p === 3).length > 1}
+          <label>
+            {m.two_factor_method_label()}
+            <select bind:value={selectedProvider}>
+              {#each pendingProviders.filter((p) => p === 0 || p === 3) as p}
+                <option value={p}>{providerLabel(p)}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+
+        {#if selectedProvider === 0}
+          <label>
+            {m.two_factor_code_label()}
+            <input
+              type="text"
+              bind:value={totpCode}
+              inputmode="numeric"
+              pattern={TOTP_PATTERN}
+              maxlength="6"
+              autocomplete="one-time-code"
+              required
+            />
+          </label>
+        {:else if selectedProvider === 3}
+          <label>
+            {m.two_factor_yubikey_label()}
+            <input
+              type="text"
+              value={yubikeyOtp}
+              oninput={onYubikeyInput}
+              inputmode="text"
+              maxlength={YUBIKEY_OTP_LENGTH}
+              autocomplete="off"
+              spellcheck="false"
+              required
+            />
+          </label>
+          <p class="hint">{m.two_factor_yubikey_help()}</p>
+        {:else}
+          <p class="hint">
+            {m.two_factor_unsupported({ provider: providerLabel(selectedProvider) })}
+          </p>
+        {/if}
+
         <div class="row">
-          <button type="button" class="secondary" onclick={reset}>Annuler</button>
-          <button type="submit">Valider</button>
+          <button type="button" class="secondary" onclick={reset}>{m.action_cancel()}</button>
+          <button type="submit" disabled={selectedProvider !== 0 && selectedProvider !== 3}>
+            {m.action_submit()}
+          </button>
         </div>
       </form>
     </section>
