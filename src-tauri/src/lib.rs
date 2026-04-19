@@ -398,6 +398,47 @@ fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail> {
 }
 
 #[tauri::command]
+async fn move_cipher_to_folder(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    folder_id: Option<String>,
+) -> Result<()> {
+    let (client, access_token, favorite) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = s.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+        let cipher = vault
+            .ciphers
+            .iter()
+            .find(|c| c.id == cipher_id)
+            .ok_or_else(|| Error::Storage {
+                reason: format!("cipher not found: {cipher_id}"),
+            })?;
+        (
+            s.client.clone(),
+            s.tokens.access_token.clone(),
+            cipher.favorite,
+        )
+    };
+
+    client
+        .update_cipher_partial(&access_token, &cipher_id, folder_id.as_deref(), favorite)
+        .await?;
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                cipher.folder_id = folder_id;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn lock(state: State<'_, AppState>) -> Result<()> {
     let mut guard = state.session.lock().unwrap();
     *guard = None;
@@ -429,7 +470,8 @@ pub fn run() {
             lock,
             logout,
             stored_account,
-            get_cipher
+            get_cipher,
+            move_cipher_to_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

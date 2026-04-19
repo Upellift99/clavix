@@ -114,6 +114,8 @@
   let detail = $state<CipherDetail | null>(null);
   let detailLoading = $state(false);
   let showPassword = $state(false);
+  let draggingCipherId = $state<string | null>(null);
+  let dragOverKey = $state<string | null>(null);
   let clipboardSecondsLeft = $state<number | null>(null);
   let clipboardLabel = $state<string | null>(null);
   let clipboardTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -399,6 +401,58 @@
   onDestroy(() => {
     clearClipboardTimers();
   });
+
+  function onCipherDragStart(event: DragEvent, cipherId: string) {
+    draggingCipherId = cipherId;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", cipherId);
+    }
+  }
+
+  function onCipherDragEnd() {
+    draggingCipherId = null;
+    dragOverKey = null;
+  }
+
+  function onFolderDragOver(event: DragEvent, key: string) {
+    if (!draggingCipherId) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    dragOverKey = key;
+  }
+
+  function onFolderDragLeave(key: string) {
+    if (dragOverKey === key) dragOverKey = null;
+  }
+
+  async function onDropOnFolder(event: DragEvent, targetFolderId: string | null, targetKey: string) {
+    event.preventDefault();
+    dragOverKey = null;
+    const cipherId = draggingCipherId ?? event.dataTransfer?.getData("text/plain") ?? null;
+    draggingCipherId = null;
+    if (!cipherId || !syncSummary) return;
+
+    const cipher = syncSummary.ciphers.find((c) => c.id === cipherId);
+    if (!cipher) return;
+
+    const previousFolderId = cipher.folderId;
+    if (previousFolderId === targetFolderId) return;
+
+    cipher.folderId = targetFolderId;
+
+    try {
+      await invoke("move_cipher_to_folder", {
+        cipherId,
+        folderId: targetFolderId,
+      });
+    } catch (e) {
+      cipher.folderId = previousFolderId;
+      errorMsg = formatError(e);
+    }
+
+    void targetKey;
+  }
 
   onMount(async () => {
     try {
@@ -707,7 +761,11 @@
                 type="button"
                 class="tree-all"
                 class:selected={selectedKey === null}
+                class:drop-over={dragOverKey === "__all__"}
                 onclick={() => (selectedKey = null)}
+                ondragover={(e) => onFolderDragOver(e, "__all__")}
+                ondragleave={() => onFolderDragLeave("__all__")}
+                ondrop={(e) => onDropOnFolder(e, null, "__all__")}
               >
                 <span>Tous les items</span>
                 <span class="tree-count">{syncSummary.itemCount.toLocaleString("fr-FR")}</span>
@@ -767,7 +825,11 @@
                         type="button"
                         class="cipher-row"
                         class:selected={detail?.id === c.id}
+                        class:dragging={draggingCipherId === c.id}
                         onclick={() => openCipher(c.id)}
+                        draggable="true"
+                        ondragstart={(e) => onCipherDragStart(e, c.id)}
+                        ondragend={onCipherDragEnd}
                       >
                         <span class="badge">{cipherTypeLabel(c.kind)}</span>
                         <span class="name">{c.name}</span>
@@ -878,7 +940,12 @@
 
         {#snippet treeNode(node: TreeNode)}
           <li>
-            <div class="tree-row" class:selected={selectedKey === node.key}>
+            <div
+              class="tree-row"
+              class:selected={selectedKey === node.key}
+              class:drop-over={dragOverKey === node.key}
+              class:droppable={draggingCipherId !== null && node.kind === "folder" && node.folderId !== null}
+            >
               {#if node.children.length > 0}
                 <button
                   type="button"
@@ -895,6 +962,15 @@
                 type="button"
                 class="tree-label"
                 onclick={() => selectNode(node.key)}
+                ondragover={node.kind === "folder" && node.folderId !== null
+                  ? (e) => onFolderDragOver(e, node.key)
+                  : undefined}
+                ondragleave={node.kind === "folder" && node.folderId !== null
+                  ? () => onFolderDragLeave(node.key)
+                  : undefined}
+                ondrop={node.kind === "folder" && node.folderId !== null
+                  ? (e) => onDropOnFolder(e, node.folderId, node.key)
+                  : undefined}
               >
                 <span class="tree-label-text">{node.label}</span>
                 <span class="tree-count">{node.itemCount}</span>
@@ -1348,6 +1424,26 @@
   .cipher-row.selected {
     background: #e3ecff;
     color: #1e3a8a;
+  }
+
+  .cipher-row.dragging {
+    opacity: 0.5;
+  }
+
+  .tree-row.droppable > .tree-label {
+    outline: 1px dashed transparent;
+    transition: outline-color 0.1s;
+  }
+
+  .tree-row.droppable:not(.drop-over) > .tree-label {
+    outline-color: #c5d6ff;
+  }
+
+  .tree-row.drop-over > .tree-label,
+  .tree-all.drop-over {
+    background: #fde68a !important;
+    color: #78350f !important;
+    outline: 2px solid #f59e0b;
   }
 
   .cipher-detail {
