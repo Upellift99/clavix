@@ -434,6 +434,28 @@
     for (const c of node.children) collectCollectionIds(c, ids);
   }
 
+  type SortKey = "name" | "username" | "uri";
+  let sortKey = $state<SortKey>("name");
+  let sortAsc = $state<boolean>(true);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      sortAsc = !sortAsc;
+    } else {
+      sortKey = key;
+      sortAsc = true;
+    }
+  }
+
+  function compareBy(a: string | null | undefined, b: string | null | undefined): number {
+    const av = (a ?? "").toLowerCase();
+    const bv = (b ?? "").toLowerCase();
+    if (av === bv) return 0;
+    if (av === "") return 1;
+    if (bv === "") return -1;
+    return av.localeCompare(bv, "fr");
+  }
+
   const filteredCiphers = $derived.by(() => {
     if (!syncSummary) return [];
     const q = searchDebounced.trim().toLowerCase();
@@ -457,9 +479,23 @@
     }
 
     if (q) {
-      items = items.filter((c) => c.name.toLowerCase().includes(q));
+      items = items.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.username?.toLowerCase().includes(q) ?? false) ||
+          (c.primaryUri?.toLowerCase().includes(q) ?? false),
+      );
     }
-    return items;
+
+    const sorted = [...items].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name") cmp = compareBy(a.name, b.name);
+      else if (sortKey === "username") cmp = compareBy(a.username, b.username);
+      else cmp = compareBy(a.primaryUri, b.primaryUri);
+      return sortAsc ? cmp : -cmp;
+    });
+
+    return sorted;
   });
 
   const ROW_HEIGHT = 36;
@@ -1328,6 +1364,36 @@
                   {/if}
                 </p>
               {:else}
+                <div class="cipher-headers cipher-columns" role="row">
+                  <span></span>
+                  <button
+                    type="button"
+                    class="cipher-header"
+                    class:active={sortKey === "name"}
+                    onclick={() => toggleSort("name")}
+                  >
+                    Nom
+                    {#if sortKey === "name"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+                  </button>
+                  <button
+                    type="button"
+                    class="cipher-header"
+                    class:active={sortKey === "username"}
+                    onclick={() => toggleSort("username")}
+                  >
+                    Identifiant
+                    {#if sortKey === "username"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+                  </button>
+                  <button
+                    type="button"
+                    class="cipher-header"
+                    class:active={sortKey === "uri"}
+                    onclick={() => toggleSort("uri")}
+                  >
+                    URL
+                    {#if sortKey === "uri"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+                  </button>
+                </div>
                 <div
                   class="cipher-scroll"
                   bind:this={listScrollEl}
@@ -2316,10 +2382,50 @@
     text-align: left;
   }
 
-  .cipher-row.cipher-columns {
+  .cipher-columns {
     display: grid;
     grid-template-columns: 1.6rem minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 2fr);
     gap: 0.75rem;
+  }
+
+  .cipher-headers {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #666;
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  .cipher-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: transparent;
+    border: none;
+    padding: 0.2rem 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  .cipher-header:hover {
+    color: #1e3a8a;
+  }
+
+  .cipher-header.active {
+    color: #1e3a8a;
+    font-weight: 600;
+  }
+
+  .sort-arrow {
+    font-size: 0.7rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .cipher-headers { color: #aaa; border-bottom-color: #3a3a3a; }
+    .cipher-header:hover, .cipher-header.active { color: #aabaff; }
   }
 
   .col-name,
