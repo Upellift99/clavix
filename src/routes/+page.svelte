@@ -683,6 +683,7 @@
         storedAccount = { serverUrl, email };
         password = "";
         phase = "loggedIn";
+        await loadCachedVault();
       } else {
         pendingProviders = result.data.providers;
         phase = "twoFactor";
@@ -711,6 +712,7 @@
       password = "";
       totpCode = "";
       phase = "loggedIn";
+      await loadCachedVault();
     } catch (e) {
       errorMsg = formatError(e);
       phase = "twoFactor";
@@ -725,9 +727,22 @@
       tokens = await invoke<TokenSet>("unlock", { password });
       password = "";
       phase = "loggedIn";
+      await loadCachedVault();
     } catch (e) {
       errorMsg = formatError(e);
       phase = "unlock";
+    }
+  }
+
+  async function loadCachedVault() {
+    try {
+      const cached = await invoke<SyncSummary | null>("load_cached_vault");
+      if (cached) {
+        syncSummary = cached;
+      }
+    } catch (e) {
+      // Cache corrompu ou absent : silencieux, l'utilisateur peut cliquer Synchroniser
+      console.warn("[clavix] cached vault load failed:", e);
     }
   }
 
