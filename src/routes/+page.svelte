@@ -150,6 +150,19 @@
   let syncing = $state(false);
   let storedAccount = $state<StoredAccount | null>(null);
   let search = $state("");
+  let searchDebounced = $state("");
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  $effect(() => {
+    const current = search;
+    if (searchDebounceTimer !== null) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      searchDebounced = current;
+    }, 150);
+    return () => {
+      if (searchDebounceTimer !== null) clearTimeout(searchDebounceTimer);
+    };
+  });
   let selectedKey = $state<string | null>(null);
   let expanded = $state<Set<string>>(new Set());
   let detail = $state<CipherDetail | null>(null);
@@ -248,6 +261,23 @@
     itemCount: number;
   };
 
+  // Pré-calcule : folderId -> count, collectionId -> count, orgId -> count.
+  // Évite de retraverser les 1688 ciphers à chaque calcul de compteur de nœud.
+  const cipherIndex = $derived.by(() => {
+    const byFolder = new Map<string, number>();
+    const byCollection = new Map<string, number>();
+    const byOrg = new Map<string, number>();
+    if (!syncSummary) return { byFolder, byCollection, byOrg };
+    for (const c of syncSummary.ciphers) {
+      if (c.folderId) byFolder.set(c.folderId, (byFolder.get(c.folderId) ?? 0) + 1);
+      if (c.organizationId) byOrg.set(c.organizationId, (byOrg.get(c.organizationId) ?? 0) + 1);
+      for (const cid of c.collectionIds) {
+        byCollection.set(cid, (byCollection.get(cid) ?? 0) + 1);
+      }
+    }
+    return { byFolder, byCollection, byOrg };
+  });
+
   const folderTree = $derived.by<TreeNode | null>(() => {
     if (!syncSummary) return null;
     const root: TreeNode = {
@@ -265,7 +295,7 @@
       if (segments.length === 0) continue;
       insertIntoTree(root, segments, { folderId: f.id, kind: "folder" });
     }
-    computeFolderCounts(root, syncSummary.ciphers);
+    computeFolderCounts(root, cipherIndex.byFolder);
     sortTree(root);
     return root;
   });
@@ -281,7 +311,7 @@
         organizationId: org.id,
         collectionId: null,
         children: [],
-        itemCount: syncSummary!.ciphers.filter((c) => c.organizationId === org.id).length,
+        itemCount: cipherIndex.byOrg.get(org.id) ?? 0,
       };
       for (const c of syncSummary!.collections) {
         if (c.organizationId !== org.id) continue;
@@ -293,7 +323,7 @@
           kind: "collection",
         });
       }
-      computeCollectionCounts(root, syncSummary!.ciphers);
+      computeCollectionCounts(root, cipherIndex.byCollection);
       sortTree(root);
       return root;
     });
@@ -335,25 +365,21 @@
     }
   }
 
-  function computeFolderCounts(node: TreeNode, ciphers: CipherSummary[]): number {
-    const direct = node.folderId
-      ? ciphers.filter((c) => c.folderId === node.folderId).length
-      : 0;
+  function computeFolderCounts(node: TreeNode, byFolder: Map<string, number>): number {
+    const direct = node.folderId ? (byFolder.get(node.folderId) ?? 0) : 0;
     let total = direct;
     for (const child of node.children) {
-      total += computeFolderCounts(child, ciphers);
+      total += computeFolderCounts(child, byFolder);
     }
     node.itemCount = total;
     return total;
   }
 
-  function computeCollectionCounts(node: TreeNode, ciphers: CipherSummary[]): number {
-    const direct = node.collectionId
-      ? ciphers.filter((c) => c.collectionIds.includes(node.collectionId!)).length
-      : 0;
+  function computeCollectionCounts(node: TreeNode, byCollection: Map<string, number>): number {
+    const direct = node.collectionId ? (byCollection.get(node.collectionId) ?? 0) : 0;
     let total = direct;
     for (const child of node.children) {
-      total += computeCollectionCounts(child, ciphers);
+      total += computeCollectionCounts(child, byCollection);
     }
     // For organization root, keep the pre-computed total (all items of the org)
     if (node.kind !== "organization") {
@@ -399,7 +425,7 @@
 
   const filteredCiphers = $derived.by(() => {
     if (!syncSummary) return [];
-    const q = search.trim().toLowerCase();
+    const q = searchDebounced.trim().toLowerCase();
     let items = syncSummary.ciphers;
 
     if (selectedKey) {
@@ -423,6 +449,45 @@
       items = items.filter((c) => c.name.toLowerCase().includes(q));
     }
     return items;
+  });
+
+  const ROW_HEIGHT = 36;
+  const OVERSCAN = 6;
+  let listScrollEl = $state<HTMLElement | null>(null);
+  let listScrollTop = $state(0);
+  let listViewportHeight = $state(600);
+
+  function onListScroll(event: Event) {
+    listScrollTop = (event.currentTarget as HTMLElement).scrollTop;
+  }
+
+  $effect(() => {
+    if (!listScrollEl) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        listViewportHeight = entry.contentRect.height;
+      }
+    });
+    observer.observe(listScrollEl);
+    listViewportHeight = listScrollEl.clientHeight;
+    return () => observer.disconnect();
+  });
+
+  const virtualWindow = $derived.by(() => {
+    const total = filteredCiphers.length;
+    const start = Math.max(0, Math.floor(listScrollTop / ROW_HEIGHT) - OVERSCAN);
+    const end = Math.min(
+      total,
+      Math.ceil((listScrollTop + listViewportHeight) / ROW_HEIGHT) + OVERSCAN,
+    );
+    return {
+      total,
+      start,
+      end,
+      items: filteredCiphers.slice(start, end),
+      offsetY: start * ROW_HEIGHT,
+      totalHeight: total * ROW_HEIGHT,
+    };
   });
 
   function toggleExpanded(key: string) {
@@ -1210,46 +1275,57 @@
                   {/if}
                 </p>
               {:else}
-                <ul class="enc-list cipher-list">
-                  {#each filteredCiphers as c (c.id)}
-                    {@const fav = faviconUrl(c)}
-                    <li>
-                      <button
-                        type="button"
-                        class="cipher-row"
-                        class:selected={detail?.id === c.id}
-                        class:dragging={draggingCipherId === c.id}
-                        onclick={() => openCipher(c.id)}
-                        draggable="true"
-                        ondragstart={(e) => onCipherDragStart(e, c.id)}
-                        ondragend={onCipherDragEnd}
-                      >
-                        <span class="cipher-icon" title={cipherTypeLabel(c.kind)}>
-                          {#if fav}
-                            <img
-                              src={fav}
-                              alt=""
-                              loading="lazy"
-                              onerror={(e) => {
-                                const img = e.currentTarget as HTMLImageElement;
-                                img.style.display = "none";
-                                const fallback = img.nextElementSibling as HTMLElement | null;
-                                if (fallback) fallback.style.display = "inline";
-                              }}
-                            />
-                            <span class="emoji-fallback" style:display="none">
-                              {cipherTypeIcon(c.kind)}
+                <div
+                  class="cipher-scroll"
+                  bind:this={listScrollEl}
+                  onscroll={onListScroll}
+                >
+                  <div class="cipher-spacer" style:height="{virtualWindow.totalHeight}px">
+                    <ul
+                      class="enc-list cipher-list"
+                      style:transform="translateY({virtualWindow.offsetY}px)"
+                    >
+                      {#each virtualWindow.items as c (c.id)}
+                        {@const fav = faviconUrl(c)}
+                        <li style:height="{ROW_HEIGHT}px">
+                          <button
+                            type="button"
+                            class="cipher-row"
+                            class:selected={detail?.id === c.id}
+                            class:dragging={draggingCipherId === c.id}
+                            onclick={() => openCipher(c.id)}
+                            draggable="true"
+                            ondragstart={(e) => onCipherDragStart(e, c.id)}
+                            ondragend={onCipherDragEnd}
+                          >
+                            <span class="cipher-icon" title={cipherTypeLabel(c.kind)}>
+                              {#if fav}
+                                <img
+                                  src={fav}
+                                  alt=""
+                                  loading="lazy"
+                                  onerror={(e) => {
+                                    const img = e.currentTarget as HTMLImageElement;
+                                    img.style.display = "none";
+                                    const fallback = img.nextElementSibling as HTMLElement | null;
+                                    if (fallback) fallback.style.display = "inline";
+                                  }}
+                                />
+                                <span class="emoji-fallback" style:display="none">
+                                  {cipherTypeIcon(c.kind)}
+                                </span>
+                              {:else}
+                                <span class="emoji-fallback">{cipherTypeIcon(c.kind)}</span>
+                              {/if}
                             </span>
-                          {:else}
-                            <span class="emoji-fallback">{cipherTypeIcon(c.kind)}</span>
-                          {/if}
-                        </span>
-                        <span class="name">{c.name}</span>
-                        {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
-                      </button>
-                    </li>
-                  {/each}
-                </ul>
+                            <span class="name">{c.name}</span>
+                            {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                          </button>
+                        </li>
+                      {/each}
+                    </ul>
+                  </div>
+                </div>
               {/if}
             </section>
           </div>
@@ -1993,11 +2069,30 @@
     flex: 0 0 auto;
   }
 
-  .list-pane .enc-list.cipher-list {
+  .list-pane .cipher-scroll {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: none;
     overflow-y: auto;
+    contain: strict;
+  }
+
+  .cipher-spacer {
+    position: relative;
+    width: 100%;
+  }
+
+  .list-pane .enc-list.cipher-list {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    will-change: transform;
+    margin: 0;
+  }
+
+  .cipher-list li {
+    display: flex;
+    align-items: center;
   }
 
   .tree-pane h4 {

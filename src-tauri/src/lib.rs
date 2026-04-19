@@ -8,6 +8,7 @@ mod store;
 
 use std::collections::HashMap;
 
+use rayon::prelude::*;
 use rsa::RsaPrivateKey;
 use secrecy::SecretString;
 use serde::Serialize;
@@ -325,7 +326,7 @@ fn build_sync_summary(
 
     let folders: Vec<FolderSummary> = response
         .folders
-        .iter()
+        .par_iter()
         .map(|f| FolderSummary {
             id: f.id.clone(),
             name: decrypt_or_placeholder(&f.name, user_key),
@@ -334,7 +335,7 @@ fn build_sync_summary(
 
     let ciphers: Vec<CipherSummary> = response
         .ciphers
-        .iter()
+        .par_iter()
         .map(|c| {
             let key = c
                 .organization_id
@@ -373,7 +374,7 @@ fn build_sync_summary(
 
     let collections: Vec<CollectionSummary> = response
         .collections
-        .iter()
+        .par_iter()
         .map(|c| {
             let key = org_keys.get(&c.organization_id).unwrap_or(user_key);
             CollectionSummary {
