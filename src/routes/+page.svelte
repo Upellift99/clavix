@@ -119,6 +119,38 @@
   let dragOverKey = $state<string | null>(null);
   let statsDialog = $state<HTMLDialogElement | null>(null);
 
+  const TREE_WIDTH_MIN = 180;
+  const TREE_WIDTH_MAX = 560;
+  const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
+  let treeWidth = $state(260);
+
+  function onSplitterMouseDown(event: MouseEvent) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = treeWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMove = (e: MouseEvent) => {
+      const delta = e.clientX - startX;
+      const next = Math.max(TREE_WIDTH_MIN, Math.min(TREE_WIDTH_MAX, startWidth + delta));
+      treeWidth = next;
+    };
+    const onUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      try {
+        localStorage.setItem(TREE_WIDTH_STORAGE_KEY, String(treeWidth));
+      } catch {
+        // ignore quota / storage disabled
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
   function openStats() {
     statsDialog?.showModal();
   }
@@ -613,6 +645,18 @@
 
   onMount(async () => {
     try {
+      const saved = localStorage.getItem(TREE_WIDTH_STORAGE_KEY);
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (Number.isFinite(parsed)) {
+          treeWidth = Math.max(TREE_WIDTH_MIN, Math.min(TREE_WIDTH_MAX, parsed));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
       const account = await invoke<StoredAccount | null>("stored_account");
       if (account) {
         storedAccount = account;
@@ -869,7 +913,7 @@
     {#if syncSummary}
       <section class="vault-section">
         {#if syncSummary.ciphers.length > 0}
-          <div class="vault-layout">
+          <div class="vault-layout" style="--tree-width: {treeWidth}px;">
             <aside class="tree-pane">
               <button
                 type="button"
@@ -919,6 +963,15 @@
                 </ul>
               {/if}
             </aside>
+
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <div
+              class="splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Redimensionner le panneau"
+              onmousedown={onSplitterMouseDown}
+            ></div>
 
             <section class="list-pane">
               <h3>
@@ -1502,8 +1555,8 @@
 
   .vault-layout {
     display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 1rem;
+    grid-template-columns: var(--tree-width, 260px) 6px 1fr;
+    gap: 0;
     align-items: stretch;
     min-height: 0;
   }
@@ -1512,17 +1565,42 @@
     flex: 1 1 auto;
   }
 
+  .splitter {
+    cursor: col-resize;
+    background: transparent;
+    transition: background-color 0.1s;
+    user-select: none;
+  }
+
+  .splitter::before {
+    content: "";
+    display: block;
+    width: 1px;
+    height: 100%;
+    margin-left: 2.5px;
+    background: #e5e5e5;
+  }
+
+  .splitter:hover {
+    background: #dbeafe;
+  }
+
+  .splitter:hover::before {
+    background: #3b82f6;
+  }
+
   .tree-pane {
     background: #fff;
     border-radius: 10px;
     padding: 0.75rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    width: 260px;
-    min-width: 200px;
-    max-width: 520px;
-    resize: horizontal;
     overflow: auto;
     max-height: 70vh;
+    margin-right: 0.5rem;
+  }
+
+  .list-pane {
+    margin-left: 0.5rem;
   }
 
   .container.wide .tree-pane {
@@ -1855,6 +1933,9 @@
       color: #aabaff;
     }
     .tree-children { border-left-color: #444; }
+    .splitter::before { background: #3a3a3a; }
+    .splitter:hover { background: #1e3a8a; }
+    .splitter:hover::before { background: #60a5fa; }
   }
 
   @media (prefers-color-scheme: dark) {
