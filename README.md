@@ -8,8 +8,8 @@ provide a comfortable tree-based vault with drag & drop, the way
 KeePassXC has offered for years.
 
 > **Status: work in progress.** No usable release has shipped yet,
-> but the core is in place: login, 2FA, sync, full decryption, tree
-> navigation with drag & drop.
+> but the read-only MVP is functionally complete: login, 2FA, sync,
+> full decryption, tree navigation, drag & drop, offline cache.
 
 ## What Clavix can do today
 
@@ -24,15 +24,20 @@ Against a real Vaultwarden instance, Clavix already:
 - syncs the full vault (items, folders, collections, organizations);
 - **decrypts everything client-side**: AES-256-CBC + HMAC-SHA256 for
   the personal vault, RSA-OAEP-SHA1 for organization keys;
+- keeps an **encrypted SQLite cache** of the vault, so the next
+  unlock (even offline) shows the vault instantly;
 - shows the complete list of items with a live substring search;
 - navigates through a hierarchical **TreeView** built from the
   Bitwarden `/` naming convention (personal folders + collections
-  per organization);
+  per organization), with a **draggable splitter** to resize the
+  tree panel (width persisted to localStorage);
 - shows item details: username, hidden password, URLs, notes. The
   *Copy* button places the value on the clipboard and **automatically
   clears it after 30 seconds**;
-- **drag & drop** an item onto a folder or a collection;
-- **drag & drop a whole folder** to rearrange the tree — all its
+- **drag & drop items** onto folders or organization collections
+  (with automatic re-encryption and share to the org when a personal
+  item is dropped on an org collection);
+- **drag & drop whole folders** to rearrange the tree — all their
   sub-folders are renamed in cascade on the server.
 
 The master password never hits the server nor the disk: only derived
@@ -40,9 +45,6 @@ values are exchanged (master password hash for authentication, master
 key for local decryption). Every sensitive key (`MasterKey`,
 `SymmetricKey`) derives `ZeroizeOnDrop` to wipe its memory on
 destruction.
-
-What's still missing before a usable release: a persistent local
-cache for offline reading. See the roadmap.
 
 ---
 
@@ -63,7 +65,8 @@ community.
   lists become needed later)
 - **Local session** — JSON files under `~/.local/share/clavix/` with
   0600 permissions (cross-platform via the `dirs` crate)
-- **Offline cache** — encrypted SQLite (`rusqlite`), planned
+- **Offline cache** — SQLite (`rusqlite` bundled) with the whole
+  `SyncResponse` encrypted by the user key before being stored
 
 > Clavix does **not** use the official Bitwarden SDK (ambiguous
 > license). The crypto is reimplemented in-project, under GPL-3.0.
@@ -79,20 +82,23 @@ community.
 - [x] Persisted session on disk + *Unlock* screen
 - [x] Full list with live search
 - [x] Item details + clipboard copy with 30 s auto-clear
-- [ ] Encrypted local cache (offline read-only mode)
+- [x] Encrypted local cache (offline read-only mode)
 
 ### Phase 2 — Tree view
 - [x] Parse `/`-separated names into a hierarchy
 - [x] TreeView with expand/collapse
 - [x] Tree of personal folders **and** organization collections
+- [x] Draggable splitter to resize the tree panel
 
 ### Phase 3 — Drag & drop (killer feature)
 - [x] Drag items onto a folder (PUT `/ciphers/{id}/partial`)
 - [x] Drag items onto an organization collection
 - [x] Drag a folder onto another folder, with cascade rename of
   sub-folders
-- [ ] Share a personal item into an organization collection
-  (`POST /ciphers/{id}/share`)
+- [x] Share a personal item into an organization collection
+  (PUT `/ciphers/{id}/share`, re-encrypted client-side with the
+  target org key)
+- [ ] Cross-org item transfer (different destination organization)
 
 ### Out of MVP scope
 
@@ -143,10 +149,12 @@ clavix/
 │       ├── main.rs       Binary entry point
 │       ├── lib.rs        Tauri commands exposed to Svelte
 │       ├── api.rs        Vaultwarden HTTP client
-│       ├── crypto.rs     Key derivation, EncString (AES / RSA)
+│       ├── crypto.rs     Key derivation, EncString (AES / RSA),
+│       │                 encrypt/re-encrypt for server updates
 │       ├── models.rs     API types and DTOs sent to the UI
 │       ├── state.rs      AppState (in-memory session + keys)
 │       ├── store.rs      On-disk session persistence
+│       ├── cache.rs      Encrypted SQLite vault cache
 │       └── error.rs      Unified Error type, serialized as
 │                         { code, message, data }
 ├── src/              SvelteKit frontend (static output, no SSR)
