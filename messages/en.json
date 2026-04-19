@@ -54,13 +54,13 @@
   "editor_saving": "Saving…",
 
   "ssh_agent_title": "SSH agent",
-  "ssh_agent_hint": "Expose the Ed25519 SSH keys from your vault over a Unix socket, like ssh-agent. Configure it in your shell with the SSH_AUTH_SOCK variable.",
+  "ssh_agent_hint": "Expose the SSH keys (Ed25519 and RSA) from your vault over a Unix socket, like ssh-agent. Configure it in your shell with the SSH_AUTH_SOCK variable.",
   "ssh_agent_start": "Start",
   "ssh_agent_stop": "Stop",
   "ssh_agent_running": "Running — {count} key(s) exposed",
   "ssh_agent_stopped": "Stopped",
   "ssh_agent_copy_export": "Copy export SSH_AUTH_SOCK",
-  "ssh_agent_skipped": "{count} unsupported key(s) skipped (RSA / ECDSA not handled yet).",
+  "ssh_agent_skipped": "{count} unsupported key(s) skipped (ECDSA / DSA not handled yet).",
 
   "audit_label": "Security audit",
   "audit_title": "Security audit",

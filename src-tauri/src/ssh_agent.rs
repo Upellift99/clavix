@@ -51,7 +51,11 @@ mod unix {
     use std::path::PathBuf;
     use std::sync::Arc;
 
-    use ed25519_dalek::{Signer, SigningKey};
+    use ed25519_dalek::{Signer as _, SigningKey};
+    use rsa::pkcs1v15::{Signature as RsaSignature, SigningKey as RsaSigningKey};
+    use rsa::signature::{RandomizedSigner, SignatureEncoding};
+    use rsa::RsaPrivateKey;
+    use sha2::{Sha256, Sha512};
     use ssh_key::{Algorithm, PrivateKey};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::{UnixListener, UnixStream};
@@ -67,16 +71,23 @@ mod unix {
     const SSH_AGENT_SIGN_RESPONSE: u8 = 14;
     const SSH_AGENT_FAILURE: u8 = 5;
 
+    // Flags on `SSH_AGENTC_SIGN_REQUEST`: which SHA variant for RSA.
+    const SSH_AGENT_RSA_SHA2_256: u32 = 2;
+    const SSH_AGENT_RSA_SHA2_512: u32 = 4;
+
     // Cap any single agent request to 256 KB — real traffic is orders smaller.
     const MAX_MESSAGE: usize = 256 * 1024;
+
+    pub enum SignerKind {
+        Ed25519(SigningKey),
+        Rsa(RsaPrivateKey),
+    }
 
     pub struct AgentKey {
         /// SSH wire-format public key blob (what clients compare against).
         pub pub_blob: Vec<u8>,
         pub comment: String,
-        /// Ed25519 signer.  RSA/ECDSA to be added later — keys of those
-        /// types are filtered out at load time.
-        pub signer: SigningKey,
+        pub kind: SignerKind,
     }
 
     type KeyStore = Arc<Mutex<Vec<AgentKey>>>;
@@ -123,9 +134,10 @@ mod unix {
         Ok(path)
     }
 
-    /// Parse an OpenSSH private key and wrap it as an `AgentKey` if we can sign
-    /// with it today (Ed25519 only for this pass).  Returns `Ok(None)` for key
-    /// types we intentionally skip, `Err` for malformed / encrypted input.
+    /// Parse an OpenSSH private key and wrap it as an `AgentKey` if we can
+    /// sign with it. Today: Ed25519 and RSA. Returns `Ok(None)` for key
+    /// types we intentionally skip (ECDSA, DSA), `Err` for malformed or
+    /// encrypted input.
     pub fn try_load_agent_key(
         private_key_pem: &str,
         public_comment: &str,
@@ -138,29 +150,46 @@ mod unix {
                 reason: "SSH private key is passphrase-protected — decrypt it first".into(),
             });
         }
-        match pk.algorithm() {
+        let pub_blob = pk.public_key().to_bytes().map_err(|e| Error::Crypto {
+            reason: format!("ssh public blob: {e}"),
+        })?;
+        let comment = if !pk.comment().is_empty() {
+            pk.comment().to_string()
+        } else {
+            public_comment.to_string()
+        };
+        let kind = match pk.algorithm() {
             Algorithm::Ed25519 => {
                 let keypair = pk.key_data().ed25519().ok_or_else(|| Error::Crypto {
                     reason: "ed25519 keypair extraction failed".into(),
                 })?;
                 let secret_bytes: &[u8; 32] = keypair.private.as_ref();
-                let signer = SigningKey::from_bytes(secret_bytes);
-                let pub_blob = pk.public_key().to_bytes().map_err(|e| Error::Crypto {
-                    reason: format!("ssh public blob: {e}"),
-                })?;
-                let comment = if !pk.comment().is_empty() {
-                    pk.comment().to_string()
-                } else {
-                    public_comment.to_string()
-                };
-                Ok(Some(AgentKey {
-                    pub_blob,
-                    comment,
-                    signer,
-                }))
+                SignerKind::Ed25519(SigningKey::from_bytes(secret_bytes))
             }
-            _ => Ok(None),
-        }
+            Algorithm::Rsa { .. } => {
+                let keypair = pk.key_data().rsa().ok_or_else(|| Error::Crypto {
+                    reason: "rsa keypair extraction failed".into(),
+                })?;
+                let n = rsa::BigUint::from_bytes_be(keypair.public.n.as_bytes());
+                let e = rsa::BigUint::from_bytes_be(keypair.public.e.as_bytes());
+                let d = rsa::BigUint::from_bytes_be(keypair.private.d.as_bytes());
+                let p = rsa::BigUint::from_bytes_be(keypair.private.p.as_bytes());
+                let q = rsa::BigUint::from_bytes_be(keypair.private.q.as_bytes());
+                let rsa_key =
+                    RsaPrivateKey::from_components(n, e, d, vec![p, q]).map_err(|err| {
+                        Error::Crypto {
+                            reason: format!("rsa key import: {err}"),
+                        }
+                    })?;
+                SignerKind::Rsa(rsa_key)
+            }
+            _ => return Ok(None),
+        };
+        Ok(Some(AgentKey {
+            pub_blob,
+            comment,
+            kind,
+        }))
     }
 
     pub async fn start_agent(socket_path: PathBuf, keys: Vec<AgentKey>) -> Result<SshAgentHandle> {
@@ -258,18 +287,40 @@ mod unix {
         let Ok(data) = reader.read_string() else {
             return vec![SSH_AGENT_FAILURE];
         };
-        // We ignore `flags`; Ed25519 has no per-request hash choice.
-        let _flags = reader.read_u32().unwrap_or(0);
+        let flags = reader.read_u32().unwrap_or(0);
 
         let guard = keys.lock().await;
         let Some(key) = guard.iter().find(|k| k.pub_blob == key_blob) else {
             return vec![SSH_AGENT_FAILURE];
         };
 
-        let signature = key.signer.sign(data);
+        let (algo_name, sig_bytes): (&'static [u8], Vec<u8>) = match &key.kind {
+            SignerKind::Ed25519(signer) => (b"ssh-ed25519", signer.sign(data).to_bytes().to_vec()),
+            SignerKind::Rsa(rsa_key) => {
+                // flags=4 → SHA-512, flags=2 → SHA-256, legacy flags=0
+                // (SHA-1 / ssh-rsa) is deprecated — we degrade it to SHA-256
+                // since modern servers no longer accept SHA-1 signatures.
+                let mut rng = rand::thread_rng();
+                match flags {
+                    SSH_AGENT_RSA_SHA2_512 => {
+                        let signing_key = RsaSigningKey::<Sha512>::new(rsa_key.clone());
+                        let sig: RsaSignature = signing_key.sign_with_rng(&mut rng, data);
+                        (b"rsa-sha2-512", sig.to_bytes().to_vec())
+                    }
+                    _ => {
+                        // flags=0 (legacy ssh-rsa/SHA-1) or flags=2 (SHA-256)
+                        let _ = SSH_AGENT_RSA_SHA2_256; // name retained for clarity
+                        let signing_key = RsaSigningKey::<Sha256>::new(rsa_key.clone());
+                        let sig: RsaSignature = signing_key.sign_with_rng(&mut rng, data);
+                        (b"rsa-sha2-256", sig.to_bytes().to_vec())
+                    }
+                }
+            }
+        };
+
         let mut sig_blob = Vec::with_capacity(96);
-        write_string(&mut sig_blob, b"ssh-ed25519");
-        write_string(&mut sig_blob, &signature.to_bytes());
+        write_string(&mut sig_blob, algo_name);
+        write_string(&mut sig_blob, &sig_bytes);
 
         let mut out = Vec::with_capacity(sig_blob.len() + 5);
         out.push(SSH_AGENT_SIGN_RESPONSE);

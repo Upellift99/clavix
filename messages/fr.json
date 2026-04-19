@@ -54,13 +54,13 @@
   "editor_saving": "Enregistrement…",
 
   "ssh_agent_title": "Agent SSH",
-  "ssh_agent_hint": "Expose vos clés SSH Ed25519 du coffre via une socket Unix, comme ssh-agent. À configurer dans votre shell avec la variable SSH_AUTH_SOCK.",
+  "ssh_agent_hint": "Expose vos clés SSH (Ed25519 et RSA) du coffre via une socket Unix, comme ssh-agent. À configurer dans votre shell avec la variable SSH_AUTH_SOCK.",
   "ssh_agent_start": "Démarrer",
   "ssh_agent_stop": "Arrêter",
   "ssh_agent_running": "Actif — {count} clé(s) exposée(s)",
   "ssh_agent_stopped": "Arrêté",
   "ssh_agent_copy_export": "Copier export SSH_AUTH_SOCK",
-  "ssh_agent_skipped": "{count} clé(s) non supportée(s) ignorée(s) (RSA / ECDSA pour l'instant).",
+  "ssh_agent_skipped": "{count} clé(s) non supportée(s) ignorée(s) (ECDSA / DSA pour l'instant).",
 
   "audit_label": "Audit de sécurité",
   "audit_title": "Audit de sécurité",
