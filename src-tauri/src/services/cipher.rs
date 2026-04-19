@@ -150,3 +150,164 @@ pub fn build_login_cipher_body(
     input.cipher_type = 1;
     build_cipher_body(&input, key)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypto::SymmetricKey;
+    use crate::models::{CardInput, CipherCreateInput, IdentityInput, LoginInput, SshKeyInput};
+
+    fn test_key() -> SymmetricKey {
+        // 64 bytes of arbitrary but deterministic material — splits into
+        // a 32-byte encryption key and a 32-byte MAC key inside the type.
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(7).wrapping_add(11);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn base_input() -> CipherCreateInput {
+        CipherCreateInput {
+            name: "My item".into(),
+            folder_id: None,
+            favorite: false,
+            notes: None,
+            login: None,
+            card: None,
+            identity: None,
+            ssh_key: None,
+            cipher_type: 1,
+            organization_id: None,
+            collection_ids: vec![],
+        }
+    }
+
+    #[test]
+    fn login_body_has_encrypted_login_subobject() {
+        let mut input = base_input();
+        input.login = Some(LoginInput {
+            username: Some("alice".into()),
+            password: Some("hunter2".into()),
+            uris: vec!["https://example.com".into(), "".into()],
+            totp: None,
+        });
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        assert_eq!(body["type"], 1);
+        assert!(body["name"].as_str().unwrap().starts_with("2."));
+        let login = &body["login"];
+        assert!(login["username"].as_str().unwrap().starts_with("2."));
+        assert!(login["password"].as_str().unwrap().starts_with("2."));
+        assert!(login["totp"].is_null());
+        let uris = login["uris"].as_array().unwrap();
+        assert_eq!(uris.len(), 1, "empty URI should be dropped");
+        assert!(uris[0]["uri"].as_str().unwrap().starts_with("2."));
+        assert!(uris[0]["match"].is_null());
+    }
+
+    #[test]
+    fn secure_note_body_carries_sub_type_and_no_login() {
+        let mut input = base_input();
+        input.cipher_type = 2;
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        assert_eq!(body["type"], 2);
+        assert_eq!(body["secureNote"]["type"], 0);
+        assert!(body.get("login").is_none());
+    }
+
+    #[test]
+    fn card_body_encrypts_each_field() {
+        let mut input = base_input();
+        input.cipher_type = 3;
+        input.card = Some(CardInput {
+            cardholder_name: Some("A. B.".into()),
+            brand: None,
+            number: Some("4111 1111 1111 1111".into()),
+            exp_month: Some("12".into()),
+            exp_year: Some("2030".into()),
+            code: Some("123".into()),
+        });
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let card = &body["card"];
+        assert!(card["cardholderName"].as_str().unwrap().starts_with("2."));
+        assert!(card["number"].as_str().unwrap().starts_with("2."));
+        assert!(card["brand"].is_null(), "missing field stays null");
+    }
+
+    #[test]
+    fn identity_body_encrypts_all_set_fields() {
+        let mut input = base_input();
+        input.cipher_type = 4;
+        input.identity = Some(IdentityInput {
+            first_name: Some("Alice".into()),
+            last_name: Some("Doe".into()),
+            email: Some("a@example.com".into()),
+            ..Default::default()
+        });
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let id = &body["identity"];
+        assert!(id["firstName"].as_str().unwrap().starts_with("2."));
+        assert!(id["lastName"].as_str().unwrap().starts_with("2."));
+        assert!(id["email"].as_str().unwrap().starts_with("2."));
+        assert!(id["ssn"].is_null());
+    }
+
+    #[test]
+    fn ssh_key_body_preserves_private_key_whitespace() {
+        let mut input = base_input();
+        input.cipher_type = 5;
+        input.ssh_key = Some(SshKeyInput {
+            private_key: Some("-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END-----\n".into()),
+            public_key: Some("ssh-ed25519 AAAA".into()),
+            key_fingerprint: Some("SHA256:xxx".into()),
+        });
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let ssh = &body["sshKey"];
+        assert!(ssh["privateKey"].as_str().unwrap().starts_with("2."));
+        assert!(ssh["publicKey"].as_str().unwrap().starts_with("2."));
+    }
+
+    #[test]
+    fn org_scoping_injects_organization_id() {
+        let mut input = base_input();
+        input.cipher_type = 2;
+        input.organization_id = Some("org-uuid".into());
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        assert_eq!(body["organizationId"], "org-uuid");
+    }
+
+    #[test]
+    fn missing_variant_payload_is_a_storage_error() {
+        let mut input = base_input();
+        input.cipher_type = 1; // says Login, but no login field
+        input.login = None;
+        let err = build_cipher_body(&input, &test_key()).unwrap_err();
+        assert!(matches!(err, Error::Storage { .. }));
+    }
+
+    #[test]
+    fn unsupported_cipher_type_errors_out() {
+        let mut input = base_input();
+        input.cipher_type = 99;
+        let err = build_cipher_body(&input, &test_key()).unwrap_err();
+        assert!(matches!(err, Error::Storage { .. }));
+    }
+
+    #[test]
+    fn notes_are_encrypted_when_non_empty() {
+        let mut input = base_input();
+        input.cipher_type = 2;
+        input.notes = Some("  a multi-line\nnote\n".into());
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        assert!(body["notes"].as_str().unwrap().starts_with("2."));
+    }
+
+    #[test]
+    fn blank_notes_stay_null() {
+        let mut input = base_input();
+        input.cipher_type = 2;
+        input.notes = Some("   ".into());
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        assert!(body["notes"].is_null());
+    }
+}

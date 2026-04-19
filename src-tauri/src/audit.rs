@@ -194,3 +194,79 @@ fn analyze_local(entries: &[(String, String, SecretString)]) -> (Vec<ReusedGroup
 
     (reused, weak)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(id: &str, name: &str, pw: &str) -> (String, String, SecretString) {
+        (
+            id.to_string(),
+            name.to_string(),
+            SecretString::from(pw.to_string()),
+        )
+    }
+
+    #[test]
+    fn sha1_matches_known_vector() {
+        // RFC-style vector: SHA-1("password") uppercase hex.
+        assert_eq!(
+            sha1_hex_upper("password"),
+            "5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8"
+        );
+    }
+
+    #[test]
+    fn reused_groups_items_with_identical_passwords() {
+        let entries = vec![
+            entry("a", "A", "hunter2"),
+            entry("b", "B", "hunter2"),
+            entry("c", "C", "different"),
+            entry("d", "D", "hunter2"),
+        ];
+        let (reused, _weak) = analyze_local(&entries);
+        assert_eq!(reused.len(), 1);
+        let group = &reused[0];
+        assert_eq!(group.cipher_ids.len(), 3);
+        let mut names = group.names.clone();
+        names.sort();
+        assert_eq!(names, vec!["A", "B", "D"]);
+    }
+
+    #[test]
+    fn reused_ignores_unique_passwords() {
+        let entries = vec![entry("a", "A", "pw-a"), entry("b", "B", "pw-b")];
+        let (reused, _weak) = analyze_local(&entries);
+        assert!(reused.is_empty());
+    }
+
+    #[test]
+    fn weak_flags_trivial_passwords() {
+        let entries = vec![
+            entry("a", "Trivial", "password"),
+            entry("b", "Strong", "8J!kQr2#Lm^9zXvP$4wT"),
+        ];
+        let (_reused, weak) = analyze_local(&entries);
+        let ids: Vec<_> = weak.iter().map(|e| e.cipher_id.as_str()).collect();
+        assert!(
+            ids.contains(&"a"),
+            "Trivial should be flagged: got {weak:?}"
+        );
+        assert!(
+            !ids.contains(&"b"),
+            "Strong should not be flagged: got {weak:?}"
+        );
+    }
+
+    #[test]
+    fn weak_is_sorted_by_ascending_score() {
+        let entries = vec![
+            entry("a", "A", "qwerty"),   // score 0/1
+            entry("b", "B", "abcd1234"), // score 1/2
+        ];
+        let (_reused, weak) = analyze_local(&entries);
+        for pair in weak.windows(2) {
+            assert!(pair[0].score <= pair[1].score);
+        }
+    }
+}

@@ -200,3 +200,80 @@ fn ctap_assertion(rp_id: &str, hash: &[u8; 32], ids: Vec<Vec<u8>>) -> Result<Ass
         },
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn b64url_roundtrip_standard_alphabet() {
+        let raw: &[u8] = &[0, 255, 170, 17, 34, 128];
+        let enc = b64url_encode(raw);
+        assert!(!enc.contains('='), "no padding: {enc}");
+        let dec = b64url_decode(&enc).unwrap();
+        assert_eq!(dec, raw);
+    }
+
+    #[test]
+    fn b64url_decode_accepts_standard_b64() {
+        let with_padding = "YWJjZA==";
+        let dec = b64url_decode(with_padding).unwrap();
+        assert_eq!(dec, b"abcd");
+    }
+
+    #[test]
+    fn b64url_decode_rejects_garbage() {
+        assert!(b64url_decode("not*valid*base64").is_err());
+    }
+
+    #[test]
+    fn challenge_json_parses_the_shape_vaultwarden_sends() {
+        let json = r#"{
+            "challenge":"abc-challenge",
+            "rpId":"vault.example.com",
+            "allowCredentials":[{"id":"Y3JlZGVudGlhbA","type":"public-key"}],
+            "userVerification":"discouraged",
+            "timeout":60000
+        }"#;
+        let parsed: RawChallenge = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.rp_id, "vault.example.com");
+        assert_eq!(parsed.challenge, "abc-challenge");
+        assert_eq!(parsed.allow_credentials.len(), 1);
+        assert_eq!(parsed.allow_credentials[0].id, "Y3JlZGVudGlhbA");
+    }
+
+    #[test]
+    fn challenge_json_tolerates_missing_allow_credentials() {
+        let json = r#"{"challenge":"x","rpId":"y"}"#;
+        let parsed: RawChallenge = serde_json::from_str(json).unwrap();
+        assert!(parsed.allow_credentials.is_empty());
+    }
+
+    #[test]
+    fn client_data_json_is_stable_and_well_formed() {
+        let data = serde_json::to_string(&ClientData {
+            kind: "webauthn.get",
+            challenge: "abc",
+            origin: "https://vault.example.com".into(),
+            cross_origin: false,
+        })
+        .unwrap();
+        // Vaultwarden / the authenticator signs the SHA-256 of this exact
+        // string, so any reordering here would silently break 2FA.
+        assert_eq!(
+            data,
+            r#"{"type":"webauthn.get","challenge":"abc","origin":"https://vault.example.com","crossOrigin":false}"#
+        );
+    }
+
+    #[test]
+    fn sign_bitwarden_challenge_reports_missing_device_as_crypto_error() {
+        let json =
+            r#"{"challenge":"Y2hhbGxlbmdl","rpId":"vault.example.com","allowCredentials":[]}"#;
+        let res = sign_bitwarden_challenge(json);
+        match res {
+            Err(Error::Crypto { .. }) => {}
+            other => panic!("expected Error::Crypto, got {other:?}"),
+        }
+    }
+}

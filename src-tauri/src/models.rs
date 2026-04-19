@@ -346,7 +346,7 @@ pub struct SshKeyDetail {
 
 // ============ Inputs for create/update ============
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginInput {
     #[serde(default)]
@@ -359,7 +359,7 @@ pub struct LoginInput {
     pub totp: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardInput {
     #[serde(default)]
@@ -376,7 +376,7 @@ pub struct CardInput {
     pub code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityInput {
     #[serde(default)]
@@ -417,7 +417,7 @@ pub struct IdentityInput {
     pub license_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyInput {
     #[serde(default)]

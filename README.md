@@ -20,23 +20,41 @@ built for the self-hosted Vaultwarden community. The goal: finally
 provide a comfortable tree-based vault with drag & drop, the way
 KeePassXC has offered for years.
 
-> **Status: work in progress.** No usable release has shipped yet,
-> but the read-only MVP is functionally complete: login, 2FA, sync,
-> full decryption, tree navigation, drag & drop, offline cache.
+> **Status: alpha, read+write.** Releases starting from `v0.1.7`
+> support creating and editing items, full 2FA (including WebAuthn
+> and YubiKey OTP), an embedded SSH agent, KeePassXC import and a
+> built-in security audit. See [CHANGELOG.md](CHANGELOG.md) for the
+> full picture per version.
 
 ## What Clavix can do today
 
-Against a real Vaultwarden instance, Clavix already:
+Against a real Vaultwarden instance, Clavix:
 
-- signs you in (email + master password, PBKDF2 and Argon2id KDFs);
-- handles a TOTP 2FA challenge;
+- **signs you in** (email + master password, PBKDF2 and Argon2id
+  KDFs), with full **2FA support**: TOTP, YubiKey OTP, and **WebAuthn
+  / FIDO2** — Clavix drives the hardware key over CTAP2/HID itself
+  so it works even though the desktop app doesn't run under the
+  vault's domain;
 - **persists the session locally** under `~/.local/share/clavix/` —
   on restart you land on an *Unlock* screen that only asks for the
-  master password (no 2FA again, OAuth2 token refreshed
-  automatically);
+  master password, the OAuth2 token refreshes automatically 60 s
+  before expiry, and the refresh token stored on disk is itself
+  encrypted under the user key;
 - syncs the full vault (items, folders, collections, organizations);
-- **decrypts everything client-side**: AES-256-CBC + HMAC-SHA256 for
-  the personal vault, RSA-OAEP-SHA1 for organization keys;
+- **decrypts and encrypts everything client-side**: AES-256-CBC +
+  HMAC-SHA256 for the personal vault, RSA-OAEP-SHA1 for organization
+  keys;
+- **creates, edits and deletes items** (logins, secure notes, cards,
+  identities, SSH keys) either in your personal vault or inside an
+  organization you belong to — org items are encrypted with the org
+  key and posted through the dedicated `/ciphers/create` endpoint;
+- **auto-locks** after your configured idle window, with a tokio
+  watchdog on the Rust side that drops the in-memory session even if
+  the WebView freezes;
+- **generates TOTP codes** live from the stored secret (supports
+  `otpauth://` URIs with custom period, digits, or hash algorithm);
+- **scans QR codes** through the device camera to populate the TOTP
+  field when creating or editing a login (`jsQR` + `getUserMedia`);
 - keeps an **encrypted SQLite cache** of the vault, so the next
   unlock (even offline) shows the vault instantly;
 - shows the complete list of items with a live substring search and
@@ -47,16 +65,23 @@ Against a real Vaultwarden instance, Clavix already:
   Bitwarden `/` naming convention (personal folders + collections
   per organization), with a **draggable splitter** to resize the
   tree panel (width persisted to localStorage);
-- shows item details: username, hidden password, URLs, notes. The
-  *Copy* button places the value on the clipboard and **automatically
-  clears it after 30 seconds**;
-- **drag & drop items** onto folders or organization collections —
+- shows item details with masked sensitive fields, one-click copy,
+  and automatic **clipboard clearing after 30 seconds**;
+- **drag & drops items** onto folders or organization collections —
   including personal → org (automatic share + re-encryption),
   cross-org transfer (re-encryption from source to target org key)
-  and all cipher types (logins, secure notes, cards, identities,
-  SSH keys);
-- **drag & drop whole folders** to rearrange the tree — all their
-  sub-folders are renamed in cascade on the server.
+  and all cipher types;
+- **drag & drops whole folders** to rearrange the tree — all their
+  sub-folders are renamed in cascade on the server;
+- runs a **security audit** (🛡) combining HIBP k-anonymity breach
+  lookups with local detection of **reused** and **weak** passwords
+  (zxcvbn score ≤ 2);
+- **imports a KeePassXC CSV export** and creates a folder per
+  *Group* value on the fly (📥 button);
+- embeds an **SSH agent** (Linux / macOS): exposes the Ed25519 and
+  RSA keys from your vault over a Unix socket so `ssh`, `git`,
+  `scp`, `rsync`, … can use them without writing the private keys
+  to disk, the same way Bitwarden Desktop now does.
 
 The master password never hits the server nor the disk: only derived
 values are exchanged (master password hash for authentication, master
@@ -94,13 +119,15 @@ community.
 ### Phase 1 — Read-only
 - [x] Login against a Vaultwarden instance (custom URL)
 - [x] Master password unlock (PBKDF2 + Argon2id)
-- [x] TOTP 2FA
+- [x] TOTP / YubiKey OTP / WebAuthn / FIDO2 2FA
 - [x] Initial sync: items, folders, collections, organizations
 - [x] Decrypt names and fields (AES-CBC + HMAC, RSA-OAEP)
-- [x] Persisted session on disk + *Unlock* screen
+- [x] Persisted session on disk + *Unlock* screen (refresh token
+  encrypted at rest, access token auto-refreshed)
 - [x] Full list with live search
 - [x] Item details + clipboard copy with 30 s auto-clear
 - [x] Encrypted local cache (offline read-only mode)
+- [x] Auto-lock watchdog (JS timer + tokio backend safety net)
 
 ### Phase 2 — Tree view
 - [x] Parse `/`-separated names into a hierarchy
@@ -120,20 +147,32 @@ community.
 - [x] All cipher types supported for sharing (logins, secure notes,
   cards, identities, SSH keys)
 
-### Planned (tracked as issues)
+### Phase 4 — Read / write
+- [x] Create and edit personal items (all 5 cipher types)
+- [x] Create and edit inside an organization + collection
+- [x] Restore / permanently delete items
+- [x] Built-in password generator
+- [x] Live TOTP code generation + QR scanner to import TOTP secrets
+- [x] Security audit: HIBP + reused + weak (zxcvbn)
+- [x] KeePassXC CSV import with automatic folder creation
+- [x] **SSH agent** (Unix socket) — Ed25519 and RSA
+- [x] **WebAuthn / FIDO2** in 2FA via CTAP2/HID (no browser needed)
 
-- 🔑 **[YubiKey / WebAuthn 2FA](https://github.com/Upellift99/clavix/issues/1)**
-  — handle the FIDO2 challenge during login so users who secured their
-  Vaultwarden account with a hardware key can sign in with Clavix.
-- 🔐 **[SSH agent mode](https://github.com/Upellift99/clavix/issues/2)**
-  — expose the SSH keys stored in the vault over a Unix socket so
-  `ssh`, `git`, `scp` etc. can use them without writing the private
-  key to disk, the same way Bitwarden Desktop now does.
+### Planned
 
-### Out of MVP scope
+- 🪟 **Windows SSH agent** via named pipes / Pageant compatibility
+  (today the SSH agent is Unix-only).
+- 🛂 **ECDSA / DSA** SSH keys in the agent.
+- 🌐 **Server-side error translation** (`data.message` from the
+  Vaultwarden API is still returned as-is).
+- 📦 **Flatpak / Flathub** packaging.
+- ✅ **Code signing** for macOS and Windows builds.
+- 🗄️ **KDBX** (direct native KeePass file) import.
 
-Creating/editing/deleting items, password generation, attachments,
-Sends, passkeys, browser autofill, KeePass import (phase 5+).
+### Out of MVP scope (for now)
+
+Attachments, Sends, passkeys (storing them in the vault), browser
+autofill.
 
 ## Development requirements
 
@@ -151,8 +190,13 @@ sudo apt install \
   libssl-dev \
   librsvg2-dev \
   libayatana-appindicator3-dev \
+  libudev-dev \
   build-essential curl wget file
 ```
+
+> `libudev-dev` is pulled in by `hidapi` (used by the FIDO2
+> WebAuthn path). Without it, `cargo build` errors out on the
+> `hidapi` sys crate.
 
 ### Other platforms
 
@@ -175,30 +219,52 @@ cache.
 clavix/
 ├── src-tauri/        Rust backend (Tauri)
 │   └── src/
-│       ├── main.rs       Binary entry point
-│       ├── lib.rs        Tauri commands exposed to Svelte
-│       ├── api.rs        Vaultwarden HTTP client
-│       ├── crypto.rs     Key derivation, EncString (AES / RSA),
-│       │                 encrypt/re-encrypt for server updates
-│       ├── models.rs     API types and DTOs sent to the UI
-│       ├── state.rs      AppState (in-memory session + keys)
-│       ├── store.rs      On-disk session persistence
-│       ├── cache.rs      Encrypted SQLite vault cache
-│       └── error.rs      Unified Error type, serialized as
-│                         { code, message, data }
+│       ├── main.rs         Binary entry point
+│       ├── lib.rs          Tauri setup + command registry
+│       ├── commands/       Tauri commands, one module per domain
+│       │                   (auth, vault, cipher, move_share, ssh,
+│       │                   audit)
+│       ├── services/       Internal helpers used by commands (auth
+│       │                   token refresh, cipher body builder,
+│       │                   vault summary projection)
+│       ├── api.rs          Vaultwarden HTTP client
+│       ├── crypto.rs       Key derivation, EncString (AES / RSA),
+│       │                   encrypt / re-encrypt for server updates
+│       ├── audit.rs        HIBP k-anonymity + reused/weak detection
+│       ├── ssh_agent.rs    Unix-socket SSH agent (Ed25519 + RSA)
+│       ├── webauthn.rs     CTAP2 / HID WebAuthn path for 2FA
+│       ├── models.rs       API types and DTOs sent to the UI
+│       ├── state.rs        AppState (session, ssh agent handle,
+│       │                   auto-lock watchdog timestamps)
+│       ├── store.rs        On-disk session persistence
+│       ├── cache.rs        Encrypted SQLite vault cache + op-log
+│       └── error.rs        Unified Error type, serialized as
+│                           { code, message, data }
 ├── src/              SvelteKit frontend (static output, no SSR)
 │   ├── app.html
+│   ├── lib/
+│   │   ├── *.svelte        One component per UI area (AuthGate,
+│   │   │                   VaultSidebar, CipherList, CipherDetail,
+│   │   │                   CipherEditor, ImportDialog, QrScanner,
+│   │   │                   TotpField, …)
+│   │   ├── *.svelte.ts     Runes-based controllers
+│   │   │                   (auth, vault, prefs, clipboard, drag)
+│   │   ├── api.ts          Typed wrappers around Tauri commands
+│   │   ├── types.ts        Shared TS types
+│   │   ├── totp.ts         RFC 6238 TOTP generator (Web Crypto)
+│   │   ├── csv.ts          KeePassXC CSV parser
+│   │   └── paraglide/      Compiled i18n (gitignored)
 │   └── routes/
-│       ├── +layout.ts
-│       └── +page.svelte  Single screen for now
-├── .github/workflows/ci.yml   CI (fmt, clippy, cargo audit,
-│                               svelte-check)
-└── CLAUDE.md         Project context for pair programming
+│       ├── +layout.svelte  Global styles + locale bootstrap
+│       └── +page.svelte    Orchestrates the controllers + layout
+├── messages/{fr,en}.json   i18n source strings (paraglide-js)
+├── .github/workflows/
+│   ├── ci.yml              fmt + clippy + audit + svelte-check +
+│   │                       vitest + cargo test
+│   ├── codeql.yml          CodeQL scan
+│   └── release.yml         Multi-OS release bundles
+└── CHANGELOG.md            Per-version notes
 ```
-
-As the app grows, `src/routes/+page.svelte` will be split into
-components under `src/lib/components/` and stores under
-`src/lib/stores/`.
 
 ## Security
 
@@ -226,24 +292,31 @@ any public disclosure.
 
 ## Quality / CI
 
-Every push and pull request against `main` or `master` triggers a
-GitHub Actions workflow that runs:
+Every push and pull request against `master` triggers a GitHub
+Actions workflow that runs:
 
 - `cargo fmt --check` — Rust style.
 - `cargo clippy --all-targets -- -D warnings` — strict lint.
+- `cargo test` — Rust unit tests on crypto, audit, ssh agent,
+  webauthn challenge parsing, cipher body builder, and the API
+  helpers (`extract_*`, `normalize_base_url`).
 - `cargo audit` — vulnerability scan on dependencies
   (RUSTSEC-2023-0071 on the `rsa` crate is ignored, see the comment
   in `.github/workflows/ci.yml`).
 - `pnpm check` (svelte-check) — TypeScript / Svelte typing.
+- `pnpm test` (vitest) — unit tests on the pure TS helpers (tree,
+  filter, drag, format, generator, CSV).
+- CodeQL analysis (`javascript-typescript`) on a separate workflow.
 
 Tauri system libraries are installed on every run; the `target/`
 cache is handled by `Swatinem/rust-cache`.
 
 ## Contributing
 
-The project is at an early stage and the architecture still moves
-around. Issues and suggestions are welcome; pull requests will be
-opened once the first usable release ships (phase 1 complete).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, code style,
+and PR conventions. Security-sensitive changes (`crypto.rs`,
+`webauthn.rs`, `ssh_agent.rs`, session storage) should come with
+matching tests.
 
 ## License
 

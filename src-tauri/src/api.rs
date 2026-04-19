@@ -593,3 +593,99 @@ fn normalize_base_url(input: &str) -> Result<Url> {
     }
     Ok(url)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn normalize_base_url_adds_trailing_slash() {
+        let u = normalize_base_url("https://vault.example.com").unwrap();
+        assert_eq!(u.as_str(), "https://vault.example.com/");
+        let u = normalize_base_url("https://vault.example.com/api").unwrap();
+        assert!(u.as_str().ends_with("/api/"));
+    }
+
+    #[test]
+    fn normalize_base_url_trims_whitespace() {
+        let u = normalize_base_url("  https://vault.example.com/  ").unwrap();
+        assert_eq!(u.as_str(), "https://vault.example.com/");
+    }
+
+    #[test]
+    fn normalize_base_url_rejects_garbage() {
+        assert!(normalize_base_url("not a url").is_err());
+        assert!(normalize_base_url("").is_err());
+    }
+
+    #[test]
+    fn extract_two_factor_providers_reads_array() {
+        let v = json!({"twoFactorProviders": [0, 3]});
+        let providers = extract_two_factor_providers(&v).unwrap();
+        assert_eq!(providers.len(), 2);
+        assert!(matches!(providers[0], TwoFactorProvider::Authenticator));
+        assert!(matches!(providers[1], TwoFactorProvider::YubiKey));
+    }
+
+    #[test]
+    fn extract_two_factor_providers_reads_keyed_map() {
+        let v = json!({"TwoFactorProviders2": {"0": null, "7": {"challenge": "x"}}});
+        let providers = extract_two_factor_providers(&v).unwrap();
+        assert_eq!(providers.len(), 2);
+    }
+
+    #[test]
+    fn extract_two_factor_providers_skips_unknown() {
+        let v = json!({"twoFactorProviders": [42, 99]});
+        assert!(extract_two_factor_providers(&v).is_none());
+    }
+
+    #[test]
+    fn extract_webauthn_challenge_from_object() {
+        let v = json!({
+            "twoFactorProviders": [7],
+            "twoFactorProviders2": {"7": {"challenge": "abc", "rpId": "example.com"}}
+        });
+        let s = extract_webauthn_challenge(&v).expect("challenge");
+        assert!(s.contains("\"challenge\":\"abc\""));
+        assert!(s.contains("\"rpId\":\"example.com\""));
+    }
+
+    #[test]
+    fn extract_webauthn_challenge_from_double_encoded_string() {
+        let inner = r#"{"challenge":"abc","rpId":"example.com"}"#;
+        let v = json!({
+            "twoFactorProviders": [7],
+            "twoFactorProviders2": {"7": inner}
+        });
+        assert_eq!(extract_webauthn_challenge(&v).as_deref(), Some(inner));
+    }
+
+    #[test]
+    fn extract_webauthn_challenge_absent_when_no_7() {
+        let v = json!({"twoFactorProviders2": {"0": null}});
+        assert!(extract_webauthn_challenge(&v).is_none());
+    }
+
+    #[test]
+    fn extract_auth_error_message_prefers_error_model_message() {
+        let v = json!({"errorModel": {"message": "Bad password"}, "error_description": ""});
+        assert_eq!(extract_auth_error_message(&v), "Bad password");
+    }
+
+    #[test]
+    fn extract_auth_error_message_falls_back_to_validation_errors() {
+        let v = json!({"validationErrors": {"Username": ["must be an email"]}});
+        assert_eq!(extract_auth_error_message(&v), "must be an email");
+    }
+
+    #[test]
+    fn extract_auth_error_message_default_when_nothing_useful() {
+        let v = json!({});
+        // Returns the generic bucket — we only care that it doesn't panic
+        // and that it doesn't return empty garbage.
+        let s = extract_auth_error_message(&v);
+        assert!(!s.is_empty());
+    }
+}

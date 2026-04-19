@@ -362,4 +362,71 @@ mod unix {
             Ok(slice)
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn write_string_prepends_big_endian_length() {
+            let mut out = Vec::new();
+            write_string(&mut out, b"abc");
+            assert_eq!(out, vec![0, 0, 0, 3, b'a', b'b', b'c']);
+            write_string(&mut out, &[]);
+            assert_eq!(&out[7..], &[0, 0, 0, 0]);
+        }
+
+        #[test]
+        fn ssh_reader_roundtrip_matches_write_string() {
+            let mut buf = Vec::new();
+            write_string(&mut buf, b"ssh-ed25519");
+            write_string(&mut buf, &[0xDE, 0xAD, 0xBE, 0xEF]);
+            buf.extend_from_slice(&u32::to_be_bytes(42));
+
+            let mut r = SshReader::new(&buf);
+            assert_eq!(r.read_string().unwrap(), b"ssh-ed25519");
+            assert_eq!(r.read_string().unwrap(), &[0xDE, 0xAD, 0xBE, 0xEF]);
+            assert_eq!(r.read_u32().unwrap(), 42);
+        }
+
+        #[test]
+        fn ssh_reader_rejects_truncated_length() {
+            let buf = [0, 0, 0, 10, b'x']; // claims 10 bytes but only 1 available
+            let mut r = SshReader::new(&buf);
+            assert!(r.read_string().is_err());
+        }
+
+        #[test]
+        fn ssh_reader_rejects_short_u32() {
+            let buf = [0, 0, 0];
+            let mut r = SshReader::new(&buf);
+            assert!(r.read_u32().is_err());
+        }
+
+        #[test]
+        fn handle_list_frames_empty_identities_answer() {
+            use tokio::runtime::Runtime;
+            let rt = Runtime::new().unwrap();
+            let keys: KeyStore = Arc::new(Mutex::new(Vec::new()));
+            let out = rt.block_on(handle_list(&keys));
+            assert_eq!(out[0], SSH_AGENT_IDENTITIES_ANSWER);
+            assert_eq!(&out[1..5], &[0, 0, 0, 0]); // zero identities
+            assert_eq!(out.len(), 5);
+        }
+
+        #[test]
+        fn handle_sign_fails_on_unknown_key_blob() {
+            use tokio::runtime::Runtime;
+            let rt = Runtime::new().unwrap();
+            let keys: KeyStore = Arc::new(Mutex::new(Vec::new()));
+            // Build a valid sign_request frame for a blob nobody has.
+            let mut payload = Vec::new();
+            write_string(&mut payload, b"unknown-blob");
+            write_string(&mut payload, b"data-to-sign");
+            payload.extend_from_slice(&u32::to_be_bytes(0)); // flags
+
+            let out = rt.block_on(handle_sign(&keys, &payload));
+            assert_eq!(out, vec![SSH_AGENT_FAILURE]);
+        }
+    }
 } // mod unix
