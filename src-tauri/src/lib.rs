@@ -439,6 +439,59 @@ async fn move_cipher_to_folder(
 }
 
 #[tauri::command]
+async fn move_cipher_to_collection(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    collection_id: String,
+) -> Result<()> {
+    let (client, access_token) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = s.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+        let cipher = vault
+            .ciphers
+            .iter()
+            .find(|c| c.id == cipher_id)
+            .ok_or_else(|| Error::Storage {
+                reason: format!("cipher not found: {cipher_id}"),
+            })?;
+        let target_org = vault
+            .collections
+            .iter()
+            .find(|c| c.id == collection_id)
+            .map(|c| c.organization_id.clone())
+            .ok_or_else(|| Error::Storage {
+                reason: format!("collection not found: {collection_id}"),
+            })?;
+        if cipher.organization_id.as_deref() != Some(target_org.as_str()) {
+            return Err(Error::AuthFailed {
+                message:
+                    "personal items cannot be dropped on an organization collection directly — share the item first"
+                        .into(),
+            });
+        }
+        (s.client.clone(), s.tokens.access_token.clone())
+    };
+
+    let collection_ids = vec![collection_id.clone()];
+    client
+        .update_cipher_collections(&access_token, &cipher_id, &collection_ids)
+        .await?;
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                cipher.collection_ids = collection_ids;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn lock(state: State<'_, AppState>) -> Result<()> {
     let mut guard = state.session.lock().unwrap();
     *guard = None;
@@ -471,7 +524,8 @@ pub fn run() {
             logout,
             stored_account,
             get_cipher,
-            move_cipher_to_folder
+            move_cipher_to_folder,
+            move_cipher_to_collection
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -415,18 +415,28 @@
     dragOverKey = null;
   }
 
-  function onFolderDragOver(event: DragEvent, key: string) {
+  function isDroppableNode(node: TreeNode): boolean {
+    return (
+      (node.kind === "folder" && node.folderId !== null) ||
+      (node.kind === "collection" && node.collectionId !== null)
+    );
+  }
+
+  function onNodeDragOver(event: DragEvent, key: string) {
     if (!draggingCipherId) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
     dragOverKey = key;
   }
 
-  function onFolderDragLeave(key: string) {
+  function onNodeDragLeave(key: string) {
     if (dragOverKey === key) dragOverKey = null;
   }
 
-  async function onDropOnFolder(event: DragEvent, targetFolderId: string | null, targetKey: string) {
+  async function onDropOnFolder(
+    event: DragEvent,
+    targetFolderId: string | null,
+  ): Promise<void> {
     event.preventDefault();
     dragOverKey = null;
     const cipherId = draggingCipherId ?? event.dataTransfer?.getData("text/plain") ?? null;
@@ -450,8 +460,34 @@
       cipher.folderId = previousFolderId;
       errorMsg = formatError(e);
     }
+  }
 
-    void targetKey;
+  async function onDropOnCollection(event: DragEvent, targetCollectionId: string): Promise<void> {
+    event.preventDefault();
+    dragOverKey = null;
+    const cipherId = draggingCipherId ?? event.dataTransfer?.getData("text/plain") ?? null;
+    draggingCipherId = null;
+    if (!cipherId || !syncSummary) return;
+
+    const cipher = syncSummary.ciphers.find((c) => c.id === cipherId);
+    if (!cipher) return;
+
+    const previousCollectionIds = [...cipher.collectionIds];
+    if (previousCollectionIds.length === 1 && previousCollectionIds[0] === targetCollectionId) {
+      return;
+    }
+
+    cipher.collectionIds = [targetCollectionId];
+
+    try {
+      await invoke("move_cipher_to_collection", {
+        cipherId,
+        collectionId: targetCollectionId,
+      });
+    } catch (e) {
+      cipher.collectionIds = previousCollectionIds;
+      errorMsg = formatError(e);
+    }
   }
 
   onMount(async () => {
@@ -763,9 +799,9 @@
                 class:selected={selectedKey === null}
                 class:drop-over={dragOverKey === "__all__"}
                 onclick={() => (selectedKey = null)}
-                ondragover={(e) => onFolderDragOver(e, "__all__")}
-                ondragleave={() => onFolderDragLeave("__all__")}
-                ondrop={(e) => onDropOnFolder(e, null, "__all__")}
+                ondragover={(e) => onNodeDragOver(e, "__all__")}
+                ondragleave={() => onNodeDragLeave("__all__")}
+                ondrop={(e) => onDropOnFolder(e, null)}
               >
                 <span>Tous les items</span>
                 <span class="tree-count">{syncSummary.itemCount.toLocaleString("fr-FR")}</span>
@@ -944,7 +980,7 @@
               class="tree-row"
               class:selected={selectedKey === node.key}
               class:drop-over={dragOverKey === node.key}
-              class:droppable={draggingCipherId !== null && node.kind === "folder" && node.folderId !== null}
+              class:droppable={draggingCipherId !== null && isDroppableNode(node)}
             >
               {#if node.children.length > 0}
                 <button
@@ -962,15 +998,13 @@
                 type="button"
                 class="tree-label"
                 onclick={() => selectNode(node.key)}
-                ondragover={node.kind === "folder" && node.folderId !== null
-                  ? (e) => onFolderDragOver(e, node.key)
-                  : undefined}
-                ondragleave={node.kind === "folder" && node.folderId !== null
-                  ? () => onFolderDragLeave(node.key)
-                  : undefined}
+                ondragover={isDroppableNode(node) ? (e) => onNodeDragOver(e, node.key) : undefined}
+                ondragleave={isDroppableNode(node) ? () => onNodeDragLeave(node.key) : undefined}
                 ondrop={node.kind === "folder" && node.folderId !== null
-                  ? (e) => onDropOnFolder(e, node.folderId, node.key)
-                  : undefined}
+                  ? (e) => onDropOnFolder(e, node.folderId)
+                  : node.kind === "collection" && node.collectionId !== null
+                    ? (e) => onDropOnCollection(e, node.collectionId!)
+                    : undefined}
               >
                 <span class="tree-label-text">{node.label}</span>
                 <span class="tree-count">{node.itemCount}</span>

@@ -151,6 +151,32 @@ impl VaultwardenClient {
         Ok(())
     }
 
+    pub async fn update_cipher_collections(
+        &self,
+        access_token: &str,
+        cipher_id: &str,
+        collection_ids: &[String],
+    ) -> Result<()> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/collections"))?;
+        let response = self
+            .http
+            .put(url)
+            .bearer_auth(access_token)
+            .json(&json!({ "collectionIds": collection_ids }))
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+        Ok(())
+    }
+
     pub async fn sync(&self, access_token: &str) -> Result<SyncResponse> {
         let url = self.api_endpoint("sync")?;
         let response = self.http.get(url).bearer_auth(access_token).send().await?;
