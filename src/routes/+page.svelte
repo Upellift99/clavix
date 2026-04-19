@@ -7,6 +7,7 @@
   import { getLocale, setLocale } from "$lib/paraglide/runtime";
   import Onboarding from "$lib/Onboarding.svelte";
   import TotpField from "$lib/TotpField.svelte";
+  import LoginEditor from "$lib/LoginEditor.svelte";
 
   type Locale = "fr" | "en";
   const LOCALE_STORAGE_KEY = "clavix.locale";
@@ -230,6 +231,32 @@
   let auditLoading = $state(false);
   let auditResult = $state<AuditResult | null>(null);
   let auditError = $state<string | null>(null);
+
+  type EditorInitial = {
+    id: string | null;
+    name: string;
+    folderId: string | null;
+    favorite: boolean;
+    notes: string;
+    username: string;
+    password: string;
+    uris: string[];
+    totp: string;
+  };
+  const EMPTY_EDITOR_INITIAL: EditorInitial = {
+    id: null,
+    name: "",
+    folderId: null,
+    favorite: false,
+    notes: "",
+    username: "",
+    password: "",
+    uris: [],
+    totp: "",
+  };
+  let editorOpen = $state(false);
+  let editorMode = $state<"create" | "edit">("create");
+  let editorInitial = $state<EditorInitial>(EMPTY_EDITOR_INITIAL);
   let searchInput = $state<HTMLInputElement | null>(null);
 
   const GEN_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -371,6 +398,78 @@
     auditDialog?.close();
     if (detail?.id !== id) {
       await openCipher(id);
+    }
+  }
+
+  function openCreateEditor() {
+    const presetFolder = folderPathFromKey(selectedKey ?? "");
+    const folderMatch = presetFolder
+      ? syncSummary?.folders.find((f) => f.name === presetFolder)
+      : null;
+    editorInitial = {
+      ...EMPTY_EDITOR_INITIAL,
+      folderId: folderMatch?.id ?? null,
+    };
+    editorMode = "create";
+    editorOpen = true;
+  }
+
+  function openEditEditor() {
+    if (!detail || !detail.login) return;
+    const currentCipher = syncSummary?.ciphers.find((c) => c.id === detail!.id);
+    editorInitial = {
+      id: detail.id,
+      name: currentCipher?.name ?? "",
+      folderId: currentCipher?.folderId ?? null,
+      favorite: currentCipher?.favorite ?? false,
+      notes: "",
+      username: detail.login.username ?? "",
+      password: detail.login.password ?? "",
+      uris: detail.login.uris ?? [],
+      totp: detail.login.totp ?? "",
+    };
+    editorMode = "edit";
+    editorOpen = true;
+  }
+
+  async function submitEditor(input: {
+    name: string;
+    folderId: string | null;
+    favorite: boolean;
+    notes: string;
+    username: string;
+    password: string;
+    uris: string[];
+    totp: string;
+  }) {
+    const payload = {
+      name: input.name,
+      folderId: input.folderId,
+      favorite: input.favorite,
+      notes: input.notes || null,
+      login: {
+        username: input.username || null,
+        password: input.password || null,
+        uris: input.uris,
+        totp: input.totp || null,
+      },
+    };
+    try {
+      if (editorMode === "create") {
+        const newId = await invoke<string>("create_login_cipher", { input: payload });
+        await onSync();
+        await openCipher(newId);
+      } else if (editorInitial.id) {
+        await invoke("update_login_cipher", {
+          cipherId: editorInitial.id,
+          input: payload,
+        });
+        await onSync();
+        await openCipher(editorInitial.id);
+      }
+      editorOpen = false;
+    } catch (e) {
+      throw new Error(formatError(e));
     }
   }
 
@@ -1602,6 +1701,15 @@
                   <button
                     type="button"
                     class="secondary small info-button"
+                    onclick={openCreateEditor}
+                    title={m.action_new_item()}
+                    aria-label={m.action_new_item()}
+                  >
+                    ＋
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary small info-button"
                     onclick={openGenerator}
                     title={m.generator_label()}
                     aria-label={m.generator_label()}
@@ -1798,6 +1906,10 @@
                     </button>
                     <button type="button" class="small" onclick={() => deleteCipherForever(detail!.id)}>
                       {m.action_delete_forever()}
+                    </button>
+                  {:else if detail.kind === 1}
+                    <button type="button" class="secondary small" onclick={openEditEditor}>
+                      {m.action_edit()}
                     </button>
                   {/if}
                   <button type="button" class="secondary small" onclick={closeDetail}>{m.action_close()}</button>
@@ -2312,6 +2424,17 @@
     {/if}
   {/key}
 </dialog>
+
+{#key currentLocale}
+  <LoginEditor
+    open={editorOpen}
+    mode={editorMode}
+    initial={editorInitial}
+    folders={syncSummary?.folders ?? []}
+    onCancel={() => (editorOpen = false)}
+    onSubmit={submitEditor}
+  />
+{/key}
 
 <style>
   :root {

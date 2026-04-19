@@ -40,6 +40,19 @@
   "onboarding_read_disclaimer": "Ouvrir le disclaimer (GitHub)",
   "onboarding_continue": "J'ai compris, démarrer",
 
+  "action_save": "Enregistrer",
+  "action_new_item": "Nouvel item",
+  "action_edit": "Éditer",
+
+  "editor_create_title": "Nouvel item (login)",
+  "editor_edit_title": "Modifier l'item",
+  "editor_name": "Nom",
+  "editor_folder": "Dossier",
+  "editor_no_folder": "— aucun —",
+  "editor_uris": "URLs (une par ligne)",
+  "editor_uris_placeholder": "https://exemple.com",
+  "editor_saving": "Enregistrement…",
+
   "audit_label": "Audit de sécurité",
   "audit_title": "Audit de sécurité",
   "audit_privacy_note": "Vérifie vos mots de passe contre HIBP via k-anonymity : seuls 5 caractères hex du SHA-1 quittent votre poste, jamais le mot de passe lui-même.",

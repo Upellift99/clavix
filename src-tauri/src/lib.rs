@@ -23,9 +23,9 @@ use crypto::{
 };
 use error::{Error, Result};
 use models::{
-    CardDetail, CipherDetail, CipherSummary, CipherType, CollectionSummary, FolderSummary,
-    IdentityDetail, LoginDetail, LoginResult, OrganizationSummary, Prelogin, SshKeyDetail,
-    SyncResponse, SyncSummary, TokenSet, TwoFactorProvider, TypeCounts,
+    CardDetail, CipherCreateInput, CipherDetail, CipherSummary, CipherType, CollectionSummary,
+    FolderSummary, IdentityDetail, LoginDetail, LoginResult, OrganizationSummary, Prelogin,
+    SshKeyDetail, SyncResponse, SyncSummary, TokenSet, TwoFactorProvider, TypeCounts,
 };
 use state::{AppState, Session};
 use store::PersistedSession;
@@ -698,6 +698,123 @@ async fn move_folder_path(
     Ok(())
 }
 
+fn build_login_cipher_body(
+    input: &CipherCreateInput,
+    key: &SymmetricKey,
+) -> Result<serde_json::Value> {
+    let name_enc = encrypt_string(&input.name, key)?;
+    let notes_enc = input
+        .notes
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| encrypt_string(s, key))
+        .transpose()?;
+
+    let login_value = if let Some(login) = input.login.as_ref() {
+        let username_enc = login
+            .username
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| encrypt_string(s, key))
+            .transpose()?;
+        let password_enc = login
+            .password
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(|s| encrypt_string(s, key))
+            .transpose()?;
+        let totp_enc = login
+            .totp
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| encrypt_string(s, key))
+            .transpose()?;
+        let uris_val: Vec<serde_json::Value> = login
+            .uris
+            .iter()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|u| -> Result<serde_json::Value> {
+                Ok(serde_json::json!({
+                    "uri": encrypt_string(u, key)?,
+                    "match": serde_json::Value::Null,
+                }))
+            })
+            .collect::<Result<_>>()?;
+
+        serde_json::json!({
+            "username": username_enc,
+            "password": password_enc,
+            "uris": uris_val,
+            "totp": totp_enc,
+        })
+    } else {
+        serde_json::json!({})
+    };
+
+    Ok(serde_json::json!({
+        "type": 1,
+        "name": name_enc,
+        "notes": notes_enc,
+        "folderId": input.folder_id,
+        "favorite": input.favorite,
+        "login": login_value,
+    }))
+}
+
+#[tauri::command]
+async fn create_login_cipher(
+    state: State<'_, AppState>,
+    input: CipherCreateInput,
+) -> Result<String> {
+    let (client, access_token, body) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let body = build_login_cipher_body(&input, &s.user_key)?;
+        (s.client.clone(), s.tokens.access_token.clone(), body)
+    };
+    let created = client.create_cipher(&access_token, &body).await?;
+    let id = created.id.clone();
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            vault.ciphers.push(created);
+        }
+    }
+    Ok(id)
+}
+
+#[tauri::command]
+async fn update_login_cipher(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    input: CipherCreateInput,
+) -> Result<()> {
+    let (client, access_token, body) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let body = build_login_cipher_body(&input, &s.user_key)?;
+        (s.client.clone(), s.tokens.access_token.clone(), body)
+    };
+    let updated = client
+        .update_cipher(&access_token, &cipher_id, &body)
+        .await?;
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(slot) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                *slot = updated;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
     let (client, access_token) = {
@@ -1000,7 +1117,9 @@ pub fn run() {
             share_cipher_to_collection,
             restore_cipher,
             delete_cipher,
-            audit_vault_passwords
+            audit_vault_passwords,
+            create_login_cipher,
+            update_login_cipher
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

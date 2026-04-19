@@ -337,6 +337,35 @@ pub struct SshKeyDetail {
     pub key_fingerprint: Option<String>,
 }
 
+// ============ Inputs for create/update ============
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginInput {
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
+    #[serde(default)]
+    pub uris: Vec<String>,
+    #[serde(default)]
+    pub totp: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherCreateInput {
+    pub name: String,
+    #[serde(default)]
+    pub folder_id: Option<String>,
+    #[serde(default)]
+    pub favorite: bool,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub login: Option<LoginInput>,
+}
+
 // ============ Sync summary (vers Svelte) ============
 
 #[derive(Debug, Clone, Serialize)]

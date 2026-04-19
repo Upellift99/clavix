@@ -135,6 +135,59 @@ impl VaultwardenClient {
         Ok(())
     }
 
+    pub async fn create_cipher(
+        &self,
+        access_token: &str,
+        body: &serde_json::Value,
+    ) -> Result<crate::models::Cipher> {
+        let url = self.api_endpoint("ciphers")?;
+        let response = self
+            .http
+            .post(url)
+            .bearer_auth(access_token)
+            .json(body)
+            .send()
+            .await?;
+        let status = response.status();
+        let bytes = response.bytes().await?;
+        if !status.is_success() {
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: String::from_utf8_lossy(&bytes).into_owned(),
+            });
+        }
+        serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
+            reason: e.to_string(),
+        })
+    }
+
+    pub async fn update_cipher(
+        &self,
+        access_token: &str,
+        cipher_id: &str,
+        body: &serde_json::Value,
+    ) -> Result<crate::models::Cipher> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}"))?;
+        let response = self
+            .http
+            .put(url)
+            .bearer_auth(access_token)
+            .json(body)
+            .send()
+            .await?;
+        let status = response.status();
+        let bytes = response.bytes().await?;
+        if !status.is_success() {
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: String::from_utf8_lossy(&bytes).into_owned(),
+            });
+        }
+        serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
+            reason: e.to_string(),
+        })
+    }
+
     pub async fn delete_cipher(&self, access_token: &str, cipher_id: &str) -> Result<()> {
         let url = self.api_endpoint(&format!("ciphers/{cipher_id}"))?;
         let response = self

@@ -40,6 +40,19 @@
   "onboarding_read_disclaimer": "Open the disclaimer (GitHub)",
   "onboarding_continue": "Got it, let's go",
 
+  "action_save": "Save",
+  "action_new_item": "New item",
+  "action_edit": "Edit",
+
+  "editor_create_title": "New login item",
+  "editor_edit_title": "Edit item",
+  "editor_name": "Name",
+  "editor_folder": "Folder",
+  "editor_no_folder": "— none —",
+  "editor_uris": "URLs (one per line)",
+  "editor_uris_placeholder": "https://example.com",
+  "editor_saving": "Saving…",
+
   "audit_label": "Security audit",
   "audit_title": "Security audit",
   "audit_privacy_note": "Checks your passwords against HIBP using k-anonymity: only 5 hex characters of the SHA-1 hash ever leave your machine — never the password itself.",
