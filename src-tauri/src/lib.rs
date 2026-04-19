@@ -9,6 +9,7 @@ mod services;
 mod ssh_agent;
 mod state;
 mod store;
+mod webauthn;
 
 use std::time::Duration;
 
@@ -32,7 +33,7 @@ pub fn run() {
                 loop {
                     tokio::time::sleep(Duration::from_secs(30)).await;
                     let state = handle.state::<AppState>();
-                    let Some(minutes) = (*state.auto_lock_minutes.lock().unwrap()) else {
+                    let Some(minutes) = *state.auto_lock_minutes.lock().unwrap() else {
                         continue;
                     };
                     if minutes == 0 {
@@ -64,6 +65,7 @@ pub fn run() {
             commands::auth::lock,
             commands::auth::logout,
             commands::auth::set_auto_lock_minutes,
+            commands::auth::webauthn_sign_challenge,
             commands::vault::sync,
             commands::vault::load_cached_vault,
             commands::cipher::get_cipher,

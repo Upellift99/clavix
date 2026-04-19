@@ -100,6 +100,9 @@ export const api = {
 
   setAutoLockMinutes: (minutes: number) => invoke<void>("set_auto_lock_minutes", { minutes }),
 
+  webauthnSignChallenge: (challengeJson: string) =>
+    invoke<string>("webauthn_sign_challenge", { challengeJson }),
+
   sync: () => invoke<SyncSummary>("sync"),
 
   loadCachedVault: () => invoke<SyncSummary | null>("load_cached_vault"),

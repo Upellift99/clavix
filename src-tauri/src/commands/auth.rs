@@ -129,6 +129,23 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Toke
     Ok(tokens)
 }
 
+/// Perform a WebAuthn / FIDO2 assertion against the user's USB security
+/// key, for a Bitwarden-style challenge.  Returns the JSON string that
+/// must be sent back to the server as `twoFactorToken` with provider=7.
+///
+/// Blocking CTAP2 I/O is offloaded to the async runtime's blocking pool
+/// so the Tauri main loop stays responsive while the user taps their key.
+#[tauri::command]
+pub async fn webauthn_sign_challenge(challenge_json: String) -> Result<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::webauthn::sign_bitwarden_challenge(&challenge_json)
+    })
+    .await
+    .map_err(|e| Error::Crypto {
+        reason: format!("webauthn blocking task panicked: {e}"),
+    })?
+}
+
 #[tauri::command]
 pub fn set_auto_lock_minutes(state: State<'_, AppState>, minutes: u32) -> Result<()> {
     let mut guard = state.auto_lock_minutes.lock().unwrap();

@@ -33,7 +33,10 @@ export type TokenSet = {
 
 export type LoginResult =
   | { type: "success"; data: TokenSet }
-  | { type: "twoFactorRequired"; data: { providers: number[] } };
+  | {
+      type: "twoFactorRequired";
+      data: { providers: number[]; webauthnChallenge?: string };
+    };
 
 export type TypeCounts = {
   login: number;

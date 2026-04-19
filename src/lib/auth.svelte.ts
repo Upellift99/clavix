@@ -13,6 +13,8 @@ export class AuthController {
   yubikeyOtp = $state("");
   selectedProvider = $state(0);
   pendingProviders = $state<number[]>([]);
+  webauthnChallenge = $state<string | null>(null);
+  webauthnBusy = $state(false);
 
   phase = $state<Phase>("init");
   tokens = $state<TokenSet | null>(null);
@@ -68,15 +70,55 @@ export class AuthController {
         await this.emit("loggedIn");
       } else {
         this.pendingProviders = result.data.providers;
-        const supported = this.pendingProviders.find((p) => p === 0 || p === 3);
+        const supported = this.pendingProviders.find(
+          (p) => p === 0 || p === 3 || p === 7,
+        );
         this.selectedProvider = supported ?? this.pendingProviders[0] ?? 0;
         this.totpCode = "";
         this.yubikeyOtp = "";
+        this.webauthnChallenge = result.data.webauthnChallenge ?? null;
         this.phase = "twoFactor";
       }
     } catch (e) {
       this.error = formatError(e);
       this.phase = "error";
+    }
+  }
+
+  async submitWebauthn() {
+    if (!this.webauthnChallenge) return;
+    this.webauthnBusy = true;
+    this.error = null;
+    try {
+      const token = await api.webauthnSignChallenge(this.webauthnChallenge);
+      await this.finishTwoFactor(token, 7);
+    } catch (e) {
+      this.error = formatError(e);
+    } finally {
+      this.webauthnBusy = false;
+    }
+  }
+
+  private async finishTwoFactor(code: string, provider: number) {
+    this.phase = "authenticating";
+    try {
+      this.tokens = await api.loginWithTwoFactor(
+        this.serverUrl,
+        this.email,
+        this.password,
+        code,
+        provider,
+      );
+      this.storedAccount = { serverUrl: this.serverUrl, email: this.email };
+      this.password = "";
+      this.totpCode = "";
+      this.yubikeyOtp = "";
+      this.webauthnChallenge = null;
+      this.phase = "loggedIn";
+      await this.emit("loggedIn");
+    } catch (e) {
+      this.error = formatError(e);
+      this.phase = "twoFactor";
     }
   }
 

@@ -401,7 +401,18 @@ impl VaultwardenClient {
 
             if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
                 if let Some(providers) = extract_two_factor_providers(&value) {
-                    return Ok(LoginResult::TwoFactorRequired { providers });
+                    let webauthn_challenge = if providers
+                        .iter()
+                        .any(|p| matches!(p, TwoFactorProvider::WebAuthn))
+                    {
+                        extract_webauthn_challenge(&value)
+                    } else {
+                        None
+                    };
+                    return Ok(LoginResult::TwoFactorRequired {
+                        providers,
+                        webauthn_challenge,
+                    });
                 }
 
                 return Err(Error::AuthFailed {
@@ -482,6 +493,30 @@ fn extract_two_factor_providers(value: &serde_json::Value) -> Option<Vec<TwoFact
         }
     }
 
+    None
+}
+
+/// Digs the WebAuthn challenge out of whatever shape the server emits.
+/// Returns a JSON-encoded string ready to hand to the CTAP2 backend.
+fn extract_webauthn_challenge(value: &serde_json::Value) -> Option<String> {
+    for key in ["TwoFactorProviders2", "twoFactorProviders2"] {
+        let Some(obj) = value.get(key).and_then(|v| v.as_object()) else {
+            continue;
+        };
+        let Some(entry) = obj.get("7") else { continue };
+        // Vaultwarden sometimes double-encodes this as a JSON string,
+        // sometimes leaves it as an object.  Accept both.
+        if let Some(s) = entry.as_str() {
+            if !s.trim().is_empty() {
+                return Some(s.to_string());
+            }
+        }
+        if entry.is_object() {
+            if let Ok(s) = serde_json::to_string(entry) {
+                return Some(s);
+            }
+        }
+    }
     None
 }
 

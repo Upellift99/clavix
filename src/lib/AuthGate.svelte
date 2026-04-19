@@ -48,7 +48,10 @@
     bind:selectedProvider={auth.selectedProvider}
     bind:totpCode={auth.totpCode}
     bind:yubikeyOtp={auth.yubikeyOtp}
+    webauthnBusy={auth.webauthnBusy}
+    hasWebauthnChallenge={auth.webauthnChallenge !== null}
     onSubmit={(e) => auth.submitTwoFactor(e)}
+    onWebauthn={() => auth.submitWebauthn()}
     onCancel={() => auth.cancelTwoFactor()}
   />
 {/if}

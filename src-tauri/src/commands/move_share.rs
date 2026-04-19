@@ -223,10 +223,9 @@ pub async fn share_cipher_to_collection(
         // membership at the time of the call. If the share PUT half-fails
         // server-side and the cipher ends up in a broken state, we still hold
         // the data needed to re-create it locally.
-        let snapshot_blob =
-            serde_json::to_string(cipher).map_err(|e| Error::Storage {
-                reason: format!("serialise cipher snapshot: {e}"),
-            })?;
+        let snapshot_blob = serde_json::to_string(cipher).map_err(|e| Error::Storage {
+            reason: format!("serialise cipher snapshot: {e}"),
+        })?;
         let encrypted_snapshot = encrypt_string(&snapshot_blob, &session.user_key)?;
 
         let target_org_id = vault

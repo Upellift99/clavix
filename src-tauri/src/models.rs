@@ -78,7 +78,14 @@ pub struct TokenSet {
 #[serde(tag = "type", content = "data", rename_all = "camelCase")]
 pub enum LoginResult {
     Success(TokenSet),
-    TwoFactorRequired { providers: Vec<TwoFactorProvider> },
+    TwoFactorRequired {
+        providers: Vec<TwoFactorProvider>,
+        /// When the server offers WebAuthn (provider 7), the challenge
+        /// object it wants us to sign. Serialised JSON string so we can
+        /// hand it to the CTAP2 backend verbatim without re-shaping.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        webauthn_challenge: Option<String>,
+    },
 }
 
 // ============ Sync response ============

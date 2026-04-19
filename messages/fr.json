@@ -130,6 +130,10 @@
   "two_factor_yubikey_label": "YubiKey OTP",
   "two_factor_yubikey_help": "Touchez votre YubiKey pour saisir automatiquement le code (44 caractères).",
   "two_factor_unsupported": "Provider 2FA « {provider} » non pris en charge par Clavix pour l'instant.",
+  "two_factor_webauthn_help": "Branchez votre clé de sécurité FIDO2 (YubiKey, SoloKey, etc.) puis touchez-la quand elle clignote.",
+  "two_factor_webauthn_no_challenge": "Le serveur n'a pas renvoyé de challenge WebAuthn — impossible de continuer sur cette méthode.",
+  "two_factor_webauthn_sign": "Valider avec la clé",
+  "two_factor_webauthn_waiting": "En attente de votre clé…",
 
   "session_title": "Session active",
 
