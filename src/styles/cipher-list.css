@@ -43,11 +43,6 @@
   align-items: center;
 }
 
-.cipher-list {
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
 .cipher-row {
   display: flex;
   align-items: center;

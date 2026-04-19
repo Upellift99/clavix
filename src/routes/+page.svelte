@@ -15,7 +15,14 @@
   import { DragController } from "$lib/drag.svelte";
   import { AuthController } from "$lib/auth.svelte";
   import { VaultController } from "$lib/vault.svelte";
-  import { PrefsController, TREE_WIDTH_MAX, TREE_WIDTH_MIN } from "$lib/prefs.svelte";
+  import {
+    DETAIL_HEIGHT_MAX,
+    DETAIL_HEIGHT_MIN,
+    PrefsController,
+    TREE_WIDTH_MAX,
+    TREE_WIDTH_MIN,
+  } from "$lib/prefs.svelte";
+  import { api } from "$lib/api";
   import { formatError } from "$lib/format";
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
@@ -59,11 +66,24 @@
 
   function onSplitterMouseDown(event: MouseEvent) {
     startSplitterDrag(event, {
+      axis: "x",
       min: TREE_WIDTH_MIN,
       max: TREE_WIDTH_MAX,
-      startWidth: prefs.treeWidth,
+      startSize: prefs.treeWidth,
       onChange: (w) => (prefs.treeWidth = w),
       onCommit: () => prefs.persistTreeWidth(),
+    });
+  }
+
+  function onDetailSplitterMouseDown(event: MouseEvent) {
+    startSplitterDrag(event, {
+      axis: "y",
+      invert: true,
+      min: DETAIL_HEIGHT_MIN,
+      max: DETAIL_HEIGHT_MAX,
+      startSize: prefs.detailHeight,
+      onChange: (h) => (prefs.detailHeight = h),
+      onCommit: () => prefs.persistDetailHeight(),
     });
   }
 
@@ -75,6 +95,16 @@
     lock: () => lockAndReset(),
     copy: copyToClipboard,
     onError: (e) => (vault.error = formatError(e)),
+  });
+
+  // Mirror the auto-lock window to the Rust watchdog so the backend can drop
+  // the session even if the JS timer below is wedged or has been disabled in
+  // DevTools. Best-effort — the front-end timer remains the primary guard.
+  $effect(() => {
+    const minutes = prefs.autoLockMinutes;
+    api.setAutoLockMinutes(minutes).catch((e) => {
+      console.warn("[clavix] setAutoLockMinutes failed:", e);
+    });
   });
 
   $effect(() => {
@@ -197,16 +227,27 @@
             {/if}
 
             {#if vault.detail}
-              <CipherDetail
-                detail={vault.detail}
-                summaryEntry={vault.detailSummaryEntry}
-                organizations={vault.summary.organizations}
-                onCopy={copyToClipboard}
-                onClose={() => vault.closeDetail()}
-                onEdit={() => vault.openEditEditor()}
-                onRestore={(id) => vault.restoreCipher(id)}
-                onDeleteForever={(id) => vault.deleteCipherForever(id, m.action_confirm_delete())}
-              />
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div
+                class="detail-splitter"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Redimensionner le panneau de détail"
+                onmousedown={onDetailSplitterMouseDown}
+              ></div>
+              <div class="detail-pane" style="height: {prefs.detailHeight}px;">
+                <CipherDetail
+                  detail={vault.detail}
+                  summaryEntry={vault.detailSummaryEntry}
+                  organizations={vault.summary.organizations}
+                  onCopy={copyToClipboard}
+                  onClose={() => vault.closeDetail()}
+                  onEdit={() => vault.openEditEditor()}
+                  onRestore={(id) => vault.restoreCipher(id)}
+                  onDeleteForever={(id) =>
+                    vault.deleteCipherForever(id, m.action_confirm_delete())}
+                />
+              </div>
             {/if}
           {/if}
         </section>

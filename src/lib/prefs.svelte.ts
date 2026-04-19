@@ -4,18 +4,23 @@ import type { Locale, ThemePref } from "./types";
 const LOCALE_STORAGE_KEY = "clavix.locale";
 const THEME_STORAGE_KEY = "clavix.theme";
 const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
+const DETAIL_HEIGHT_STORAGE_KEY = "clavix.detailHeight";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 
 export const TREE_WIDTH_MIN = 180;
 export const TREE_WIDTH_MAX = 560;
 const TREE_WIDTH_DEFAULT = 260;
+export const DETAIL_HEIGHT_MIN = 160;
+export const DETAIL_HEIGHT_MAX = 900;
+const DETAIL_HEIGHT_DEFAULT = 320;
 const AUTO_LOCK_DEFAULT_MINUTES = 10;
 
 export class PrefsController {
   currentLocale = $state<Locale>("fr");
   themePref = $state<ThemePref>("auto");
   treeWidth = $state<number>(TREE_WIDTH_DEFAULT);
+  detailHeight = $state<number>(DETAIL_HEIGHT_DEFAULT);
   autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
   lastActivityAt = $state<number>(Date.now());
 
@@ -46,6 +51,13 @@ export class PrefsController {
         const parsed = parseInt(saved, 10);
         if (Number.isFinite(parsed)) {
           this.treeWidth = Math.max(TREE_WIDTH_MIN, Math.min(TREE_WIDTH_MAX, parsed));
+        }
+      }
+      const savedDetail = localStorage.getItem(DETAIL_HEIGHT_STORAGE_KEY);
+      if (savedDetail) {
+        const parsed = parseInt(savedDetail, 10);
+        if (Number.isFinite(parsed)) {
+          this.detailHeight = Math.max(DETAIL_HEIGHT_MIN, Math.min(DETAIL_HEIGHT_MAX, parsed));
         }
       }
       const savedLock = localStorage.getItem(AUTO_LOCK_STORAGE_KEY);
@@ -89,6 +101,18 @@ export class PrefsController {
   persistTreeWidth() {
     try {
       localStorage.setItem(TREE_WIDTH_STORAGE_KEY, String(this.treeWidth));
+    } catch {
+      // ignore
+    }
+  }
+
+  setDetailHeight(height: number) {
+    this.detailHeight = Math.max(DETAIL_HEIGHT_MIN, Math.min(DETAIL_HEIGHT_MAX, height));
+  }
+
+  persistDetailHeight() {
+    try {
+      localStorage.setItem(DETAIL_HEIGHT_STORAGE_KEY, String(this.detailHeight));
     } catch {
       // ignore
     }
