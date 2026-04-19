@@ -303,10 +303,19 @@ mod tests {
     }
 
     #[test]
-    fn blank_notes_stay_null() {
+    fn empty_notes_stay_null() {
+        // Empty-string notes must not be encrypted — otherwise we'd emit
+        // an EncString that the server would happily round-trip and the
+        // detail pane would later show a blank encrypted blob. Pure
+        // whitespace is *not* trimmed because the same code path also
+        // encrypts passwords and SSH private keys where spaces matter.
         let mut input = base_input();
         input.cipher_type = 2;
-        input.notes = Some("   ".into());
+        input.notes = Some(String::new());
+        let body = build_cipher_body(&input, &test_key()).unwrap();
+        assert!(body["notes"].is_null());
+
+        input.notes = None;
         let body = build_cipher_body(&input, &test_key()).unwrap();
         assert!(body["notes"].is_null());
     }
