@@ -32,6 +32,17 @@
   "settings_title": "Préférences",
   "settings_language": "Langue",
 
+  "generator_title": "Générateur de mots de passe",
+  "generator_label": "Générateur",
+  "generator_length": "Longueur : {count}",
+  "generator_upper": "Majuscules (A-Z)",
+  "generator_lower": "Minuscules (a-z)",
+  "generator_numbers": "Chiffres (0-9)",
+  "generator_symbols": "Symboles (!@#…)",
+  "generator_avoid_ambiguous": "Éviter les caractères ambigus (O/0, l/1…)",
+  "generator_regenerate": "Régénérer",
+  "generator_empty_charset": "Sélectionnez au moins un type de caractère.",
+
   "unlock_title": "Déverrouiller",
 
   "two_factor_title": "Double authentification",

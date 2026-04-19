@@ -217,7 +217,55 @@
   let draggingFolderPath = $state<string | null>(null);
   let dragOverKey = $state<string | null>(null);
   let statsDialog = $state<HTMLDialogElement | null>(null);
+  let generatorDialog = $state<HTMLDialogElement | null>(null);
   let searchInput = $state<HTMLInputElement | null>(null);
+
+  const GEN_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const GEN_LOWER = "abcdefghijklmnopqrstuvwxyz";
+  const GEN_DIGITS = "0123456789";
+  const GEN_SYMBOLS = "!@#$%^&*()-_=+[]{};:,.<>?/";
+  const GEN_AMBIGUOUS = /[O0Il1|`']/g;
+
+  let genLength = $state(20);
+  let genUpper = $state(true);
+  let genLower = $state(true);
+  let genDigits = $state(true);
+  let genSymbols = $state(true);
+  let genAvoidAmbiguous = $state(true);
+  let genOutput = $state("");
+  let genError = $state<string | null>(null);
+
+  function regeneratePassword() {
+    let charset = "";
+    if (genUpper) charset += GEN_UPPER;
+    if (genLower) charset += GEN_LOWER;
+    if (genDigits) charset += GEN_DIGITS;
+    if (genSymbols) charset += GEN_SYMBOLS;
+    if (genAvoidAmbiguous) charset = charset.replace(GEN_AMBIGUOUS, "");
+    if (charset.length === 0) {
+      genOutput = "";
+      genError = m.generator_empty_charset();
+      return;
+    }
+    genError = null;
+    const chars = Array.from(charset);
+    const out: string[] = [];
+    const rng = new Uint32Array(genLength);
+    crypto.getRandomValues(rng);
+    for (let i = 0; i < genLength; i++) {
+      out.push(chars[rng[i] % chars.length]);
+    }
+    genOutput = out.join("");
+  }
+
+  function openGenerator() {
+    if (!genOutput) regeneratePassword();
+    generatorDialog?.showModal();
+  }
+
+  function closeGenerator() {
+    generatorDialog?.close();
+  }
 
   const TREE_WIDTH_MIN = 180;
   const TREE_WIDTH_MAX = 560;
@@ -1443,6 +1491,15 @@
                   <button
                     type="button"
                     class="secondary small info-button"
+                    onclick={openGenerator}
+                    title={m.generator_label()}
+                    aria-label={m.generator_label()}
+                  >
+                    🎲
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary small info-button"
                     onclick={openStats}
                     title={m.tree_infos_label()}
                     aria-label={m.tree_infos_label()}
@@ -1960,6 +2017,69 @@
   </aside>
 {/if}
 
+<dialog bind:this={generatorDialog} class="stats-dialog">
+  {#key currentLocale}
+    <header class="stats-header">
+      <h2>{m.generator_title()}</h2>
+      <button type="button" class="secondary small" onclick={closeGenerator} aria-label={m.action_close()}>
+        ✕
+      </button>
+    </header>
+
+    <div class="generator-output">
+      <code>{genOutput || "—"}</code>
+    </div>
+    {#if genError}
+      <p class="hint error-text">{genError}</p>
+    {/if}
+
+    <label class="generator-slider">
+      {m.generator_length({ count: String(genLength) })}
+      <input
+        type="range"
+        min="6"
+        max="64"
+        bind:value={genLength}
+        oninput={regeneratePassword}
+      />
+    </label>
+
+    <label class="generator-check">
+      <input type="checkbox" bind:checked={genUpper} onchange={regeneratePassword} />
+      {m.generator_upper()}
+    </label>
+    <label class="generator-check">
+      <input type="checkbox" bind:checked={genLower} onchange={regeneratePassword} />
+      {m.generator_lower()}
+    </label>
+    <label class="generator-check">
+      <input type="checkbox" bind:checked={genDigits} onchange={regeneratePassword} />
+      {m.generator_numbers()}
+    </label>
+    <label class="generator-check">
+      <input type="checkbox" bind:checked={genSymbols} onchange={regeneratePassword} />
+      {m.generator_symbols()}
+    </label>
+    <label class="generator-check">
+      <input type="checkbox" bind:checked={genAvoidAmbiguous} onchange={regeneratePassword} />
+      {m.generator_avoid_ambiguous()}
+    </label>
+
+    <div class="row" style:margin-top="0.75rem">
+      <button type="button" class="secondary" onclick={regeneratePassword}>
+        {m.generator_regenerate()}
+      </button>
+      <button
+        type="button"
+        onclick={() => genOutput && copyToClipboard(genOutput, m.detail_field_password())}
+        disabled={!genOutput}
+      >
+        {m.action_copy()}
+      </button>
+    </div>
+  {/key}
+</dialog>
+
 <dialog bind:this={statsDialog} class="stats-dialog">
   {#key currentLocale}
   {#if syncSummary}
@@ -2300,6 +2420,43 @@
   .stats-header h2 {
     margin: 0;
     font-size: 1.05rem;
+  }
+
+  .generator-output {
+    background: #f3f4f6;
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    font-family: ui-monospace, monospace;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    overflow-wrap: anywhere;
+    min-height: 2.2rem;
+  }
+
+  .generator-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .generator-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .error-text {
+    color: #b91c1c;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .generator-output { background: #1e1e1e; }
+    .error-text { color: #ff8a8a; }
   }
 
   @media (prefers-color-scheme: dark) {

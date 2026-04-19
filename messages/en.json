@@ -32,6 +32,17 @@
   "settings_title": "Preferences",
   "settings_language": "Language",
 
+  "generator_title": "Password generator",
+  "generator_label": "Generator",
+  "generator_length": "Length: {count}",
+  "generator_upper": "Uppercase (A-Z)",
+  "generator_lower": "Lowercase (a-z)",
+  "generator_numbers": "Digits (0-9)",
+  "generator_symbols": "Symbols (!@#…)",
+  "generator_avoid_ambiguous": "Avoid ambiguous characters (O/0, l/1…)",
+  "generator_regenerate": "Regenerate",
+  "generator_empty_charset": "Select at least one character type.",
+
   "unlock_title": "Unlock",
 
   "two_factor_title": "Two-factor authentication",
