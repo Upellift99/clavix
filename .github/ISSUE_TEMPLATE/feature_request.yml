@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a new capability for Clavix.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature. A good feature request starts
+        from a user problem, not from a specific solution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What user problem does this solve?
+      placeholder: When I have dozens of items in the same folder, I can't …
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Your proposed solution (optional)
+      description: Describe the UI / behaviour you have in mind. It's fine to leave this empty if you're unsure.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Which phase does this feature belong to, roughly?
+      description: See the roadmap in the README.
+      options:
+        - "Phase 1 (read-only)"
+        - "Phase 2 (tree)"
+        - "Phase 3 (drag & drop)"
+        - "Phase 4+ (editing, integrations)"
+        - "I don't know"
+    validations:
+      required: true
