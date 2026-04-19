@@ -6,6 +6,7 @@
   import * as m from "$lib/paraglide/messages";
   import { getLocale, setLocale } from "$lib/paraglide/runtime";
   import Onboarding from "$lib/Onboarding.svelte";
+  import TotpField from "$lib/TotpField.svelte";
 
   type Locale = "fr" | "en";
   const LOCALE_STORAGE_KEY = "clavix.locale";
@@ -1860,8 +1861,13 @@
 
                 {#if detail.login.totp}
                   <dl class="detail-field">
-                    <dt>TOTP</dt>
-                    <dd><code>{detail.login.totp}</code> <small>(génération de code à venir)</small></dd>
+                    <dt>{m.detail_field_totp()}</dt>
+                    <dd>
+                      <TotpField
+                        source={detail.login.totp}
+                        onCopy={(code) => copyToClipboard(code, m.detail_field_totp())}
+                      />
+                    </dd>
                   </dl>
                 {/if}
               {/if}

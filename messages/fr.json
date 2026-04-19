@@ -107,7 +107,6 @@
   "detail_field_url_one": "URL",
   "detail_field_url_many": "URLs",
   "detail_field_totp": "TOTP",
-  "detail_field_totp_hint": "(génération de code à venir)",
   "detail_field_notes": "Notes",
   "detail_field_cardholder": "Titulaire",
   "detail_field_brand": "Réseau",
