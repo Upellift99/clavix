@@ -281,6 +281,9 @@ pub struct CipherDetail {
     pub revision_date: Option<String>,
     pub favorite: bool,
     pub login: Option<LoginDetail>,
+    pub card: Option<CardDetail>,
+    pub identity: Option<IdentityDetail>,
+    pub ssh_key: Option<SshKeyDetail>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -290,6 +293,48 @@ pub struct LoginDetail {
     pub password: Option<String>,
     pub uris: Vec<String>,
     pub totp: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardDetail {
+    pub cardholder_name: Option<String>,
+    pub brand: Option<String>,
+    pub number: Option<String>,
+    pub exp_month: Option<String>,
+    pub exp_year: Option<String>,
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdentityDetail {
+    pub title: Option<String>,
+    pub first_name: Option<String>,
+    pub middle_name: Option<String>,
+    pub last_name: Option<String>,
+    pub address1: Option<String>,
+    pub address2: Option<String>,
+    pub address3: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub postal_code: Option<String>,
+    pub country: Option<String>,
+    pub company: Option<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub ssn: Option<String>,
+    pub username: Option<String>,
+    pub passport_number: Option<String>,
+    pub license_number: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshKeyDetail {
+    pub private_key: Option<String>,
+    pub public_key: Option<String>,
+    pub key_fingerprint: Option<String>,
 }
 
 // ============ Sync summary (vers Svelte) ============

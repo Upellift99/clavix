@@ -62,6 +62,42 @@
     totp: string | null;
   };
 
+  type CardDetail = {
+    cardholderName: string | null;
+    brand: string | null;
+    number: string | null;
+    expMonth: string | null;
+    expYear: string | null;
+    code: string | null;
+  };
+
+  type IdentityDetail = {
+    title: string | null;
+    firstName: string | null;
+    middleName: string | null;
+    lastName: string | null;
+    address1: string | null;
+    address2: string | null;
+    address3: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    country: string | null;
+    company: string | null;
+    email: string | null;
+    phone: string | null;
+    ssn: string | null;
+    username: string | null;
+    passportNumber: string | null;
+    licenseNumber: string | null;
+  };
+
+  type SshKeyDetail = {
+    privateKey: string | null;
+    publicKey: string | null;
+    keyFingerprint: string | null;
+  };
+
   type CipherDetail = {
     id: string;
     kind: number;
@@ -73,6 +109,9 @@
     revisionDate: string | null;
     favorite: boolean;
     login: LoginDetail | null;
+    card: CardDetail | null;
+    identity: IdentityDetail | null;
+    sshKey: SshKeyDetail | null;
   };
 
   type Phase =
@@ -115,6 +154,10 @@
   let detail = $state<CipherDetail | null>(null);
   let detailLoading = $state(false);
   let showPassword = $state(false);
+  let showCardNumber = $state(false);
+  let showCardCode = $state(false);
+  let showSsn = $state(false);
+  let showSshPrivate = $state(false);
   let draggingCipherId = $state<string | null>(null);
   let draggingFolderPath = $state<string | null>(null);
   let dragOverKey = $state<string | null>(null);
@@ -179,7 +222,6 @@
     statsDialog?.close();
   }
 
-  const FOLDERS_ROOT_KEY = "folders";
   const FOLDERS_ROOT_PREFIX = "folders/";
 
   function folderPathFromKey(key: string): string | null {
@@ -409,15 +451,23 @@
     selectedKey = selectedKey === key ? null : key;
   }
 
+  function resetDetailReveals() {
+    showPassword = false;
+    showCardNumber = false;
+    showCardCode = false;
+    showSsn = false;
+    showSshPrivate = false;
+  }
+
   async function openCipher(id: string) {
     if (detail?.id === id) {
       detail = null;
-      showPassword = false;
+      resetDetailReveals();
       return;
     }
     detailLoading = true;
     errorMsg = null;
-    showPassword = false;
+    resetDetailReveals();
     try {
       detail = await invoke<CipherDetail>("get_cipher", { id });
     } catch (e) {
@@ -430,7 +480,11 @@
 
   function closeDetail() {
     detail = null;
-    showPassword = false;
+    resetDetailReveals();
+  }
+
+  function mask(value: string, length: number = 12): string {
+    return "•".repeat(Math.min(value.length, length));
   }
 
   async function copyToClipboard(value: string, label: string) {
@@ -1202,6 +1256,150 @@
                   <dl class="detail-field">
                     <dt>TOTP</dt>
                     <dd><code>{detail.login.totp}</code> <small>(génération de code à venir)</small></dd>
+                  </dl>
+                {/if}
+              {/if}
+
+              {#if detail.card}
+                {#if detail.card.cardholderName}
+                  <dl class="detail-field">
+                    <dt>Titulaire</dt>
+                    <dd>
+                      <code>{detail.card.cardholderName}</code>
+                      <button type="button" class="secondary small"
+                        onclick={() => copyToClipboard(detail!.card!.cardholderName!, "titulaire")}>Copier</button>
+                    </dd>
+                  </dl>
+                {/if}
+                {#if detail.card.brand}
+                  <dl class="detail-field">
+                    <dt>Réseau</dt>
+                    <dd>{detail.card.brand}</dd>
+                  </dl>
+                {/if}
+                {#if detail.card.number}
+                  <dl class="detail-field">
+                    <dt>Numéro</dt>
+                    <dd>
+                      <code>{showCardNumber ? detail.card.number : mask(detail.card.number, 16)}</code>
+                      <button type="button" class="secondary small"
+                        onclick={() => (showCardNumber = !showCardNumber)}>
+                        {showCardNumber ? "Masquer" : "Afficher"}
+                      </button>
+                      <button type="button" class="small"
+                        onclick={() => copyToClipboard(detail!.card!.number!, "numéro de carte")}>Copier</button>
+                    </dd>
+                  </dl>
+                {/if}
+                {#if detail.card.expMonth || detail.card.expYear}
+                  <dl class="detail-field">
+                    <dt>Expiration</dt>
+                    <dd>
+                      {detail.card.expMonth ?? "?"} / {detail.card.expYear ?? "?"}
+                    </dd>
+                  </dl>
+                {/if}
+                {#if detail.card.code}
+                  <dl class="detail-field">
+                    <dt>CVV</dt>
+                    <dd>
+                      <code>{showCardCode ? detail.card.code : mask(detail.card.code, 3)}</code>
+                      <button type="button" class="secondary small"
+                        onclick={() => (showCardCode = !showCardCode)}>
+                        {showCardCode ? "Masquer" : "Afficher"}
+                      </button>
+                      <button type="button" class="small"
+                        onclick={() => copyToClipboard(detail!.card!.code!, "CVV")}>Copier</button>
+                    </dd>
+                  </dl>
+                {/if}
+              {/if}
+
+              {#if detail.identity}
+                {@const identityFields = [
+                  ["Titre", detail.identity.title],
+                  ["Prénom", detail.identity.firstName],
+                  ["Deuxième prénom", detail.identity.middleName],
+                  ["Nom", detail.identity.lastName],
+                  ["Entreprise", detail.identity.company],
+                  ["Adresse 1", detail.identity.address1],
+                  ["Adresse 2", detail.identity.address2],
+                  ["Adresse 3", detail.identity.address3],
+                  ["Ville", detail.identity.city],
+                  ["Département/État", detail.identity.state],
+                  ["Code postal", detail.identity.postalCode],
+                  ["Pays", detail.identity.country],
+                  ["Email", detail.identity.email],
+                  ["Téléphone", detail.identity.phone],
+                  ["Identifiant", detail.identity.username],
+                  ["N° passeport", detail.identity.passportNumber],
+                  ["N° permis", detail.identity.licenseNumber],
+                ] as Array<[string, string | null]>}
+                {#each identityFields as [label, value]}
+                  {#if value}
+                    <dl class="detail-field">
+                      <dt>{label}</dt>
+                      <dd>
+                        <code>{value}</code>
+                        <button type="button" class="secondary small"
+                          onclick={() => copyToClipboard(value, label.toLowerCase())}>Copier</button>
+                      </dd>
+                    </dl>
+                  {/if}
+                {/each}
+                {#if detail.identity.ssn}
+                  <dl class="detail-field">
+                    <dt>NIR / SSN</dt>
+                    <dd>
+                      <code>{showSsn ? detail.identity.ssn : mask(detail.identity.ssn, 11)}</code>
+                      <button type="button" class="secondary small"
+                        onclick={() => (showSsn = !showSsn)}>
+                        {showSsn ? "Masquer" : "Afficher"}
+                      </button>
+                      <button type="button" class="small"
+                        onclick={() => copyToClipboard(detail!.identity!.ssn!, "NIR")}>Copier</button>
+                    </dd>
+                  </dl>
+                {/if}
+              {/if}
+
+              {#if detail.sshKey}
+                {#if detail.sshKey.keyFingerprint}
+                  <dl class="detail-field">
+                    <dt>Empreinte</dt>
+                    <dd>
+                      <code>{detail.sshKey.keyFingerprint}</code>
+                      <button type="button" class="secondary small"
+                        onclick={() => copyToClipboard(detail!.sshKey!.keyFingerprint!, "empreinte")}>Copier</button>
+                    </dd>
+                  </dl>
+                {/if}
+                {#if detail.sshKey.publicKey}
+                  <dl class="detail-field">
+                    <dt>Clé publique</dt>
+                    <dd>
+                      <code class="ssh-key">{detail.sshKey.publicKey}</code>
+                      <button type="button" class="secondary small"
+                        onclick={() => copyToClipboard(detail!.sshKey!.publicKey!, "clé publique")}>Copier</button>
+                    </dd>
+                  </dl>
+                {/if}
+                {#if detail.sshKey.privateKey}
+                  <dl class="detail-field">
+                    <dt>Clé privée</dt>
+                    <dd>
+                      {#if showSshPrivate}
+                        <code class="ssh-key">{detail.sshKey.privateKey}</code>
+                      {:else}
+                        <code>••••••• (masquée)</code>
+                      {/if}
+                      <button type="button" class="secondary small"
+                        onclick={() => (showSshPrivate = !showSshPrivate)}>
+                        {showSshPrivate ? "Masquer" : "Afficher"}
+                      </button>
+                      <button type="button" class="small"
+                        onclick={() => copyToClipboard(detail!.sshKey!.privateKey!, "clé privée")}>Copier</button>
+                    </dd>
                   </dl>
                 {/if}
               {/if}
@@ -1986,6 +2184,15 @@
   .notes {
     white-space: pre-wrap;
     font-size: 0.9rem;
+  }
+
+  .ssh-key {
+    display: block;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 10rem;
+    overflow-y: auto;
   }
 
   .detail-footer {

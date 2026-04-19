@@ -21,9 +21,9 @@ use crypto::{
 };
 use error::{Error, Result};
 use models::{
-    CipherDetail, CipherSummary, CipherType, CollectionSummary, FolderSummary, LoginDetail,
-    LoginResult, OrganizationSummary, Prelogin, SyncResponse, SyncSummary, TokenSet,
-    TwoFactorProvider, TypeCounts,
+    CardDetail, CipherDetail, CipherSummary, CipherType, CollectionSummary, FolderSummary,
+    IdentityDetail, LoginDetail, LoginResult, OrganizationSummary, Prelogin, SshKeyDetail,
+    SyncResponse, SyncSummary, TokenSet, TwoFactorProvider, TypeCounts,
 };
 use state::{AppState, Session};
 use store::PersistedSession;
@@ -446,6 +446,42 @@ fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail> {
         totp: l.totp.as_deref().and_then(decrypt_opt),
     });
 
+    let card = cipher.card.as_ref().map(|c| CardDetail {
+        cardholder_name: c.cardholder_name.as_deref().and_then(decrypt_opt),
+        brand: c.brand.as_deref().and_then(decrypt_opt),
+        number: c.number.as_deref().and_then(decrypt_opt),
+        exp_month: c.exp_month.as_deref().and_then(decrypt_opt),
+        exp_year: c.exp_year.as_deref().and_then(decrypt_opt),
+        code: c.code.as_deref().and_then(decrypt_opt),
+    });
+
+    let identity = cipher.identity.as_ref().map(|i| IdentityDetail {
+        title: i.title.as_deref().and_then(decrypt_opt),
+        first_name: i.first_name.as_deref().and_then(decrypt_opt),
+        middle_name: i.middle_name.as_deref().and_then(decrypt_opt),
+        last_name: i.last_name.as_deref().and_then(decrypt_opt),
+        address1: i.address1.as_deref().and_then(decrypt_opt),
+        address2: i.address2.as_deref().and_then(decrypt_opt),
+        address3: i.address3.as_deref().and_then(decrypt_opt),
+        city: i.city.as_deref().and_then(decrypt_opt),
+        state: i.state.as_deref().and_then(decrypt_opt),
+        postal_code: i.postal_code.as_deref().and_then(decrypt_opt),
+        country: i.country.as_deref().and_then(decrypt_opt),
+        company: i.company.as_deref().and_then(decrypt_opt),
+        email: i.email.as_deref().and_then(decrypt_opt),
+        phone: i.phone.as_deref().and_then(decrypt_opt),
+        ssn: i.ssn.as_deref().and_then(decrypt_opt),
+        username: i.username.as_deref().and_then(decrypt_opt),
+        passport_number: i.passport_number.as_deref().and_then(decrypt_opt),
+        license_number: i.license_number.as_deref().and_then(decrypt_opt),
+    });
+
+    let ssh_key = cipher.ssh_key.as_ref().map(|s| SshKeyDetail {
+        private_key: s.private_key.as_deref().and_then(decrypt_opt),
+        public_key: s.public_key.as_deref().and_then(decrypt_opt),
+        key_fingerprint: s.key_fingerprint.as_deref().and_then(decrypt_opt),
+    });
+
     Ok(CipherDetail {
         id: cipher.id.clone(),
         kind: cipher.kind as u8,
@@ -457,6 +493,9 @@ fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail> {
         revision_date: cipher.revision_date.clone(),
         favorite: cipher.favorite,
         login,
+        card,
+        identity,
+        ssh_key,
     })
 }
 
