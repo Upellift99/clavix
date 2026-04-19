@@ -3,6 +3,22 @@
   import { clear as clearClipboard, writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { onDestroy, onMount } from "svelte";
+  import * as m from "$lib/paraglide/messages";
+  import { getLocale, setLocale } from "$lib/paraglide/runtime";
+
+  type Locale = "fr" | "en";
+  const LOCALE_STORAGE_KEY = "clavix.locale";
+  let currentLocale = $state<Locale>("fr");
+
+  function applyLocale(loc: Locale, opts: { reload?: boolean } = {}) {
+    currentLocale = loc;
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, loc);
+    } catch {
+      // ignore
+    }
+    setLocale(loc, { reload: opts.reload === true });
+  }
 
   type TokenSet = {
     access_token: string;
@@ -953,6 +969,18 @@
 
   onMount(async () => {
     try {
+      const savedLocale = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
+      if (savedLocale === "fr" || savedLocale === "en") {
+        applyLocale(savedLocale);
+      } else {
+        const browser = (navigator.language || "fr").toLowerCase();
+        applyLocale(browser.startsWith("en") ? "en" : "fr");
+      }
+    } catch {
+      applyLocale("fr");
+    }
+
+    try {
       const saved = localStorage.getItem(TREE_WIDTH_STORAGE_KEY);
       if (saved) {
         const parsed = parseInt(saved, 10);
@@ -1178,47 +1206,48 @@
 <svelte:window onkeydown={handleGlobalKeydown} />
 
 <main class="container" class:wide={phase === "loggedIn" && syncSummary !== null}>
-  <h1>Clavix</h1>
+  {#key currentLocale}
+  <h1>{m.app_name()}</h1>
 
   {#if phase === "init"}
-    <p class="subtitle">Chargement…</p>
+    <p class="subtitle">{m.loading()}</p>
   {/if}
 
   {#if phase === "idle" || (phase === "authenticating" && !storedAccount) || phase === "error"}
     <form onsubmit={onLoginSubmit}>
       <label>
-        Serveur Vaultwarden
+        {m.form_server()}
         <input type="url" bind:value={serverUrl} required disabled={phase === "authenticating"} />
       </label>
       <label>
-        Email
-        <input type="email" bind:value={email} placeholder="toi@exemple.fr" required disabled={phase === "authenticating"} />
+        {m.form_email()}
+        <input type="email" bind:value={email} placeholder={m.form_email_placeholder()} required disabled={phase === "authenticating"} />
       </label>
       <label>
-        Mot de passe maître
+        {m.form_master_password()}
         <input type="password" bind:value={password} required disabled={phase === "authenticating"} />
       </label>
       <button type="submit" disabled={phase === "authenticating"}>
-        {phase === "authenticating" ? "Connexion…" : "Connexion"}
+        {phase === "authenticating" ? m.action_signing_in() : m.action_sign_in()}
       </button>
     </form>
   {/if}
 
   {#if phase === "unlock" || (phase === "authenticating" && storedAccount)}
     <section class="box">
-      <h2>Déverrouiller</h2>
+      <h2>{m.unlock_title()}</h2>
       <p class="hint">
-        {storedAccount?.email} sur {storedAccount?.serverUrl}
+        {storedAccount?.email} — {storedAccount?.serverUrl}
       </p>
       <form onsubmit={onUnlockSubmit}>
         <label>
-          Mot de passe maître
+          {m.form_master_password()}
           <input type="password" bind:value={password} required disabled={phase === "authenticating"} />
         </label>
         <div class="row">
-          <button type="button" class="secondary" onclick={switchAccount}>Changer de compte</button>
+          <button type="button" class="secondary" onclick={switchAccount}>{m.action_logout()}</button>
           <button type="submit" disabled={phase === "authenticating"}>
-            {phase === "authenticating" ? "Déverrouillage…" : "Déverrouiller"}
+            {phase === "authenticating" ? m.action_unlocking() : m.action_unlock()}
           </button>
         </div>
       </form>
@@ -1262,10 +1291,10 @@
         <dd>{formatExpiry(tokens.expires_in)}</dd>
       </dl>
       <div class="row">
-        <button type="button" class="secondary" onclick={switchAccount}>Se déconnecter</button>
-        <button type="button" class="secondary" onclick={onLock}>Verrouiller</button>
+        <button type="button" class="secondary" onclick={switchAccount}>{m.action_logout()}</button>
+        <button type="button" class="secondary" onclick={onLock}>{m.action_lock()}</button>
         <button type="button" onclick={onSync} disabled={syncing}>
-          {syncing ? "Synchronisation…" : (syncSummary ? "Resynchroniser" : "Synchroniser")}
+          {syncing ? m.action_syncing() : syncSummary ? m.action_resync() : m.action_sync()}
         </button>
       </div>
     </section>
@@ -1285,23 +1314,23 @@
                 ondragleave={() => onNodeDragLeave("__all__")}
                 ondrop={onDropOnFolderRoot}
               >
-                <span>Tous les items</span>
-                <span class="tree-count">{syncSummary.itemCount.toLocaleString("fr-FR")}</span>
+                <span>{m.tree_all_items()}</span>
+                <span class="tree-count">{syncSummary.itemCount.toLocaleString(currentLocale === "fr" ? "fr-FR" : "en-US")}</span>
               </button>
               {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
                 <div class="tree-toolbar">
                   <button type="button" class="secondary small" onclick={expandAllNodes}>
-                    Tout déplier
+                    {m.tree_expand_all()}
                   </button>
                   <button type="button" class="secondary small" onclick={collapseAllNodes}>
-                    Tout replier
+                    {m.tree_collapse_all()}
                   </button>
                   <button
                     type="button"
                     class="secondary small info-button"
                     onclick={openStats}
-                    title="Infos du coffre"
-                    aria-label="Infos du coffre"
+                    title={m.tree_infos_label()}
+                    aria-label={m.tree_infos_label()}
                   >
                     ⓘ
                   </button>
@@ -1315,7 +1344,7 @@
                 </ul>
               {/if}
               {#if orgTrees.length > 0}
-                <h4>Organisations</h4>
+                <h4>{m.tree_organizations()}</h4>
                 <ul class="tree-root">
                   {#each orgTrees as orgRoot (orgRoot.key)}
                     {@render orgRootNode(orgRoot)}
@@ -1346,7 +1375,7 @@
                   type="search"
                   bind:value={search}
                   bind:this={searchInput}
-                  placeholder="Rechercher un item… (/ ou Ctrl+F)"
+                  placeholder={m.items_search_placeholder()}
                   class="search"
                 />
                 {#if search.trim()}
@@ -1372,7 +1401,7 @@
                     class:active={sortKey === "name"}
                     onclick={() => toggleSort("name")}
                   >
-                    Nom
+                    {m.col_name()}
                     {#if sortKey === "name"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
                   </button>
                   <button
@@ -1381,7 +1410,7 @@
                     class:active={sortKey === "username"}
                     onclick={() => toggleSort("username")}
                   >
-                    Identifiant
+                    {m.col_username()}
                     {#if sortKey === "username"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
                   </button>
                   <button
@@ -1390,7 +1419,7 @@
                     class:active={sortKey === "uri"}
                     onclick={() => toggleSort("uri")}
                   >
-                    URL
+                    {m.col_url()}
                     {#if sortKey === "uri"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
                   </button>
                 </div>
@@ -1790,10 +1819,11 @@
 
   {#if errorMsg}
     <section class="box error">
-      <h2>Erreur</h2>
+      <h2>{m.error()}</h2>
       <pre>{errorMsg}</pre>
     </section>
   {/if}
+  {/key}
 </main>
 
 {#if clipboardSecondsLeft !== null}
@@ -1806,57 +1836,69 @@
 {/if}
 
 <dialog bind:this={statsDialog} class="stats-dialog">
+  {#key currentLocale}
   {#if syncSummary}
     <header class="stats-header">
-      <h2>Coffre synchronisé</h2>
-      <button type="button" class="secondary small" onclick={closeStats} aria-label="Fermer">
+      <h2>{m.stats_title()}</h2>
+      <button type="button" class="secondary small" onclick={closeStats} aria-label={m.action_close()}>
         ✕
       </button>
     </header>
     <dl>
-      <dt>Compte</dt>
+      <dt>{m.stats_account()}</dt>
       <dd>{syncSummary.name ?? syncSummary.email}</dd>
-      <dt>Items</dt>
+      <dt>{m.stats_items()}</dt>
       <dd>{syncSummary.itemCount}</dd>
-      <dt>Folders</dt>
+      <dt>{m.stats_folders()}</dt>
       <dd>{syncSummary.folderCount}</dd>
-      <dt>Collections</dt>
+      <dt>{m.stats_collections()}</dt>
       <dd>{syncSummary.collectionCount}</dd>
-      <dt>Organisations</dt>
+      <dt>{m.stats_organizations()}</dt>
       <dd>{syncSummary.organizationCount}</dd>
-      <dt>Verrouillage auto</dt>
+      <dt>{m.stats_auto_lock()}</dt>
       <dd>
         <select
           value={autoLockMinutes}
           onchange={(e) => persistAutoLockSetting(parseInt((e.currentTarget as HTMLSelectElement).value, 10))}
         >
-          <option value={0}>Jamais</option>
-          <option value={1}>1 min</option>
-          <option value={5}>5 min</option>
-          <option value={10}>10 min</option>
-          <option value={15}>15 min</option>
-          <option value={30}>30 min</option>
-          <option value={60}>1 h</option>
+          <option value={0}>{m.stats_auto_lock_never()}</option>
+          <option value={1}>{m.stats_auto_lock_minutes({ count: "1" })}</option>
+          <option value={5}>{m.stats_auto_lock_minutes({ count: "5" })}</option>
+          <option value={10}>{m.stats_auto_lock_minutes({ count: "10" })}</option>
+          <option value={15}>{m.stats_auto_lock_minutes({ count: "15" })}</option>
+          <option value={30}>{m.stats_auto_lock_minutes({ count: "30" })}</option>
+          <option value={60}>{m.stats_auto_lock_hour()}</option>
+        </select>
+      </dd>
+      <dt>Langue / Language</dt>
+      <dd>
+        <select
+          value={currentLocale}
+          onchange={(e) => applyLocale((e.currentTarget as HTMLSelectElement).value as Locale, { reload: true })}
+        >
+          <option value="fr">Français</option>
+          <option value="en">English</option>
         </select>
       </dd>
     </dl>
 
-    <h3>Répartition par type</h3>
+    <h3>{m.stats_breakdown()}</h3>
     <dl>
-      <dt>Logins</dt>
+      <dt>{m.stats_logins()}</dt>
       <dd>{syncSummary.typeCounts.login}</dd>
-      <dt>Notes</dt>
+      <dt>{m.stats_notes()}</dt>
       <dd>{syncSummary.typeCounts.secureNote}</dd>
-      <dt>Cartes</dt>
+      <dt>{m.stats_cards()}</dt>
       <dd>{syncSummary.typeCounts.card}</dd>
-      <dt>Identités</dt>
+      <dt>{m.stats_identities()}</dt>
       <dd>{syncSummary.typeCounts.identity}</dd>
       {#if syncSummary.typeCounts.sshKey > 0}
-        <dt>Clés SSH</dt>
+        <dt>{m.stats_ssh_keys()}</dt>
         <dd>{syncSummary.typeCounts.sshKey}</dd>
       {/if}
     </dl>
   {/if}
+  {/key}
 </dialog>
 
 <style>
