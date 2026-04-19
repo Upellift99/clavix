@@ -11,6 +11,7 @@ use crate::state::AppState;
 
 #[tauri::command]
 pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail> {
+    crate::state::mark_activity(&state);
     let guard = state.session.lock().unwrap();
     let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
     let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {

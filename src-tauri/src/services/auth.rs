@@ -8,12 +8,31 @@ use tauri::State;
 use crate::api::{DeviceInfo, VaultwardenClient};
 use crate::crypto::{
     decrypt_private_key, decrypt_user_key, derive_master_key, derive_master_password_hash,
-    MasterKey, MasterPasswordHash, SymmetricKey,
+    encrypt_string, EncString, MasterKey, MasterPasswordHash, SymmetricKey,
 };
 use crate::error::{Error, Result};
 use crate::models::{Prelogin, TokenSet};
 use crate::state::{AppState, Session};
 use crate::store::{self, PersistedSession};
+
+/// Recover the refresh token from a persisted session. Prefers the encrypted
+/// field (current format); falls back to the legacy clear-text field for
+/// session files written before refresh-token encryption landed. Old files are
+/// migrated to the encrypted form on the next `save_session`.
+pub fn recover_refresh_token(
+    persisted: &PersistedSession,
+    user_key: &SymmetricKey,
+) -> Result<String> {
+    if let Some(enc) = &persisted.encrypted_refresh_token {
+        return EncString::parse(enc)?.decrypt_string_sym(user_key);
+    }
+    if let Some(legacy) = &persisted.refresh_token {
+        return Ok(legacy.clone());
+    }
+    Err(Error::Storage {
+        reason: "session has no refresh token (neither encrypted nor legacy)".into(),
+    })
+}
 
 pub fn device_info() -> Result<DeviceInfo> {
     Ok(DeviceInfo {
@@ -88,6 +107,7 @@ pub fn store_session(
 /// No-op otherwise. Commands that hit the Vaultwarden API call this before
 /// the first access-token use.
 pub async fn ensure_fresh_tokens(state: &State<'_, AppState>) -> Result<()> {
+    crate::state::mark_activity(state);
     let (client, refresh) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -107,19 +127,30 @@ pub async fn ensure_fresh_tokens(state: &State<'_, AppState>) -> Result<()> {
     let new_access = new_tokens.access_token.clone();
     let new_expires_in = new_tokens.expires_in;
 
+    // Re-encrypt the (possibly rotated) refresh token under the user key while
+    // we still hold the session lock, so we never persist clear-text on disk.
+    let encrypted_refresh = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        encrypt_string(&new_refresh, &s.user_key)?
+    };
+
     {
         let mut guard = state.session.lock().unwrap();
         if let Some(s) = guard.as_mut() {
             s.tokens.access_token = new_access;
-            s.tokens.refresh_token = new_refresh.clone();
+            s.tokens.refresh_token = new_refresh;
             s.tokens.expires_in = new_expires_in;
             s.expires_at = compute_expires_at(new_expires_in);
         }
     }
 
     if let Ok(Some(mut persisted)) = store::load_session() {
-        if persisted.refresh_token != new_refresh {
-            persisted.refresh_token = new_refresh;
+        let needs_write = persisted.encrypted_refresh_token.as_deref() != Some(&encrypted_refresh)
+            || persisted.refresh_token.is_some();
+        if needs_write {
+            persisted.encrypted_refresh_token = Some(encrypted_refresh);
+            persisted.refresh_token = None;
             let _ = store::save_session(&persisted);
         }
     }
@@ -132,15 +163,19 @@ pub fn persist_session(
     email: &str,
     pre: &Prelogin,
     tokens: &TokenSet,
+    user_key: &SymmetricKey,
 ) -> Result<()> {
     let encrypted_user_key = tokens.key.clone().ok_or_else(|| Error::Crypto {
         reason: "TokenSet is missing the 'key' field — cannot persist session".into(),
     })?;
 
+    let encrypted_refresh_token = encrypt_string(&tokens.refresh_token, user_key)?;
+
     let persisted = PersistedSession {
         server_url: server_url.to_string(),
         email: email.to_string(),
-        refresh_token: tokens.refresh_token.clone(),
+        refresh_token: None,
+        encrypted_refresh_token: Some(encrypted_refresh_token),
         kdf: pre.kdf,
         kdf_iterations: pre.kdf_iterations,
         kdf_memory: pre.kdf_memory,

@@ -1,5 +1,7 @@
 use tauri::State;
+use uuid::Uuid;
 
+use crate::cache;
 use crate::crypto::{decrypt_name, encrypt_string, reencrypt_with_key, SymmetricKey};
 use crate::error::{Error, Result};
 use crate::services::auth::ensure_fresh_tokens;
@@ -145,10 +147,40 @@ pub async fn move_folder_path(
         )
     };
 
+    // Persist the full batch upfront with the *original* and *new* encrypted
+    // names per folder. Each row is flipped to applied=1 on PUT success below.
+    // A crash mid-batch leaves the unflipped rows queryable so a future
+    // recovery flow can resume the rename from where we left off, instead of
+    // losing the partial state silently.
+    let op_id = Uuid::new_v4().to_string();
+    let original_names: Vec<(String, String, String)> = {
+        let guard = state.session.lock().unwrap();
+        let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+        operations
+            .iter()
+            .filter_map(|(fid, new_enc)| {
+                vault
+                    .folders
+                    .iter()
+                    .find(|f| f.id == *fid)
+                    .map(|f| (fid.clone(), f.name.clone(), new_enc.clone()))
+            })
+            .collect()
+    };
+    if let Err(e) = cache::save_folder_op_batch(&op_id, &original_names) {
+        eprintln!("[clavix] folder op log write failed (non-fatal): {e}");
+    }
+
     for (folder_id, encrypted_name) in &operations {
         client
             .update_folder_name(&access_token, folder_id, encrypted_name)
             .await?;
+        if let Err(e) = cache::mark_folder_op_applied(&op_id, folder_id) {
+            eprintln!("[clavix] folder op log update failed (non-fatal): {e}");
+        }
     }
 
     let mut guard = state.session.lock().unwrap();
@@ -171,7 +203,7 @@ pub async fn share_cipher_to_collection(
     collection_id: String,
 ) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
-    let (client, access_token, body, target_org_id) = {
+    let (client, access_token, body, target_org_id, encrypted_snapshot) = {
         let guard = state.session.lock().unwrap();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
@@ -185,6 +217,17 @@ pub async fn share_cipher_to_collection(
             .ok_or_else(|| Error::Storage {
                 reason: format!("cipher not found: {cipher_id}"),
             })?;
+
+        // Snapshot the cipher *before* we re-encrypt anything. The blob keeps
+        // the original encrypted fields (under the original key) plus the org
+        // membership at the time of the call. If the share PUT half-fails
+        // server-side and the cipher ends up in a broken state, we still hold
+        // the data needed to re-create it locally.
+        let snapshot_blob =
+            serde_json::to_string(cipher).map_err(|e| Error::Storage {
+                reason: format!("serialise cipher snapshot: {e}"),
+            })?;
+        let encrypted_snapshot = encrypt_string(&snapshot_blob, &session.user_key)?;
 
         let target_org_id = vault
             .collections
@@ -328,12 +371,24 @@ pub async fn share_cipher_to_collection(
             session.tokens.access_token.clone(),
             body,
             target_org_id,
+            encrypted_snapshot,
         )
     };
+
+    let snapshot_id = Uuid::new_v4().to_string();
+    if let Err(e) =
+        cache::save_cipher_snapshot(&snapshot_id, &cipher_id, "share", &encrypted_snapshot)
+    {
+        eprintln!("[clavix] cipher snapshot write failed (non-fatal): {e}");
+    }
 
     client
         .share_cipher(&access_token, &cipher_id, &body)
         .await?;
+
+    if let Err(e) = cache::mark_snapshot_completed(&snapshot_id) {
+        eprintln!("[clavix] cipher snapshot completion failed (non-fatal): {e}");
+    }
 
     // Update in-memory vault: remove from personal/old org, add to org with new
     // encrypted fields. The encrypted fields stay encrypted with the old key in

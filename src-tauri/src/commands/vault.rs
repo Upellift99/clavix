@@ -65,6 +65,7 @@ pub async fn sync(state: State<'_, AppState>) -> Result<SyncSummary> {
 
 #[tauri::command]
 pub fn load_cached_vault(state: State<'_, AppState>) -> Result<Option<SyncSummary>> {
+    crate::state::mark_activity(&state);
     let mut guard = state.session.lock().unwrap();
     let session = guard.as_mut().ok_or(Error::NotAuthenticated)?;
 

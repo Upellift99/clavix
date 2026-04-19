@@ -98,6 +98,8 @@ export const api = {
 
   logout: () => invoke<void>("logout"),
 
+  setAutoLockMinutes: (minutes: number) => invoke<void>("set_auto_lock_minutes", { minutes }),
+
   sync: () => invoke<SyncSummary>("sync"),
 
   loadCachedVault: () => invoke<SyncSummary | null>("load_cached_vault"),

@@ -12,7 +12,17 @@ use crate::models::KdfType;
 pub struct PersistedSession {
     pub server_url: String,
     pub email: String,
-    pub refresh_token: String,
+    /// Legacy clear-text refresh token. Kept only to migrate old session files
+    /// written before refresh-token encryption landed. Always re-saved as `None`
+    /// once we've successfully unlocked and re-encrypted the value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<String>,
+    /// Refresh token encrypted with the user key (AES-CBC + HMAC-SHA256). Means
+    /// the master password is required to reuse the session, so a stolen
+    /// `session.json` (e.g. via a backup folder synced to a cloud service)
+    /// no longer hands the attacker a working refresh credential.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encrypted_refresh_token: Option<String>,
     pub kdf: KdfType,
     pub kdf_iterations: u32,
     pub kdf_memory: Option<u32>,

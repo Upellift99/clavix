@@ -4,11 +4,12 @@ use tauri::State;
 
 use crate::api::VaultwardenClient;
 use crate::cache;
-use crate::crypto::{decrypt_private_key, decrypt_user_key, derive_master_key};
+use crate::crypto::{decrypt_private_key, decrypt_user_key, derive_master_key, encrypt_string};
 use crate::error::{Error, Result};
 use crate::models::{LoginResult, Prelogin, TokenSet, TwoFactorProvider};
 use crate::services::auth::{
-    device_info, extract_session_keys, persist_session, prepare_credentials, store_session,
+    device_info, extract_session_keys, persist_session, prepare_credentials, recover_refresh_token,
+    store_session,
 };
 use crate::state::AppState;
 use crate::store;
@@ -49,7 +50,7 @@ pub async fn login(
 
     if let LoginResult::Success(ref tokens) = result {
         let (user_key, private_key) = extract_session_keys(&master_key, tokens)?;
-        persist_session(&server_url, &email, &pre, tokens)?;
+        persist_session(&server_url, &email, &pre, tokens, &user_key)?;
         store_session(&state, client, tokens.clone(), user_key, private_key);
     }
 
@@ -76,7 +77,7 @@ pub async fn login_with_two_factor(
         .await?;
 
     let (user_key, private_key) = extract_session_keys(&master_key, &tokens)?;
-    persist_session(&server_url, &email, &pre, &tokens)?;
+    persist_session(&server_url, &email, &pre, &tokens, &user_key)?;
     store_session(&state, client, tokens.clone(), user_key, private_key);
     Ok(tokens)
 }
@@ -104,22 +105,35 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Toke
         .map(|pk| decrypt_private_key(&user_key, pk))
         .transpose()?;
 
+    // Decrypt refresh token (or fall back to legacy clear-text for sessions
+    // written before encryption landed; those are migrated below).
+    let refresh_token_plain = recover_refresh_token(&persisted, &user_key)?;
+
     let client = VaultwardenClient::new(&persisted.server_url)?;
     let device = device_info()?;
-    let mut tokens = client
-        .refresh_token(&persisted.refresh_token, &device)
-        .await?;
+    let mut tokens = client.refresh_token(&refresh_token_plain, &device).await?;
 
     if tokens.refresh_token.is_empty() {
-        tokens.refresh_token = persisted.refresh_token.clone();
+        tokens.refresh_token = refresh_token_plain.clone();
     }
 
+    // Re-encrypt and drop any legacy clear-text field.
+    let encrypted_refresh = encrypt_string(&tokens.refresh_token, &user_key)?;
     let mut updated = persisted.clone();
-    updated.refresh_token = tokens.refresh_token.clone();
+    updated.refresh_token = None;
+    updated.encrypted_refresh_token = Some(encrypted_refresh);
     store::save_session(&updated)?;
 
     store_session(&state, client, tokens.clone(), user_key, private_key);
+    crate::state::mark_activity(&state);
     Ok(tokens)
+}
+
+#[tauri::command]
+pub fn set_auto_lock_minutes(state: State<'_, AppState>, minutes: u32) -> Result<()> {
+    let mut guard = state.auto_lock_minutes.lock().unwrap();
+    *guard = if minutes == 0 { None } else { Some(minutes) };
+    Ok(())
 }
 
 #[tauri::command]
