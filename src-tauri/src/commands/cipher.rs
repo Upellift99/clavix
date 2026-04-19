@@ -152,18 +152,54 @@ pub async fn update_login_cipher(
     Ok(())
 }
 
+enum CreateKind {
+    Personal(serde_json::Value),
+    Org {
+        cipher: serde_json::Value,
+        collection_ids: Vec<String>,
+    },
+}
+
 /// Generic creation — accepts any cipher type (Login, SecureNote, Card,
-/// Identity, SshKey) based on `input.cipher_type`.
+/// Identity, SshKey) based on `input.cipher_type`, and either creates a
+/// personal item or an org-scoped one depending on
+/// `input.organization_id`. Org items use the matching org key for
+/// encryption and hit the `/ciphers/create` endpoint with a
+/// `collectionIds` wrapper.
 #[tauri::command]
 pub async fn create_cipher(state: State<'_, AppState>, input: CipherCreateInput) -> Result<String> {
     ensure_fresh_tokens(&state).await?;
-    let (client, access_token, body) = {
+    let (client, access_token, kind) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        let body = build_cipher_body(&input, &s.user_key)?;
-        (s.client.clone(), s.tokens.access_token.clone(), body)
+        let kind = match input.organization_id.as_deref() {
+            Some(org_id) => {
+                let org_key = s.org_keys.get(org_id).ok_or_else(|| Error::Crypto {
+                    reason: format!("no key available for organization {org_id}"),
+                })?;
+                let cipher_body = build_cipher_body(&input, org_key)?;
+                CreateKind::Org {
+                    cipher: cipher_body,
+                    collection_ids: input.collection_ids.clone(),
+                }
+            }
+            None => CreateKind::Personal(build_cipher_body(&input, &s.user_key)?),
+        };
+        (s.client.clone(), s.tokens.access_token.clone(), kind)
     };
-    let created = client.create_cipher(&access_token, &body).await?;
+    let created = match kind {
+        CreateKind::Personal(body) => client.create_cipher(&access_token, &body).await?,
+        CreateKind::Org {
+            cipher,
+            collection_ids,
+        } => {
+            let body = serde_json::json!({
+                "cipher": cipher,
+                "collectionIds": collection_ids,
+            });
+            client.create_org_cipher(&access_token, &body).await?
+        }
+    };
     let id = created.id.clone();
 
     let mut guard = state.session.lock().unwrap();
@@ -185,7 +221,25 @@ pub async fn update_cipher(
     let (client, access_token, body) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        let body = build_cipher_body(&input, &s.user_key)?;
+        // Pick the encryption key based on the cipher's *current* owner,
+        // not what the editor is sending. Moves between personal and org
+        // must go through the dedicated share / move command — attempting
+        // them here would re-encrypt with the wrong key.
+        let existing_org_id = s.vault.as_ref().and_then(|v| {
+            v.ciphers
+                .iter()
+                .find(|c| c.id == cipher_id)
+                .and_then(|c| c.organization_id.clone())
+        });
+        let key: &crate::crypto::SymmetricKey = match existing_org_id.as_deref() {
+            Some(org_id) => s.org_keys.get(org_id).ok_or_else(|| Error::Crypto {
+                reason: format!("no key available for organization {org_id}"),
+            })?,
+            None => &s.user_key,
+        };
+        let mut bound_input = input;
+        bound_input.organization_id = existing_org_id;
+        let body = build_cipher_body(&bound_input, key)?;
         (s.client.clone(), s.tokens.access_token.clone(), body)
     };
     let updated = client

@@ -18,9 +18,11 @@ function payloadToRust(input: EditorPayload): Record<string, unknown> {
   const base: Record<string, unknown> = {
     cipherType: input.cipherType,
     name: input.name,
-    folderId: input.folderId,
+    folderId: input.organizationId ? null : input.folderId,
     favorite: input.favorite,
     notes: nullIfEmpty(input.notes),
+    organizationId: input.organizationId,
+    collectionIds: input.organizationId ? input.collectionIds : [],
   };
   if (input.cipherType === 1) {
     base.login = {

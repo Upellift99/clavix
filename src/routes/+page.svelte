@@ -297,6 +297,8 @@
     mode={vault.editorMode}
     initial={vault.editorInitial}
     folders={vault.summary?.folders ?? []}
+    organizations={vault.summary?.organizations ?? []}
+    collections={vault.summary?.collections ?? []}
     onCancel={() => vault.closeEditor()}
     onSubmit={(input) => vault.submitEditor(input)}
   />

@@ -94,6 +94,7 @@ pub fn build_cipher_body(
         "notes": notes_enc,
         "folderId": input.folder_id,
         "favorite": input.favorite,
+        "organizationId": input.organization_id,
     });
     let obj = body.as_object_mut().expect("json! returned a map");
 

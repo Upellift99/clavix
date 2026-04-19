@@ -189,6 +189,10 @@ export type EditorInitial = {
   card: CardFields;
   identity: IdentityFields;
   sshKey: SshKeyFields;
+  /** When non-null, create/edit targets this organization. */
+  organizationId: string | null;
+  /** Collections the item will belong to inside the organization. */
+  collectionIds: string[];
 };
 
 export const EMPTY_CARD_FIELDS: CardFields = {
@@ -241,6 +245,8 @@ export const EMPTY_EDITOR_INITIAL: EditorInitial = {
   card: { ...EMPTY_CARD_FIELDS },
   identity: { ...EMPTY_IDENTITY_FIELDS },
   sshKey: { ...EMPTY_SSH_FIELDS },
+  organizationId: null,
+  collectionIds: [],
 };
 
 export type EditorPayload = Omit<EditorInitial, "id">;

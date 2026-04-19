@@ -450,6 +450,15 @@ pub struct CipherCreateInput {
     /// 2 (SecureNote), 3 (Card), 4 (Identity), 5 (SshKey).
     #[serde(default = "default_cipher_type")]
     pub cipher_type: u8,
+    /// When set, the cipher is created inside the named organization and
+    /// gets encrypted with the matching org key instead of the user key.
+    /// Ignored on personal items.
+    #[serde(default)]
+    pub organization_id: Option<String>,
+    /// Collection(s) the cipher should live in when it belongs to an
+    /// organization.  Ignored when `organization_id` is `None`.
+    #[serde(default)]
+    pub collection_ids: Vec<String>,
 }
 
 fn default_cipher_type() -> u8 {

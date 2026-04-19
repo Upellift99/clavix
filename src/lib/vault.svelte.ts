@@ -226,9 +226,27 @@ export class VaultController {
     const folderMatch = presetFolder
       ? this.summary?.folders.find((f) => f.name === presetFolder)
       : null;
+    // If the user picked an org/collection node in the tree, preselect that
+    // destination so creation lands in the right place.
+    let presetOrg: string | null = null;
+    let presetCollection: string[] = [];
+    if (this.selectedKey) {
+      const stack = [...(this.orgTrees ?? [])];
+      while (stack.length > 0) {
+        const node = stack.pop()!;
+        if (node.key === this.selectedKey) {
+          presetOrg = node.organizationId;
+          if (node.collectionId) presetCollection = [node.collectionId];
+          break;
+        }
+        for (const c of node.children) stack.push(c);
+      }
+    }
     this.editorInitial = {
       ...EMPTY_EDITOR_INITIAL,
-      folderId: folderMatch?.id ?? null,
+      folderId: presetOrg ? null : (folderMatch?.id ?? null),
+      organizationId: presetOrg,
+      collectionIds: presetCollection,
     };
     this.editorMode = "create";
     this.editorOpen = true;
@@ -283,6 +301,8 @@ export class VaultController {
         publicKey: this.detail.sshKey?.publicKey ?? "",
         keyFingerprint: this.detail.sshKey?.keyFingerprint ?? "",
       },
+      organizationId: currentCipher?.organizationId ?? null,
+      collectionIds: currentCipher?.collectionIds ?? [],
     };
     this.editorMode = "edit";
     this.editorOpen = true;

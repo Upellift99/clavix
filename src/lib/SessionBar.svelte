@@ -66,7 +66,7 @@
   }
 
   .session-expiry {
-    color: #666;
+    color: #4a4a4a;
     font-variant-numeric: tabular-nums;
   }
 

@@ -3,6 +3,8 @@
   import QrScanner from "$lib/QrScanner.svelte";
 
   type FolderSummary = { id: string; name: string };
+  type OrganizationSummary = { id: string; name: string };
+  type CollectionSummary = { id: string; organizationId: string; name: string };
 
   export type CipherKind = 1 | 2 | 3 | 4 | 5;
 
@@ -60,6 +62,9 @@
     identity: IdentityFields;
     // ssh
     sshKey: SshKeyFields;
+    // org scoping
+    organizationId: string | null;
+    collectionIds: string[];
   };
 
   export type SubmitPayload = Omit<Initial, "id">;
@@ -105,6 +110,8 @@
     mode,
     initial,
     folders,
+    organizations,
+    collections,
     onCancel,
     onSubmit,
   }: {
@@ -112,6 +119,8 @@
     mode: "create" | "edit";
     initial: Initial;
     folders: FolderSummary[];
+    organizations: OrganizationSummary[];
+    collections: CollectionSummary[];
     onCancel: () => void;
     onSubmit: (payload: SubmitPayload) => Promise<void>;
   } = $props();
@@ -128,10 +137,16 @@
   let card = $state<CardFields>({ ...EMPTY_CARD });
   let identity = $state<IdentityFields>({ ...EMPTY_IDENTITY });
   let sshKey = $state<SshKeyFields>({ ...EMPTY_SSH });
+  let organizationId = $state<string | null>(null);
+  let collectionId = $state<string | null>(null);
   let showPassword = $state(false);
   let submitting = $state(false);
   let error = $state<string | null>(null);
   let qrOpen = $state(false);
+
+  const orgCollections = $derived(
+    organizationId ? collections.filter((c) => c.organizationId === organizationId) : [],
+  );
 
   $effect(() => {
     if (open) {
@@ -147,6 +162,8 @@
       card = { ...initial.card };
       identity = { ...initial.identity };
       sshKey = { ...initial.sshKey };
+      organizationId = initial.organizationId;
+      collectionId = initial.collectionIds[0] ?? null;
       showPassword = false;
       submitting = false;
       error = null;
@@ -183,7 +200,7 @@
       await onSubmit({
         cipherType,
         name: name.trim(),
-        folderId: folderId || null,
+        folderId: organizationId ? null : folderId || null,
         favorite,
         notes,
         username,
@@ -193,6 +210,8 @@
         card: { ...card },
         identity: { ...identity },
         sshKey: { ...sshKey },
+        organizationId,
+        collectionIds: organizationId && collectionId ? [collectionId] : [],
       });
     } catch (e) {
       error = (e as Error).message ?? String(e);
@@ -246,15 +265,46 @@
           <input type="text" bind:value={name} required />
         </label>
 
-        <label>
-          {m.editor_folder()}
-          <select bind:value={folderId}>
-            <option value={null}>{m.editor_no_folder()}</option>
-            {#each folders as f (f.id)}
-              <option value={f.id}>{f.name}</option>
-            {/each}
-          </select>
-        </label>
+        {#if organizations.length > 0}
+          <label>
+            {m.editor_owner()}
+            <select
+              bind:value={organizationId}
+              disabled={mode === "edit"}
+              title={mode === "edit" ? m.editor_owner_locked() : undefined}
+            >
+              <option value={null}>{m.editor_owner_personal()}</option>
+              {#each organizations as org (org.id)}
+                <option value={org.id}>{org.name}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+
+        {#if organizationId}
+          <label>
+            {m.editor_collection()}
+            <select bind:value={collectionId}>
+              {#if orgCollections.length === 0}
+                <option value={null} disabled>{m.editor_no_collection()}</option>
+              {:else}
+                {#each orgCollections as c (c.id)}
+                  <option value={c.id}>{c.name}</option>
+                {/each}
+              {/if}
+            </select>
+          </label>
+        {:else}
+          <label>
+            {m.editor_folder()}
+            <select bind:value={folderId}>
+              <option value={null}>{m.editor_no_folder()}</option>
+              {#each folders as f (f.id)}
+                <option value={f.id}>{f.name}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
 
         {#if cipherType === 1}
           <label>

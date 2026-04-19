@@ -161,6 +161,35 @@ impl VaultwardenClient {
         })
     }
 
+    /// Create a cipher inside an organization. Body must carry
+    /// `cipher` (the usual cipher payload, with `organizationId` set)
+    /// and `collectionIds` (non-empty in practice).
+    pub async fn create_org_cipher(
+        &self,
+        access_token: &str,
+        body: &serde_json::Value,
+    ) -> Result<crate::models::Cipher> {
+        let url = self.api_endpoint("ciphers/create")?;
+        let response = self
+            .http
+            .post(url)
+            .bearer_auth(access_token)
+            .json(body)
+            .send()
+            .await?;
+        let status = response.status();
+        let bytes = response.bytes().await?;
+        if !status.is_success() {
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: String::from_utf8_lossy(&bytes).into_owned(),
+            });
+        }
+        serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
+            reason: e.to_string(),
+        })
+    }
+
     pub async fn update_cipher(
         &self,
         access_token: &str,
