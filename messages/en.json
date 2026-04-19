@@ -70,11 +70,23 @@
   "audit_no_pwned": "No compromised passwords detected.",
   "audit_pwned_count": "{count} password(s) found in public breaches:",
   "audit_seen_n_times": "seen {count} times",
+  "audit_section_pwned": "Public breaches (HIBP)",
+  "audit_section_reused": "Reused passwords",
+  "audit_section_weak": "Weak passwords",
+  "audit_no_reused": "No reused passwords.",
+  "audit_no_weak": "No weak passwords detected.",
+  "audit_reused_count": "{count} group(s) of items sharing the same password:",
+  "audit_reused_shared": "{count} items share this password:",
+  "audit_weak_count": "{count} weak password(s) (zxcvbn score ≤ 2):",
+  "audit_weak_score": "score {score}/4",
 
   "action_retry": "Retry",
 
   "settings_title": "Preferences",
   "settings_language": "Language",
+  "settings_theme": "Theme",
+  "settings_theme_auto": "Auto (system)",
+  "settings_theme_dark": "Dark (forced)",
 
   "generator_title": "Password generator",
   "generator_label": "Generator",

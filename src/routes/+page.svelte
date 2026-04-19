@@ -227,7 +227,14 @@
   let auditDialog = $state<HTMLDialogElement | null>(null);
 
   type AuditEntry = { cipherId: string; name: string; count: number };
-  type AuditResult = { checked: number; pwned: AuditEntry[] };
+  type ReusedGroup = { cipherIds: string[]; names: string[] };
+  type WeakEntry = { cipherId: string; name: string; score: number };
+  type AuditResult = {
+    checked: number;
+    pwned: AuditEntry[];
+    reused: ReusedGroup[];
+    weak: WeakEntry[];
+  };
   let auditLoading = $state(false);
   let auditResult = $state<AuditResult | null>(null);
   let auditError = $state<string | null>(null);
@@ -360,6 +367,21 @@
   let treeWidth = $state(260);
 
   const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
+  const THEME_STORAGE_KEY = "clavix.theme";
+  type ThemePref = "auto" | "dark";
+  let themePref = $state<ThemePref>("auto");
+
+  function applyTheme(next: ThemePref) {
+    themePref = next;
+    try {
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.toggle("force-dark", next === "dark");
+      }
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // best-effort — no SSR, no storage, we just render with the fallback
+    }
+  }
 
   const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
   const AUTO_LOCK_DEFAULT_MINUTES = 10;
@@ -1280,6 +1302,13 @@
   }
 
   onMount(async () => {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY) as ThemePref | null;
+      applyTheme(saved === "dark" ? "dark" : "auto");
+    } catch {
+      applyTheme("auto");
+    }
+
     try {
       const savedLocale = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
       if (savedLocale === "fr" || savedLocale === "en") {
@@ -2400,6 +2429,16 @@
           <option value="en">English</option>
         </select>
       </dd>
+      <dt>{m.settings_theme()}</dt>
+      <dd>
+        <select
+          value={themePref}
+          onchange={(e) => applyTheme((e.currentTarget as HTMLSelectElement).value as ThemePref)}
+        >
+          <option value="auto">{m.settings_theme_auto()}</option>
+          <option value="dark">{m.settings_theme_dark()}</option>
+        </select>
+      </dd>
       <dt>{m.stats_auto_lock()}</dt>
       <dd>
         <select
@@ -2482,6 +2521,8 @@
       </div>
     {:else if auditResult}
       <p>{m.audit_checked({ count: String(auditResult.checked) })}</p>
+
+      <h3 class="audit-h3">{m.audit_section_pwned()}</h3>
       {#if auditResult.pwned.length === 0}
         <p class="audit-success">✔ {m.audit_no_pwned()}</p>
       {:else}
@@ -2493,6 +2534,44 @@
                 {entry.name}
               </button>
               <span class="audit-count">{m.audit_seen_n_times({ count: entry.count.toLocaleString(currentLocale === "fr" ? "fr-FR" : "en-US") })}</span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      <h3 class="audit-h3">{m.audit_section_reused()}</h3>
+      {#if auditResult.reused.length === 0}
+        <p class="audit-success">✔ {m.audit_no_reused()}</p>
+      {:else}
+        <p class="audit-warning">⚠ {m.audit_reused_count({ count: String(auditResult.reused.length) })}</p>
+        <ul class="audit-list">
+          {#each auditResult.reused as group, i (i)}
+            <li class="audit-group">
+              <span class="audit-count">{m.audit_reused_shared({ count: String(group.cipherIds.length) })}</span>
+              <span class="audit-group-items">
+                {#each group.cipherIds as cid, j (cid)}
+                  <button type="button" class="link-button" onclick={() => jumpToCipher(cid)}>
+                    {group.names[j]}
+                  </button>{#if j < group.cipherIds.length - 1}, {/if}
+                {/each}
+              </span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      <h3 class="audit-h3">{m.audit_section_weak()}</h3>
+      {#if auditResult.weak.length === 0}
+        <p class="audit-success">✔ {m.audit_no_weak()}</p>
+      {:else}
+        <p class="audit-warning">⚠ {m.audit_weak_count({ count: String(auditResult.weak.length) })}</p>
+        <ul class="audit-list">
+          {#each auditResult.weak as entry (entry.cipherId)}
+            <li>
+              <button type="button" class="link-button" onclick={() => jumpToCipher(entry.cipherId)}>
+                {entry.name}
+              </button>
+              <span class="audit-count">{m.audit_weak_score({ score: String(entry.score) })}</span>
             </li>
           {/each}
         </ul>
@@ -2862,6 +2941,21 @@
 
   .audit-list li:last-child {
     border-bottom: none;
+  }
+
+  .audit-h3 {
+    margin-top: 1rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .audit-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .audit-group-items {
+    font-size: 0.9rem;
   }
 
   .audit-count {
@@ -3485,4 +3579,53 @@
     code { background: #333; }
     .badge { background: #1f2a54; color: #aabaff; }
   }
+
+  /* Force-dark override — duplicates the prefers-color-scheme: dark rules
+     so that users can opt into dark mode even on a light system. */
+  :global(:root.force-dark) {
+    color: #f6f6f6;
+    background-color: #1e1e1e;
+  }
+  :global(:root.force-dark) .generator-output { background: #1e1e1e; }
+  :global(:root.force-dark) .error-text { color: #ff8a8a; }
+  :global(:root.force-dark) .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
+  :global(:root.force-dark) .cipher-headers { color: #aaa; border-bottom-color: #3a3a3a; }
+  :global(:root.force-dark) .cipher-header:hover,
+  :global(:root.force-dark) .cipher-header.active { color: #aabaff; }
+  :global(:root.force-dark) .col-username,
+  :global(:root.force-dark) .col-uri { color: #aaa; }
+  :global(:root.force-dark) .cipher-row:hover { background: #333; }
+  :global(:root.force-dark) .cipher-row.selected { background: #1f2a54; color: #aabaff; }
+  :global(:root.force-dark) .detail-field dt { color: #aaa; }
+  :global(:root.force-dark) .tree-pane { background: #2b2b2b; box-shadow: none; }
+  :global(:root.force-dark) .tree-pane h4 { color: #aaa; }
+  :global(:root.force-dark) .tree-label:hover,
+  :global(:root.force-dark) .tree-all:hover { background: #333; }
+  :global(:root.force-dark) .tree-row.selected > .tree-label,
+  :global(:root.force-dark) .tree-all.selected { background: #1f2a54; color: #aabaff; }
+  :global(:root.force-dark) .tree-count { background: #333; color: #aaa; }
+  :global(:root.force-dark) .tree-row.selected > .tree-label .tree-count {
+    background: #2a3870;
+    color: #aabaff;
+  }
+  :global(:root.force-dark) .tree-children { border-left-color: #444; }
+  :global(:root.force-dark) .splitter::before { background: #3a3a3a; }
+  :global(:root.force-dark) .splitter:hover { background: #1e3a8a; }
+  :global(:root.force-dark) .splitter:hover::before { background: #60a5fa; }
+  :global(:root.force-dark) .subtitle,
+  :global(:root.force-dark) h3 small,
+  :global(:root.force-dark) .hint { color: #aaa; }
+  :global(:root.force-dark) h3 { color: #ccc; }
+  :global(:root.force-dark) form,
+  :global(:root.force-dark) .box { background: #2b2b2b; box-shadow: none; }
+  :global(:root.force-dark) label { color: #ccc; }
+  :global(:root.force-dark) input,
+  :global(:root.force-dark) button { background: #1e1e1e; color: #f6f6f6; border-color: #3a3a3a; }
+  :global(:root.force-dark) button { background: #396cd8; border-color: #396cd8; }
+  :global(:root.force-dark) button.secondary { background: #2b2b2b; color: #ddd; border-color: #3a3a3a; }
+  :global(:root.force-dark) dt { color: #ccc; }
+  :global(:root.force-dark) .box.error pre { color: #ff8a8a; }
+  :global(:root.force-dark) pre { background: #181818; }
+  :global(:root.force-dark) code { background: #333; }
+  :global(:root.force-dark) .badge { background: #1f2a54; color: #aabaff; }
 </style>

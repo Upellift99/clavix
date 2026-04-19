@@ -5,6 +5,21 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] — 2026-04-19
+
+### Added
+- **Access-token auto-refresh**: every API-hitting command now
+  refreshes the OAuth2 access token 60 s before its expiry, so
+  long-running sessions no longer silently 401.
+- **Forced dark mode** in Preferences (Auto / Sombre). The toggle
+  lives next to the language selector and is persisted to
+  `localStorage`.
+- **Security audit extended**: the 🛡 modal now also surfaces
+  reused passwords (grouped by the ciphers sharing them) and weak
+  passwords (zxcvbn score ≤ 2), in addition to HIBP breach hits.
+  Detection happens fully locally; no additional data leaves the
+  machine.
+
 ## [0.1.5] — 2026-04-19
 
 ### Added
@@ -161,6 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.6]: https://github.com/Upellift99/clavix/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Upellift99/clavix/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Upellift99/clavix/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Upellift99/clavix/releases/tag/v0.1.3

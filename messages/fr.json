@@ -70,11 +70,23 @@
   "audit_no_pwned": "Aucun mot de passe compromis détecté.",
   "audit_pwned_count": "{count} mot(s) de passe compromis trouvé(s) dans des fuites publiques :",
   "audit_seen_n_times": "vu {count} fois",
+  "audit_section_pwned": "Fuites publiques (HIBP)",
+  "audit_section_reused": "Mots de passe réutilisés",
+  "audit_section_weak": "Mots de passe faibles",
+  "audit_no_reused": "Aucun mot de passe réutilisé.",
+  "audit_no_weak": "Aucun mot de passe faible détecté.",
+  "audit_reused_count": "{count} groupe(s) d'items partageant le même mot de passe :",
+  "audit_reused_shared": "{count} items partagent ce mot de passe :",
+  "audit_weak_count": "{count} mot(s) de passe faible(s) (score zxcvbn ≤ 2) :",
+  "audit_weak_score": "score {score}/4",
 
   "action_retry": "Réessayer",
 
   "settings_title": "Préférences",
   "settings_language": "Langue",
+  "settings_theme": "Thème",
+  "settings_theme_auto": "Auto (système)",
+  "settings_theme_dark": "Sombre (forcé)",
 
   "generator_title": "Générateur de mots de passe",
   "generator_label": "Générateur",

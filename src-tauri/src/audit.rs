@@ -20,11 +20,31 @@ pub struct PasswordAuditEntry {
     pub count: u64,
 }
 
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ReusedGroup {
+    /// All ciphers that share the same password.
+    pub cipher_ids: Vec<String>,
+    pub names: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WeakEntry {
+    pub cipher_id: String,
+    pub name: String,
+    /// zxcvbn score, 0 (très faible) à 4 (très fort).  Ici on ne garde
+    /// que les entrées <= 2.
+    pub score: u8,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PasswordAuditResult {
     pub checked: usize,
     pub pwned: Vec<PasswordAuditEntry>,
+    pub reused: Vec<ReusedGroup>,
+    pub weak: Vec<WeakEntry>,
 }
 
 fn sha1_hex_upper(data: &str) -> String {
@@ -76,8 +96,13 @@ pub async fn audit_passwords(
         return Ok(PasswordAuditResult {
             checked: 0,
             pwned: vec![],
+            reused: vec![],
+            weak: vec![],
         });
     }
+
+    // Compute reused groups + weak entries locally before we drop plaintext.
+    let (reused, weak) = analyze_local(&entries);
 
     let hashed: Vec<(String, String, String)> = entries
         .into_iter()
@@ -124,5 +149,48 @@ pub async fn audit_passwords(
 
     pwned.sort_by_key(|e| std::cmp::Reverse(e.count));
 
-    Ok(PasswordAuditResult { checked, pwned })
+    Ok(PasswordAuditResult {
+        checked,
+        pwned,
+        reused,
+        weak,
+    })
+}
+
+fn analyze_local(entries: &[(String, String, SecretString)]) -> (Vec<ReusedGroup>, Vec<WeakEntry>) {
+    // --- Reused: group by plaintext password ---
+    let mut by_password: HashMap<String, Vec<(String, String)>> = HashMap::new();
+    for (cid, name, pw) in entries {
+        by_password
+            .entry(pw.expose_secret().to_string())
+            .or_default()
+            .push((cid.clone(), name.clone()));
+    }
+    let mut reused: Vec<ReusedGroup> = by_password
+        .into_values()
+        .filter(|v| v.len() >= 2)
+        .map(|v| {
+            let (cipher_ids, names): (Vec<_>, Vec<_>) = v.into_iter().unzip();
+            ReusedGroup { cipher_ids, names }
+        })
+        .collect();
+    reused.sort_by_key(|g| std::cmp::Reverse(g.cipher_ids.len()));
+
+    // --- Weak: zxcvbn score <= 2 ---
+    let mut weak = Vec::new();
+    for (cid, name, pw) in entries {
+        let pw_str = pw.expose_secret();
+        let score_enum = zxcvbn::zxcvbn(pw_str, &[]).score();
+        let score = score_enum as u8;
+        if score <= 2 {
+            weak.push(WeakEntry {
+                cipher_id: cid.clone(),
+                name: name.clone(),
+                score,
+            });
+        }
+    }
+    weak.sort_by_key(|w| w.score);
+
+    (reused, weak)
 }

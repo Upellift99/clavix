@@ -76,6 +76,10 @@ fn extract_session_keys(
     Ok((user_key, private_key))
 }
 
+fn compute_expires_at(expires_in: u64) -> std::time::Instant {
+    std::time::Instant::now() + std::time::Duration::from_secs(expires_in.saturating_sub(30).max(1))
+}
+
 fn store_session(
     state: &AppState,
     client: VaultwardenClient,
@@ -83,15 +87,60 @@ fn store_session(
     user_key: SymmetricKey,
     private_key: Option<RsaPrivateKey>,
 ) {
+    let expires_at = compute_expires_at(tokens.expires_in);
     let mut guard = state.session.lock().unwrap();
     *guard = Some(Session {
         client,
         tokens,
+        expires_at,
         user_key,
         private_key,
         org_keys: HashMap::new(),
         vault: None,
     });
+}
+
+/// Refresh `tokens.access_token` if it is within 60 seconds of expiring.
+/// No-op otherwise. Commands that hit the Vaultwarden API call this before
+/// the first access-token use.
+async fn ensure_fresh_tokens(state: &State<'_, AppState>) -> Result<()> {
+    let (client, refresh) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        if s.expires_at > std::time::Instant::now() + std::time::Duration::from_secs(60) {
+            return Ok(());
+        }
+        (s.client.clone(), s.tokens.refresh_token.clone())
+    };
+
+    let device = device_info()?;
+    let mut new_tokens = client.refresh_token(&refresh, &device).await?;
+    if new_tokens.refresh_token.is_empty() {
+        new_tokens.refresh_token = refresh.clone();
+    }
+
+    let new_refresh = new_tokens.refresh_token.clone();
+    let new_access = new_tokens.access_token.clone();
+    let new_expires_in = new_tokens.expires_in;
+
+    {
+        let mut guard = state.session.lock().unwrap();
+        if let Some(s) = guard.as_mut() {
+            s.tokens.access_token = new_access;
+            s.tokens.refresh_token = new_refresh.clone();
+            s.tokens.expires_in = new_expires_in;
+            s.expires_at = compute_expires_at(new_expires_in);
+        }
+    }
+
+    if let Ok(Some(mut persisted)) = store::load_session() {
+        if persisted.refresh_token != new_refresh {
+            persisted.refresh_token = new_refresh;
+            let _ = store::save_session(&persisted);
+        }
+    }
+
+    Ok(())
 }
 
 fn persist_session(server_url: &str, email: &str, pre: &Prelogin, tokens: &TokenSet) -> Result<()> {
@@ -224,6 +273,7 @@ async fn unlock(state: State<'_, AppState>, password: String) -> Result<TokenSet
 
 #[tauri::command]
 async fn sync(state: State<'_, AppState>) -> Result<SyncSummary> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -517,6 +567,7 @@ async fn move_cipher_to_folder(
     cipher_id: String,
     folder_id: Option<String>,
 ) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token, favorite) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -558,6 +609,7 @@ async fn move_cipher_to_collection(
     cipher_id: String,
     collection_id: String,
 ) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -611,6 +663,7 @@ async fn move_folder_path(
     source_path: String,
     target_parent_path: Option<String>,
 ) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
     let source_path = source_path.trim().trim_matches('/').to_string();
     if source_path.is_empty() {
         return Err(Error::Storage {
@@ -771,6 +824,7 @@ async fn create_login_cipher(
     state: State<'_, AppState>,
     input: CipherCreateInput,
 ) -> Result<String> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token, body) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -795,6 +849,7 @@ async fn update_login_cipher(
     cipher_id: String,
     input: CipherCreateInput,
 ) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token, body) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -818,6 +873,7 @@ async fn update_login_cipher(
 
 #[tauri::command]
 async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -838,6 +894,7 @@ async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Result
 
 #[tauri::command]
 async fn delete_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
         let guard = state.session.lock().unwrap();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -860,6 +917,7 @@ async fn share_cipher_to_collection(
     cipher_id: String,
     collection_id: String,
 ) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
     let (client, access_token, body, target_org_id) = {
         let guard = state.session.lock().unwrap();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
