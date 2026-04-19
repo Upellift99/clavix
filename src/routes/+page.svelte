@@ -5,6 +5,7 @@
   import { onDestroy, onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { getLocale, setLocale } from "$lib/paraglide/runtime";
+  import Onboarding from "$lib/Onboarding.svelte";
 
   type Locale = "fr" | "en";
   const LOCALE_STORAGE_KEY = "clavix.locale";
@@ -136,6 +137,7 @@
 
   type Phase =
     | "init"
+    | "onboarding"
     | "idle"
     | "authenticating"
     | "twoFactor"
@@ -218,6 +220,13 @@
   let dragOverKey = $state<string | null>(null);
   let statsDialog = $state<HTMLDialogElement | null>(null);
   let generatorDialog = $state<HTMLDialogElement | null>(null);
+  let auditDialog = $state<HTMLDialogElement | null>(null);
+
+  type AuditEntry = { cipherId: string; name: string; count: number };
+  type AuditResult = { checked: number; pwned: AuditEntry[] };
+  let auditLoading = $state(false);
+  let auditResult = $state<AuditResult | null>(null);
+  let auditError = $state<string | null>(null);
   let searchInput = $state<HTMLInputElement | null>(null);
 
   const GEN_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -271,6 +280,8 @@
   const TREE_WIDTH_MAX = 560;
   const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
   let treeWidth = $state(260);
+
+  const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 
   const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
   const AUTO_LOCK_DEFAULT_MINUTES = 10;
@@ -333,6 +344,31 @@
 
   function closeStats() {
     statsDialog?.close();
+  }
+
+  async function openAudit() {
+    auditDialog?.showModal();
+    auditError = null;
+    auditResult = null;
+    auditLoading = true;
+    try {
+      auditResult = await invoke<AuditResult>("audit_vault_passwords");
+    } catch (e) {
+      auditError = formatError(e);
+    } finally {
+      auditLoading = false;
+    }
+  }
+
+  function closeAudit() {
+    auditDialog?.close();
+  }
+
+  async function jumpToCipher(id: string) {
+    auditDialog?.close();
+    if (detail?.id !== id) {
+      await openCipher(id);
+    }
   }
 
   const FOLDERS_ROOT_PREFIX = "folders/";
@@ -1132,13 +1168,28 @@
         email = account.email;
         phase = "unlock";
       } else {
-        phase = "idle";
+        let onboarded = false;
+        try {
+          onboarded = localStorage.getItem(ONBOARDED_STORAGE_KEY) === "1";
+        } catch {
+          onboarded = false;
+        }
+        phase = onboarded ? "idle" : "onboarding";
       }
     } catch (e) {
       errorMsg = formatError(e);
       phase = "idle";
     }
   });
+
+  function completeOnboarding() {
+    try {
+      localStorage.setItem(ONBOARDED_STORAGE_KEY, "1");
+    } catch {
+      // best-effort : si localStorage indisponible, on continue sans persister
+    }
+    phase = "idle";
+  }
 
   async function onLoginSubmit(event: Event) {
     event.preventDefault();
@@ -1338,6 +1389,10 @@
     <p class="subtitle">{m.loading()}</p>
   {/if}
 
+  {#if phase === "onboarding"}
+    <Onboarding onComplete={completeOnboarding} />
+  {/if}
+
   {#if phase === "idle" || (phase === "authenticating" && !storedAccount) || phase === "error"}
     <form onsubmit={onLoginSubmit}>
       <label>
@@ -1496,6 +1551,15 @@
                     aria-label={m.generator_label()}
                   >
                     🎲
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary small info-button"
+                    onclick={openAudit}
+                    title={m.audit_label()}
+                    aria-label={m.audit_label()}
+                  >
+                    🛡
                   </button>
                   <button
                     type="button"
@@ -2150,6 +2214,44 @@
   {/key}
 </dialog>
 
+<dialog bind:this={auditDialog} class="stats-dialog">
+  {#key currentLocale}
+    <header class="stats-header">
+      <h2>🛡 {m.audit_title()}</h2>
+      <button type="button" class="secondary small" onclick={closeAudit} aria-label={m.action_close()}>
+        ✕
+      </button>
+    </header>
+    <p class="hint audit-privacy">{m.audit_privacy_note()}</p>
+
+    {#if auditLoading}
+      <p>{m.audit_running()}</p>
+    {:else if auditError}
+      <p class="audit-error">{auditError}</p>
+      <div class="row">
+        <button type="button" onclick={openAudit}>{m.action_retry()}</button>
+      </div>
+    {:else if auditResult}
+      <p>{m.audit_checked({ count: String(auditResult.checked) })}</p>
+      {#if auditResult.pwned.length === 0}
+        <p class="audit-success">✔ {m.audit_no_pwned()}</p>
+      {:else}
+        <p class="audit-warning">⚠ {m.audit_pwned_count({ count: String(auditResult.pwned.length) })}</p>
+        <ul class="audit-list">
+          {#each auditResult.pwned as entry (entry.cipherId)}
+            <li>
+              <button type="button" class="link-button" onclick={() => jumpToCipher(entry.cipherId)}>
+                {entry.name}
+              </button>
+              <span class="audit-count">{m.audit_seen_n_times({ count: entry.count.toLocaleString(currentLocale === "fr" ? "fr-FR" : "en-US") })}</span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    {/if}
+  {/key}
+</dialog>
+
 <style>
   :root {
     font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
@@ -2420,6 +2522,71 @@
   .stats-header h2 {
     margin: 0;
     font-size: 1.05rem;
+  }
+
+  .audit-privacy {
+    font-size: 0.82rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .audit-error {
+    color: #7a1d1d;
+    background: #fdecec;
+    padding: 0.5rem 0.7rem;
+    border-radius: 6px;
+  }
+
+  .audit-success {
+    color: #18683a;
+    font-weight: 500;
+  }
+
+  .audit-warning {
+    color: #7a3b00;
+    font-weight: 500;
+    margin-top: 0.25rem;
+  }
+
+  .audit-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .audit-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .audit-list li:last-child {
+    border-bottom: none;
+  }
+
+  .audit-count {
+    font-variant-numeric: tabular-nums;
+    color: #7a3b00;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .link-button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #1f4db0;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+  }
+
+  .link-button:hover {
+    color: #0f307a;
   }
 
   .generator-output {

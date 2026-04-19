@@ -29,6 +29,28 @@
   "action_delete_forever": "Delete permanently",
   "action_confirm_delete": "This item will be permanently deleted. Continue?",
 
+  "onboarding_title": "Welcome to Clavix",
+  "onboarding_intro": "Clavix is an open-source desktop client for Vaultwarden and Bitwarden. It reads your existing vault — no data is sent anywhere other than to your own server.",
+  "onboarding_what_title": "What Clavix can do today",
+  "onboarding_what_1": "Read, search, and copy your logins, notes, cards, identities, and SSH keys.",
+  "onboarding_what_2": "Drag and drop to organize items into your folders and collections.",
+  "onboarding_what_3": "Works offline after a first sync (encrypted local cache).",
+  "onboarding_alpha_title": "Alpha-stage software",
+  "onboarding_alpha_body": "The cryptography has not yet been audited by a third party and the API may change. Please read the disclaimer before using Clavix with a sensitive vault.",
+  "onboarding_read_disclaimer": "Open the disclaimer (GitHub)",
+  "onboarding_continue": "Got it, let's go",
+
+  "audit_label": "Security audit",
+  "audit_title": "Security audit",
+  "audit_privacy_note": "Checks your passwords against HIBP using k-anonymity: only 5 hex characters of the SHA-1 hash ever leave your machine — never the password itself.",
+  "audit_running": "Running… (querying HIBP API)",
+  "audit_checked": "{count} password(s) checked.",
+  "audit_no_pwned": "No compromised passwords detected.",
+  "audit_pwned_count": "{count} password(s) found in public breaches:",
+  "audit_seen_n_times": "seen {count} times",
+
+  "action_retry": "Retry",
+
   "settings_title": "Preferences",
   "settings_language": "Language",
 

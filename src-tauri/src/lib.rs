@@ -1,4 +1,5 @@
 mod api;
+mod audit;
 mod cache;
 mod crypto;
 mod error;
@@ -923,6 +924,40 @@ async fn share_cipher_to_collection(
 }
 
 #[tauri::command]
+async fn audit_vault_passwords(state: State<'_, AppState>) -> Result<audit::PasswordAuditResult> {
+    let entries: Vec<(String, String, SecretString)> = {
+        let guard = state.session.lock().unwrap();
+        let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+
+        vault
+            .ciphers
+            .iter()
+            .filter(|c| c.deleted_date.is_none())
+            .filter_map(|c| {
+                let login = c.login.as_ref()?;
+                let pw_enc = login.password.as_deref()?;
+                let key = c
+                    .organization_id
+                    .as_ref()
+                    .and_then(|oid| session.org_keys.get(oid))
+                    .unwrap_or(&session.user_key);
+                let pw = decrypt_name(pw_enc, key).ok()?;
+                if pw.is_empty() {
+                    return None;
+                }
+                let name = decrypt_name(&c.name, key).unwrap_or_else(|_| "(chiffré)".to_string());
+                Some((c.id.clone(), name, SecretString::from(pw)))
+            })
+            .collect()
+    };
+
+    audit::audit_passwords(entries).await
+}
+
+#[tauri::command]
 fn lock(state: State<'_, AppState>) -> Result<()> {
     let mut guard = state.session.lock().unwrap();
     *guard = None;
@@ -964,7 +999,8 @@ pub fn run() {
             load_cached_vault,
             share_cipher_to_collection,
             restore_cipher,
-            delete_cipher
+            delete_cipher,
+            audit_vault_passwords
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

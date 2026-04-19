@@ -45,6 +45,7 @@ dirs = "5"
 rand = "0.8"
 rusqlite = { version = "0.32", features = ["bundled"] }
 rayon = "1"
+futures = "0.3"
 
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.

@@ -29,6 +29,28 @@
   "action_delete_forever": "Supprimer définitivement",
   "action_confirm_delete": "Cet item sera définitivement supprimé. Continuer ?",
 
+  "onboarding_title": "Bienvenue dans Clavix",
+  "onboarding_intro": "Clavix est un client desktop open-source pour Vaultwarden et Bitwarden. Il lit votre coffre existant — aucune donnée n'est envoyée ailleurs que sur votre serveur.",
+  "onboarding_what_title": "Ce que Clavix sait faire aujourd'hui",
+  "onboarding_what_1": "Lire, rechercher et copier vos identifiants, notes, cartes, identités et clés SSH.",
+  "onboarding_what_2": "Glisser-déposer pour classer vos items dans vos dossiers et collections.",
+  "onboarding_what_3": "Fonctionne hors-ligne après une première synchronisation (cache chiffré local).",
+  "onboarding_alpha_title": "Logiciel en phase alpha",
+  "onboarding_alpha_body": "La crypto n'a pas encore été auditée par un tiers et l'API peut changer. Lisez le disclaimer avant de l'utiliser avec un coffre sensible.",
+  "onboarding_read_disclaimer": "Ouvrir le disclaimer (GitHub)",
+  "onboarding_continue": "J'ai compris, démarrer",
+
+  "audit_label": "Audit de sécurité",
+  "audit_title": "Audit de sécurité",
+  "audit_privacy_note": "Vérifie vos mots de passe contre HIBP via k-anonymity : seuls 5 caractères hex du SHA-1 quittent votre poste, jamais le mot de passe lui-même.",
+  "audit_running": "Analyse en cours… (interrogation de l'API HIBP)",
+  "audit_checked": "{count} mot(s) de passe vérifié(s).",
+  "audit_no_pwned": "Aucun mot de passe compromis détecté.",
+  "audit_pwned_count": "{count} mot(s) de passe compromis trouvé(s) dans des fuites publiques :",
+  "audit_seen_n_times": "vu {count} fois",
+
+  "action_retry": "Réessayer",
+
   "settings_title": "Préférences",
   "settings_language": "Langue",
 
