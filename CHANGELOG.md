@@ -5,6 +5,20 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] — 2026-04-19
+
+### Added
+- **SSH agent** (Linux / macOS) that exposes the Ed25519 SSH keys
+  stored in your vault over a Unix socket at
+  `$XDG_RUNTIME_DIR/clavix/agent.sock` (or the user cache dir as a
+  fallback), with file mode `0600`. Toggle from the Preferences
+  section of the Infos modal, then `export SSH_AUTH_SOCK=...` in
+  your shell. Supports `SSH_AGENTC_REQUEST_IDENTITIES` and
+  `SSH_AGENTC_SIGN_REQUEST`. The agent is automatically stopped on
+  lock / logout. RSA and ECDSA keys are detected but skipped for
+  now. Windows ships a stub that returns a "not supported yet"
+  error (named pipes / Pageant in a future release).
+
 ## [0.1.4] — 2026-04-19
 
 ### Added
@@ -147,6 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.5]: https://github.com/Upellift99/clavix/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Upellift99/clavix/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Upellift99/clavix/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Upellift99/clavix/releases/tag/v0.1.2
