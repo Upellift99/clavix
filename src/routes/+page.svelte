@@ -629,21 +629,7 @@
     const targetCollection = syncSummary.collections.find((c) => c.id === targetCollectionId);
     if (!targetCollection) return;
 
-    // Cas 1 : cipher personnel -> partage vers l'orga cible
-    if (cipher.organizationId === null) {
-      try {
-        await invoke("share_cipher_to_collection", {
-          cipherId,
-          collectionId: targetCollectionId,
-        });
-        syncSummary = await invoke<SyncSummary>("sync");
-      } catch (e) {
-        errorMsg = formatError(e);
-      }
-      return;
-    }
-
-    // Cas 2 : cipher déjà dans la même orga -> change de collection
+    // Cas 1 : même orga -> juste change de collection
     if (cipher.organizationId === targetCollection.organizationId) {
       const previousCollectionIds = [...cipher.collectionIds];
       if (previousCollectionIds.length === 1 && previousCollectionIds[0] === targetCollectionId) {
@@ -662,8 +648,17 @@
       return;
     }
 
-    // Cas 3 : cross-org -> non supporté
-    errorMsg = "Transfert d'un item entre organisations non supporté pour l'instant.";
+    // Cas 2 : cipher perso -> partage ou cipher d'une autre orga -> cross-org transfert.
+    // Dans les deux cas, le backend re-chiffre avec la clé de l'orga cible.
+    try {
+      await invoke("share_cipher_to_collection", {
+        cipherId,
+        collectionId: targetCollectionId,
+      });
+      syncSummary = await invoke<SyncSummary>("sync");
+    } catch (e) {
+      errorMsg = formatError(e);
+    }
   }
 
   onMount(async () => {

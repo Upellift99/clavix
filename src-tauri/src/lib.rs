@@ -669,15 +669,12 @@ async fn share_cipher_to_collection(
                 reason: format!("cipher not found: {cipher_id}"),
             })?;
 
-        if cipher.organization_id.is_some() {
-            return Err(Error::AuthFailed {
-                message: "cipher already belongs to an organization".into(),
-            });
-        }
-
         if cipher.kind != models::CipherType::Login {
-            return Err(Error::TwoFactorProviderUnsupported {
-                provider: cipher.kind as u8,
+            return Err(Error::Crypto {
+                reason: format!(
+                    "sharing items of type {} is not implemented yet — only logins are supported",
+                    cipher.kind as u8
+                ),
             });
         }
 
@@ -690,7 +687,13 @@ async fn share_cipher_to_collection(
                 reason: format!("collection not found: {collection_id}"),
             })?;
 
-        let org_key = session
+        if cipher.organization_id.as_deref() == Some(target_org_id.as_str()) {
+            return Err(Error::AuthFailed {
+                message: "cipher already belongs to this organization — use move instead".into(),
+            });
+        }
+
+        let target_key = session
             .org_keys
             .get(&target_org_id)
             .ok_or_else(|| Error::Crypto {
@@ -698,9 +701,19 @@ async fn share_cipher_to_collection(
                     "organization key not available for {target_org_id} — cannot re-encrypt"
                 ),
             })?;
-        let user_key = &session.user_key;
 
-        let reenc = |s: &str| reencrypt_with_key(s, user_key, org_key);
+        let source_key: &SymmetricKey = if let Some(ref source_org_id) = cipher.organization_id {
+            session
+                .org_keys
+                .get(source_org_id)
+                .ok_or_else(|| Error::Crypto {
+                    reason: format!("source organization key not available for {source_org_id}"),
+                })?
+        } else {
+            &session.user_key
+        };
+
+        let reenc = |s: &str| reencrypt_with_key(s, source_key, target_key);
 
         let name = reenc(&cipher.name)?;
         let notes = cipher.notes.as_deref().map(reenc).transpose()?;
@@ -731,13 +744,15 @@ async fn share_cipher_to_collection(
             })
             .transpose()?;
 
+        // folderId toujours remis à null lors d'un share : un folder est
+        // perso par nature, il ne suit pas le cipher dans la nouvelle orga.
         let body = serde_json::json!({
             "cipher": {
                 "type": cipher.kind as u8,
                 "name": name,
                 "notes": notes,
                 "organizationId": target_org_id,
-                "folderId": cipher.folder_id,
+                "folderId": serde_json::Value::Null,
                 "favorite": cipher.favorite,
                 "login": login_json,
             },
@@ -756,13 +771,14 @@ async fn share_cipher_to_collection(
         .share_cipher(&access_token, &cipher_id, &body)
         .await?;
 
-    // Update in-memory vault : remove from personal, add to org with new encrypted fields
+    // Update in-memory vault : remove from personal/old org, add to org with new encrypted fields
     let mut guard = state.session.lock().unwrap();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
                 cipher.organization_id = Some(target_org_id);
                 cipher.collection_ids = vec![collection_id];
+                cipher.folder_id = None;
                 // Les champs restent chiffrés avec user_key en mémoire. Pour être exact
                 // il faudrait les réécrire avec org_key, mais un prochain sync remettra
                 // tout d'équerre. On laisse ainsi pour simplifier.
