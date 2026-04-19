@@ -184,6 +184,8 @@ pub struct SyncSummary {
     pub organization_count: usize,
     pub type_counts: TypeCounts,
     pub folders: Vec<FolderSummary>,
+    pub organizations: Vec<OrganizationSummary>,
+    pub collections: Vec<CollectionSummary>,
     pub ciphers: Vec<CipherSummary>,
 }
 
@@ -206,11 +208,27 @@ pub struct FolderSummary {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct OrganizationSummary {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionSummary {
+    pub id: String,
+    pub organization_id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CipherSummary {
     pub id: String,
     pub kind: u8,
     pub name: String,
     pub folder_id: Option<String>,
     pub organization_id: Option<String>,
+    pub collection_ids: Vec<String>,
     pub favorite: bool,
 }

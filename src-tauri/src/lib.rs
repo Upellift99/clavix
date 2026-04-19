@@ -19,8 +19,8 @@ use crypto::{
 };
 use error::{Error, Result};
 use models::{
-    CipherSummary, CipherType, FolderSummary, LoginResult, Prelogin, SyncResponse, SyncSummary,
-    TokenSet, TwoFactorProvider, TypeCounts,
+    CipherSummary, CipherType, CollectionSummary, FolderSummary, LoginResult, OrganizationSummary,
+    Prelogin, SyncResponse, SyncSummary, TokenSet, TwoFactorProvider, TypeCounts,
 };
 use state::{AppState, Session};
 use store::PersistedSession;
@@ -291,7 +291,31 @@ fn build_sync_summary(
                 name: decrypt_or_placeholder(&c.name, key),
                 folder_id: c.folder_id.clone(),
                 organization_id: c.organization_id.clone(),
+                collection_ids: c.collection_ids.clone(),
                 favorite: c.favorite,
+            }
+        })
+        .collect();
+
+    let organizations: Vec<OrganizationSummary> = response
+        .profile
+        .organizations
+        .iter()
+        .map(|o| OrganizationSummary {
+            id: o.id.clone(),
+            name: o.name.clone(),
+        })
+        .collect();
+
+    let collections: Vec<CollectionSummary> = response
+        .collections
+        .iter()
+        .map(|c| {
+            let key = org_keys.get(&c.organization_id).unwrap_or(user_key);
+            CollectionSummary {
+                id: c.id.clone(),
+                organization_id: c.organization_id.clone(),
+                name: decrypt_or_placeholder(&c.name, key),
             }
         })
         .collect();
@@ -305,6 +329,8 @@ fn build_sync_summary(
         organization_count: response.profile.organizations.len(),
         type_counts,
         folders,
+        organizations,
+        collections,
         ciphers,
     }
 }

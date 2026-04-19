@@ -26,6 +26,8 @@
   };
 
   type FolderSummary = { id: string; name: string };
+  type OrganizationSummary = { id: string; name: string };
+  type CollectionSummary = { id: string; organizationId: string; name: string };
 
   type CipherSummary = {
     id: string;
@@ -33,6 +35,7 @@
     name: string;
     folderId: string | null;
     organizationId: string | null;
+    collectionIds: string[];
     favorite: boolean;
   };
 
@@ -45,6 +48,8 @@
     organizationCount: number;
     typeCounts: TypeCounts;
     folders: FolderSummary[];
+    organizations: OrganizationSummary[];
+    collections: CollectionSummary[];
     ciphers: CipherSummary[];
   };
 
@@ -83,58 +88,102 @@
   let syncing = $state(false);
   let storedAccount = $state<StoredAccount | null>(null);
   let search = $state("");
-  let selectedFolderPath = $state<string | null>(null);
+  let selectedKey = $state<string | null>(null);
   let expanded = $state<Set<string>>(new Set());
 
   type TreeNode = {
     key: string;
     label: string;
-    path: string;
+    kind: "folder" | "organization" | "collection";
     folderId: string | null;
+    organizationId: string | null;
+    collectionId: string | null;
     children: TreeNode[];
     itemCount: number;
   };
 
-  const folderTree = $derived.by(() => {
+  const folderTree = $derived.by<TreeNode | null>(() => {
     if (!syncSummary) return null;
     const root: TreeNode = {
-      key: "__root__",
-      label: "",
-      path: "",
+      key: "folders",
+      label: "Folders",
+      kind: "folder",
       folderId: null,
+      organizationId: null,
+      collectionId: null,
       children: [],
       itemCount: 0,
     };
     for (const f of syncSummary.folders) {
-      const segments = f.name.split("/").map((s) => s.trim()).filter((s) => s.length > 0);
+      const segments = splitPath(f.name);
       if (segments.length === 0) continue;
-      insertFolder(root, segments, f.id);
+      insertIntoTree(root, segments, { folderId: f.id, kind: "folder" });
     }
     computeFolderCounts(root, syncSummary.ciphers);
     sortTree(root);
     return root;
   });
 
-  function insertFolder(root: TreeNode, segments: string[], folderId: string) {
+  const orgTrees = $derived.by<TreeNode[]>(() => {
+    if (!syncSummary) return [];
+    return syncSummary.organizations.map((org) => {
+      const root: TreeNode = {
+        key: `org/${org.id}`,
+        label: org.name,
+        kind: "organization",
+        folderId: null,
+        organizationId: org.id,
+        collectionId: null,
+        children: [],
+        itemCount: syncSummary!.ciphers.filter((c) => c.organizationId === org.id).length,
+      };
+      for (const c of syncSummary!.collections) {
+        if (c.organizationId !== org.id) continue;
+        const segments = splitPath(c.name);
+        if (segments.length === 0) continue;
+        insertIntoTree(root, segments, {
+          collectionId: c.id,
+          organizationId: org.id,
+          kind: "collection",
+        });
+      }
+      computeCollectionCounts(root, syncSummary!.ciphers);
+      sortTree(root);
+      return root;
+    });
+  });
+
+  function splitPath(name: string): string[] {
+    return name.split("/").map((s) => s.trim()).filter((s) => s.length > 0);
+  }
+
+  function insertIntoTree(
+    root: TreeNode,
+    segments: string[],
+    leaf: { folderId?: string; collectionId?: string; organizationId?: string; kind: "folder" | "collection" },
+  ) {
     let current = root;
-    let acc = "";
+    let acc = root.key;
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
-      acc = acc ? `${acc}/${seg}` : seg;
+      acc = `${acc}/${seg}`;
       let child = current.children.find((c) => c.label === seg);
       if (!child) {
         child = {
           key: acc,
           label: seg,
-          path: acc,
+          kind: leaf.kind,
           folderId: null,
+          organizationId: leaf.organizationId ?? null,
+          collectionId: null,
           children: [],
           itemCount: 0,
         };
         current.children.push(child);
       }
       if (i === segments.length - 1) {
-        child.folderId = folderId;
+        if (leaf.folderId) child.folderId = leaf.folderId;
+        if (leaf.collectionId) child.collectionId = leaf.collectionId;
       }
       current = child;
     }
@@ -152,16 +201,42 @@
     return total;
   }
 
+  function computeCollectionCounts(node: TreeNode, ciphers: CipherSummary[]): number {
+    const direct = node.collectionId
+      ? ciphers.filter((c) => c.collectionIds.includes(node.collectionId!)).length
+      : 0;
+    let total = direct;
+    for (const child of node.children) {
+      total += computeCollectionCounts(child, ciphers);
+    }
+    // For organization root, keep the pre-computed total (all items of the org)
+    if (node.kind !== "organization") {
+      node.itemCount = total;
+    }
+    return total;
+  }
+
   function sortTree(node: TreeNode) {
     node.children.sort((a, b) => a.label.localeCompare(b.label, "fr"));
     for (const child of node.children) sortTree(child);
   }
 
-  function findNodeByPath(root: TreeNode, path: string): TreeNode | null {
-    if (root.path === path && path !== "") return root;
-    for (const c of root.children) {
-      const found = findNodeByPath(c, path);
-      if (found) return found;
+  function findNodeInTrees(key: string): TreeNode | null {
+    const search = (node: TreeNode): TreeNode | null => {
+      if (node.key === key) return node;
+      for (const c of node.children) {
+        const found = search(c);
+        if (found) return found;
+      }
+      return null;
+    };
+    if (folderTree) {
+      const hit = search(folderTree);
+      if (hit) return hit;
+    }
+    for (const t of orgTrees) {
+      const hit = search(t);
+      if (hit) return hit;
     }
     return null;
   }
@@ -171,22 +246,33 @@
     for (const c of node.children) collectFolderIds(c, ids);
   }
 
-  const allowedFolderIds = $derived.by<Set<string> | null>(() => {
-    if (!folderTree || !selectedFolderPath) return null;
-    const node = findNodeByPath(folderTree, selectedFolderPath);
-    if (!node) return null;
-    const ids = new Set<string>();
-    collectFolderIds(node, ids);
-    return ids;
-  });
+  function collectCollectionIds(node: TreeNode, ids: Set<string>) {
+    if (node.collectionId) ids.add(node.collectionId);
+    for (const c of node.children) collectCollectionIds(c, ids);
+  }
 
   const filteredCiphers = $derived.by(() => {
     if (!syncSummary) return [];
     const q = search.trim().toLowerCase();
     let items = syncSummary.ciphers;
-    if (allowedFolderIds) {
-      items = items.filter((c) => c.folderId !== null && allowedFolderIds.has(c.folderId));
+
+    if (selectedKey) {
+      const node = findNodeInTrees(selectedKey);
+      if (node) {
+        if (node.kind === "folder") {
+          const ids = new Set<string>();
+          collectFolderIds(node, ids);
+          items = items.filter((c) => c.folderId !== null && ids.has(c.folderId));
+        } else if (node.kind === "organization") {
+          items = items.filter((c) => c.organizationId === node.organizationId);
+        } else {
+          const ids = new Set<string>();
+          collectCollectionIds(node, ids);
+          items = items.filter((c) => c.collectionIds.some((cid) => ids.has(cid)));
+        }
+      }
     }
+
     if (q) {
       items = items.filter((c) => c.name.toLowerCase().includes(q));
     }
@@ -200,8 +286,8 @@
     expanded = next;
   }
 
-  function selectFolder(path: string) {
-    selectedFolderPath = selectedFolderPath === path ? null : path;
+  function selectNode(key: string) {
+    selectedKey = selectedKey === key ? null : key;
   }
 
   onMount(async () => {
@@ -510,8 +596,8 @@
               <button
                 type="button"
                 class="tree-all"
-                class:selected={selectedFolderPath === null}
-                onclick={() => (selectedFolderPath = null)}
+                class:selected={selectedKey === null}
+                onclick={() => (selectedKey = null)}
               >
                 <span>Tous les items</span>
                 <span class="tree-count">{syncSummary.itemCount.toLocaleString("fr-FR")}</span>
@@ -524,6 +610,14 @@
                   {/each}
                 </ul>
               {/if}
+              {#if orgTrees.length > 0}
+                <h4>Organisations</h4>
+                <ul class="tree-root">
+                  {#each orgTrees as orgRoot (orgRoot.key)}
+                    {@render orgRootNode(orgRoot)}
+                  {/each}
+                </ul>
+              {/if}
             </aside>
 
             <section class="list-pane">
@@ -531,7 +625,7 @@
                 Items
                 <small>
                   ({filteredCiphers.length.toLocaleString("fr-FR")}
-                  {#if search.trim() || selectedFolderPath}/{syncSummary.ciphers.length.toLocaleString("fr-FR")}{/if})
+                  {#if search.trim() || selectedKey}/{syncSummary.ciphers.length.toLocaleString("fr-FR")}{/if})
                 </small>
               </h3>
               <div class="search-row">
@@ -572,7 +666,7 @@
 
         {#snippet treeNode(node: TreeNode)}
           <li>
-            <div class="tree-row" class:selected={selectedFolderPath === node.path}>
+            <div class="tree-row" class:selected={selectedKey === node.key}>
               {#if node.children.length > 0}
                 <button
                   type="button"
@@ -588,7 +682,41 @@
               <button
                 type="button"
                 class="tree-label"
-                onclick={() => selectFolder(node.path)}
+                onclick={() => selectNode(node.key)}
+              >
+                <span class="tree-label-text">{node.label}</span>
+                <span class="tree-count">{node.itemCount}</span>
+              </button>
+            </div>
+            {#if expanded.has(node.key) && node.children.length > 0}
+              <ul class="tree-children">
+                {#each node.children as child (child.key)}
+                  {@render treeNode(child)}
+                {/each}
+              </ul>
+            {/if}
+          </li>
+        {/snippet}
+
+        {#snippet orgRootNode(node: TreeNode)}
+          <li>
+            <div class="tree-row org-root" class:selected={selectedKey === node.key}>
+              {#if node.children.length > 0}
+                <button
+                  type="button"
+                  class="tree-toggle"
+                  onclick={() => toggleExpanded(node.key)}
+                  aria-label={expanded.has(node.key) ? "Réduire" : "Déplier"}
+                >
+                  {expanded.has(node.key) ? "▼" : "▶"}
+                </button>
+              {:else}
+                <span class="tree-spacer"></span>
+              {/if}
+              <button
+                type="button"
+                class="tree-label"
+                onclick={() => selectNode(node.key)}
               >
                 <span class="tree-label-text">{node.label}</span>
                 <span class="tree-count">{node.itemCount}</span>
@@ -966,6 +1094,10 @@
   .tree-all.selected {
     background: #e3ecff;
     color: #1e3a8a;
+  }
+
+  .tree-row.org-root > .tree-label {
+    font-weight: 500;
   }
 
   @media (max-width: 760px) {
