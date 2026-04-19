@@ -5,6 +5,30 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-04-19
+
+### Added
+- **Multilingual UI** (Français + English) via `paraglide-js`. Language
+  is detected from the browser at first launch, persisted in
+  localStorage, and switchable from the vault Infos modal.
+- **Translated error messages**: every backend error code
+  (`invalid_url`, `auth_failed`, `network_error`, etc.) is rendered
+  through the i18n table instead of the raw English fallback.
+- **Favorites** and **Trash** quick filters in the sidebar, with
+  counts. Deleted items (soft-delete via `deleted_date`) are now
+  visible in the Trash view and hidden from all other views.
+- **Sortable columns**: click Name / Username / URL headers to sort
+  ascending or descending, with a visual indicator.
+- **Username and URL columns** in the cipher list, with responsive
+  breakpoints.
+- Search now matches across name, username and URL (not just name).
+
+### Changed
+- `svelte-check` in CI now compiles Paraglide first (messages JSON →
+  `src/lib/paraglide/`).
+- CI release matrix targets Ubuntu, macOS and Windows. `v0.1.1` only
+  shipped Linux; `v0.1.2` ships all three.
+
 ## [0.1.1] — 2026-04-19
 
 ### Added
@@ -65,5 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.2]: https://github.com/Upellift99/clavix/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Upellift99/clavix/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Upellift99/clavix/releases/tag/v0.1.0
