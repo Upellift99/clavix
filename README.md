@@ -26,7 +26,10 @@ Against a real Vaultwarden instance, Clavix already:
   the personal vault, RSA-OAEP-SHA1 for organization keys;
 - keeps an **encrypted SQLite cache** of the vault, so the next
   unlock (even offline) shows the vault instantly;
-- shows the complete list of items with a live substring search;
+- shows the complete list of items with a live substring search and
+  **favicons** for logins (fetched via the Vaultwarden icons endpoint,
+  cached server-side; silent emoji fallback per cipher type when the
+  favicon is unavailable);
 - navigates through a hierarchical **TreeView** built from the
   Bitwarden `/` naming convention (personal folders + collections
   per organization), with a **draggable splitter** to resize the
@@ -34,9 +37,11 @@ Against a real Vaultwarden instance, Clavix already:
 - shows item details: username, hidden password, URLs, notes. The
   *Copy* button places the value on the clipboard and **automatically
   clears it after 30 seconds**;
-- **drag & drop items** onto folders or organization collections
-  (with automatic re-encryption and share to the org when a personal
-  item is dropped on an org collection);
+- **drag & drop items** onto folders or organization collections —
+  including personal → org (automatic share + re-encryption),
+  cross-org transfer (re-encryption from source to target org key)
+  and all cipher types (logins, secure notes, cards, identities,
+  SSH keys);
 - **drag & drop whole folders** to rearrange the tree — all their
   sub-folders are renamed in cascade on the server.
 
@@ -98,13 +103,17 @@ community.
 - [x] Share a personal item into an organization collection
   (PUT `/ciphers/{id}/share`, re-encrypted client-side with the
   target org key)
-- [ ] Cross-org item transfer (different destination organization)
+- [x] Cross-org item transfer (re-encryption source → target org)
+- [x] All cipher types supported for sharing (logins, secure notes,
+  cards, identities, SSH keys)
 
 ### Out of MVP scope
 
 Creating/editing/deleting items, password generation, attachments,
 Sends, passkeys, browser autofill, YubiKey/FIDO2 (phase 4+), KeePass
-import (phase 5+).
+import (phase 5+), displaying the non-login cipher fields in the
+detail panel (only logins are fully rendered for now; all types can
+be shared and moved regardless).
 
 ## Development requirements
 
