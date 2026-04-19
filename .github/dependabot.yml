@@ -1,0 +1,78 @@
+version: 2
+
+updates:
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+    commit-message:
+      prefix: "chore(deps-rust)"
+    groups:
+      rust-crypto:
+        patterns:
+          - aes
+          - cbc
+          - hmac
+          - hkdf
+          - pbkdf2
+          - argon2
+          - rsa
+          - sha1
+          - sha2
+      rust-core:
+        patterns:
+          - serde*
+          - thiserror
+          - reqwest
+          - tokio*
+          - url
+          - uuid
+      tauri:
+        patterns:
+          - tauri*
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
+    commit-message:
+      prefix: "chore(deps-npm)"
+    groups:
+      svelte:
+        patterns:
+          - svelte*
+          - "@sveltejs/*"
+      tauri-npm:
+        patterns:
+          - "@tauri-apps/*"
+      paraglide:
+        patterns:
+          - "@inlang/*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(deps-ci)"
