@@ -5,6 +5,40 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] — 2026-04-19
+
+### Changed
+- **Compact visual redesign**: reduced base font size (13.5 px),
+  tighter paddings, flatter vault cards (hairline borders instead
+  of box-shadow), alternating row stripes in the cipher list,
+  inline single-line SessionBar. Inter for UI text; Atkinson
+  Hyperlegible for data fields (inputs, passwords, URIs) so
+  `0/O` and `l/1/I` are unambiguous.
+- **Large refactor**: `+page.svelte` dropped from 3631 → 262 lines
+  and `lib.rs` from 1310 → 47 lines. Domain code is now split into
+  Svelte components (AuthLoginForm, UnlockForm, TwoFactorForm,
+  SessionBar, VaultSidebar, CipherList, CipherDetail, *Dialog,
+  ClipboardToast), `auth/vault/prefs` controllers in
+  `.svelte.ts` files, and Rust modules under
+  `src-tauri/src/{commands,services}/`.
+- Styles moved to `src/styles/*.css`, imported from `+layout.svelte`.
+- Vitest tests added for the pure TS helpers, plus Rust tests for
+  folder-tree logic, both wired into CI.
+
+### Performance
+- Smoother folder-tree hover: `contain: content` on `.tree-pane`
+  isolates repaints; removed an inherited global `filter:
+  brightness` that was triggering tree-wide paints on hover.
+
+### Security
+- `esbuild` transitive dep pinned to `>= 0.25.0` via pnpm override,
+  which clears GHSA-67mh-4wv8-2f99 (esbuild dev-server CORS). Only
+  affects local `pnpm tauri dev`, never the shipped binary.
+
+### CI
+- Bumped `actions/checkout`, `actions/setup-node` and
+  `pnpm/action-setup` to v6 (via Dependabot PRs).
+
 ## [0.1.6] — 2026-04-19
 
 ### Added
@@ -176,6 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.7]: https://github.com/Upellift99/clavix/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Upellift99/clavix/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Upellift99/clavix/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Upellift99/clavix/releases/tag/v0.1.4
