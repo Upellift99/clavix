@@ -15,7 +15,7 @@ use tauri::State;
 use api::{DeviceInfo, VaultwardenClient};
 use crypto::{
     decrypt_name, decrypt_org_key, decrypt_private_key, decrypt_user_key, derive_master_key,
-    derive_master_password_hash, MasterKey, MasterPasswordHash, SymmetricKey,
+    derive_master_password_hash, encrypt_string, MasterKey, MasterPasswordHash, SymmetricKey,
 };
 use error::{Error, Result};
 use models::{
@@ -492,6 +492,100 @@ async fn move_cipher_to_collection(
 }
 
 #[tauri::command]
+async fn move_folder_path(
+    state: State<'_, AppState>,
+    source_path: String,
+    target_parent_path: Option<String>,
+) -> Result<()> {
+    let source_path = source_path.trim().trim_matches('/').to_string();
+    if source_path.is_empty() {
+        return Err(Error::Storage {
+            reason: "empty source path".into(),
+        });
+    }
+
+    let target_parent = target_parent_path
+        .map(|p| p.trim().trim_matches('/').to_string())
+        .filter(|p| !p.is_empty());
+
+    if let Some(parent) = target_parent.as_deref() {
+        if parent == source_path || parent.starts_with(&format!("{source_path}/")) {
+            return Err(Error::Storage {
+                reason: "cannot move a folder into itself or one of its descendants".into(),
+            });
+        }
+    }
+
+    let last_segment = source_path
+        .rsplit('/')
+        .next()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| Error::Storage {
+            reason: "source path has no final segment".into(),
+        })?
+        .to_string();
+
+    let new_base = match target_parent.as_deref() {
+        Some(parent) => format!("{parent}/{last_segment}"),
+        None => last_segment.clone(),
+    };
+
+    let (client, access_token, operations) = {
+        let guard = state.session.lock().unwrap();
+        let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+
+        let source_prefix = format!("{source_path}/");
+        let mut ops: Vec<(String, String)> = Vec::new();
+        for f in &vault.folders {
+            let current_name = decrypt_name(&f.name, &session.user_key)?;
+            let new_name = if current_name == source_path {
+                new_base.clone()
+            } else if current_name.starts_with(&source_prefix) {
+                let suffix = &current_name[source_prefix.len()..];
+                format!("{new_base}/{suffix}")
+            } else {
+                continue;
+            };
+            let encrypted = encrypt_string(&new_name, &session.user_key)?;
+            ops.push((f.id.clone(), encrypted));
+        }
+
+        if ops.is_empty() {
+            return Err(Error::Storage {
+                reason: format!("no folder matches path '{source_path}'"),
+            });
+        }
+
+        (
+            session.client.clone(),
+            session.tokens.access_token.clone(),
+            ops,
+        )
+    };
+
+    for (folder_id, encrypted_name) in &operations {
+        client
+            .update_folder_name(&access_token, folder_id, encrypted_name)
+            .await?;
+    }
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            for (folder_id, encrypted_name) in &operations {
+                if let Some(folder) = vault.folders.iter_mut().find(|f| f.id == *folder_id) {
+                    folder.name = encrypted_name.clone();
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn lock(state: State<'_, AppState>) -> Result<()> {
     let mut guard = state.session.lock().unwrap();
     *guard = None;
@@ -525,7 +619,8 @@ pub fn run() {
             stored_account,
             get_cipher,
             move_cipher_to_folder,
-            move_cipher_to_collection
+            move_cipher_to_collection,
+            move_folder_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

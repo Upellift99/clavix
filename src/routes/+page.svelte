@@ -115,7 +115,25 @@
   let detailLoading = $state(false);
   let showPassword = $state(false);
   let draggingCipherId = $state<string | null>(null);
+  let draggingFolderPath = $state<string | null>(null);
   let dragOverKey = $state<string | null>(null);
+  let statsDialog = $state<HTMLDialogElement | null>(null);
+
+  function openStats() {
+    statsDialog?.showModal();
+  }
+
+  function closeStats() {
+    statsDialog?.close();
+  }
+
+  const FOLDERS_ROOT_KEY = "folders";
+  const FOLDERS_ROOT_PREFIX = "folders/";
+
+  function folderPathFromKey(key: string): string | null {
+    if (!key.startsWith(FOLDERS_ROOT_PREFIX)) return null;
+    return key.slice(FOLDERS_ROOT_PREFIX.length);
+  }
   let clipboardSecondsLeft = $state<number | null>(null);
   let clipboardLabel = $state<string | null>(null);
   let clipboardTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -318,6 +336,23 @@
     expanded = next;
   }
 
+  function collectAllKeys(node: TreeNode, into: Set<string>) {
+    if (node.children.length === 0) return;
+    into.add(node.key);
+    for (const child of node.children) collectAllKeys(child, into);
+  }
+
+  function expandAllNodes() {
+    const next = new Set<string>();
+    if (folderTree) collectAllKeys(folderTree, next);
+    for (const t of orgTrees) collectAllKeys(t, next);
+    expanded = next;
+  }
+
+  function collapseAllNodes() {
+    expanded = new Set();
+  }
+
   function selectNode(key: string) {
     selectedKey = selectedKey === key ? null : key;
   }
@@ -404,6 +439,7 @@
 
   function onCipherDragStart(event: DragEvent, cipherId: string) {
     draggingCipherId = cipherId;
+    draggingFolderPath = null;
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", cipherId);
@@ -415,15 +451,54 @@
     dragOverKey = null;
   }
 
-  function isDroppableNode(node: TreeNode): boolean {
+  function onFolderDragStart(event: DragEvent, node: TreeNode) {
+    const path = folderPathFromKey(node.key);
+    if (!path) {
+      event.preventDefault();
+      return;
+    }
+    draggingFolderPath = path;
+    draggingCipherId = null;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", `folder:${path}`);
+    }
+    event.stopPropagation();
+  }
+
+  function onFolderDragEnd() {
+    draggingFolderPath = null;
+    dragOverKey = null;
+  }
+
+  function canDropFolderOn(targetPath: string | null): boolean {
+    if (!draggingFolderPath) return false;
+    if (targetPath === null) return true;
+    if (targetPath === draggingFolderPath) return false;
+    if (targetPath.startsWith(`${draggingFolderPath}/`)) return false;
+    return true;
+  }
+
+  function isCipherDroppable(node: TreeNode): boolean {
     return (
       (node.kind === "folder" && node.folderId !== null) ||
       (node.kind === "collection" && node.collectionId !== null)
     );
   }
 
+  function isFolderDropTarget(node: TreeNode): boolean {
+    if (draggingFolderPath === null) return false;
+    if (node.kind !== "folder") return false;
+    const path = folderPathFromKey(node.key);
+    return canDropFolderOn(path);
+  }
+
   function onNodeDragOver(event: DragEvent, key: string) {
-    if (!draggingCipherId) return;
+    if (!draggingCipherId && !draggingFolderPath) return;
+    if (draggingFolderPath) {
+      const path = key === "__all__" ? null : folderPathFromKey(key);
+      if (!canDropFolderOn(path)) return;
+    }
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
     dragOverKey = key;
@@ -431,6 +506,52 @@
 
   function onNodeDragLeave(key: string) {
     if (dragOverKey === key) dragOverKey = null;
+  }
+
+  async function onDropOnFolderRoot(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    dragOverKey = null;
+    if (draggingCipherId) {
+      await onDropOnFolder(event, null);
+      return;
+    }
+    if (draggingFolderPath) {
+      const source = draggingFolderPath;
+      draggingFolderPath = null;
+      await performFolderMove(source, null);
+    }
+  }
+
+  async function onDropOnFolderNode(event: DragEvent, node: TreeNode): Promise<void> {
+    event.preventDefault();
+    dragOverKey = null;
+    if (draggingCipherId) {
+      if (node.folderId) {
+        await onDropOnFolder(event, node.folderId);
+      }
+      return;
+    }
+    if (draggingFolderPath) {
+      const source = draggingFolderPath;
+      const target = folderPathFromKey(node.key);
+      const allowed = target !== null && canDropFolderOn(target);
+      draggingFolderPath = null;
+      if (!allowed || target === null) return;
+      await performFolderMove(source, target);
+    }
+  }
+
+  async function performFolderMove(sourcePath: string, targetParentPath: string | null) {
+    try {
+      await invoke("move_folder_path", {
+        sourcePath,
+        targetParentPath,
+      });
+      // Refresh vault from backend to get encrypted names
+      syncSummary = await invoke<SyncSummary>("sync");
+    } catch (e) {
+      errorMsg = formatError(e);
+    }
   }
 
   async function onDropOnFolder(
@@ -652,7 +773,7 @@
   };
 </script>
 
-<main class="container">
+<main class="container" class:wide={phase === "loggedIn" && syncSummary !== null}>
   <h1>Clavix</h1>
 
   {#if phase === "init"}
@@ -746,50 +867,7 @@
     </section>
 
     {#if syncSummary}
-      <section class="box">
-        <h2>Coffre synchronisé</h2>
-
-        <dl>
-          <dt>Compte</dt>
-          <dd>{syncSummary.name ?? syncSummary.email}</dd>
-          <dt>Items</dt>
-          <dd>{syncSummary.itemCount}</dd>
-          <dt>Folders</dt>
-          <dd>{syncSummary.folderCount}</dd>
-          <dt>Collections</dt>
-          <dd>{syncSummary.collectionCount}</dd>
-          <dt>Organisations</dt>
-          <dd>{syncSummary.organizationCount}</dd>
-        </dl>
-
-        <h3>Répartition par type</h3>
-        <dl>
-          <dt>Logins</dt>
-          <dd>{syncSummary.typeCounts.login}</dd>
-          <dt>Notes</dt>
-          <dd>{syncSummary.typeCounts.secureNote}</dd>
-          <dt>Cartes</dt>
-          <dd>{syncSummary.typeCounts.card}</dd>
-          <dt>Identités</dt>
-          <dd>{syncSummary.typeCounts.identity}</dd>
-          {#if syncSummary.typeCounts.sshKey > 0}
-            <dt>Clés SSH</dt>
-            <dd>{syncSummary.typeCounts.sshKey}</dd>
-          {/if}
-        </dl>
-
-        {#if syncSummary.folders.length > 0}
-          <h3>Folders</h3>
-          <ul class="enc-list">
-            {#each syncSummary.folders as f (f.id)}
-              <li>
-                <span class="idish">{f.id.slice(0, 8)}</span>
-                <span class="name">{f.name}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-
+      <section class="vault-section">
         {#if syncSummary.ciphers.length > 0}
           <div class="vault-layout">
             <aside class="tree-pane">
@@ -801,13 +879,31 @@
                 onclick={() => (selectedKey = null)}
                 ondragover={(e) => onNodeDragOver(e, "__all__")}
                 ondragleave={() => onNodeDragLeave("__all__")}
-                ondrop={(e) => onDropOnFolder(e, null)}
+                ondrop={onDropOnFolderRoot}
               >
                 <span>Tous les items</span>
                 <span class="tree-count">{syncSummary.itemCount.toLocaleString("fr-FR")}</span>
               </button>
+              {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
+                <div class="tree-toolbar">
+                  <button type="button" class="secondary small" onclick={expandAllNodes}>
+                    Tout déplier
+                  </button>
+                  <button type="button" class="secondary small" onclick={collapseAllNodes}>
+                    Tout replier
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary small info-button"
+                    onclick={openStats}
+                    title="Infos du coffre"
+                    aria-label="Infos du coffre"
+                  >
+                    ⓘ
+                  </button>
+                </div>
+              {/if}
               {#if folderTree && folderTree.children.length > 0}
-                <h4>Folders</h4>
                 <ul class="tree-root">
                   {#each folderTree.children as node (node.key)}
                     {@render treeNode(node)}
@@ -980,7 +1076,10 @@
               class="tree-row"
               class:selected={selectedKey === node.key}
               class:drop-over={dragOverKey === node.key}
-              class:droppable={draggingCipherId !== null && isDroppableNode(node)}
+              class:droppable={
+                (draggingCipherId !== null && isCipherDroppable(node)) ||
+                isFolderDropTarget(node)
+              }
             >
               {#if node.children.length > 0}
                 <button
@@ -997,11 +1096,16 @@
               <button
                 type="button"
                 class="tree-label"
+                draggable={node.kind === "folder"}
                 onclick={() => selectNode(node.key)}
-                ondragover={isDroppableNode(node) ? (e) => onNodeDragOver(e, node.key) : undefined}
-                ondragleave={isDroppableNode(node) ? () => onNodeDragLeave(node.key) : undefined}
-                ondrop={node.kind === "folder" && node.folderId !== null
-                  ? (e) => onDropOnFolder(e, node.folderId)
+                ondragstart={node.kind === "folder"
+                  ? (e) => onFolderDragStart(e, node)
+                  : undefined}
+                ondragend={node.kind === "folder" ? onFolderDragEnd : undefined}
+                ondragover={(e) => onNodeDragOver(e, node.key)}
+                ondragleave={() => onNodeDragLeave(node.key)}
+                ondrop={node.kind === "folder"
+                  ? (e) => onDropOnFolderNode(e, node)
                   : node.kind === "collection" && node.collectionId !== null
                     ? (e) => onDropOnCollection(e, node.collectionId!)
                     : undefined}
@@ -1074,6 +1178,45 @@
   </aside>
 {/if}
 
+<dialog bind:this={statsDialog} class="stats-dialog">
+  {#if syncSummary}
+    <header class="stats-header">
+      <h2>Coffre synchronisé</h2>
+      <button type="button" class="secondary small" onclick={closeStats} aria-label="Fermer">
+        ✕
+      </button>
+    </header>
+    <dl>
+      <dt>Compte</dt>
+      <dd>{syncSummary.name ?? syncSummary.email}</dd>
+      <dt>Items</dt>
+      <dd>{syncSummary.itemCount}</dd>
+      <dt>Folders</dt>
+      <dd>{syncSummary.folderCount}</dd>
+      <dt>Collections</dt>
+      <dd>{syncSummary.collectionCount}</dd>
+      <dt>Organisations</dt>
+      <dd>{syncSummary.organizationCount}</dd>
+    </dl>
+
+    <h3>Répartition par type</h3>
+    <dl>
+      <dt>Logins</dt>
+      <dd>{syncSummary.typeCounts.login}</dd>
+      <dt>Notes</dt>
+      <dd>{syncSummary.typeCounts.secureNote}</dd>
+      <dt>Cartes</dt>
+      <dd>{syncSummary.typeCounts.card}</dd>
+      <dt>Identités</dt>
+      <dd>{syncSummary.typeCounts.identity}</dd>
+      {#if syncSummary.typeCounts.sshKey > 0}
+        <dt>Clés SSH</dt>
+        <dd>{syncSummary.typeCounts.sshKey}</dd>
+      {/if}
+    </dl>
+  {/if}
+</dialog>
+
 <style>
   :root {
     font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
@@ -1084,9 +1227,40 @@
   }
 
   .container {
-    max-width: 960px;
+    max-width: 620px;
     margin: 0 auto;
     padding: 2rem 1.5rem;
+  }
+
+  .container.wide {
+    max-width: none;
+    margin: 0;
+    padding: 1rem 1.5rem;
+    height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .container.wide h1 {
+    flex: 0 0 auto;
+  }
+
+  .container.wide > .box {
+    flex: 0 0 auto;
+  }
+
+  .container.wide .vault-section {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .vault-section {
+    margin-top: 1rem;
   }
 
   h1 {
@@ -1249,13 +1423,6 @@
     font-size: 0.85rem;
   }
 
-  .idish {
-    font-family: ui-monospace, monospace;
-    font-size: 0.75rem;
-    color: #888;
-    min-width: 4.5rem;
-  }
-
   .badge {
     display: inline-block;
     padding: 0.05rem 0.4rem;
@@ -1292,11 +1459,57 @@
     font-size: 0.9rem;
   }
 
+  button.info-button {
+    margin-left: auto;
+    width: 2rem;
+    min-width: 2rem;
+    padding: 0.2rem 0;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .stats-dialog {
+    border: none;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    min-width: 320px;
+    max-width: 480px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  }
+
+  .stats-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .stats-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  .stats-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .stats-dialog {
+      background: #2b2b2b;
+      color: #f6f6f6;
+    }
+  }
+
   .vault-layout {
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: auto 1fr;
     gap: 1rem;
-    align-items: start;
+    align-items: stretch;
+    min-height: 0;
+  }
+
+  .container.wide .vault-layout {
+    flex: 1 1 auto;
   }
 
   .tree-pane {
@@ -1304,7 +1517,37 @@
     border-radius: 10px;
     padding: 0.75rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    width: 260px;
+    min-width: 200px;
+    max-width: 520px;
+    resize: horizontal;
+    overflow: auto;
     max-height: 70vh;
+  }
+
+  .container.wide .tree-pane {
+    max-height: none;
+    min-height: 0;
+  }
+
+  .list-pane {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .list-pane h3 {
+    flex: 0 0 auto;
+  }
+
+  .list-pane .search-row {
+    flex: 0 0 auto;
+  }
+
+  .list-pane .enc-list.cipher-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
   }
 
@@ -1314,6 +1557,12 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #888;
+  }
+
+  .tree-toolbar {
+    display: flex;
+    gap: 0.35rem;
+    margin: 0.75rem 0 0.5rem;
   }
 
   .tree-root,
@@ -1624,7 +1873,6 @@
     .box.error pre { color: #ff8a8a; }
     pre { background: #181818; }
     code { background: #333; }
-    .idish { color: #999; }
     .badge { background: #1f2a54; color: #aabaff; }
   }
 </style>

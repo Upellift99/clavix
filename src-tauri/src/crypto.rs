@@ -1,10 +1,11 @@
 use aes::Aes256;
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use cbc::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit};
+use cbc::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use pbkdf2::pbkdf2_hmac_array;
+use rand::RngCore;
 use rsa::{pkcs8::DecodePrivateKey, Oaep, RsaPrivateKey};
 use secrecy::{ExposeSecret, SecretString};
 use sha1::Sha1;
@@ -15,6 +16,7 @@ use crate::error::{Error, Result};
 use crate::models::KdfType;
 
 type Aes256CbcDec = cbc::Decryptor<Aes256>;
+type Aes256CbcEnc = cbc::Encryptor<Aes256>;
 type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -279,4 +281,28 @@ pub fn decrypt_org_key(
 
 pub fn decrypt_name(encrypted: &str, key: &SymmetricKey) -> Result<String> {
     EncString::parse(encrypted)?.decrypt_string_sym(key)
+}
+
+pub fn encrypt_string(plaintext: &str, key: &SymmetricKey) -> Result<String> {
+    let mut iv = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut iv);
+
+    let cipher = Aes256CbcEnc::new_from_slices(&key.enc, &iv).map_err(|e| Error::Crypto {
+        reason: format!("AES-CBC encrypt init: {e}"),
+    })?;
+    let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(plaintext.as_bytes());
+
+    let mut mac = HmacSha256::new_from_slice(&key.mac).map_err(|e| Error::Crypto {
+        reason: format!("HMAC init: {e}"),
+    })?;
+    mac.update(&iv);
+    mac.update(&ciphertext);
+    let mac_bytes = mac.finalize().into_bytes();
+
+    Ok(format!(
+        "2.{}|{}|{}",
+        STANDARD.encode(iv),
+        STANDARD.encode(&ciphertext),
+        STANDARD.encode(mac_bytes)
+    ))
 }
