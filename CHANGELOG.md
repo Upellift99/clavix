@@ -5,6 +5,46 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] — 2026-04-19
+
+### Added
+- **SSH agent now signs RSA keys** (SHA-256 and SHA-512) on top of
+  Ed25519. Vault-stored RSA private keys are parsed via `ssh-key` and
+  signatures are produced with `rsa::pkcs1v15` under the right hash
+  depending on the SSH agent `flags` field. ECDSA and DSA remain
+  skipped for now.
+- **Create and edit every cipher type** (Login, Secure Note, Card,
+  Identity, SSH Key) from a single `CipherEditor` modal, with a
+  cipher-type selector in create mode. Backend dispatches on
+  `cipherType` via a unified `create_cipher` / `update_cipher` pair.
+- **TOTP QR scanner** inside `CipherEditor`: a 📷 button opens the
+  camera via `navigator.mediaDevices.getUserMedia` and fills in the
+  TOTP field as soon as jsQR detects an `otpauth://` URI.
+- **UI density pass**: bumped base font size back up, stopped
+  truncating cipher list cells, and the detail panel is now
+  resizable against the list via a vertical splitter (position
+  persisted in `localStorage`).
+
+### Security
+- **Refresh token is encrypted at rest** under `user_key` (AES-CBC +
+  HMAC-SHA256). A stolen `session.json` no longer hands an attacker a
+  reusable OAuth2 credential without the master password. The legacy
+  plaintext field is still read on unlock for a silent migration,
+  then purged on the next save.
+- **Backend auto-lock watchdog**: a tokio task polls every 30 s and
+  drops the session + SSH agent once inactivity exceeds
+  `auto_lock_minutes`. Safety net for when the JS timer is disabled
+  or the WebView is frozen.
+- **Share / folder-rename operation log** (`cipher_snapshots` +
+  `folder_op_log` tables in the SQLite cache). A cipher is
+  snapshotted before a cross-org share and marked completed on
+  success; folder-rename batches log each row. Groundwork for a
+  future replay / recovery flow.
+
+### CI
+- Rust fmt / clippy / audit re-enforced after the big refactor —
+  caught formatting drift in `commands/cipher.rs` and `crypto.rs`.
+
 ## [0.1.7] — 2026-04-19
 
 ### Changed
@@ -210,6 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (`fmt`, `clippy`, `cargo audit`, `svelte-check`) and
   release workflow that bundles `.AppImage`, `.deb` and `.rpm`.
 
+[0.1.8]: https://github.com/Upellift99/clavix/releases/tag/v0.1.8
 [0.1.7]: https://github.com/Upellift99/clavix/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Upellift99/clavix/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Upellift99/clavix/releases/tag/v0.1.5
