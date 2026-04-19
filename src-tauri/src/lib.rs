@@ -341,6 +341,13 @@ fn build_sync_summary(
                 .as_ref()
                 .and_then(|id| org_keys.get(id))
                 .unwrap_or(user_key);
+            let primary_uri = c
+                .login
+                .as_ref()
+                .and_then(|l| l.uris.as_ref())
+                .and_then(|uris| uris.iter().find_map(|u| u.uri.as_deref()))
+                .and_then(|s| decrypt_name(s, key).ok());
+
             CipherSummary {
                 id: c.id.clone(),
                 kind: c.kind as u8,
@@ -349,6 +356,7 @@ fn build_sync_summary(
                 organization_id: c.organization_id.clone(),
                 collection_ids: c.collection_ids.clone(),
                 favorite: c.favorite,
+                primary_uri,
             }
         })
         .collect();

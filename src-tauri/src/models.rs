@@ -277,4 +277,5 @@ pub struct CipherSummary {
     pub organization_id: Option<String>,
     pub collection_ids: Vec<String>,
     pub favorite: bool,
+    pub primary_uri: Option<String>,
 }

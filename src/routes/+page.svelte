@@ -38,6 +38,7 @@
     organizationId: string | null;
     collectionIds: string[];
     favorite: boolean;
+    primaryUri: string | null;
   };
 
   type SyncSummary = {
@@ -852,6 +853,34 @@
       default: return `Type ${k}`;
     }
   };
+
+  const cipherTypeIcon = (k: number): string => {
+    switch (k) {
+      case 1: return "🔐";
+      case 2: return "📝";
+      case 3: return "💳";
+      case 4: return "🪪";
+      case 5: return "🔑";
+      default: return "❔";
+    }
+  };
+
+  function extractDomain(uri: string): string | null {
+    try {
+      const url = new URL(uri.startsWith("http") ? uri : `https://${uri}`);
+      return url.hostname;
+    } catch {
+      return null;
+    }
+  }
+
+  function faviconUrl(cipher: CipherSummary): string | null {
+    if (cipher.kind !== 1 || !cipher.primaryUri || !storedAccount) return null;
+    const domain = extractDomain(cipher.primaryUri);
+    if (!domain) return null;
+    const base = storedAccount.serverUrl.replace(/\/$/, "");
+    return `${base}/icons/${domain}/icon.png`;
+  }
 </script>
 
 <main class="container" class:wide={phase === "loggedIn" && syncSummary !== null}>
@@ -1042,6 +1071,7 @@
               {:else}
                 <ul class="enc-list cipher-list">
                   {#each filteredCiphers as c (c.id)}
+                    {@const fav = faviconUrl(c)}
                     <li>
                       <button
                         type="button"
@@ -1053,7 +1083,26 @@
                         ondragstart={(e) => onCipherDragStart(e, c.id)}
                         ondragend={onCipherDragEnd}
                       >
-                        <span class="badge">{cipherTypeLabel(c.kind)}</span>
+                        <span class="cipher-icon" title={cipherTypeLabel(c.kind)}>
+                          {#if fav}
+                            <img
+                              src={fav}
+                              alt=""
+                              loading="lazy"
+                              onerror={(e) => {
+                                const img = e.currentTarget as HTMLImageElement;
+                                img.style.display = "none";
+                                const fallback = img.nextElementSibling as HTMLElement | null;
+                                if (fallback) fallback.style.display = "inline";
+                              }}
+                            />
+                            <span class="emoji-fallback" style:display="none">
+                              {cipherTypeIcon(c.kind)}
+                            </span>
+                          {:else}
+                            <span class="emoji-fallback">{cipherTypeIcon(c.kind)}</span>
+                          {/if}
+                        </span>
                         <span class="name">{c.name}</span>
                         {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
                       </button>
@@ -1826,6 +1875,24 @@
 
   .cipher-row.dragging {
     opacity: 0.5;
+  }
+
+  .cipher-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    min-width: 1.4rem;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .cipher-icon img {
+    width: 1.2rem;
+    height: 1.2rem;
+    object-fit: contain;
+    border-radius: 3px;
   }
 
   .tree-row.droppable > .tree-label {
