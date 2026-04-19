@@ -1,0 +1,82 @@
+.cipher-detail {
+  margin-top: 1rem;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.detail-header h2 {
+  margin: 0.3rem 0 0;
+  font-size: 1.15rem;
+}
+
+.detail-field {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin: 0 0 0.6rem;
+}
+
+.detail-field dt {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.detail-field dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.password {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.1em;
+}
+
+.uri-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.uri-list code {
+  overflow-wrap: anywhere;
+}
+
+.notes {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+}
+
+.ssh-key {
+  display: block;
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.detail-footer {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .detail-field dt { color: #aaa; }
+}
+
+:root.force-dark .detail-field dt { color: #aaa; }

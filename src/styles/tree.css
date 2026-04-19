@@ -1,0 +1,209 @@
+.tree-pane {
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: auto;
+  max-height: 70vh;
+  margin-right: 0.5rem;
+}
+
+.container.wide .tree-pane {
+  max-height: none;
+  min-height: 0;
+}
+
+.tree-pane h4 {
+  margin: 0.75rem 0 0.3rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+}
+
+.tree-toolbar {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.tree-root,
+.tree-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tree-children {
+  padding-left: 0.9rem;
+  margin-left: 0.5rem;
+  border-left: 1px solid #e5e5e5;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.tree-toggle,
+.tree-spacer {
+  width: 1.3rem;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tree-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.6rem;
+  color: #777;
+  padding: 0;
+}
+
+.tree-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.2rem 0.4rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.tree-label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-label:hover {
+  background: #f0f0f0;
+}
+
+.tree-row.selected > .tree-label {
+  background: #e3ecff;
+  color: #1e3a8a;
+  font-weight: 500;
+}
+
+.tree-count {
+  font-size: 0.72rem;
+  color: #888;
+  background: #f1f1f1;
+  padding: 0.05rem 0.4rem;
+  border-radius: 10px;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.tree-row.selected > .tree-label .tree-count {
+  background: #c5d6ff;
+  color: #1e3a8a;
+}
+
+.tree-all {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+}
+
+.tree-all:hover {
+  background: #f0f0f0;
+}
+
+.tree-all.selected {
+  background: #e3ecff;
+  color: #1e3a8a;
+}
+
+.tree-row.org-root > .tree-label {
+  font-weight: 500;
+}
+
+.tree-types {
+  margin-top: 0.25rem;
+}
+
+.tree-types summary {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tree-types summary::-webkit-details-marker {
+  display: none;
+}
+
+.tree-types .tree-type-btn {
+  padding-left: 1.25rem;
+}
+
+.tree-row.droppable > .tree-label {
+  outline: 1px dashed transparent;
+  transition: outline-color 0.1s;
+}
+
+.tree-row.droppable:not(.drop-over) > .tree-label {
+  outline-color: #c5d6ff;
+}
+
+.tree-row.drop-over > .tree-label,
+.tree-all.drop-over {
+  background: #fde68a !important;
+  color: #78350f !important;
+  outline: 2px solid #f59e0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tree-pane { background: #2b2b2b; box-shadow: none; }
+  .tree-pane h4 { color: #aaa; }
+  .tree-label:hover,
+  .tree-all:hover { background: #333; }
+  .tree-row.selected > .tree-label,
+  .tree-all.selected { background: #1f2a54; color: #aabaff; }
+  .tree-count { background: #333; color: #aaa; }
+  .tree-row.selected > .tree-label .tree-count {
+    background: #2a3870;
+    color: #aabaff;
+  }
+  .tree-children { border-left-color: #444; }
+}
+
+:root.force-dark .tree-pane { background: #2b2b2b; box-shadow: none; }
+:root.force-dark .tree-pane h4 { color: #aaa; }
+:root.force-dark .tree-label:hover,
+:root.force-dark .tree-all:hover { background: #333; }
+:root.force-dark .tree-row.selected > .tree-label,
+:root.force-dark .tree-all.selected { background: #1f2a54; color: #aabaff; }
+:root.force-dark .tree-count { background: #333; color: #aaa; }
+:root.force-dark .tree-row.selected > .tree-label .tree-count {
+  background: #2a3870;
+  color: #aabaff;
+}
+:root.force-dark .tree-children { border-left-color: #444; }

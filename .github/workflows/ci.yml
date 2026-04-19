@@ -56,6 +56,9 @@ jobs:
       - name: cargo clippy (strict)
         run: cargo clippy --all-targets -- -D warnings
 
+      - name: cargo test (lib)
+        run: cargo test --lib --locked
+
       - name: Install cargo-audit
         uses: taiki-e/install-action@v2
         with:
@@ -93,3 +96,6 @@ jobs:
 
       - name: svelte-check
         run: pnpm check
+
+      - name: Unit tests (vitest)
+        run: pnpm test

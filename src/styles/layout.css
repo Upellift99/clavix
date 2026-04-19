@@ -1,0 +1,51 @@
+.vault-layout {
+  display: grid;
+  grid-template-columns: var(--tree-width, 260px) 6px 1fr;
+  gap: 0;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.container.wide .vault-layout {
+  flex: 1 1 auto;
+}
+
+.splitter {
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color 0.1s;
+  user-select: none;
+}
+
+.splitter::before {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 100%;
+  margin-left: 2.5px;
+  background: #e5e5e5;
+}
+
+.splitter:hover {
+  background: #dbeafe;
+}
+
+.splitter:hover::before {
+  background: #3b82f6;
+}
+
+@media (max-width: 760px) {
+  .vault-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .splitter::before { background: #3a3a3a; }
+  .splitter:hover { background: #1e3a8a; }
+  .splitter:hover::before { background: #60a5fa; }
+}
+
+:root.force-dark .splitter::before { background: #3a3a3a; }
+:root.force-dark .splitter:hover { background: #1e3a8a; }
+:root.force-dark .splitter:hover::before { background: #60a5fa; }

@@ -1,0 +1,185 @@
+.list-pane {
+  margin-left: 0.5rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-pane h3 {
+  flex: 0 0 auto;
+}
+
+.list-pane .search-row {
+  flex: 0 0 auto;
+}
+
+.list-pane .cipher-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  contain: strict;
+}
+
+.cipher-spacer {
+  position: relative;
+  width: 100%;
+}
+
+.list-pane .enc-list.cipher-list {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+  margin: 0;
+}
+
+.cipher-list li {
+  display: flex;
+  align-items: center;
+}
+
+.cipher-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.cipher-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.cipher-columns {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 2fr);
+  gap: 0.75rem;
+}
+
+.cipher-headers {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #666;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.cipher-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: none;
+  padding: 0.2rem 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.cipher-header:hover {
+  color: #1e3a8a;
+}
+
+.cipher-header.active {
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.sort-arrow {
+  font-size: 0.7rem;
+}
+
+.col-name,
+.col-username,
+.col-uri {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.col-username,
+.col-uri {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.cipher-row:hover {
+  background: #f0f0f0;
+}
+
+.cipher-row.selected {
+  background: #e3ecff;
+  color: #1e3a8a;
+}
+
+.cipher-row.dragging {
+  opacity: 0.5;
+}
+
+.cipher-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  min-width: 1.4rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.cipher-icon img {
+  width: 1.2rem;
+  height: 1.2rem;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+@media (max-width: 900px) {
+  .cipher-row.cipher-columns {
+    grid-template-columns: 1.6rem minmax(0, 2fr) minmax(0, 1.4fr);
+  }
+  .col-uri { display: none; }
+}
+
+@media (max-width: 680px) {
+  .cipher-row.cipher-columns {
+    grid-template-columns: 1.6rem minmax(0, 1fr);
+  }
+  .col-username,
+  .col-uri { display: none; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .cipher-headers { color: #aaa; border-bottom-color: #3a3a3a; }
+  .cipher-header:hover,
+  .cipher-header.active { color: #aabaff; }
+  .col-username,
+  .col-uri { color: #aaa; }
+  .cipher-row:hover { background: #333; }
+  .cipher-row.selected { background: #1f2a54; color: #aabaff; }
+}
+
+:root.force-dark .cipher-headers { color: #aaa; border-bottom-color: #3a3a3a; }
+:root.force-dark .cipher-header:hover,
+:root.force-dark .cipher-header.active { color: #aabaff; }
+:root.force-dark .col-username,
+:root.force-dark .col-uri { color: #aaa; }
+:root.force-dark .cipher-row:hover { background: #333; }
+:root.force-dark .cipher-row.selected { background: #1f2a54; color: #aabaff; }
