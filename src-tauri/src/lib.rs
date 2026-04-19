@@ -68,6 +68,7 @@ pub fn run() {
             commands::auth::webauthn_sign_challenge,
             commands::vault::sync,
             commands::vault::load_cached_vault,
+            commands::vault::create_folder,
             commands::cipher::get_cipher,
             commands::cipher::create_login_cipher,
             commands::cipher::update_login_cipher,

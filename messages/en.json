@@ -89,6 +89,18 @@
   "ssh_agent_copy_export": "Copy export SSH_AUTH_SOCK",
   "ssh_agent_skipped": "{count} unsupported key(s) skipped (ECDSA / DSA not handled yet).",
 
+  "import_label": "Import (KeePassXC CSV)",
+  "import_title": "Import from KeePassXC",
+  "import_hint": "Export your vault from KeePassXC as CSV (Database → Export → CSV…) then pick the file below. Expected columns: Title / Username / Password / URL / Notes / TOTP / Group.",
+  "import_empty": "No usable rows found in the file.",
+  "import_summary": "{count} item(s) ready to import from {file}.",
+  "import_create_folders": "Create a folder for each value in the Group column",
+  "import_more": "… and {count} more items not shown.",
+  "import_start": "Start import",
+  "import_running": "Importing…",
+  "import_progress": "{done} / {total} items created…",
+  "import_done": "Done: {created} created, {failed} failed.",
+
   "audit_label": "Security audit",
   "audit_title": "Security audit",
   "audit_privacy_note": "Checks your passwords against HIBP using k-anonymity: only 5 hex characters of the SHA-1 hash ever leave your machine — never the password itself.",

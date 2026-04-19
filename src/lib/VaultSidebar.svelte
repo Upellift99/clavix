@@ -25,6 +25,7 @@
     onMoveCipherToCollection: (cipherId: string, collectionId: string) => Promise<void>;
     onMoveFolderPath: (source: string, targetParent: string | null) => Promise<void>;
     onCreateItem: () => void;
+    onOpenImport: () => void;
     onOpenGenerator: () => void;
     onOpenAudit: () => void;
     onOpenStats: () => void;
@@ -49,6 +50,7 @@
     onMoveCipherToCollection,
     onMoveFolderPath,
     onCreateItem,
+    onOpenImport,
     onOpenGenerator,
     onOpenAudit,
     onOpenStats,
@@ -206,6 +208,15 @@
         aria-label={m.action_new_item()}
       >
         ＋
+      </button>
+      <button
+        type="button"
+        class="secondary small info-button"
+        onclick={onOpenImport}
+        title={m.import_label()}
+        aria-label={m.import_label()}
+      >
+        📥
       </button>
       <button
         type="button"

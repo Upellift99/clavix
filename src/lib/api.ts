@@ -109,6 +109,8 @@ export const api = {
 
   loadCachedVault: () => invoke<SyncSummary | null>("load_cached_vault"),
 
+  createFolder: (name: string) => invoke<string>("create_folder", { name }),
+
   getCipher: (id: string) => invoke<CipherDetail>("get_cipher", { id }),
 
   createCipher: (input: EditorPayload) =>

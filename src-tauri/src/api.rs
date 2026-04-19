@@ -292,6 +292,34 @@ impl VaultwardenClient {
         Ok(())
     }
 
+    /// Create a new folder (encrypted name). Returns the server's
+    /// canonical `Folder` JSON which the caller can drop into the vault.
+    pub async fn create_folder(
+        &self,
+        access_token: &str,
+        encrypted_name: &str,
+    ) -> Result<crate::models::Folder> {
+        let url = self.api_endpoint("folders")?;
+        let response = self
+            .http
+            .post(url)
+            .bearer_auth(access_token)
+            .json(&json!({ "name": encrypted_name }))
+            .send()
+            .await?;
+        let status = response.status();
+        let bytes = response.bytes().await?;
+        if !status.is_success() {
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: String::from_utf8_lossy(&bytes).into_owned(),
+            });
+        }
+        serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
+            reason: e.to_string(),
+        })
+    }
+
     pub async fn update_folder_name(
         &self,
         access_token: &str,

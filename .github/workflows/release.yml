@@ -49,6 +49,7 @@ jobs:
             libssl-dev \
             librsvg2-dev \
             libayatana-appindicator3-dev \
+            libudev-dev \
             build-essential \
             pkg-config
 

@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import CipherEditor from "$lib/CipherEditor.svelte";
+  import ImportDialog from "$lib/ImportDialog.svelte";
   import AuthGate from "$lib/AuthGate.svelte";
   import SessionBar from "$lib/SessionBar.svelte";
   import VaultSidebar from "$lib/VaultSidebar.svelte";
@@ -37,6 +38,7 @@
   let statsDialog = $state<{ open: () => Promise<void> } | null>(null);
   let auditDialog = $state<{ open: () => Promise<void> } | null>(null);
   let generatorDialog = $state<{ open: () => void } | null>(null);
+  let importOpen = $state(false);
 
   auth.on(async (event) => {
     if (event === "loggedIn") await vault.loadCached();
@@ -190,6 +192,7 @@
                 onMoveCipherToCollection={(id, cid) => vault.moveCipherToCollection(id, cid)}
                 onMoveFolderPath={(s, t) => vault.performFolderMove(s, t)}
                 onCreateItem={() => vault.openCreateEditor()}
+                onOpenImport={() => (importOpen = true)}
                 onOpenGenerator={() => generatorDialog?.open()}
                 onOpenAudit={() => auditDialog?.open()}
                 onOpenStats={() => statsDialog?.open()}
@@ -301,5 +304,14 @@
     collections={vault.summary?.collections ?? []}
     onCancel={() => vault.closeEditor()}
     onSubmit={(input) => vault.submitEditor(input)}
+  />
+  <ImportDialog
+    open={importOpen}
+    folders={vault.summary?.folders ?? []}
+    onCancel={() => (importOpen = false)}
+    onDone={async () => {
+      importOpen = false;
+      await vault.sync();
+    }}
   />
 {/key}

@@ -63,6 +63,40 @@ pub async fn sync(state: State<'_, AppState>) -> Result<SyncSummary> {
     Ok(summary)
 }
 
+/// Create a new personal folder named `name`. Encrypts the name with
+/// `user_key`, POSTs to `/folders`, and splices the new folder into the
+/// current vault so it shows up without a full re-sync.
+#[tauri::command]
+pub async fn create_folder(state: State<'_, AppState>, name: String) -> Result<String> {
+    ensure_fresh_tokens(&state).await?;
+    let trimmed = name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err(Error::Storage {
+            reason: "folder name cannot be empty".into(),
+        });
+    }
+    let (client, access_token, encrypted_name) = {
+        let guard = state.session.lock().unwrap();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let enc = encrypt_string(&trimmed, &s.user_key)?;
+        (s.client.clone(), s.tokens.access_token.clone(), enc)
+    };
+    let folder = client.create_folder(&access_token, &encrypted_name).await?;
+    let id = folder.id.clone();
+
+    let mut guard = state.session.lock().unwrap();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            // Replace the encrypted name with the plaintext one so the
+            // front-end summary sees the folder immediately.
+            let mut f = folder;
+            f.name = trimmed;
+            vault.folders.push(f);
+        }
+    }
+    Ok(id)
+}
+
 #[tauri::command]
 pub fn load_cached_vault(state: State<'_, AppState>) -> Result<Option<SyncSummary>> {
     crate::state::mark_activity(&state);
