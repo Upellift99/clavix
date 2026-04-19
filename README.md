@@ -107,13 +107,20 @@ community.
 - [x] All cipher types supported for sharing (logins, secure notes,
   cards, identities, SSH keys)
 
+### Planned (tracked as issues)
+
+- 🔑 **[YubiKey / WebAuthn 2FA](https://github.com/Upellift99/clavix/issues/1)**
+  — handle the FIDO2 challenge during login so users who secured their
+  Vaultwarden account with a hardware key can sign in with Clavix.
+- 🔐 **[SSH agent mode](https://github.com/Upellift99/clavix/issues/2)**
+  — expose the SSH keys stored in the vault over a Unix socket so
+  `ssh`, `git`, `scp` etc. can use them without writing the private
+  key to disk, the same way Bitwarden Desktop now does.
+
 ### Out of MVP scope
 
 Creating/editing/deleting items, password generation, attachments,
-Sends, passkeys, browser autofill, YubiKey/FIDO2 (phase 4+), KeePass
-import (phase 5+), displaying the non-login cipher fields in the
-detail panel (only logins are fully rendered for now; all types can
-be shared and moved regardless).
+Sends, passkeys, browser autofill, KeePass import (phase 5+).
 
 ## Development requirements
 
