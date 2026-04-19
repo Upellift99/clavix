@@ -6,10 +6,12 @@ use rsa::RsaPrivateKey;
 use crate::api::VaultwardenClient;
 use crate::crypto::SymmetricKey;
 use crate::models::{SyncResponse, TokenSet};
+use crate::ssh_agent::SshAgentHandle;
 
 #[derive(Default)]
 pub struct AppState {
     pub session: Mutex<Option<Session>>,
+    pub ssh_agent: Mutex<Option<SshAgentHandle>>,
 }
 
 pub struct Session {

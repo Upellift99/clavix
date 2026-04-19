@@ -257,6 +257,54 @@
   let editorOpen = $state(false);
   let editorMode = $state<"create" | "edit">("create");
   let editorInitial = $state<EditorInitial>(EMPTY_EDITOR_INITIAL);
+
+  type SshAgentStatus = {
+    running: boolean;
+    socketPath: string | null;
+    keyCount: number;
+    skippedCount: number;
+  };
+  let sshAgent = $state<SshAgentStatus>({
+    running: false,
+    socketPath: null,
+    keyCount: 0,
+    skippedCount: 0,
+  });
+  let sshAgentBusy = $state(false);
+  let sshAgentError = $state<string | null>(null);
+
+  async function refreshSshAgentStatus() {
+    try {
+      sshAgent = await invoke<SshAgentStatus>("ssh_agent_status");
+    } catch (e) {
+      console.warn("[clavix] ssh_agent_status failed:", e);
+    }
+  }
+
+  async function toggleSshAgent() {
+    sshAgentBusy = true;
+    sshAgentError = null;
+    try {
+      if (sshAgent.running) {
+        await invoke("stop_ssh_agent");
+      } else {
+        sshAgent = await invoke<SshAgentStatus>("start_ssh_agent");
+        sshAgentBusy = false;
+        return;
+      }
+      await refreshSshAgentStatus();
+    } catch (e) {
+      sshAgentError = formatError(e);
+    } finally {
+      sshAgentBusy = false;
+    }
+  }
+
+  async function copySshAgentPath() {
+    if (sshAgent.socketPath) {
+      await copyToClipboard(`export SSH_AUTH_SOCK=${sshAgent.socketPath}`, "SSH_AUTH_SOCK");
+    }
+  }
   let searchInput = $state<HTMLInputElement | null>(null);
 
   const GEN_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -370,6 +418,7 @@
 
   function openStats() {
     statsDialog?.showModal();
+    void refreshSshAgentStatus();
   }
 
   function closeStats() {
@@ -2368,6 +2417,33 @@
       </dd>
     </dl>
 
+    <h3>{m.ssh_agent_title()}</h3>
+    <p class="hint ssh-agent-hint">{m.ssh_agent_hint()}</p>
+    <div class="ssh-agent-row">
+      <button type="button" onclick={toggleSshAgent} disabled={sshAgentBusy}>
+        {sshAgent.running ? m.ssh_agent_stop() : m.ssh_agent_start()}
+      </button>
+      <span class="ssh-agent-state" class:on={sshAgent.running}>
+        {sshAgent.running
+          ? m.ssh_agent_running({ count: String(sshAgent.keyCount) })
+          : m.ssh_agent_stopped()}
+      </span>
+    </div>
+    {#if sshAgent.running && sshAgent.socketPath}
+      <div class="ssh-agent-sock">
+        <code>{sshAgent.socketPath}</code>
+        <button type="button" class="secondary small" onclick={copySshAgentPath}>
+          {m.ssh_agent_copy_export()}
+        </button>
+      </div>
+    {/if}
+    {#if sshAgent.skippedCount > 0}
+      <p class="hint">{m.ssh_agent_skipped({ count: String(sshAgent.skippedCount) })}</p>
+    {/if}
+    {#if sshAgentError}
+      <p class="audit-error">{sshAgentError}</p>
+    {/if}
+
     <h3>{m.stats_breakdown()}</h3>
     <dl>
       <dt>{m.stats_logins()}</dt>
@@ -2711,6 +2787,43 @@
   .audit-privacy {
     font-size: 0.82rem;
     margin-bottom: 0.75rem;
+  }
+
+  .ssh-agent-hint {
+    font-size: 0.82rem;
+    margin: 0.25rem 0 0.5rem;
+  }
+
+  .ssh-agent-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0.3rem 0 0.5rem;
+  }
+
+  .ssh-agent-state {
+    font-size: 0.88rem;
+    color: #666;
+  }
+
+  .ssh-agent-state.on {
+    color: #18683a;
+    font-weight: 500;
+  }
+
+  .ssh-agent-sock {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .ssh-agent-sock code {
+    background: #f3f4f6;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
   }
 
   .audit-error {
