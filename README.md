@@ -1,5 +1,12 @@
 # Clavix
 
+[![CI](https://github.com/Upellift99/clavix/actions/workflows/ci.yml/badge.svg)](https://github.com/Upellift99/clavix/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Upellift99/clavix/actions/workflows/codeql.yml/badge.svg)](https://github.com/Upellift99/clavix/actions/workflows/codeql.yml)
+[![Latest release](https://img.shields.io/github/v/release/Upellift99/clavix?include_prereleases&sort=semver)](https://github.com/Upellift99/clavix/releases)
+[![License: GPL v3+](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows-lightgrey)](https://github.com/Upellift99/clavix/releases)
+[![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
+
 > ⚠️ **Alpha software.** Do not use with a real Vaultwarden vault yet.
 > The cryptography has not been independently audited, no stable release
 > has shipped, and a significant portion of the code was produced with
