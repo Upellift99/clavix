@@ -1,5 +1,11 @@
 # Clavix
 
+> ⚠️ **Alpha software.** Do not use with a real Vaultwarden vault yet.
+> The cryptography has not been independently audited, no stable release
+> has shipped, and a significant portion of the code was produced with
+> AI assistance under human review. See [DISCLAIMER.md](DISCLAIMER.md)
+> for the full picture before you clone.
+
 **A modern desktop client for Vaultwarden and Bitwarden.**
 
 Clavix is an alternative to the official Bitwarden client and Keyguard,
