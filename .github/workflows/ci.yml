@@ -61,8 +61,13 @@ jobs:
         with:
           tool: cargo-audit
 
+      # RUSTSEC-2023-0071 : Marvin Attack sur le crate `rsa` (timing side-channel
+      # sur le déchiffrement RSA-OAEP). Pas de fix upstream disponible à ce jour.
+      # Notre exposition est faible : déchiffrement d'org keys une fois par sync,
+      # HTTPS vers Vaultwarden, pas d'oracle exposé à un attaquant. À retirer dès
+      # que le crate `rsa` publie une version constant-time.
       - name: cargo audit
-        run: cargo audit
+        run: cargo audit --ignore RUSTSEC-2023-0071
 
   frontend:
     name: Frontend (svelte-check)
