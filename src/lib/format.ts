@@ -41,6 +41,32 @@ export function formatExpiry(seconds: number): string {
   return `${minutes} min`;
 }
 
+export type SessionStatus = "syncing" | "fresh" | "stale" | "offline" | "unknown";
+
+/** Ciphers-staleness threshold: the session dot flips amber after this. */
+export const SESSION_FRESH_MS = 10 * 60 * 1000;
+
+/**
+ * Derive the 5-state session status used by the SessionBar indicator.
+ * Split out of the Svelte component so it can be covered by vitest
+ * (without needing a DOM) and reused if another surface wants to show
+ * the same signal — e.g. a menu badge or a tray icon.
+ */
+export function computeSessionStatus(input: {
+  syncing: boolean;
+  lastSyncError: string | null;
+  lastSyncAt: number | null;
+  now: number;
+  freshMs?: number;
+}): SessionStatus {
+  const { syncing, lastSyncError, lastSyncAt, now, freshMs = SESSION_FRESH_MS } =
+    input;
+  if (syncing) return "syncing";
+  if (lastSyncError) return "offline";
+  if (lastSyncAt === null) return "unknown";
+  return now - lastSyncAt < freshMs ? "fresh" : "stale";
+}
+
 /**
  * Human-friendly "il y a X" string for a past epoch (ms) relative to `nowMs`.
  * Buckets are chosen to match the session-bar freshness palette:

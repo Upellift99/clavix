@@ -1,7 +1,13 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import * as m from "$lib/paraglide/messages";
-  import { formatExpiry, formatRelativeAgo, truncate } from "./format";
+  import {
+    computeSessionStatus,
+    formatExpiry,
+    formatRelativeAgo,
+    truncate,
+    type SessionStatus,
+  } from "./format";
   import type { TokenSet } from "./types";
 
   type Props = {
@@ -32,20 +38,8 @@
   const tick = setInterval(() => (now = Date.now()), 60_000);
   onDestroy(() => clearInterval(tick));
 
-  type Status = "syncing" | "fresh" | "stale" | "offline" | "unknown";
-
-  const FRESH_MS = 10 * 60 * 1000;
-
-  let status = $derived<Status>(
-    syncing
-      ? "syncing"
-      : lastSyncError
-        ? "offline"
-        : lastSyncAt === null
-          ? "unknown"
-          : now - lastSyncAt < FRESH_MS
-            ? "fresh"
-            : "stale",
+  let status = $derived<SessionStatus>(
+    computeSessionStatus({ syncing, lastSyncError, lastSyncAt, now }),
   );
 
   let agoText = $derived(
