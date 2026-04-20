@@ -191,7 +191,7 @@ sudo apt install \
   librsvg2-dev \
   libayatana-appindicator3-dev \
   libudev-dev \
-  build-essential curl wget file
+  build-essential pkg-config curl wget file
 ```
 
 > `libudev-dev` is pulled in by `hidapi` (used by the FIDO2
@@ -212,6 +212,36 @@ pnpm tauri dev
 The first Rust compilation takes a few minutes (full Tauri dependency
 graph). Subsequent compiles are incremental thanks to the `target/`
 cache.
+
+## End-to-end tests (optional)
+
+The WebdriverIO suite (`pnpm test:e2e`) drives the real Tauri binary
+against a disposable Vaultwarden container. On top of the base
+requirements above, you need:
+
+- **`tauri-driver`** — installed via Cargo into `~/.cargo/bin/`:
+
+  ```bash
+  cargo install tauri-driver --locked
+  ```
+
+- **WebKitWebDriver + a virtual display** on Linux:
+
+  ```bash
+  sudo apt install webkit2gtk-driver xvfb
+  ```
+
+- **Docker** + **Docker Compose plugin** — the suite boots a
+  Vaultwarden container from `tests/e2e/docker-compose.yml` and tears
+  it down on exit. Set `E2E_SKIP_DOCKER=1` to reuse an
+  externally-managed instance.
+
+Then build the debug binary once and run the suite under `xvfb-run`:
+
+```bash
+pnpm tauri build --debug --no-bundle
+xvfb-run -a pnpm test:e2e
+```
 
 ## Repository layout
 
