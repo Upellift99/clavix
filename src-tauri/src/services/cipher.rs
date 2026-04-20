@@ -583,7 +583,8 @@ mod tests {
         // that the original PEM round-trips verbatim under the target key.
         let source = test_key();
         let target = other_test_key();
-        let pem = "-----BEGIN OPENSSH PRIVATE KEY-----\nabcdef\n-----END OPENSSH PRIVATE KEY-----\n";
+        let pem =
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nabcdef\n-----END OPENSSH PRIVATE KEY-----\n";
         let mut cipher = base_cipher(CipherType::SshKey, &source);
         cipher.ssh_key = Some(crate::models::CipherSshKey {
             private_key: Some(encrypt_string(pem, &source).unwrap()),

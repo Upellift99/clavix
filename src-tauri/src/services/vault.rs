@@ -377,7 +377,10 @@ mod tests {
         let s = build_sync_summary(&resp, &uk, &org_keys);
         assert_eq!(s.ciphers[0].name, "Org item");
         assert_eq!(s.ciphers[0].username.as_deref(), Some("alice"));
-        assert_eq!(s.ciphers[0].primary_uri.as_deref(), Some("https://example.com"));
+        assert_eq!(
+            s.ciphers[0].primary_uri.as_deref(),
+            Some("https://example.com")
+        );
         assert_eq!(s.ciphers[0].organization_id.as_deref(), Some("org-1"));
     }
 
