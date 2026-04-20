@@ -185,3 +185,101 @@ pub fn persist_session(
     };
     store::save_session(&persisted)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypto::{encrypt_string, SymmetricKey};
+    use crate::models::KdfType;
+
+    fn test_key() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(7).wrapping_add(11);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn persisted_with(
+        encrypted_refresh_token: Option<String>,
+        refresh_token: Option<String>,
+    ) -> PersistedSession {
+        PersistedSession {
+            server_url: "https://vault.example.com".into(),
+            email: "u@e.com".into(),
+            refresh_token,
+            encrypted_refresh_token,
+            kdf: KdfType::Pbkdf2,
+            kdf_iterations: 600_000,
+            kdf_memory: None,
+            kdf_parallelism: None,
+            encrypted_user_key: String::new(),
+            encrypted_private_key: None,
+        }
+    }
+
+    #[test]
+    fn recover_refresh_prefers_encrypted_over_legacy() {
+        // Both fields present (a file written mid-migration). The encrypted
+        // field wins — the legacy plaintext must never be returned when a
+        // properly-encrypted version exists, otherwise we'd leak plaintext
+        // on disk through a channel we thought was closed.
+        let key = test_key();
+        let enc = encrypt_string("real-token", &key).unwrap();
+        let p = persisted_with(Some(enc), Some("legacy-ignored".into()));
+
+        let got = recover_refresh_token(&p, &key).unwrap();
+        assert_eq!(got, "real-token");
+    }
+
+    #[test]
+    fn recover_refresh_falls_back_to_legacy_when_no_encrypted() {
+        // Session files written before the refresh-token encryption landed
+        // only have the plaintext `refresh_token`. We must still be able to
+        // unlock them — the caller is responsible for re-encrypting and
+        // clearing the legacy field on the next save.
+        let key = test_key();
+        let p = persisted_with(None, Some("plain-token".into()));
+
+        let got = recover_refresh_token(&p, &key).unwrap();
+        assert_eq!(got, "plain-token");
+    }
+
+    #[test]
+    fn recover_refresh_errors_when_neither_field_is_set() {
+        let key = test_key();
+        let p = persisted_with(None, None);
+
+        let err = recover_refresh_token(&p, &key).unwrap_err();
+        assert!(matches!(err, Error::Storage { .. }));
+    }
+
+    #[test]
+    fn compute_expires_at_stays_ahead_of_now_and_applies_safety_margin() {
+        // The 30-second safety margin means a token the server considers
+        // valid for 60s must only be considered valid for ~30s locally, so
+        // ensure_fresh_tokens gets a chance to refresh before the server
+        // rejects the call.
+        let before = Instant::now();
+        let deadline = compute_expires_at(60);
+        let after = Instant::now();
+
+        let offset_lower = deadline.saturating_duration_since(after);
+        let offset_upper = deadline.saturating_duration_since(before);
+        assert!(offset_lower <= Duration::from_secs(30));
+        assert!(offset_upper >= Duration::from_secs(29));
+    }
+
+    #[test]
+    fn compute_expires_at_clamps_small_values_to_one_second() {
+        // If the server returns a token already expired or about to expire,
+        // saturating_sub(30) underflows to zero and max(1) kicks in so the
+        // deadline is still strictly in the future (avoids an Instant in
+        // the past that would make ensure_fresh_tokens loop forever).
+        let now = Instant::now();
+        let deadline_zero = compute_expires_at(0);
+        let deadline_small = compute_expires_at(10);
+        assert!(deadline_zero > now);
+        assert!(deadline_small > now);
+    }
+}
