@@ -17,6 +17,9 @@ src-tauri/target/
 src-tauri/gen/
 src-tauri/WixTools/
 
+# ---- Tests E2E (sandbox XDG_DATA_HOME) ----
+tests/e2e/sandbox/
+
 # ---- Éditeurs & OS ----
 .DS_Store
 Thumbs.db
