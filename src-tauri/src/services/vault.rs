@@ -176,6 +176,332 @@ pub fn rename_folder_under_move(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::{encrypt_string, SymmetricKey};
+    use crate::models::{
+        Cipher, CipherLogin, CipherLoginUri, CipherType, Collection, Folder, Organization, Profile,
+        SyncResponse,
+    };
+
+    fn user_key() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(7).wrapping_add(11);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn org_key() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(13).wrapping_add(47);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn make_folder(id: &str, name: &str, key: &SymmetricKey) -> Folder {
+        Folder {
+            id: id.into(),
+            name: encrypt_string(name, key).unwrap(),
+            revision_date: None,
+        }
+    }
+
+    fn make_login_cipher(
+        id: &str,
+        name: &str,
+        username: Option<&str>,
+        uri: Option<&str>,
+        key: &SymmetricKey,
+        organization_id: Option<&str>,
+    ) -> Cipher {
+        Cipher {
+            id: id.into(),
+            kind: CipherType::Login,
+            name: encrypt_string(name, key).unwrap(),
+            notes: None,
+            organization_id: organization_id.map(str::to_string),
+            folder_id: None,
+            collection_ids: vec![],
+            revision_date: None,
+            deleted_date: None,
+            favorite: false,
+            login: Some(CipherLogin {
+                username: username.map(|u| encrypt_string(u, key).unwrap()),
+                password: None,
+                totp: None,
+                uris: uri.map(|u| {
+                    vec![CipherLoginUri {
+                        uri: Some(encrypt_string(u, key).unwrap()),
+                    }]
+                }),
+            }),
+            card: None,
+            identity: None,
+            ssh_key: None,
+        }
+    }
+
+    fn make_cipher_of_type(
+        id: &str,
+        kind: CipherType,
+        key: &SymmetricKey,
+        organization_id: Option<&str>,
+    ) -> Cipher {
+        Cipher {
+            id: id.into(),
+            kind,
+            name: encrypt_string("n", key).unwrap(),
+            notes: None,
+            organization_id: organization_id.map(str::to_string),
+            folder_id: None,
+            collection_ids: vec![],
+            revision_date: None,
+            deleted_date: None,
+            favorite: false,
+            login: None,
+            card: None,
+            identity: None,
+            ssh_key: None,
+        }
+    }
+
+    fn response_with(
+        folders: Vec<Folder>,
+        collections: Vec<Collection>,
+        ciphers: Vec<Cipher>,
+        organizations: Vec<Organization>,
+    ) -> SyncResponse {
+        SyncResponse {
+            profile: Profile {
+                id: "user-id".into(),
+                email: "u@e.com".into(),
+                name: Some("Utilisateur".into()),
+                organizations,
+            },
+            folders,
+            collections,
+            ciphers,
+        }
+    }
+
+    #[test]
+    fn sync_summary_counts_match_response_lengths() {
+        let uk = user_key();
+        let resp = response_with(
+            vec![make_folder("f1", "Work", &uk)],
+            vec![],
+            vec![
+                make_cipher_of_type("c1", CipherType::Login, &uk, None),
+                make_cipher_of_type("c2", CipherType::Login, &uk, None),
+                make_cipher_of_type("c3", CipherType::SecureNote, &uk, None),
+            ],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.item_count, 3);
+        assert_eq!(s.folder_count, 1);
+        assert_eq!(s.collection_count, 0);
+        assert_eq!(s.organization_count, 0);
+        assert_eq!(s.type_counts.login, 2);
+        assert_eq!(s.type_counts.secure_note, 1);
+        assert_eq!(s.type_counts.card, 0);
+    }
+
+    #[test]
+    fn sync_summary_type_counts_cover_every_variant() {
+        let uk = user_key();
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![
+                make_cipher_of_type("1", CipherType::Login, &uk, None),
+                make_cipher_of_type("2", CipherType::SecureNote, &uk, None),
+                make_cipher_of_type("3", CipherType::Card, &uk, None),
+                make_cipher_of_type("4", CipherType::Identity, &uk, None),
+                make_cipher_of_type("5", CipherType::SshKey, &uk, None),
+            ],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.type_counts.login, 1);
+        assert_eq!(s.type_counts.secure_note, 1);
+        assert_eq!(s.type_counts.card, 1);
+        assert_eq!(s.type_counts.identity, 1);
+        assert_eq!(s.type_counts.ssh_key, 1);
+    }
+
+    #[test]
+    fn sync_summary_decrypts_folder_names_with_user_key() {
+        let uk = user_key();
+        let resp = response_with(
+            vec![
+                make_folder("f1", "Work", &uk),
+                make_folder("f2", "Personal/Notes", &uk),
+            ],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.folders[0].name, "Work");
+        assert_eq!(s.folders[1].name, "Personal/Notes");
+    }
+
+    #[test]
+    fn sync_summary_picks_org_key_for_org_cipher() {
+        // Decisive invariant: an org cipher must be decrypted with the
+        // matching org_keys entry, not the user_key. A bug here would
+        // either show '[decrypt failed]' to org members or (worse) tie
+        // item retrieval to the user key only.
+        let uk = user_key();
+        let mut org_keys = HashMap::new();
+        org_keys.insert("org-1".to_string(), org_key());
+
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![make_login_cipher(
+                "c1",
+                "Org item",
+                Some("alice"),
+                Some("https://example.com"),
+                &org_key(),
+                Some("org-1"),
+            )],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &org_keys);
+        assert_eq!(s.ciphers[0].name, "Org item");
+        assert_eq!(s.ciphers[0].username.as_deref(), Some("alice"));
+        assert_eq!(s.ciphers[0].primary_uri.as_deref(), Some("https://example.com"));
+        assert_eq!(s.ciphers[0].organization_id.as_deref(), Some("org-1"));
+    }
+
+    #[test]
+    fn sync_summary_falls_back_to_placeholder_when_org_key_missing() {
+        // If the org_keys map doesn't have the cipher's org id, we fall
+        // back to user_key — which will fail to decrypt — and emit a
+        // placeholder name. Must not panic and must not silently swap the
+        // cipher's organization_id.
+        let uk = user_key();
+
+        // Build cipher encrypted under org_key, but pass an empty org_keys
+        // map so the summary falls back to user_key.
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![make_login_cipher(
+                "c1",
+                "Org item",
+                None,
+                None,
+                &org_key(),
+                Some("org-1"),
+            )],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.ciphers[0].name, "[decrypt failed]");
+        assert_eq!(s.ciphers[0].organization_id.as_deref(), Some("org-1"));
+    }
+
+    #[test]
+    fn sync_summary_decrypts_collection_names_with_org_key() {
+        let uk = user_key();
+        let mut org_keys = HashMap::new();
+        org_keys.insert("org-1".to_string(), org_key());
+
+        let resp = response_with(
+            vec![],
+            vec![Collection {
+                id: "coll-1".into(),
+                organization_id: "org-1".into(),
+                name: encrypt_string("Shared", &org_key()).unwrap(),
+                external_id: None,
+                read_only: false,
+                hide_passwords: false,
+            }],
+            vec![],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &org_keys);
+        assert_eq!(s.collections[0].name, "Shared");
+        assert_eq!(s.collections[0].organization_id, "org-1");
+    }
+
+    #[test]
+    fn sync_summary_preserves_favorite_folder_and_collection_links() {
+        let uk = user_key();
+        let mut c = make_login_cipher("c1", "Item", None, None, &uk, None);
+        c.favorite = true;
+        c.folder_id = Some("f1".into());
+        c.collection_ids = vec!["coll-1".into()];
+        c.deleted_date = Some("2026-01-01T00:00:00Z".into());
+        c.revision_date = Some("2026-01-02T00:00:00Z".into());
+
+        let resp = response_with(vec![], vec![], vec![c], vec![]);
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let cs = &s.ciphers[0];
+        assert!(cs.favorite);
+        assert_eq!(cs.folder_id.as_deref(), Some("f1"));
+        assert_eq!(cs.collection_ids, vec!["coll-1".to_string()]);
+        assert_eq!(cs.deleted_date.as_deref(), Some("2026-01-01T00:00:00Z"));
+        assert_eq!(cs.revision_date.as_deref(), Some("2026-01-02T00:00:00Z"));
+    }
+
+    #[test]
+    fn sync_summary_primary_uri_is_first_non_none() {
+        let uk = user_key();
+        let mut c = make_login_cipher("c1", "Item", None, None, &uk, None);
+        c.login = Some(CipherLogin {
+            username: None,
+            password: None,
+            totp: None,
+            uris: Some(vec![
+                CipherLoginUri { uri: None },
+                CipherLoginUri {
+                    uri: Some(encrypt_string("https://second.example", &uk).unwrap()),
+                },
+                CipherLoginUri {
+                    uri: Some(encrypt_string("https://third.example", &uk).unwrap()),
+                },
+            ]),
+        });
+
+        let resp = response_with(vec![], vec![], vec![c], vec![]);
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(
+            s.ciphers[0].primary_uri.as_deref(),
+            Some("https://second.example")
+        );
+    }
+
+    #[test]
+    fn sync_summary_passes_through_profile_fields() {
+        let uk = user_key();
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![],
+            vec![Organization {
+                id: "org-1".into(),
+                name: "Acme".into(),
+                key: None,
+            }],
+        );
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.email, "u@e.com");
+        assert_eq!(s.name.as_deref(), Some("Utilisateur"));
+        assert_eq!(s.organization_count, 1);
+        assert_eq!(s.organizations[0].id, "org-1");
+        assert_eq!(s.organizations[0].name, "Acme");
+    }
 
     #[test]
     fn compute_new_folder_base_root_target() {
