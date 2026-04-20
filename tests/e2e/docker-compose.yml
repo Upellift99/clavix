@@ -1,6 +1,6 @@
 services:
   vaultwarden:
-    image: vaultwarden/server:1.34.5-alpine
+    image: vaultwarden/server:1.35.7-alpine
     container_name: clavix-e2e-vaultwarden
     environment:
       DOMAIN: http://127.0.0.1:8000

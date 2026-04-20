@@ -1,10 +1,14 @@
-mod api;
+// NB: crypto, models, api, error are exposed publicly to let the
+// `examples/e2e_seed.rs` tool reuse the exact same crypto path as the
+// app. clavix_lib isn't published as a third-party crate, so widening
+// these modules is a no-op for real consumers (there are none).
+pub mod api;
 mod audit;
 mod cache;
 mod commands;
-mod crypto;
-mod error;
-mod models;
+pub mod crypto;
+pub mod error;
+pub mod models;
 mod services;
 mod ssh_agent;
 mod state;
