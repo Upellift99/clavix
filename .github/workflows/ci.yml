@@ -100,3 +100,76 @@ jobs:
 
       - name: Unit tests (vitest)
         run: pnpm test
+
+  e2e:
+    name: E2E (Tauri + WebdriverIO)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Observational for the first runs: we need to see the real flaky
+    # rate on GitHub's runner (different WebKitGTK version, shared
+    # CPU, cold Docker pulls) before gating PRs on this job. Flip to
+    # `continue-on-error: false` once we have ≥10 consecutive green
+    # runs and the timing envelope is stable.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Tauri + WebDriver system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libxdo-dev \
+            libssl-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libudev-dev \
+            webkit2gtk-driver \
+            xvfb \
+            build-essential \
+            pkg-config
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install tauri-driver
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-driver
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Clavix (debug)
+        run: pnpm tauri build --debug --no-bundle
+
+      - name: Run E2E suite
+        run: xvfb-run -a pnpm test:e2e
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: tests/e2e/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7

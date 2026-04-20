@@ -152,6 +152,19 @@ export const config = {
     );
   },
 
+  // On failure, snap a screenshot of the webview so CI artifacts
+  // contain something investigable beyond the stack trace.
+  async afterTest(test, _context, { passed }) {
+    if (passed) return;
+    const safe = (test.parent + "_" + test.title)
+      .replace(/\W+/g, "_")
+      .slice(0, 120);
+    const { mkdirSync } = await import("node:fs");
+    const dir = resolve(here, "screenshots");
+    mkdirSync(dir, { recursive: true });
+    await browser.saveScreenshot(resolve(dir, `${safe}.png`));
+  },
+
   afterSession() {
     tauriDriverProcess?.kill();
   },
