@@ -192,61 +192,61 @@
       </button>
     {/each}
   </details>
-  {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
-    <div class="tree-toolbar">
+  <div class="tree-toolbar">
+    {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
       <button type="button" class="secondary small" onclick={onExpandAll}>
         {m.tree_expand_all()}
       </button>
       <button type="button" class="secondary small" onclick={onCollapseAll}>
         {m.tree_collapse_all()}
       </button>
-      <button
-        type="button"
-        class="secondary small info-button"
-        onclick={onCreateItem}
-        title={m.action_new_item()}
-        aria-label={m.action_new_item()}
-      >
-        ＋
-      </button>
-      <button
-        type="button"
-        class="secondary small info-button"
-        onclick={onOpenImport}
-        title={m.import_label()}
-        aria-label={m.import_label()}
-      >
-        📥
-      </button>
-      <button
-        type="button"
-        class="secondary small info-button"
-        onclick={onOpenGenerator}
-        title={m.generator_label()}
-        aria-label={m.generator_label()}
-      >
-        🎲
-      </button>
-      <button
-        type="button"
-        class="secondary small info-button"
-        onclick={onOpenAudit}
-        title={m.audit_label()}
-        aria-label={m.audit_label()}
-      >
-        🛡
-      </button>
-      <button
-        type="button"
-        class="secondary small info-button"
-        onclick={onOpenStats}
-        title={m.tree_infos_label()}
-        aria-label={m.tree_infos_label()}
-      >
-        ⓘ
-      </button>
-    </div>
-  {/if}
+    {/if}
+    <button
+      type="button"
+      class="secondary small info-button"
+      onclick={onCreateItem}
+      title={m.action_new_item()}
+      aria-label={m.action_new_item()}
+    >
+      ＋
+    </button>
+    <button
+      type="button"
+      class="secondary small info-button"
+      onclick={onOpenImport}
+      title={m.import_label()}
+      aria-label={m.import_label()}
+    >
+      📥
+    </button>
+    <button
+      type="button"
+      class="secondary small info-button"
+      onclick={onOpenGenerator}
+      title={m.generator_label()}
+      aria-label={m.generator_label()}
+    >
+      🎲
+    </button>
+    <button
+      type="button"
+      class="secondary small info-button"
+      onclick={onOpenAudit}
+      title={m.audit_label()}
+      aria-label={m.audit_label()}
+    >
+      🛡
+    </button>
+    <button
+      type="button"
+      class="secondary small info-button"
+      onclick={onOpenStats}
+      title={m.tree_infos_label()}
+      aria-label={m.tree_infos_label()}
+    >
+      ⓘ
+    </button>
+  </div>
   {#if folderTree && folderTree.children.length > 0}
     <ul class="tree-root">
       {#each folderTree.children as node (node.key)}
