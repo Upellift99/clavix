@@ -2,9 +2,10 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::cache;
-use crate::crypto::{decrypt_name, encrypt_string, reencrypt_with_key, SymmetricKey};
+use crate::crypto::{decrypt_name, encrypt_string, SymmetricKey};
 use crate::error::{Error, Result};
 use crate::services::auth::ensure_fresh_tokens;
+use crate::services::cipher::build_share_cipher_body;
 use crate::services::vault::{compute_new_folder_base, rename_folder_under_move};
 use crate::state::AppState;
 
@@ -263,107 +264,13 @@ pub async fn share_cipher_to_collection(
             &session.user_key
         };
 
-        let reenc = |s: &str| reencrypt_with_key(s, source_key, target_key);
-
-        let name = reenc(&cipher.name)?;
-        let notes = cipher.notes.as_deref().map(reenc).transpose()?;
-
-        let reenc_opt = |s: Option<&str>| -> Result<Option<String>> { s.map(reenc).transpose() };
-
-        let login_json = cipher
-            .login
-            .as_ref()
-            .map(|l| -> Result<serde_json::Value> {
-                let uris: Vec<serde_json::Value> = l
-                    .uris
-                    .as_deref()
-                    .unwrap_or(&[])
-                    .iter()
-                    .filter_map(|u| u.uri.as_deref().map(reenc))
-                    .collect::<Result<Vec<_>>>()?
-                    .into_iter()
-                    .map(|uri| serde_json::json!({ "uri": uri, "match": serde_json::Value::Null }))
-                    .collect();
-                Ok(serde_json::json!({
-                    "username": reenc_opt(l.username.as_deref())?,
-                    "password": reenc_opt(l.password.as_deref())?,
-                    "totp": reenc_opt(l.totp.as_deref())?,
-                    "uris": uris,
-                }))
-            })
-            .transpose()?;
-
-        let card_json = cipher
-            .card
-            .as_ref()
-            .map(|c| -> Result<serde_json::Value> {
-                Ok(serde_json::json!({
-                    "cardholderName": reenc_opt(c.cardholder_name.as_deref())?,
-                    "brand": reenc_opt(c.brand.as_deref())?,
-                    "number": reenc_opt(c.number.as_deref())?,
-                    "expMonth": reenc_opt(c.exp_month.as_deref())?,
-                    "expYear": reenc_opt(c.exp_year.as_deref())?,
-                    "code": reenc_opt(c.code.as_deref())?,
-                }))
-            })
-            .transpose()?;
-
-        let identity_json = cipher
-            .identity
-            .as_ref()
-            .map(|i| -> Result<serde_json::Value> {
-                Ok(serde_json::json!({
-                    "title": reenc_opt(i.title.as_deref())?,
-                    "firstName": reenc_opt(i.first_name.as_deref())?,
-                    "middleName": reenc_opt(i.middle_name.as_deref())?,
-                    "lastName": reenc_opt(i.last_name.as_deref())?,
-                    "address1": reenc_opt(i.address1.as_deref())?,
-                    "address2": reenc_opt(i.address2.as_deref())?,
-                    "address3": reenc_opt(i.address3.as_deref())?,
-                    "city": reenc_opt(i.city.as_deref())?,
-                    "state": reenc_opt(i.state.as_deref())?,
-                    "postalCode": reenc_opt(i.postal_code.as_deref())?,
-                    "country": reenc_opt(i.country.as_deref())?,
-                    "company": reenc_opt(i.company.as_deref())?,
-                    "email": reenc_opt(i.email.as_deref())?,
-                    "phone": reenc_opt(i.phone.as_deref())?,
-                    "ssn": reenc_opt(i.ssn.as_deref())?,
-                    "username": reenc_opt(i.username.as_deref())?,
-                    "passportNumber": reenc_opt(i.passport_number.as_deref())?,
-                    "licenseNumber": reenc_opt(i.license_number.as_deref())?,
-                }))
-            })
-            .transpose()?;
-
-        let ssh_key_json = cipher
-            .ssh_key
-            .as_ref()
-            .map(|s| -> Result<serde_json::Value> {
-                Ok(serde_json::json!({
-                    "privateKey": reenc_opt(s.private_key.as_deref())?,
-                    "publicKey": reenc_opt(s.public_key.as_deref())?,
-                    "keyFingerprint": reenc_opt(s.key_fingerprint.as_deref())?,
-                }))
-            })
-            .transpose()?;
-
-        // folderId reset to null on share: a folder is personal by nature and
-        // doesn't follow the cipher into the new organization.
-        let body = serde_json::json!({
-            "cipher": {
-                "type": cipher.kind as u8,
-                "name": name,
-                "notes": notes,
-                "organizationId": target_org_id,
-                "folderId": serde_json::Value::Null,
-                "favorite": cipher.favorite,
-                "login": login_json,
-                "card": card_json,
-                "identity": identity_json,
-                "sshKey": ssh_key_json,
-            },
-            "collectionIds": [collection_id.clone()],
-        });
+        let body = build_share_cipher_body(
+            cipher,
+            source_key,
+            target_key,
+            &target_org_id,
+            std::slice::from_ref(&collection_id),
+        )?;
 
         (
             session.client.clone(),

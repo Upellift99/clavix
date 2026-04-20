@@ -1,6 +1,6 @@
-use crate::crypto::{encrypt_string, SymmetricKey};
+use crate::crypto::{encrypt_string, reencrypt_with_key, SymmetricKey};
 use crate::error::{Error, Result};
-use crate::models::{CardInput, CipherCreateInput, IdentityInput, LoginInput, SshKeyInput};
+use crate::models::{CardInput, Cipher, CipherCreateInput, IdentityInput, LoginInput, SshKeyInput};
 
 fn enc_opt(s: Option<&str>, key: &SymmetricKey) -> Result<Option<String>> {
     s.map(str::trim)
@@ -151,11 +151,126 @@ pub fn build_login_cipher_body(
     build_cipher_body(&input, key)
 }
 
+/// Builds the request body for POST /ciphers/share. Re-encrypts every
+/// encrypted field of `cipher` from `source_key` to `target_key` and
+/// returns a JSON value ready to hand to the API client. `folderId` is
+/// intentionally dropped — a folder is personal by nature and does not
+/// follow the cipher into the target organization.
+pub fn build_share_cipher_body(
+    cipher: &Cipher,
+    source_key: &SymmetricKey,
+    target_key: &SymmetricKey,
+    target_org_id: &str,
+    collection_ids: &[String],
+) -> Result<serde_json::Value> {
+    let reenc = |s: &str| reencrypt_with_key(s, source_key, target_key);
+    let reenc_opt = |s: Option<&str>| -> Result<Option<String>> { s.map(reenc).transpose() };
+
+    let name = reenc(&cipher.name)?;
+    let notes = reenc_opt(cipher.notes.as_deref())?;
+
+    let login_json = cipher
+        .login
+        .as_ref()
+        .map(|l| -> Result<serde_json::Value> {
+            let uris: Vec<serde_json::Value> = l
+                .uris
+                .as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .filter_map(|u| u.uri.as_deref().map(reenc))
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .map(|uri| serde_json::json!({ "uri": uri, "match": serde_json::Value::Null }))
+                .collect();
+            Ok(serde_json::json!({
+                "username": reenc_opt(l.username.as_deref())?,
+                "password": reenc_opt(l.password.as_deref())?,
+                "totp": reenc_opt(l.totp.as_deref())?,
+                "uris": uris,
+            }))
+        })
+        .transpose()?;
+
+    let card_json = cipher
+        .card
+        .as_ref()
+        .map(|c| -> Result<serde_json::Value> {
+            Ok(serde_json::json!({
+                "cardholderName": reenc_opt(c.cardholder_name.as_deref())?,
+                "brand": reenc_opt(c.brand.as_deref())?,
+                "number": reenc_opt(c.number.as_deref())?,
+                "expMonth": reenc_opt(c.exp_month.as_deref())?,
+                "expYear": reenc_opt(c.exp_year.as_deref())?,
+                "code": reenc_opt(c.code.as_deref())?,
+            }))
+        })
+        .transpose()?;
+
+    let identity_json = cipher
+        .identity
+        .as_ref()
+        .map(|i| -> Result<serde_json::Value> {
+            Ok(serde_json::json!({
+                "title": reenc_opt(i.title.as_deref())?,
+                "firstName": reenc_opt(i.first_name.as_deref())?,
+                "middleName": reenc_opt(i.middle_name.as_deref())?,
+                "lastName": reenc_opt(i.last_name.as_deref())?,
+                "address1": reenc_opt(i.address1.as_deref())?,
+                "address2": reenc_opt(i.address2.as_deref())?,
+                "address3": reenc_opt(i.address3.as_deref())?,
+                "city": reenc_opt(i.city.as_deref())?,
+                "state": reenc_opt(i.state.as_deref())?,
+                "postalCode": reenc_opt(i.postal_code.as_deref())?,
+                "country": reenc_opt(i.country.as_deref())?,
+                "company": reenc_opt(i.company.as_deref())?,
+                "email": reenc_opt(i.email.as_deref())?,
+                "phone": reenc_opt(i.phone.as_deref())?,
+                "ssn": reenc_opt(i.ssn.as_deref())?,
+                "username": reenc_opt(i.username.as_deref())?,
+                "passportNumber": reenc_opt(i.passport_number.as_deref())?,
+                "licenseNumber": reenc_opt(i.license_number.as_deref())?,
+            }))
+        })
+        .transpose()?;
+
+    let ssh_key_json = cipher
+        .ssh_key
+        .as_ref()
+        .map(|s| -> Result<serde_json::Value> {
+            Ok(serde_json::json!({
+                "privateKey": reenc_opt(s.private_key.as_deref())?,
+                "publicKey": reenc_opt(s.public_key.as_deref())?,
+                "keyFingerprint": reenc_opt(s.key_fingerprint.as_deref())?,
+            }))
+        })
+        .transpose()?;
+
+    Ok(serde_json::json!({
+        "cipher": {
+            "type": cipher.kind as u8,
+            "name": name,
+            "notes": notes,
+            "organizationId": target_org_id,
+            "folderId": serde_json::Value::Null,
+            "favorite": cipher.favorite,
+            "login": login_json,
+            "card": card_json,
+            "identity": identity_json,
+            "sshKey": ssh_key_json,
+        },
+        "collectionIds": collection_ids,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::SymmetricKey;
-    use crate::models::{CardInput, CipherCreateInput, IdentityInput, LoginInput, SshKeyInput};
+    use crate::crypto::{decrypt_name, SymmetricKey};
+    use crate::models::{
+        CardInput, CipherCreateInput, CipherLogin, CipherLoginUri, CipherType, IdentityInput,
+        LoginInput, SshKeyInput,
+    };
 
     fn test_key() -> SymmetricKey {
         // 64 bytes of arbitrary but deterministic material — splits into
@@ -165,6 +280,33 @@ mod tests {
             *b = (i as u8).wrapping_mul(7).wrapping_add(11);
         }
         SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn other_test_key() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(13).wrapping_add(47);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn base_cipher(kind: CipherType, source_key: &SymmetricKey) -> Cipher {
+        Cipher {
+            id: "cipher-id".into(),
+            kind,
+            name: encrypt_string("My item", source_key).unwrap(),
+            notes: None,
+            organization_id: None,
+            folder_id: Some("personal-folder-id".into()),
+            collection_ids: vec![],
+            revision_date: None,
+            deleted_date: None,
+            favorite: false,
+            login: None,
+            card: None,
+            identity: None,
+            ssh_key: None,
+        }
     }
 
     fn base_input() -> CipherCreateInput {
@@ -318,5 +460,192 @@ mod tests {
         input.notes = None;
         let body = build_cipher_body(&input, &test_key()).unwrap();
         assert!(body["notes"].is_null());
+    }
+
+    // ============ build_share_cipher_body ============
+
+    #[test]
+    fn share_body_drops_folder_id() {
+        // folderId must be null in the share payload even when the cipher
+        // currently sits inside a personal folder: folders are personal
+        // and do not follow a cipher into an organization.
+        let source = test_key();
+        let target = other_test_key();
+        let cipher = base_cipher(CipherType::SecureNote, &source);
+        assert!(cipher.folder_id.is_some());
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "target-org", &[]).unwrap();
+        assert!(body["cipher"]["folderId"].is_null());
+    }
+
+    #[test]
+    fn share_body_reencrypts_name_with_target_key() {
+        // The decisive invariant of share: after re-encryption, the name
+        // must open under the target (org) key and NOT under the original
+        // (personal or source-org) key. A bug here would either leak the
+        // item as unreadable to all org members, or tie org data to a key
+        // only the original owner can read.
+        let source = test_key();
+        let target = other_test_key();
+        let cipher = base_cipher(CipherType::SecureNote, &source);
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "target-org", &[]).unwrap();
+        let name = body["cipher"]["name"].as_str().unwrap();
+
+        assert_eq!(decrypt_name(name, &target).unwrap(), "My item");
+        assert!(
+            decrypt_name(name, &source).is_err(),
+            "name must no longer open under the source key"
+        );
+    }
+
+    #[test]
+    fn share_body_sets_target_org_and_collection_ids() {
+        let source = test_key();
+        let target = other_test_key();
+        let mut cipher = base_cipher(CipherType::SecureNote, &source);
+        cipher.organization_id = Some("old-org".into());
+
+        let body = build_share_cipher_body(
+            &cipher,
+            &source,
+            &target,
+            "target-org",
+            &["coll-a".into(), "coll-b".into()],
+        )
+        .unwrap();
+
+        assert_eq!(body["cipher"]["organizationId"], "target-org");
+        let colls = body["collectionIds"].as_array().unwrap();
+        assert_eq!(colls.len(), 2);
+        assert_eq!(colls[0], "coll-a");
+        assert_eq!(colls[1], "coll-b");
+    }
+
+    #[test]
+    fn share_body_preserves_favorite_and_type() {
+        let source = test_key();
+        let target = other_test_key();
+        let mut cipher = base_cipher(CipherType::Card, &source);
+        cipher.favorite = true;
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        assert_eq!(body["cipher"]["type"], CipherType::Card as u8);
+        assert_eq!(body["cipher"]["favorite"], true);
+    }
+
+    #[test]
+    fn share_body_reencrypts_login_subfields_and_uris() {
+        let source = test_key();
+        let target = other_test_key();
+        let mut cipher = base_cipher(CipherType::Login, &source);
+        cipher.login = Some(CipherLogin {
+            username: Some(encrypt_string("alice", &source).unwrap()),
+            password: Some(encrypt_string("hunter2", &source).unwrap()),
+            totp: Some(encrypt_string("otpauth://x", &source).unwrap()),
+            uris: Some(vec![
+                CipherLoginUri {
+                    uri: Some(encrypt_string("https://a.example", &source).unwrap()),
+                },
+                CipherLoginUri {
+                    uri: Some(encrypt_string("https://b.example", &source).unwrap()),
+                },
+            ]),
+        });
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let login = &body["cipher"]["login"];
+        assert_eq!(
+            decrypt_name(login["username"].as_str().unwrap(), &target).unwrap(),
+            "alice"
+        );
+        assert_eq!(
+            decrypt_name(login["password"].as_str().unwrap(), &target).unwrap(),
+            "hunter2"
+        );
+        assert_eq!(
+            decrypt_name(login["totp"].as_str().unwrap(), &target).unwrap(),
+            "otpauth://x"
+        );
+        let uris = login["uris"].as_array().unwrap();
+        assert_eq!(uris.len(), 2);
+        assert_eq!(
+            decrypt_name(uris[0]["uri"].as_str().unwrap(), &target).unwrap(),
+            "https://a.example"
+        );
+        assert!(uris[0]["match"].is_null());
+    }
+
+    #[test]
+    fn share_body_reencrypts_ssh_private_key() {
+        // The SSH private key is the most sensitive field — any corruption
+        // in the re-encryption loses the user's identity. Verify end-to-end
+        // that the original PEM round-trips verbatim under the target key.
+        let source = test_key();
+        let target = other_test_key();
+        let pem = "-----BEGIN OPENSSH PRIVATE KEY-----\nabcdef\n-----END OPENSSH PRIVATE KEY-----\n";
+        let mut cipher = base_cipher(CipherType::SshKey, &source);
+        cipher.ssh_key = Some(crate::models::CipherSshKey {
+            private_key: Some(encrypt_string(pem, &source).unwrap()),
+            public_key: Some(encrypt_string("ssh-ed25519 AAAA", &source).unwrap()),
+            key_fingerprint: None,
+        });
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let ssh = &body["cipher"]["sshKey"];
+        assert_eq!(
+            decrypt_name(ssh["privateKey"].as_str().unwrap(), &target).unwrap(),
+            pem
+        );
+        assert!(ssh["keyFingerprint"].is_null());
+    }
+
+    #[test]
+    fn share_body_keeps_optional_fields_null_when_absent() {
+        // A SecureNote has none of login/card/identity/sshKey set; the
+        // corresponding body fields must remain null so the server keeps
+        // the cipher as a pure SecureNote instead of accidentally
+        // promoting it.
+        let source = test_key();
+        let target = other_test_key();
+        let cipher = base_cipher(CipherType::SecureNote, &source);
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let c = &body["cipher"];
+        assert!(c["login"].is_null());
+        assert!(c["card"].is_null());
+        assert!(c["identity"].is_null());
+        assert!(c["sshKey"].is_null());
+        assert!(c["notes"].is_null());
+    }
+
+    #[test]
+    fn share_body_reencrypts_notes_when_present() {
+        let source = test_key();
+        let target = other_test_key();
+        let mut cipher = base_cipher(CipherType::SecureNote, &source);
+        cipher.notes = Some(encrypt_string("line 1\nline 2\n", &source).unwrap());
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        assert_eq!(
+            decrypt_name(body["cipher"]["notes"].as_str().unwrap(), &target).unwrap(),
+            "line 1\nline 2\n"
+        );
+    }
+
+    #[test]
+    fn share_body_errors_when_source_key_cannot_decrypt() {
+        // Mismatched source key must bubble up as a crypto error, not
+        // produce a body ciphertext nobody can read.
+        let source = test_key();
+        let target = other_test_key();
+        let wrong = other_test_key();
+        let cipher = base_cipher(CipherType::SecureNote, &source);
+
+        let err = build_share_cipher_body(&cipher, &wrong, &target, "org", &[]).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::Error::Crypto { .. } | crate::error::Error::InvalidResponse { .. }
+        ));
     }
 }
