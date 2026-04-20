@@ -3,7 +3,7 @@ services:
     image: vaultwarden/server:1.35.7-alpine
     container_name: clavix-e2e-vaultwarden
     environment:
-      DOMAIN: http://127.0.0.1:8000
+      DOMAIN: http://127.0.0.1:8765
       SIGNUPS_ALLOWED: "true"
       INVITATIONS_ALLOWED: "true"
       SHOW_PASSWORD_HINT: "false"
@@ -14,7 +14,7 @@ services:
       # for no added signal — the crypto surface we test is the same either way.
       PASSWORD_ITERATIONS: "100000"
     ports:
-      - "8000:80"
+      - "8765:80"
     tmpfs:
       - /data
     healthcheck:

@@ -41,6 +41,27 @@ export function formatExpiry(seconds: number): string {
   return `${minutes} min`;
 }
 
+/**
+ * Human-friendly "il y a X" string for a past epoch (ms) relative to `nowMs`.
+ * Buckets are chosen to match the session-bar freshness palette:
+ *   < 45 s  → "à l'instant"
+ *   < 1 h   → "il y a N min"
+ *   < 24 h  → "il y a N h"
+ *   else    → "il y a N j"
+ *
+ * Returns a paraglide-translated string so it reads in the user's locale.
+ */
+export function formatRelativeAgo(pastMs: number, nowMs: number = Date.now()): string {
+  const deltaSec = Math.max(0, Math.round((nowMs - pastMs) / 1000));
+  if (deltaSec < 45) return m.time_ago_now();
+  const deltaMin = Math.round(deltaSec / 60);
+  if (deltaMin < 60) return m.time_ago_minutes({ n: String(deltaMin) });
+  const deltaHour = Math.round(deltaMin / 60);
+  if (deltaHour < 24) return m.time_ago_hours({ n: String(deltaHour) });
+  const deltaDay = Math.round(deltaHour / 24);
+  return m.time_ago_days({ n: String(deltaDay) });
+}
+
 export function mask(value: string, length: number = 12): string {
   return "•".repeat(Math.min(value.length, length));
 }

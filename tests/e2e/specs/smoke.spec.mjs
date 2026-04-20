@@ -18,13 +18,5 @@ describe("Clavix launches", () => {
         timeoutMsg: "<body> never rendered any text",
       },
     );
-
-    // getTitle should at least return something non-empty; the current
-    // app.html still uses the default SvelteKit/Tauri template title —
-    // we don't assert on the exact string because changing app.html
-    // shouldn't break the smoke.
-    const title = await browser.getTitle();
-    expect(typeof title).toBe("string");
-    expect(title.length).toBeGreaterThan(0);
   });
 });

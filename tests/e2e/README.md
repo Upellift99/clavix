@@ -42,10 +42,10 @@ if the binary or `tauri-driver` is missing, with a hint.
 
 - **Phase 1 (current)** — smoke only: the binary launches and the login
   form renders. No server required.
-- **Phase 2 (TBD)** — Vaultwarden-backed flows (login, create cipher,
-  share, lock/unlock). `docker-compose.yml` is pre-staged for this.
-  Seeding will likely go through the Bitwarden CLI in a sidecar
-  container rather than re-implementing the crypto dance in JS.
+- **Phase 2** — Vaultwarden-backed login flow. `docker-compose.yml`
+  exposes Vaultwarden on `127.0.0.1:8765` (port chosen to dodge typical
+  dev servers on 8000). `src-tauri/examples/e2e_seed.rs` registers a
+  test user and seeds 2 fixture ciphers via the app's own crypto.
 
 ## Known gotchas
 

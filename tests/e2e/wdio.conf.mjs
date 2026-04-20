@@ -12,7 +12,9 @@ const composeFile = resolve(here, "docker-compose.yml");
 
 // Credentials for the seeded Vaultwarden account, shared with the Rust
 // seed helper and the WebdriverIO specs.
-export const e2eServer = "http://127.0.0.1:8000";
+// Port 8765 chosen to avoid collisions with common dev servers
+// (8000 is a standard Django/http.server port).
+export const e2eServer = "http://127.0.0.1:8765";
 export const e2eEmail = "e2e@clavix.test";
 export const e2ePassword = "correct-horse-battery-staple";
 

@@ -41,7 +41,15 @@
   let importOpen = $state(false);
 
   auth.on(async (event) => {
-    if (event === "loggedIn") await vault.loadCached();
+    if (event === "loggedIn") {
+      // Paint the UI immediately from the encrypted local cache, then
+      // reconcile against the server in the background. On a fresh
+      // profile loadCached finds nothing and syncInBackground fills the
+      // vault once the network roundtrip lands — no more empty screen
+      // until the user hits "Sync" manually.
+      await vault.loadCached();
+      vault.syncInBackground();
+    }
   });
 
   async function copyToClipboard(value: string, label: string) {
@@ -164,6 +172,8 @@
         tokens={auth.tokens}
         syncing={vault.syncing}
         hasSync={vault.summary !== null}
+        lastSyncAt={vault.lastSyncAt}
+        lastSyncError={vault.lastSyncError}
         onSync={() => vault.sync()}
         onLock={lockAndReset}
         onSwitchAccount={switchAccountAndReset}

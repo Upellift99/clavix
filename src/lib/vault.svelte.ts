@@ -24,6 +24,14 @@ export class VaultController {
   summary = $state<SyncSummary | null>(null);
   syncing = $state(false);
   error = $state<string | null>(null);
+  /** Epoch ms of the last successful sync. null when no sync has landed. */
+  lastSyncAt = $state<number | null>(null);
+  /**
+   * Last sync failure message. Separate from `error` because `error` bleeds
+   * from any failing command (openCipher, moveCipher, …), whereas the
+   * session-bar indicator only wants "is the backend reachable?".
+   */
+  lastSyncError = $state<string | null>(null);
 
   search = $state("");
   searchDebounced = $state("");
@@ -112,6 +120,8 @@ export class VaultController {
     this.detail = null;
     this.editorOpen = false;
     this.error = null;
+    this.lastSyncAt = null;
+    this.lastSyncError = null;
     this.search = "";
     this.searchDebounced = "";
     this.selectedKey = null;
@@ -130,13 +140,28 @@ export class VaultController {
   async sync() {
     this.syncing = true;
     this.error = null;
+    this.lastSyncError = null;
     try {
       this.summary = await api.sync();
+      this.lastSyncAt = Date.now();
     } catch (e) {
-      this.error = formatError(e);
+      const msg = formatError(e);
+      this.error = msg;
+      this.lastSyncError = msg;
     } finally {
       this.syncing = false;
     }
+  }
+
+  /**
+   * Fire-and-forget sync. Meant for post-login auto-refresh: the UI has
+   * already painted from `loadCached()`, and this call updates the state
+   * in the background without blocking the event handler that triggered
+   * it. Errors land in `lastSyncError` / `error` like a normal sync —
+   * nothing is thrown.
+   */
+  syncInBackground() {
+    void this.sync();
   }
 
   selectQuickFilter(f: QuickFilter) {

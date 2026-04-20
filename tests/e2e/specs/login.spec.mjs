@@ -38,22 +38,8 @@ describe("Login flow", () => {
     const submit = await $('button[type="submit"]');
     await submit.click();
 
-    // --- trigger the first sync: loadCached returns empty on a fresh
-    //     profile, so the vault stays empty until the user hits Sync. ---
-    const syncBtn = await $("button=Synchroniser");
-    try {
-      await syncBtn.waitForDisplayed({ timeout: 15_000 });
-    } catch (e) {
-      const { writeFileSync } = await import("node:fs");
-      writeFileSync(
-        "/tmp/clavix-e2e-no-sync.txt",
-        await $("body").getText(),
-      );
-      throw e;
-    }
-    await syncBtn.click();
-
-    // --- wait for the vault list to appear with the seeded cipher ---
+    // With post-login auto-sync wired up, the vault populates on its own —
+    // no need for the test to click "Synchroniser" anymore.
     const seededRow = await $(`.cipher-row*=GitHub`);
     await seededRow.waitForDisplayed({
       timeout: 20_000,

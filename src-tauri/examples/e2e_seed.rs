@@ -33,7 +33,7 @@ const KDF_ITERATIONS: u32 = 100_000;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    let server_url = env::var("E2E_SERVER_URL").unwrap_or_else(|_| "http://127.0.0.1:8000".into());
+    let server_url = env::var("E2E_SERVER_URL").unwrap_or_else(|_| "http://127.0.0.1:8765".into());
     let email = env::var("E2E_EMAIL").unwrap_or_else(|_| "e2e@clavix.test".into());
     let password =
         env::var("E2E_PASSWORD").unwrap_or_else(|_| "correct-horse-battery-staple".into());
