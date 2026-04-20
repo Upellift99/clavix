@@ -148,7 +148,7 @@ pub async fn webauthn_sign_challenge(challenge_json: String) -> Result<String> {
 
 #[tauri::command]
 pub fn set_auto_lock_minutes(state: State<'_, AppState>, minutes: u32) -> Result<()> {
-    let mut guard = state.auto_lock_minutes.lock().unwrap();
+    let mut guard = state.auto_lock_minutes.lock();
     *guard = if minutes == 0 { None } else { Some(minutes) };
     Ok(())
 }
@@ -156,13 +156,13 @@ pub fn set_auto_lock_minutes(state: State<'_, AppState>, minutes: u32) -> Result
 #[tauri::command]
 pub fn lock(state: State<'_, AppState>) -> Result<()> {
     let agent = {
-        let mut slot = state.ssh_agent.lock().unwrap();
+        let mut slot = state.ssh_agent.lock();
         slot.take()
     };
     if let Some(h) = agent {
         h.stop_sync();
     }
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     *guard = None;
     Ok(())
 }
@@ -170,14 +170,14 @@ pub fn lock(state: State<'_, AppState>) -> Result<()> {
 #[tauri::command]
 pub fn logout(state: State<'_, AppState>) -> Result<()> {
     let agent = {
-        let mut slot = state.ssh_agent.lock().unwrap();
+        let mut slot = state.ssh_agent.lock();
         slot.take()
     };
     if let Some(h) = agent {
         h.stop_sync();
     }
     {
-        let mut guard = state.session.lock().unwrap();
+        let mut guard = state.session.lock();
         *guard = None;
     }
     store::clear_session()?;

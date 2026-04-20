@@ -676,6 +676,7 @@ dependencies = [
  "futures",
  "hkdf",
  "hmac",
+ "parking_lot",
  "pbkdf2",
  "rand 0.8.6",
  "rayon",

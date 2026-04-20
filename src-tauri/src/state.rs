@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::time::Instant;
 
+use parking_lot::Mutex;
 use rsa::RsaPrivateKey;
 
 use crate::api::VaultwardenClient;
@@ -37,9 +37,7 @@ impl Default for AppState {
 /// Bumps `last_activity` to now. Cheap; called at the start of any command
 /// that proves the user is still around (sync, decrypt, refresh, etc).
 pub fn mark_activity(state: &AppState) {
-    if let Ok(mut last) = state.last_activity.lock() {
-        *last = Instant::now();
-    }
+    *state.last_activity.lock() = Instant::now();
 }
 
 pub struct Session {

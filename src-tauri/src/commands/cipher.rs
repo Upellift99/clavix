@@ -12,7 +12,7 @@ use crate::state::AppState;
 #[tauri::command]
 pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail> {
     crate::state::mark_activity(&state);
-    let guard = state.session.lock().unwrap();
+    let guard = state.session.lock();
     let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
     let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
         reason: "no vault synced yet — synchronise first".into(),
@@ -107,7 +107,7 @@ pub async fn create_login_cipher(
 ) -> Result<String> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token, body) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let body = build_login_cipher_body(&input, &s.user_key)?;
         (s.client.clone(), s.tokens.access_token.clone(), body)
@@ -115,7 +115,7 @@ pub async fn create_login_cipher(
     let created = client.create_cipher(&access_token, &body).await?;
     let id = created.id.clone();
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             vault.ciphers.push(created);
@@ -132,7 +132,7 @@ pub async fn update_login_cipher(
 ) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token, body) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let body = build_login_cipher_body(&input, &s.user_key)?;
         (s.client.clone(), s.tokens.access_token.clone(), body)
@@ -141,7 +141,7 @@ pub async fn update_login_cipher(
         .update_cipher(&access_token, &cipher_id, &body)
         .await?;
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             if let Some(slot) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
@@ -170,7 +170,7 @@ enum CreateKind {
 pub async fn create_cipher(state: State<'_, AppState>, input: CipherCreateInput) -> Result<String> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token, kind) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let kind = match input.organization_id.as_deref() {
             Some(org_id) => {
@@ -202,7 +202,7 @@ pub async fn create_cipher(state: State<'_, AppState>, input: CipherCreateInput)
     };
     let id = created.id.clone();
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             vault.ciphers.push(created);
@@ -219,7 +219,7 @@ pub async fn update_cipher(
 ) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token, body) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         // Pick the encryption key based on the cipher's *current* owner,
         // not what the editor is sending. Moves between personal and org
@@ -246,7 +246,7 @@ pub async fn update_cipher(
         .update_cipher(&access_token, &cipher_id, &body)
         .await?;
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             if let Some(slot) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
@@ -261,13 +261,13 @@ pub async fn update_cipher(
 pub async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         (s.client.clone(), s.tokens.access_token.clone())
     };
     client.restore_cipher(&access_token, &cipher_id).await?;
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
@@ -282,13 +282,13 @@ pub async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Re
 pub async fn delete_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         (s.client.clone(), s.tokens.access_token.clone())
     };
     client.delete_cipher(&access_token, &cipher_id).await?;
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             vault.ciphers.retain(|c| c.id != cipher_id);

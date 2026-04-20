@@ -33,21 +33,21 @@ pub fn run() {
                 loop {
                     tokio::time::sleep(Duration::from_secs(30)).await;
                     let state = handle.state::<AppState>();
-                    let Some(minutes) = *state.auto_lock_minutes.lock().unwrap() else {
+                    let Some(minutes) = *state.auto_lock_minutes.lock() else {
                         continue;
                     };
                     if minutes == 0 {
                         continue;
                     }
-                    let idle = state.last_activity.lock().unwrap().elapsed();
+                    let idle = state.last_activity.lock().elapsed();
                     if idle < Duration::from_secs(u64::from(minutes) * 60) {
                         continue;
                     }
-                    let agent = state.ssh_agent.lock().unwrap().take();
+                    let agent = state.ssh_agent.lock().take();
                     if let Some(h) = agent {
                         h.stop().await;
                     }
-                    let mut session_guard = state.session.lock().unwrap();
+                    let mut session_guard = state.session.lock();
                     if session_guard.is_some() {
                         *session_guard = None;
                         eprintln!("[clavix] session auto-locked after {minutes} min idle");

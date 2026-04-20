@@ -20,7 +20,7 @@ pub struct SshAgentStatus {
 pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatus> {
     // Stop any previous instance first — simpler than reconciling state.
     let previous = {
-        let mut slot = state.ssh_agent.lock().unwrap();
+        let mut slot = state.ssh_agent.lock();
         slot.take()
     };
     if let Some(h) = previous {
@@ -29,7 +29,7 @@ pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatu
 
     // Decrypt every SSH key item from the current vault, inside the lock.
     let decrypted: Vec<(String, String, String)> = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),
@@ -78,7 +78,7 @@ pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatu
     };
 
     {
-        let mut slot = state.ssh_agent.lock().unwrap();
+        let mut slot = state.ssh_agent.lock();
         *slot = Some(handle);
     }
     Ok(status)
@@ -87,7 +87,7 @@ pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatu
 #[tauri::command]
 pub async fn stop_ssh_agent(state: State<'_, AppState>) -> Result<()> {
     let handle = {
-        let mut slot = state.ssh_agent.lock().unwrap();
+        let mut slot = state.ssh_agent.lock();
         slot.take()
     };
     if let Some(h) = handle {
@@ -98,7 +98,7 @@ pub async fn stop_ssh_agent(state: State<'_, AppState>) -> Result<()> {
 
 #[tauri::command]
 pub fn ssh_agent_status(state: State<'_, AppState>) -> Result<SshAgentStatus> {
-    let slot = state.ssh_agent.lock().unwrap();
+    let slot = state.ssh_agent.lock();
     Ok(match slot.as_ref() {
         Some(h) => SshAgentStatus {
             running: true,

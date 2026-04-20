@@ -16,7 +16,7 @@ pub async fn move_cipher_to_folder(
 ) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token, favorite) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = s.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),
@@ -39,7 +39,7 @@ pub async fn move_cipher_to_folder(
         .update_cipher_partial(&access_token, &cipher_id, folder_id.as_deref(), favorite)
         .await?;
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
@@ -58,7 +58,7 @@ pub async fn move_cipher_to_collection(
 ) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = s.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),
@@ -93,7 +93,7 @@ pub async fn move_cipher_to_collection(
         .update_cipher_collections(&access_token, &cipher_id, &collection_ids)
         .await?;
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
@@ -117,7 +117,7 @@ pub async fn move_folder_path(
             .map_err(|reason| Error::Storage { reason })?;
 
     let (client, access_token, operations) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),
@@ -154,7 +154,7 @@ pub async fn move_folder_path(
     // losing the partial state silently.
     let op_id = Uuid::new_v4().to_string();
     let original_names: Vec<(String, String, String)> = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),
@@ -183,7 +183,7 @@ pub async fn move_folder_path(
         }
     }
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             for (folder_id, encrypted_name) in &operations {
@@ -204,7 +204,7 @@ pub async fn share_cipher_to_collection(
 ) -> Result<()> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token, body, target_org_id, encrypted_snapshot) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),
@@ -392,7 +392,7 @@ pub async fn share_cipher_to_collection(
     // Update in-memory vault: remove from personal/old org, add to org with new
     // encrypted fields. The encrypted fields stay encrypted with the old key in
     // memory until the next sync; that's intentional for simplicity.
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {

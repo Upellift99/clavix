@@ -11,7 +11,7 @@ pub async fn audit_vault_passwords(
     state: State<'_, AppState>,
 ) -> Result<audit::PasswordAuditResult> {
     let entries: Vec<(String, String, SecretString)> = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),

@@ -51,6 +51,7 @@ ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ed2
 ed25519-dalek = "2"
 zxcvbn = { version = "3", default-features = false }
 ctap-hid-fido2 = "3.5"
+parking_lot = "0.12"
 
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.

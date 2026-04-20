@@ -15,14 +15,14 @@ use crate::store;
 pub async fn sync(state: State<'_, AppState>) -> Result<SyncSummary> {
     ensure_fresh_tokens(&state).await?;
     let (client, access_token) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         (s.client.clone(), s.tokens.access_token.clone())
     };
 
     let response = client.sync(&access_token).await?;
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     let session = guard.as_mut().ok_or(Error::NotAuthenticated)?;
 
     session.org_keys = HashMap::new();
@@ -76,7 +76,7 @@ pub async fn create_folder(state: State<'_, AppState>, name: String) -> Result<S
         });
     }
     let (client, access_token, encrypted_name) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let enc = encrypt_string(&trimmed, &s.user_key)?;
         (s.client.clone(), s.tokens.access_token.clone(), enc)
@@ -84,7 +84,7 @@ pub async fn create_folder(state: State<'_, AppState>, name: String) -> Result<S
     let folder = client.create_folder(&access_token, &encrypted_name).await?;
     let id = folder.id.clone();
 
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     if let Some(session) = guard.as_mut() {
         if let Some(vault) = session.vault.as_mut() {
             // Replace the encrypted name with the plaintext one so the
@@ -100,7 +100,7 @@ pub async fn create_folder(state: State<'_, AppState>, name: String) -> Result<S
 #[tauri::command]
 pub fn load_cached_vault(state: State<'_, AppState>) -> Result<Option<SyncSummary>> {
     crate::state::mark_activity(&state);
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     let session = guard.as_mut().ok_or(Error::NotAuthenticated)?;
 
     let persisted = store::load_session()?.ok_or_else(|| Error::Storage {

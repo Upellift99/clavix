@@ -91,7 +91,7 @@ pub fn store_session(
     private_key: Option<RsaPrivateKey>,
 ) {
     let expires_at = compute_expires_at(tokens.expires_in);
-    let mut guard = state.session.lock().unwrap();
+    let mut guard = state.session.lock();
     *guard = Some(Session {
         client,
         tokens,
@@ -109,7 +109,7 @@ pub fn store_session(
 pub async fn ensure_fresh_tokens(state: &State<'_, AppState>) -> Result<()> {
     crate::state::mark_activity(state);
     let (client, refresh) = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         if s.expires_at > Instant::now() + Duration::from_secs(60) {
             return Ok(());
@@ -130,13 +130,13 @@ pub async fn ensure_fresh_tokens(state: &State<'_, AppState>) -> Result<()> {
     // Re-encrypt the (possibly rotated) refresh token under the user key while
     // we still hold the session lock, so we never persist clear-text on disk.
     let encrypted_refresh = {
-        let guard = state.session.lock().unwrap();
+        let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         encrypt_string(&new_refresh, &s.user_key)?
     };
 
     {
-        let mut guard = state.session.lock().unwrap();
+        let mut guard = state.session.lock();
         if let Some(s) = guard.as_mut() {
             s.tokens.access_token = new_access;
             s.tokens.refresh_token = new_refresh;
