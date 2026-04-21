@@ -5,6 +5,68 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] — 2026-04-21
+
+### Added
+- **End-to-end test suite** driving the real Tauri binary via
+  `tauri-driver` + WebdriverIO against a disposable Vaultwarden
+  (Docker). Six specs cover the smoke pipeline, login with auto-sync,
+  cipher creation, share-to-organization, lock/unlock round-trip, and
+  idle auto-lock. Seed is a standalone Rust binary
+  (`src-tauri/examples/e2e_seed.rs`) that reuses the production crypto
+  (RSA-2048 keypair, AES-CBC+HMAC, HKDF) so any regression surfaces in
+  the seed before hitting the UI tests. Wired into CI as a blocking
+  check.
+- **Post-login auto-sync** (Bitwarden-style): `loadCached()` paints
+  the UI instantly from the encrypted local cache, then a background
+  `sync()` reconciles against the server. A fresh profile used to land
+  on an empty vault until the user hit *Sync* manually — now the
+  ciphers appear on their own.
+- **Session freshness indicator** in the session bar. Five states
+  (`fresh`, `stale`, `syncing`, `offline`, `unknown`) with a live
+  relative-time label that refreshes itself every minute. Logic
+  extracted as a pure `computeSessionStatus` helper and covered by
+  vitest.
+- Root **`Makefile`** wrapping the CI checks so a single
+  `make check-full` reproduces fmt + clippy + cargo test +
+  svelte-check + vitest + the full E2E suite locally.
+- **Security documentation** stack: `SECURITY.md`, `THREAT_MODEL.md`,
+  `CRYPTO.md`, `AUDIT_SCOPE.md`. Report channels, disclosure
+  expectations, assets and attacker model, crypto primitives and
+  review checklist, prioritised scope for a future external audit.
+
+### Changed
+- The session lock primitives moved from `std::sync::Mutex` to
+  `parking_lot::Mutex`. A panic inside one command handler used to
+  poison the session mutex and make every subsequent command panic
+  too, effectively locking the app until relaunch — the new primitive
+  has no poisoning, so isolated failures stay isolated.
+- The vault sidebar toolbar (`＋`, import, password generator, audit,
+  stats) is now always visible. Previously it was gated behind "user
+  has at least one folder or organization", which made it impossible
+  to create a new item on a brand-new vault with only personal
+  ciphers.
+- `set_auto_lock_minutes` now accepts `f64` instead of `u32`, keeping
+  the backend watchdog and the front-end `parseFloat`ed pref in sync
+  for sub-minute values. Filtering uses `is_finite() && > 0` so NaN
+  and infinities map to "disabled".
+- HTML window title changed from the default SvelteKit template to
+  *Clavix* — visible in the OS window chrome and task bar.
+
+### Internal
+- `build_share_cipher_body`, `validate_move_to_collection`, and
+  `plan_folder_renames` extracted out of `commands/move_share.rs`
+  orchestration and unit-tested. Rust test count rose from 71 to 101.
+- `recover_refresh_token`, `compute_expires_at`, and
+  `build_sync_summary` gained explicit coverage against their key
+  selection and fallback rules.
+- `setupAutoLock` extracted as a reusable Svelte 5 helper so the JS
+  timer and the backend mirror no longer live inline in
+  `+page.svelte` (332 → 303 lines).
+- Vitest bumped 2.1.9 → 4.1.4, `@sveltejs/vite-plugin-svelte`
+  5.1.1 → 7.0.0 (had to go together — vitest 2 could not consume
+  plugin-svelte 7), `actions/upload-artifact` 4 → 7.
+
 ## [0.1.9] — 2026-04-19
 
 ### Added
