@@ -62,7 +62,7 @@ export class PrefsController {
       }
       const savedLock = localStorage.getItem(AUTO_LOCK_STORAGE_KEY);
       if (savedLock) {
-        const parsed = parseInt(savedLock, 10);
+        const parsed = parseFloat(savedLock);
         if (Number.isFinite(parsed) && parsed >= 0) {
           this.autoLockMinutes = parsed;
         }

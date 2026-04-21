@@ -127,11 +127,16 @@
       window.addEventListener(evt, onActivity, { passive: true });
     }
     const lockMs = prefs.autoLockMinutes * 60 * 1000;
+    // Adaptive poll: keep the 15 s cadence for real prefs (1–60 min) and
+    // shrink it only when the window itself is tiny, so that e2e tests can
+    // seed a sub-minute value via localStorage and still see a timely lock
+    // without widening the overshoot for production users.
+    const pollMs = Math.min(15000, Math.max(250, lockMs / 4));
     const interval = setInterval(async () => {
       if (Date.now() - prefs.lastActivityAt >= lockMs) {
         await lockAndReset();
       }
-    }, 15000);
+    }, pollMs);
     return () => {
       clearInterval(interval);
       for (const evt of events) {
