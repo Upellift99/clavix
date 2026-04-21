@@ -173,6 +173,25 @@ pub fn rename_folder_under_move(
     }
 }
 
+/// For each `(folder_id, plaintext_name)` pair, yields the subset of
+/// folders impacted by the move plus their new plaintext name. Used by
+/// `move_folder_path` to decide which folders to re-encrypt and PUT —
+/// the decrypt / encrypt roundtrip stays out here so this helper can be
+/// covered purely in vitest-style unit tests.
+pub fn plan_folder_renames(
+    folders: &[(String, String)],
+    source_path: &str,
+    new_base: &str,
+) -> Vec<(String, String)> {
+    folders
+        .iter()
+        .filter_map(|(id, name)| {
+            rename_folder_under_move(name, source_path, new_base)
+                .map(|new_name| (id.clone(), new_name))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -565,5 +584,60 @@ mod tests {
             rename_folder_under_move("work/projection", "work/projects", "personal/projects"),
             None
         );
+    }
+
+    // ============ plan_folder_renames ============
+
+    fn folder(id: &str, name: &str) -> (String, String) {
+        (id.to_string(), name.to_string())
+    }
+
+    #[test]
+    fn plan_renames_includes_exact_match_and_descendants() {
+        let folders = vec![
+            folder("root", "work/projects"),
+            folder("child", "work/projects/site"),
+            folder("grandchild", "work/projects/site/pages"),
+            folder("unrelated", "work/archive"),
+        ];
+        let plan = plan_folder_renames(&folders, "work/projects", "personal/projects");
+
+        assert_eq!(plan.len(), 3);
+        assert!(plan.contains(&folder("root", "personal/projects")));
+        assert!(plan.contains(&folder("child", "personal/projects/site")));
+        assert!(plan.contains(&folder("grandchild", "personal/projects/site/pages")));
+    }
+
+    #[test]
+    fn plan_renames_empty_when_no_match() {
+        // Covers the early-abort branch of move_folder_path: if the
+        // caller mis-types the source path, we must produce zero ops
+        // so the caller can surface a "no folder matches" error rather
+        // than silently PUT nothing and report success.
+        let folders = vec![folder("a", "work/projects"), folder("b", "home/notes")];
+        let plan = plan_folder_renames(&folders, "nope", "whatever");
+        assert!(plan.is_empty());
+    }
+
+    #[test]
+    fn plan_renames_does_not_match_prefix_partials() {
+        // "work/projection" shares a prefix with "work/project" but is a
+        // different folder — the rename must NOT accidentally rename it.
+        let folders = vec![
+            folder("a", "work/project"),
+            folder("b", "work/projection"),
+            folder("c", "work/projects-archived"),
+        ];
+        let plan = plan_folder_renames(&folders, "work/project", "personal/project");
+        assert_eq!(plan, vec![folder("a", "personal/project")]);
+    }
+
+    #[test]
+    fn plan_renames_preserves_folder_ids() {
+        // The UUIDs are opaque and must round-trip verbatim — they're
+        // what Vaultwarden uses to address each folder row in the PUT.
+        let folders = vec![folder("uuid-abc-123", "x/y")];
+        let plan = plan_folder_renames(&folders, "x", "w");
+        assert_eq!(plan, vec![folder("uuid-abc-123", "w/y")]);
     }
 }

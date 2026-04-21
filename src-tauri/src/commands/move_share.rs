@@ -5,8 +5,8 @@ use crate::cache;
 use crate::crypto::{decrypt_name, encrypt_string, SymmetricKey};
 use crate::error::{Error, Result};
 use crate::services::auth::ensure_fresh_tokens;
-use crate::services::cipher::build_share_cipher_body;
-use crate::services::vault::{compute_new_folder_base, rename_folder_under_move};
+use crate::services::cipher::{build_share_cipher_body, validate_move_to_collection};
+use crate::services::vault::{compute_new_folder_base, plan_folder_renames};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -79,13 +79,7 @@ pub async fn move_cipher_to_collection(
             .ok_or_else(|| Error::Storage {
                 reason: format!("collection not found: {collection_id}"),
             })?;
-        if cipher.organization_id.as_deref() != Some(target_org.as_str()) {
-            return Err(Error::AuthFailed {
-                message:
-                    "personal items cannot be dropped on an organization collection directly — share the item first"
-                        .into(),
-            });
-        }
+        validate_move_to_collection(cipher.organization_id.as_deref(), &target_org)?;
         (s.client.clone(), s.tokens.access_token.clone())
     };
 
@@ -124,21 +118,23 @@ pub async fn move_folder_path(
             reason: "no vault synced yet — synchronise first".into(),
         })?;
 
-        let mut ops: Vec<(String, String)> = Vec::new();
+        // Decrypt all names up-front so plan_folder_renames — which is
+        // pure and unit-tested — can decide which folders participate
+        // without caring about the crypto.
+        let mut decrypted: Vec<(String, String)> = Vec::with_capacity(vault.folders.len());
         for f in &vault.folders {
-            let current_name = decrypt_name(&f.name, &session.user_key)?;
-            let new_name = match rename_folder_under_move(&current_name, &source_path, &new_base) {
-                Some(n) => n,
-                None => continue,
-            };
-            let encrypted = encrypt_string(&new_name, &session.user_key)?;
-            ops.push((f.id.clone(), encrypted));
+            let name = decrypt_name(&f.name, &session.user_key)?;
+            decrypted.push((f.id.clone(), name));
         }
-
-        if ops.is_empty() {
+        let plan = plan_folder_renames(&decrypted, &source_path, &new_base);
+        if plan.is_empty() {
             return Err(Error::Storage {
                 reason: format!("no folder matches path '{source_path}'"),
             });
+        }
+        let mut ops: Vec<(String, String)> = Vec::with_capacity(plan.len());
+        for (id, new_name) in plan {
+            ops.push((id, encrypt_string(&new_name, &session.user_key)?));
         }
 
         (

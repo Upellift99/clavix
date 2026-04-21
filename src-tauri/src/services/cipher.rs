@@ -151,6 +151,24 @@ pub fn build_login_cipher_body(
     build_cipher_body(&input, key)
 }
 
+/// Validates that a cipher can be moved into the given organisation
+/// collection *as a straight move*. Cross-org moves (personal → org,
+/// or org A → org B) require a full share — different key, different
+/// endpoint. This helper centralises the rule so the frontend's error
+/// message stays consistent even if the command is called from a new
+/// entry point later.
+pub fn validate_move_to_collection(
+    cipher_organization_id: Option<&str>,
+    target_collection_organization_id: &str,
+) -> Result<()> {
+    if cipher_organization_id == Some(target_collection_organization_id) {
+        return Ok(());
+    }
+    Err(Error::AuthFailed {
+        message: "personal items cannot be dropped on an organization collection directly — share the item first".into(),
+    })
+}
+
 /// Builds the request body for POST /ciphers/share. Re-encrypts every
 /// encrypted field of `cipher` from `source_key` to `target_key` and
 /// returns a JSON value ready to hand to the API client. `folderId` is
@@ -648,5 +666,28 @@ mod tests {
             err,
             crate::error::Error::Crypto { .. } | crate::error::Error::InvalidResponse { .. }
         ));
+    }
+
+    // ============ validate_move_to_collection ============
+
+    #[test]
+    fn move_to_collection_allows_same_org() {
+        assert!(validate_move_to_collection(Some("org-1"), "org-1").is_ok());
+    }
+
+    #[test]
+    fn move_to_collection_rejects_personal_into_org() {
+        // The UX rule: drag-drop a personal item onto an org collection
+        // silently "would" re-encrypt under the org key, which is a
+        // security-sensitive change disguised as a move. Force the user
+        // through the explicit share path instead.
+        let err = validate_move_to_collection(None, "org-1").unwrap_err();
+        assert!(matches!(err, Error::AuthFailed { .. }));
+    }
+
+    #[test]
+    fn move_to_collection_rejects_cross_org() {
+        let err = validate_move_to_collection(Some("org-a"), "org-b").unwrap_err();
+        assert!(matches!(err, Error::AuthFailed { .. }));
     }
 }
