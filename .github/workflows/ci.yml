@@ -105,12 +105,11 @@ jobs:
     name: E2E (Tauri + WebdriverIO)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # Observational for the first runs: we need to see the real flaky
-    # rate on GitHub's runner (different WebKitGTK version, shared
-    # CPU, cold Docker pulls) before gating PRs on this job. Flip to
-    # `continue-on-error: false` once we have ≥10 consecutive green
-    # runs and the timing envelope is stable.
-    continue-on-error: true
+    # 6 specs green on two successive CI runs (4-then-6) in the 30-60 s
+    # window. Promoted from observational to blocking: a new red here
+    # is a real regression worth stopping a merge on. If we see
+    # flakes on CI later, first look at the uploaded
+    # `e2e-screenshots` artifact before reverting this line.
     steps:
       - name: Checkout
         uses: actions/checkout@v6
