@@ -24,6 +24,7 @@
     TREE_WIDTH_MIN,
   } from "$lib/prefs.svelte";
   import { api } from "$lib/api";
+  import { setupAutoLock } from "$lib/auto-lock.svelte";
   import { formatError } from "$lib/format";
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
@@ -107,42 +108,12 @@
     onError: (e) => (vault.error = formatError(e)),
   });
 
-  // Mirror the auto-lock window to the Rust watchdog so the backend can drop
-  // the session even if the JS timer below is wedged or has been disabled in
-  // DevTools. Best-effort — the front-end timer remains the primary guard.
-  $effect(() => {
-    const minutes = prefs.autoLockMinutes;
-    api.setAutoLockMinutes(minutes).catch((e) => {
-      console.warn("[clavix] setAutoLockMinutes failed:", e);
-    });
-  });
-
-  $effect(() => {
-    if (auth.phase !== "loggedIn") return;
-    if (prefs.autoLockMinutes <= 0) return;
-    prefs.markActivity();
-    const events: (keyof WindowEventMap)[] = ["mousemove", "keydown", "click"];
-    const onActivity = () => prefs.markActivity();
-    for (const evt of events) {
-      window.addEventListener(evt, onActivity, { passive: true });
-    }
-    const lockMs = prefs.autoLockMinutes * 60 * 1000;
-    // Adaptive poll: keep the 15 s cadence for real prefs (1–60 min) and
-    // shrink it only when the window itself is tiny, so that e2e tests can
-    // seed a sub-minute value via localStorage and still see a timely lock
-    // without widening the overshoot for production users.
-    const pollMs = Math.min(15000, Math.max(250, lockMs / 4));
-    const interval = setInterval(async () => {
-      if (Date.now() - prefs.lastActivityAt >= lockMs) {
-        await lockAndReset();
-      }
-    }, pollMs);
-    return () => {
-      clearInterval(interval);
-      for (const evt of events) {
-        window.removeEventListener(evt, onActivity);
-      }
-    };
+  setupAutoLock({
+    getMinutes: () => prefs.autoLockMinutes,
+    getLastActivityAt: () => prefs.lastActivityAt,
+    markActivity: () => prefs.markActivity(),
+    isLoggedIn: () => auth.phase === "loggedIn",
+    onLock: lockAndReset,
   });
 
   onMount(async () => {
