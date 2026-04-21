@@ -310,12 +310,15 @@ clavix/
   with a banner counting down.
 - The session is persisted to `~/.local/share/clavix/session.json`
   (0600 permissions on Unix). Sensitive fields (`Key`, `PrivateKey`)
-  stay encrypted by the stretched master key; only the OAuth2 refresh
-  token lives there in clear — Clavix thus assumes your user disk is
-  under your control (full-disk encryption such as LUKS is
-  recommended).
+  stay encrypted by the stretched master key, and the OAuth2 refresh
+  token is itself encrypted under the user key. Clavix still assumes
+  your user disk is under your control; full-disk encryption such as
+  LUKS is recommended.
 - Clavix is primarily tested against **Vaultwarden**. Official
   Bitwarden compatibility is a bonus, not a guarantee.
+- Security review notes live in [SECURITY.md](SECURITY.md),
+  [THREAT_MODEL.md](THREAT_MODEL.md), [CRYPTO.md](CRYPTO.md), and
+  [AUDIT_SCOPE.md](AUDIT_SCOPE.md).
 
 Vulnerabilities should be reported privately to the maintainer before
 any public disclosure.
