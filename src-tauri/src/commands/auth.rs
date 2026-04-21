@@ -147,9 +147,13 @@ pub async fn webauthn_sign_challenge(challenge_json: String) -> Result<String> {
 }
 
 #[tauri::command]
-pub fn set_auto_lock_minutes(state: State<'_, AppState>, minutes: u32) -> Result<()> {
+pub fn set_auto_lock_minutes(state: State<'_, AppState>, minutes: f64) -> Result<()> {
     let mut guard = state.auto_lock_minutes.lock();
-    *guard = if minutes == 0 { None } else { Some(minutes) };
+    *guard = if minutes.is_finite() && minutes > 0.0 {
+        Some(minutes)
+    } else {
+        None
+    };
     Ok(())
 }
 

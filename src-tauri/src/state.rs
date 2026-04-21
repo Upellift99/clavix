@@ -18,9 +18,11 @@ pub struct AppState {
     /// disabled JS timer can't keep the vault unlocked indefinitely.
     pub last_activity: Mutex<Instant>,
     /// `Some(n)` enables the auto-lock watchdog with an `n`-minute idle
-    /// window. `None` disables it. The frontend keeps this in sync via the
-    /// `set_auto_lock_minutes` command.
-    pub auto_lock_minutes: Mutex<Option<u32>>,
+    /// window. `None` disables it. Stored as `f64` to accommodate
+    /// sub-minute values written by the E2E suite via localStorage; the
+    /// production UI only ever writes positive integers. The frontend
+    /// keeps this in sync via the `set_auto_lock_minutes` command.
+    pub auto_lock_minutes: Mutex<Option<f64>>,
 }
 
 impl Default for AppState {

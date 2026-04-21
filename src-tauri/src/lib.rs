@@ -40,11 +40,11 @@ pub fn run() {
                     let Some(minutes) = *state.auto_lock_minutes.lock() else {
                         continue;
                     };
-                    if minutes == 0 {
+                    if !minutes.is_finite() || minutes <= 0.0 {
                         continue;
                     }
                     let idle = state.last_activity.lock().elapsed();
-                    if idle < Duration::from_secs(u64::from(minutes) * 60) {
+                    if idle < Duration::from_secs_f64(minutes * 60.0) {
                         continue;
                     }
                     let agent = state.ssh_agent.lock().take();
