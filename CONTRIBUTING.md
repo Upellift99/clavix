@@ -29,22 +29,27 @@ Use the issue templates on GitHub. In short:
 
 1. Fork, branch off `master`, and keep the branch focused on one
    logical change.
-2. Run the full check suite locally before pushing:
+2. Run the full check suite locally before pushing. The root `Makefile`
+   wraps the CI commands:
 
    ```bash
-   # Frontend
    pnpm install
-   pnpm check        # compiles Paraglide + svelte-check
+   make check        # fmt + clippy + cargo test + svelte-check + vitest
+   make check-full   # same + E2E (needs Docker + webkit2gtk-driver + xvfb)
+   ```
 
-   # Backend
+   Raw commands if you prefer calling them directly:
+
+   ```bash
+   pnpm check        # compiles Paraglide + svelte-check
    cd src-tauri
    cargo fmt --all -- --check
    cargo clippy --all-targets -- -D warnings
    cargo audit       # optional, install with cargo install cargo-audit
    ```
 
-   The CI runs the same checks — a green run locally means the GitHub
-   Actions pipeline should pass too.
+   The CI runs the same checks — a green `make check-full` locally
+   means the GitHub Actions pipeline should pass too.
 3. Write a descriptive commit message. We loosely follow
    [Conventional Commits](https://www.conventionalcommits.org/) with
    prefixes like `feat(…)`, `fix(…)`, `docs(…)`, `ci(…)`, `perf(…)`.
