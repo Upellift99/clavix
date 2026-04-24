@@ -43,10 +43,12 @@ if the binary or `tauri-driver` is missing, with a hint.
 The suite is driven by a seeded Vaultwarden instance (Docker, port
 `8765`) brought up automatically by `tests/e2e/wdio.conf.mjs` via
 `docker compose`. `src-tauri/examples/e2e_seed.rs` registers a test
-user (with an RSA keypair), seeds two fixture ciphers, and spins up an
-organization with a default collection — all using the app's own
-crypto path so a regression in production code surfaces here before
-it reaches the UI tests.
+user (with an RSA keypair) and seeds a canonical fixture set — one of
+each cipher type (Login, SecureNote, Card, Identity, SSH key), a
+TOTP-enabled login, a personal folder with a cipher inside, and an
+organization with two collections plus one org-scoped cipher. All
+using the app's own crypto path (`build_cipher_body`) so a regression
+in production code surfaces here before it reaches the UI tests.
 
 | Spec                  | What it covers                                               |
 | --------------------- | ------------------------------------------------------------ |

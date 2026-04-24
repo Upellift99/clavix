@@ -1,12 +1,20 @@
-//! Registers a test user on a Vaultwarden instance, creates a couple of
-//! fixture ciphers, and spins up an organization with a default
-//! collection so the share-cipher E2E has a destination to drop items
-//! into. Used by `tests/e2e/wdio.conf.mjs` to prime the backend before
-//! running WebdriverIO specs.
+//! Registers a test user on a Vaultwarden instance and seeds a canonical
+//! fixture set used by the E2E specs:
 //!
-//! Reuses the exact crypto path of the production app (derive_master_key,
-//! stretch_master_key, encrypt_bytes/string) so a bug in the register /
-//! cipher-create flow shows up here before it hits the UI tests.
+//! - 1 personal Login ("GitHub")
+//! - 1 personal SecureNote ("Welcome note")
+//! - 1 personal Card ("E2E Card")
+//! - 1 personal Identity ("E2E Identity")
+//! - 1 personal SSH key ("E2E SSH Key"), real ed25519 keypair
+//! - 1 personal Login with TOTP ("TOTP demo")
+//! - 1 personal Folder ("E2E Folder") with the SecureNote moved into it
+//! - 1 organization ("E2E Org") with two collections ("Shared", "Audit")
+//! - 1 org-scoped Login ("Team Secret") in the "Shared" collection
+//!
+//! Reuses the app's real crypto path (`derive_master_key`,
+//! `stretch_master_key`, `encrypt_bytes/string`, `build_cipher_body`) so
+//! a regression in register / cipher-create / encryption shows up here
+//! before hitting the UI tests.
 //!
 //! Run with:
 //!     E2E_SERVER_URL=http://127.0.0.1:8765 \
@@ -24,6 +32,7 @@ use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
 use secrecy::SecretString;
 use serde_json::{json, Value};
 use sha1::Sha1;
+use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey as SshPrivateKey};
 
 use clavix_lib::api::{DeviceInfo, VaultwardenClient};
 use clavix_lib::crypto::{
@@ -31,7 +40,10 @@ use clavix_lib::crypto::{
     encrypt_string, stretch_master_key, SymmetricKey,
 };
 use clavix_lib::error::{Error, Result};
-use clavix_lib::models::{KdfType, LoginResult};
+use clavix_lib::models::{
+    CardInput, CipherCreateInput, IdentityInput, KdfType, LoginInput, LoginResult, SshKeyInput,
+};
+use clavix_lib::services::cipher::build_cipher_body;
 
 // Must match PASSWORD_ITERATIONS in tests/e2e/docker-compose.yml. Short
 // iterations keep local test runs snappy; the crypto surface we exercise
@@ -39,7 +51,9 @@ use clavix_lib::models::{KdfType, LoginResult};
 const KDF_ITERATIONS: u32 = 100_000;
 
 const ORG_NAME: &str = "E2E Org";
-const ORG_COLLECTION_NAME: &str = "Shared";
+const COLLECTION_DEFAULT: &str = "Shared";
+const COLLECTION_SECONDARY: &str = "Audit";
+const FOLDER_NAME: &str = "E2E Folder";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
@@ -131,34 +145,102 @@ async fn main() -> Result<()> {
     })?;
     let user_key = decrypt_user_key(&master_key, token_key)?;
 
-    // --- create two fixture ciphers so the E2E spec has something to look at ---
-    create_login_cipher(
+    // --- personal ciphers: one of each supported type ---
+    seed_personal(
         &client,
         &tokens.access_token,
         &user_key,
-        "GitHub",
-        "octocat",
-        "tentacles",
-        "https://github.com",
+        login_input("GitHub", "octocat", "tentacles", "https://github.com", None),
     )
     .await?;
-    create_secure_note(
+    let note_id = seed_personal(
         &client,
         &tokens.access_token,
         &user_key,
-        "Welcome note",
-        "This is a seeded note for the Clavix E2E tests.",
+        secure_note_input(
+            "Welcome note",
+            "This is a seeded note for the Clavix E2E tests.",
+        ),
     )
     .await?;
-    eprintln!("[seed] created 2 fixture ciphers");
+    seed_personal(
+        &client,
+        &tokens.access_token,
+        &user_key,
+        card_input("E2E Card"),
+    )
+    .await?;
+    seed_personal(
+        &client,
+        &tokens.access_token,
+        &user_key,
+        identity_input("E2E Identity"),
+    )
+    .await?;
+    seed_personal(
+        &client,
+        &tokens.access_token,
+        &user_key,
+        ssh_key_input("E2E SSH Key")?,
+    )
+    .await?;
+    // otpauth-style URI — the frontend auto-parses these to show the code.
+    seed_personal(
+        &client,
+        &tokens.access_token,
+        &user_key,
+        login_input(
+            "TOTP demo",
+            "totp-user",
+            "pw",
+            "https://totp.example",
+            Some("otpauth://totp/ACME:totp-user?secret=JBSWY3DPEHPK3PXP&issuer=ACME"),
+        ),
+    )
+    .await?;
+    eprintln!("[seed] created 6 personal ciphers (login, note, card, identity, ssh, totp)");
 
-    // --- spin up an org so share-cipher tests have somewhere to land ---
-    //     The org symmetric key is a fresh 64-byte blob, RSA-OAEP encrypted
-    //     with the user public key so the server can hand it back to the
-    //     creator on every /api/sync. collectionName is the default
-    //     collection's name, symmetric-encrypted with the org key (that's
-    //     the key the org's members will share).
-    create_organization(&http, base, &tokens.access_token, &email, &public_key).await?;
+    // --- personal folder, with the SecureNote dropped into it ---
+    let folder = client
+        .create_folder(
+            &tokens.access_token,
+            &encrypt_string(FOLDER_NAME, &user_key)?,
+        )
+        .await?;
+    client
+        .update_cipher_partial(&tokens.access_token, &note_id, Some(&folder.id), false)
+        .await?;
+    eprintln!("[seed] created folder '{FOLDER_NAME}' with 1 cipher inside");
+
+    // --- spin up an org with its default collection, then add a 2nd collection
+    //     and one org-scoped cipher ---
+    let (org_id, default_collection_id, org_sym_key) =
+        create_organization(&http, base, &tokens.access_token, &email, &public_key).await?;
+    let _secondary_collection_id = create_collection(
+        &http,
+        base,
+        &tokens.access_token,
+        &org_id,
+        &org_sym_key,
+        COLLECTION_SECONDARY,
+    )
+    .await?;
+    seed_org_cipher(
+        &client,
+        &tokens.access_token,
+        &org_sym_key,
+        login_input(
+            "Team Secret",
+            "team",
+            "shared-password",
+            "https://internal.example",
+            None,
+        ),
+        &org_id,
+        &[default_collection_id],
+    )
+    .await?;
+    eprintln!("[seed] seeded org '{ORG_NAME}' with 2 collections and 1 org cipher");
 
     Ok(())
 }
@@ -194,13 +276,13 @@ async fn create_organization(
     access_token: &str,
     billing_email: &str,
     user_public_key: &RsaPublicKey,
-) -> Result<()> {
+) -> Result<(String, String, SymmetricKey)> {
     let mut org_key_bytes = [0u8; 64];
     rand::thread_rng().fill_bytes(&mut org_key_bytes);
     let org_sym_key = SymmetricKey::from_bytes(&org_key_bytes)?;
 
     let encrypted_org_key = rsa_oaep_sha1_encrypt(user_public_key, &org_key_bytes)?;
-    let encrypted_collection_name = encrypt_string(ORG_COLLECTION_NAME, &org_sym_key)?;
+    let encrypted_collection_name = encrypt_string(COLLECTION_DEFAULT, &org_sym_key)?;
 
     let url = format!("{base}/api/organizations");
     let body = json!({
@@ -218,61 +300,271 @@ async fn create_organization(
         .send()
         .await?;
     let status = resp.status();
+    let bytes = resp.bytes().await?;
     if !status.is_success() {
-        let text = resp.text().await.unwrap_or_default();
         return Err(Error::HttpStatus {
             status: status.as_u16(),
-            message: format!("create org: {text}"),
+            message: format!(
+                "create org: {}",
+                String::from_utf8_lossy(&bytes).into_owned()
+            ),
         });
     }
-    eprintln!("[seed] created org '{ORG_NAME}' with default collection '{ORG_COLLECTION_NAME}'");
-    Ok(())
+    let response: Value = serde_json::from_slice(&bytes)
+        .map_err(|e| crypto_err(format!("parse org creation response: {e}")))?;
+    let org_id = response
+        .get("id")
+        .or_else(|| response.get("Id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| crypto_err("org creation response missing 'id'".into()))?
+        .to_string();
+
+    // Vaultwarden doesn't echo the default collection's id in the org
+    // creation response — look it up so the caller can seed org ciphers
+    // into it.
+    let default_collection_id =
+        fetch_default_collection_id(http, base, access_token, &org_id).await?;
+
+    eprintln!(
+        "[seed] created org '{ORG_NAME}' (id={org_id}) with default collection '{COLLECTION_DEFAULT}' (id={default_collection_id})"
+    );
+    Ok((org_id, default_collection_id, org_sym_key))
 }
 
-async fn create_login_cipher(
+async fn fetch_default_collection_id(
+    http: &reqwest::Client,
+    base: &str,
+    access_token: &str,
+    org_id: &str,
+) -> Result<String> {
+    let url = format!("{base}/api/organizations/{org_id}/collections");
+    let resp = http.get(&url).bearer_auth(access_token).send().await?;
+    let status = resp.status();
+    let bytes = resp.bytes().await?;
+    if !status.is_success() {
+        return Err(Error::HttpStatus {
+            status: status.as_u16(),
+            message: format!(
+                "list collections: {}",
+                String::from_utf8_lossy(&bytes).into_owned()
+            ),
+        });
+    }
+    let payload: Value = serde_json::from_slice(&bytes)
+        .map_err(|e| crypto_err(format!("parse collections listing: {e}")))?;
+    let data = payload
+        .get("data")
+        .or_else(|| payload.get("Data"))
+        .and_then(Value::as_array)
+        .ok_or_else(|| crypto_err("collections listing missing 'data' array".into()))?;
+    let first = data
+        .first()
+        .ok_or_else(|| crypto_err("no default collection returned by server".into()))?;
+    let id = first
+        .get("id")
+        .or_else(|| first.get("Id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| crypto_err("collection entry missing 'id'".into()))?;
+    Ok(id.to_string())
+}
+
+async fn create_collection(
+    http: &reqwest::Client,
+    base: &str,
+    access_token: &str,
+    org_id: &str,
+    org_key: &SymmetricKey,
+    name: &str,
+) -> Result<String> {
+    let url = format!("{base}/api/organizations/{org_id}/collections");
+    let body = json!({
+        "name": encrypt_string(name, org_key)?,
+        "groups": [],
+        "users": [],
+        "externalId": null,
+    });
+
+    let resp = http
+        .post(&url)
+        .bearer_auth(access_token)
+        .json(&body)
+        .send()
+        .await?;
+    let status = resp.status();
+    let bytes = resp.bytes().await?;
+    if !status.is_success() {
+        return Err(Error::HttpStatus {
+            status: status.as_u16(),
+            message: format!(
+                "create collection: {}",
+                String::from_utf8_lossy(&bytes).into_owned()
+            ),
+        });
+    }
+    let response: Value = serde_json::from_slice(&bytes)
+        .map_err(|e| crypto_err(format!("parse collection creation response: {e}")))?;
+    let id = response
+        .get("id")
+        .or_else(|| response.get("Id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| crypto_err("collection creation response missing 'id'".into()))?
+        .to_string();
+    eprintln!("[seed] created collection '{name}' (id={id}) in org {org_id}");
+    Ok(id)
+}
+
+async fn seed_personal(
     client: &VaultwardenClient,
     access_token: &str,
-    key: &clavix_lib::crypto::SymmetricKey,
+    user_key: &SymmetricKey,
+    input: CipherCreateInput,
+) -> Result<String> {
+    let body = build_cipher_body(&input, user_key)?;
+    let cipher = client.create_cipher(access_token, &body).await?;
+    Ok(cipher.id)
+}
+
+async fn seed_org_cipher(
+    client: &VaultwardenClient,
+    access_token: &str,
+    org_key: &SymmetricKey,
+    mut input: CipherCreateInput,
+    org_id: &str,
+    collection_ids: &[String],
+) -> Result<String> {
+    input.organization_id = Some(org_id.into());
+    let cipher_body = build_cipher_body(&input, org_key)?;
+    let wrapped = json!({
+        "cipher": cipher_body,
+        "collectionIds": collection_ids,
+    });
+    let cipher = client.create_org_cipher(access_token, &wrapped).await?;
+    Ok(cipher.id)
+}
+
+// --- CipherCreateInput factories ------------------------------------
+
+fn login_input(
     name: &str,
     username: &str,
     password: &str,
     uri: &str,
-) -> Result<()> {
-    let body = json!({
-        "type": 1, // Login
-        "name": encrypt_string(name, key)?,
-        "notes": Value::Null,
-        "folderId": Value::Null,
-        "favorite": false,
-        "organizationId": Value::Null,
-        "login": {
-            "username": encrypt_string(username, key)?,
-            "password": encrypt_string(password, key)?,
-            "totp": Value::Null,
-            "uris": [{
-                "uri": encrypt_string(uri, key)?,
-                "match": Value::Null,
-            }],
-        },
-    });
-    client.create_cipher(access_token, &body).await.map(|_| ())
+    totp: Option<&str>,
+) -> CipherCreateInput {
+    CipherCreateInput {
+        name: name.into(),
+        folder_id: None,
+        favorite: false,
+        notes: None,
+        login: Some(LoginInput {
+            username: Some(username.into()),
+            password: Some(password.into()),
+            uris: vec![uri.into()],
+            totp: totp.map(Into::into),
+        }),
+        card: None,
+        identity: None,
+        ssh_key: None,
+        cipher_type: 1,
+        organization_id: None,
+        collection_ids: Vec::new(),
+    }
 }
 
-async fn create_secure_note(
-    client: &VaultwardenClient,
-    access_token: &str,
-    key: &clavix_lib::crypto::SymmetricKey,
-    name: &str,
-    notes: &str,
-) -> Result<()> {
-    let body = json!({
-        "type": 2, // SecureNote
-        "name": encrypt_string(name, key)?,
-        "notes": encrypt_string(notes, key)?,
-        "folderId": Value::Null,
-        "favorite": false,
-        "organizationId": Value::Null,
-        "secureNote": { "type": 0 },
-    });
-    client.create_cipher(access_token, &body).await.map(|_| ())
+fn secure_note_input(name: &str, notes: &str) -> CipherCreateInput {
+    CipherCreateInput {
+        name: name.into(),
+        folder_id: None,
+        favorite: false,
+        notes: Some(notes.into()),
+        login: None,
+        card: None,
+        identity: None,
+        ssh_key: None,
+        cipher_type: 2,
+        organization_id: None,
+        collection_ids: Vec::new(),
+    }
+}
+
+fn card_input(name: &str) -> CipherCreateInput {
+    CipherCreateInput {
+        name: name.into(),
+        folder_id: None,
+        favorite: false,
+        notes: None,
+        login: None,
+        card: Some(CardInput {
+            cardholder_name: Some("E2E Test".into()),
+            brand: Some("Visa".into()),
+            number: Some("4111111111111111".into()),
+            exp_month: Some("12".into()),
+            exp_year: Some("2099".into()),
+            code: Some("123".into()),
+        }),
+        identity: None,
+        ssh_key: None,
+        cipher_type: 3,
+        organization_id: None,
+        collection_ids: Vec::new(),
+    }
+}
+
+fn identity_input(name: &str) -> CipherCreateInput {
+    CipherCreateInput {
+        name: name.into(),
+        folder_id: None,
+        favorite: false,
+        notes: None,
+        login: None,
+        card: None,
+        identity: Some(IdentityInput {
+            title: Some("Dr".into()),
+            first_name: Some("E2E".into()),
+            last_name: Some("Tester".into()),
+            email: Some("e2e@clavix.test".into()),
+            country: Some("FR".into()),
+            ..Default::default()
+        }),
+        ssh_key: None,
+        cipher_type: 4,
+        organization_id: None,
+        collection_ids: Vec::new(),
+    }
+}
+
+fn ssh_key_input(name: &str) -> Result<CipherCreateInput> {
+    let mut rng = rand::thread_rng();
+    let private = SshPrivateKey::random(&mut rng, Algorithm::Ed25519)
+        .map_err(|e| crypto_err(format!("generate ed25519 ssh key: {e}")))?;
+    let openssh_private = private
+        .to_openssh(LineEnding::LF)
+        .map_err(|e| crypto_err(format!("encode ed25519 private to openssh: {e}")))?
+        .to_string();
+    let openssh_public = private
+        .public_key()
+        .to_openssh()
+        .map_err(|e| crypto_err(format!("encode ed25519 public to openssh: {e}")))?;
+    let fingerprint = private
+        .public_key()
+        .fingerprint(HashAlg::Sha256)
+        .to_string();
+
+    Ok(CipherCreateInput {
+        name: name.into(),
+        folder_id: None,
+        favorite: false,
+        notes: None,
+        login: None,
+        card: None,
+        identity: None,
+        ssh_key: Some(SshKeyInput {
+            private_key: Some(openssh_private),
+            public_key: Some(openssh_public),
+            key_fingerprint: Some(fingerprint),
+        }),
+        cipher_type: 5,
+        organization_id: None,
+        collection_ids: Vec::new(),
+    })
 }
