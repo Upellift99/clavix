@@ -42,13 +42,23 @@ if the binary or `tauri-driver` is missing, with a hint.
 
 The suite is driven by a seeded Vaultwarden instance (Docker, port
 `8765`) brought up automatically by `tests/e2e/wdio.conf.mjs` via
-`docker compose`. `src-tauri/examples/e2e_seed.rs` registers a test
-user (with an RSA keypair) and seeds a canonical fixture set — one of
-each cipher type (Login, SecureNote, Card, Identity, SSH key), a
-TOTP-enabled login, a personal folder with a cipher inside, and an
-organization with two collections plus one org-scoped cipher. All
-using the app's own crypto path (`build_cipher_body`) so a regression
-in production code surfaces here before it reaches the UI tests.
+`docker compose`. `src-tauri/examples/e2e_seed.rs` registers two test
+users and seeds a canonical fixture set:
+
+- **Primary account** (`E2E_EMAIL`, no 2FA): one cipher of each type
+  (Login, SecureNote, Card, Identity, SSH key), a TOTP-enabled login,
+  a personal folder with a cipher inside, and an organization with two
+  collections plus one org-scoped cipher.
+- **Secondary account** (`e2e-2fa@clavix.test`, password
+  `two-factor-fixture`): TOTP 2FA pre-enabled against the deterministic
+  secret `JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP`. Specs that exercise the
+  2FA login flow can recompute valid codes from this constant via
+  RFC 6238. One fixture cipher ("Behind 2FA") is seeded so sync is
+  visible.
+
+All seeding goes through the app's own crypto path (`build_cipher_body`)
+so a regression in production code surfaces here before it reaches the
+UI tests.
 
 | Spec                  | What it covers                                               |
 | --------------------- | ------------------------------------------------------------ |
