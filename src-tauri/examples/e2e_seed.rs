@@ -1,6 +1,7 @@
-//! Registers a test user on a Vaultwarden instance and seeds a canonical
-//! fixture set used by the E2E specs:
+//! Registers test users on a Vaultwarden instance and seeds a canonical
+//! fixture set used by the E2E specs.
 //!
+//! Primary account (`E2E_EMAIL`, no 2FA):
 //! - 1 personal Login ("GitHub")
 //! - 1 personal SecureNote ("Welcome note")
 //! - 1 personal Card ("E2E Card")
@@ -10,6 +11,11 @@
 //! - 1 personal Folder ("E2E Folder") with the SecureNote moved into it
 //! - 1 organization ("E2E Org") with two collections ("Shared", "Audit")
 //! - 1 org-scoped Login ("Team Secret") in the "Shared" collection
+//!
+//! Secondary account (`e2e-2fa@clavix.test`, TOTP 2FA enabled):
+//! - 2FA bootstrapped against `TWO_FA_SECRET_BASE32` (deterministic so
+//!   tests can recompute valid codes at login time).
+//! - 1 personal Login ("Behind 2FA") to make sync visible.
 //!
 //! Reuses the app's real crypto path (`derive_master_key`,
 //! `stretch_master_key`, `encrypt_bytes/string`, `build_cipher_body`) so
@@ -23,9 +29,11 @@
 //!     cargo run --example e2e_seed
 
 use std::env;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use hmac::{Hmac, Mac};
 use rand::RngCore;
 use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
 use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
@@ -37,11 +45,12 @@ use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey as SshPrivateKey};
 use clavix_lib::api::{DeviceInfo, VaultwardenClient};
 use clavix_lib::crypto::{
     decrypt_user_key, derive_master_key, derive_master_password_hash, encrypt_bytes,
-    encrypt_string, stretch_master_key, SymmetricKey,
+    encrypt_string, stretch_master_key, MasterPasswordHash, SymmetricKey,
 };
 use clavix_lib::error::{Error, Result};
 use clavix_lib::models::{
     CardInput, CipherCreateInput, IdentityInput, KdfType, LoginInput, LoginResult, SshKeyInput,
+    TwoFactorProvider,
 };
 use clavix_lib::services::cipher::build_cipher_body;
 
@@ -54,6 +63,13 @@ const ORG_NAME: &str = "E2E Org";
 const COLLECTION_DEFAULT: &str = "Shared";
 const COLLECTION_SECONDARY: &str = "Audit";
 const FOLDER_NAME: &str = "E2E Folder";
+
+// 2FA-enabled secondary account. The secret is deterministic so future
+// 2FA-aware specs can recompute valid TOTP codes from the constant
+// without having to scrape stdout.
+const TWO_FA_EMAIL: &str = "e2e-2fa@clavix.test";
+const TWO_FA_PASSWORD: &str = "two-factor-fixture";
+const TWO_FA_SECRET_BASE32: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
@@ -242,7 +258,223 @@ async fn main() -> Result<()> {
     .await?;
     eprintln!("[seed] seeded org '{ORG_NAME}' with 2 collections and 1 org cipher");
 
+    // --- secondary account with TOTP 2FA enabled ---
+    seed_two_factor_account(&http, &server_url, base).await?;
+
     Ok(())
+}
+
+/// Bootstraps a separate fixture account with TOTP 2FA pre-enabled.
+/// Idempotent: if the account already exists with 2FA on, login goes
+/// through `login_with_two_factor` (using a TOTP code derived from
+/// `TWO_FA_SECRET_BASE32`) and the activation step is skipped.
+async fn seed_two_factor_account(
+    http: &reqwest::Client,
+    server_url: &str,
+    base: &str,
+) -> Result<()> {
+    let password_secret: SecretString = TWO_FA_PASSWORD.to_string().into();
+    let master_key = derive_master_key(
+        &password_secret,
+        TWO_FA_EMAIL,
+        KdfType::Pbkdf2,
+        KDF_ITERATIONS,
+        None,
+        None,
+    )?;
+    let master_hash = derive_master_password_hash(&master_key, &password_secret);
+    let stretched = stretch_master_key(&master_key)?;
+
+    let mut user_key_bytes = [0u8; 64];
+    rand::thread_rng().fill_bytes(&mut user_key_bytes);
+    let encrypted_user_key = encrypt_bytes(&user_key_bytes, &stretched)?;
+    let user_sym_key = SymmetricKey::from_bytes(&user_key_bytes)?;
+
+    let (public_key, rsa_private_key) = generate_user_keypair()?;
+    let priv_pkcs8 = rsa_private_key
+        .to_pkcs8_der()
+        .map_err(|e| crypto_err(format!("export 2FA user RSA private key: {e}")))?;
+    let encrypted_private_key = encrypt_bytes(priv_pkcs8.as_bytes(), &user_sym_key)?;
+    let public_key_spki = public_key
+        .to_public_key_der()
+        .map_err(|e| crypto_err(format!("export 2FA user RSA public key: {e}")))?;
+    let public_key_b64 = STANDARD.encode(public_key_spki.as_bytes());
+
+    let register_url = format!("{base}/identity/accounts/register");
+    let body = json!({
+        "email": TWO_FA_EMAIL,
+        "name": "E2E 2FA User",
+        "masterPasswordHash": master_hash.as_str(),
+        "masterPasswordHint": null,
+        "key": encrypted_user_key,
+        "keys": {
+            "publicKey": public_key_b64,
+            "encryptedPrivateKey": encrypted_private_key,
+        },
+        "kdf": 0,
+        "kdfIterations": KDF_ITERATIONS,
+        "referenceData": null,
+    });
+    let resp = http.post(&register_url).json(&body).send().await?;
+    let status = resp.status();
+    if !status.is_success() && status.as_u16() != 400 {
+        let text = resp.text().await.unwrap_or_default();
+        return Err(Error::HttpStatus {
+            status: status.as_u16(),
+            message: format!("register 2FA user: {text}"),
+        });
+    }
+    eprintln!("[seed] registered {TWO_FA_EMAIL} on {base} ({status})");
+
+    let client = VaultwardenClient::new(server_url)?;
+    let device = DeviceInfo {
+        identifier: "e2e-2fa-seed-device-0000-0000-00000000".into(),
+        name: "E2E 2FA Seed".into(),
+        device_type: 8,
+    };
+
+    // Plain login first. Branches:
+    //   Success → fresh account, enable TOTP now.
+    //   TwoFactorRequired → re-run, account already has TOTP. Verify the
+    //     stored secret still matches by completing the 2FA login flow,
+    //     then skip activation.
+    let login_result = client.login(TWO_FA_EMAIL, &master_hash, &device).await?;
+    let already_enabled = match login_result {
+        LoginResult::Success(tokens) => {
+            enable_totp_2fa(http, base, &tokens.access_token, &master_hash).await?;
+            // After enabling, seed one fixture cipher under the user_key
+            // we just minted server-side. The token_key from `tokens`
+            // already lets us derive the live user_key.
+            let token_key = tokens.key.as_deref().ok_or_else(|| Error::Crypto {
+                reason: "2FA-user login response has no 'key' field".into(),
+            })?;
+            let user_key = decrypt_user_key(&master_key, token_key)?;
+            seed_personal(
+                &client,
+                &tokens.access_token,
+                &user_key,
+                login_input(
+                    "Behind 2FA",
+                    "two-factor",
+                    "post-totp",
+                    "https://2fa.example",
+                    None,
+                ),
+            )
+            .await?;
+            false
+        }
+        LoginResult::TwoFactorRequired { .. } => {
+            let code = current_totp_token(TWO_FA_SECRET_BASE32)?;
+            let _tokens = client
+                .login_with_two_factor(
+                    TWO_FA_EMAIL,
+                    &master_hash,
+                    &device,
+                    TwoFactorProvider::Authenticator,
+                    &code,
+                )
+                .await?;
+            true
+        }
+    };
+
+    eprintln!(
+        "[seed] 2FA account {} (secret={TWO_FA_SECRET_BASE32})",
+        if already_enabled {
+            "already had TOTP enabled, verified login_with_two_factor"
+        } else {
+            "TOTP enabled and 'Behind 2FA' cipher seeded"
+        }
+    );
+    Ok(())
+}
+
+/// Activates TOTP-based 2FA on an authenticated account by submitting
+/// `TWO_FA_SECRET_BASE32` plus a current TOTP code derived from it.
+/// Vaultwarden validates the (key, token) pair, then stores the key as
+/// the account's authenticator secret.
+async fn enable_totp_2fa(
+    http: &reqwest::Client,
+    base: &str,
+    access_token: &str,
+    master_hash: &MasterPasswordHash,
+) -> Result<()> {
+    let token = current_totp_token(TWO_FA_SECRET_BASE32)?;
+    let url = format!("{base}/api/two-factor/authenticator");
+    let body = json!({
+        "masterPasswordHash": master_hash.as_str(),
+        "key": TWO_FA_SECRET_BASE32,
+        "token": token,
+    });
+    let resp = http
+        .put(&url)
+        .bearer_auth(access_token)
+        .json(&body)
+        .send()
+        .await?;
+    let status = resp.status();
+    if !status.is_success() {
+        let text = resp.text().await.unwrap_or_default();
+        return Err(Error::HttpStatus {
+            status: status.as_u16(),
+            message: format!("enable TOTP: {text}"),
+        });
+    }
+    Ok(())
+}
+
+/// Computes the 6-digit RFC 6238 TOTP code for the current 30 s window
+/// against the given base32-encoded secret.
+fn current_totp_token(secret_base32: &str) -> Result<String> {
+    let secret_bytes = base32_decode(secret_base32)
+        .map_err(|e| crypto_err(format!("base32 decode TOTP secret: {e}")))?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| crypto_err(format!("system time before unix epoch: {e}")))?
+        .as_secs();
+    Ok(format!("{:06}", totp_code(&secret_bytes, now / 30)))
+}
+
+/// RFC 6238 TOTP / RFC 4226 HOTP truncation. `counter` is the time step
+/// (already divided by the 30 s period). Returns the raw 6-digit value;
+/// callers format with leading zeros.
+fn totp_code(secret: &[u8], counter: u64) -> u32 {
+    let mut mac = Hmac::<Sha1>::new_from_slice(secret).expect("HMAC accepts any key length");
+    mac.update(&counter.to_be_bytes());
+    let result = mac.finalize().into_bytes();
+    let offset = (result[19] & 0x0f) as usize;
+    let value = u32::from_be_bytes([
+        result[offset] & 0x7f,
+        result[offset + 1],
+        result[offset + 2],
+        result[offset + 3],
+    ]);
+    value % 1_000_000
+}
+
+/// Minimal RFC 4648 base32 decoder (uppercase A-Z + 2-7, padding tolerated).
+/// Adding a `base32` crate dep just for the seed isn't worth it.
+fn base32_decode(input: &str) -> std::result::Result<Vec<u8>, String> {
+    let trimmed = input.trim_end_matches('=').to_ascii_uppercase();
+    let mut out = Vec::with_capacity(trimmed.len() * 5 / 8);
+    let mut buf: u32 = 0;
+    let mut bits: u8 = 0;
+    for c in trimmed.chars() {
+        let v: u32 = match c {
+            'A'..='Z' => c as u32 - 'A' as u32,
+            '2'..='7' => 26 + (c as u32 - '2' as u32),
+            _ => return Err(format!("invalid base32 char {c:?}")),
+        };
+        buf = (buf << 5) | v;
+        bits += 5;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+            buf &= (1 << bits) - 1;
+        }
+    }
+    Ok(out)
 }
 
 fn crypto_err(msg: String) -> Error {
