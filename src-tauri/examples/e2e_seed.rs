@@ -157,7 +157,10 @@ async fn main() -> Result<()> {
         &client,
         &tokens.access_token,
         &user_key,
-        secure_note_input("Welcome note", "This is a seeded note for the Clavix E2E tests."),
+        secure_note_input(
+            "Welcome note",
+            "This is a seeded note for the Clavix E2E tests.",
+        ),
     )
     .await?;
     seed_personal(
@@ -199,7 +202,10 @@ async fn main() -> Result<()> {
 
     // --- personal folder, with the SecureNote dropped into it ---
     let folder = client
-        .create_folder(&tokens.access_token, &encrypt_string(FOLDER_NAME, &user_key)?)
+        .create_folder(
+            &tokens.access_token,
+            &encrypt_string(FOLDER_NAME, &user_key)?,
+        )
         .await?;
     client
         .update_cipher_partial(&tokens.access_token, &note_id, Some(&folder.id), false)
@@ -304,7 +310,8 @@ async fn create_organization(
             ),
         });
     }
-    let response: Value = serde_json::from_slice(&bytes).map_err(|e| crypto_err(format!("parse org creation response: {e}")))?;
+    let response: Value = serde_json::from_slice(&bytes)
+        .map_err(|e| crypto_err(format!("parse org creation response: {e}")))?;
     let org_id = response
         .get("id")
         .or_else(|| response.get("Id"))
@@ -331,11 +338,7 @@ async fn fetch_default_collection_id(
     org_id: &str,
 ) -> Result<String> {
     let url = format!("{base}/api/organizations/{org_id}/collections");
-    let resp = http
-        .get(&url)
-        .bearer_auth(access_token)
-        .send()
-        .await?;
+    let resp = http.get(&url).bearer_auth(access_token).send().await?;
     let status = resp.status();
     let bytes = resp.bytes().await?;
     if !status.is_success() {
