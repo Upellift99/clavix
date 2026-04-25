@@ -140,13 +140,28 @@
     {/if}
   </div>
   {#if items.length === 0}
-    <p class="hint">
+    <div class="empty-state" role="status">
       {#if search.trim()}
-        Aucun item ne correspond à « {search} ».
+        <Icon name="search" size={40} class="empty-icon" />
+        <p class="empty-title">Aucun résultat</p>
+        <p class="empty-body">
+          Aucun item ne correspond à « {search} ».
+        </p>
+        <button
+          type="button"
+          class="secondary small"
+          onclick={() => (search = "")}
+        >
+          Effacer la recherche
+        </button>
       {:else}
-        Aucun item dans ce dossier.
+        <Icon name="folder" size={40} class="empty-icon" />
+        <p class="empty-title">Ce dossier est vide</p>
+        <p class="empty-body">
+          Crée un nouvel item ou importe ton coffre KeePassXC depuis la barre d'outils.
+        </p>
       {/if}
-    </p>
+    </div>
   {:else}
     <div
       class="cipher-headers cipher-columns"

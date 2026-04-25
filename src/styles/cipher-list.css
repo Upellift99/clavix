@@ -237,6 +237,57 @@
   opacity: 0.5;
 }
 
+/* Subtle background-colour transition so the row doesn't snap-flash
+   on hover or selection. 100 ms is fast enough to feel responsive
+   on a 60 Hz redraw, slow enough to look intentional. */
+.cipher-row {
+  transition:
+    background-color 100ms ease,
+    color 100ms ease;
+}
+
+/* Empty state shown when items.length === 0. The big icon + title +
+   body + optional CTA pattern makes the difference between "tool is
+   broken" and "you haven't added anything yet" without the user
+   having to read carefully. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  flex: 1 1 auto;
+  text-align: center;
+  color: #6b7280;
+}
+.empty-state :global(.empty-icon) {
+  color: #9ca3af;
+  margin-bottom: 0.4rem;
+}
+.empty-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+}
+.empty-body {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  max-width: 28rem;
+  line-height: 1.4;
+}
+
+@media (prefers-color-scheme: dark) {
+  .empty-state { color: #9ca3af; }
+  .empty-state :global(.empty-icon) { color: #6b7280; }
+  .empty-title { color: #e5e7eb; }
+}
+
+:root.force-dark .empty-state { color: #9ca3af; }
+:root.force-dark .empty-state :global(.empty-icon) { color: #6b7280; }
+:root.force-dark .empty-title { color: #e5e7eb; }
+
 .cipher-icon {
   display: inline-flex;
   align-items: center;
