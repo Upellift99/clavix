@@ -24,11 +24,6 @@
     onMoveCipherToFolder: (cipherId: string, folderId: string | null) => Promise<void>;
     onMoveCipherToCollection: (cipherId: string, collectionId: string) => Promise<void>;
     onMoveFolderPath: (source: string, targetParent: string | null) => Promise<void>;
-    onCreateItem: () => void;
-    onOpenImport: () => void;
-    onOpenGenerator: () => void;
-    onOpenAudit: () => void;
-    onOpenStats: () => void;
   };
 
   let {
@@ -49,11 +44,6 @@
     onMoveCipherToFolder,
     onMoveCipherToCollection,
     onMoveFolderPath,
-    onCreateItem,
-    onOpenImport,
-    onOpenGenerator,
-    onOpenAudit,
-    onOpenStats,
   }: Props = $props();
 
   function onFolderDragStart(event: DragEvent, node: TreeNode) {
@@ -192,61 +182,16 @@
       </button>
     {/each}
   </details>
-  <div class="tree-toolbar">
-    {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
+  {#if (folderTree && folderTree.children.length > 0) || orgTrees.length > 0}
+    <div class="tree-toolbar">
       <button type="button" class="secondary small" onclick={onExpandAll}>
         {m.tree_expand_all()}
       </button>
       <button type="button" class="secondary small" onclick={onCollapseAll}>
         {m.tree_collapse_all()}
       </button>
-    {/if}
-    <button
-      type="button"
-      class="secondary small info-button"
-      onclick={onCreateItem}
-      title={m.action_new_item()}
-      aria-label={m.action_new_item()}
-    >
-      ＋
-    </button>
-    <button
-      type="button"
-      class="secondary small info-button"
-      onclick={onOpenImport}
-      title={m.import_label()}
-      aria-label={m.import_label()}
-    >
-      📥
-    </button>
-    <button
-      type="button"
-      class="secondary small info-button"
-      onclick={onOpenGenerator}
-      title={m.generator_label()}
-      aria-label={m.generator_label()}
-    >
-      🎲
-    </button>
-    <button
-      type="button"
-      class="secondary small info-button"
-      onclick={onOpenAudit}
-      title={m.audit_label()}
-      aria-label={m.audit_label()}
-    >
-      🛡
-    </button>
-    <button
-      type="button"
-      class="secondary small info-button"
-      onclick={onOpenStats}
-      title={m.tree_infos_label()}
-      aria-label={m.tree_infos_label()}
-    >
-      ⓘ
-    </button>
-  </div>
+    </div>
+  {/if}
   {#if folderTree && folderTree.children.length > 0}
     <ul class="tree-root">
       {#each folderTree.children as node (node.key)}

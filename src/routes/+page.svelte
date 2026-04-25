@@ -4,7 +4,7 @@
   import CipherEditor from "$lib/CipherEditor.svelte";
   import ImportDialog from "$lib/ImportDialog.svelte";
   import AuthGate from "$lib/AuthGate.svelte";
-  import SessionBar from "$lib/SessionBar.svelte";
+  import Toolbar from "$lib/Toolbar.svelte";
   import VaultSidebar from "$lib/VaultSidebar.svelte";
   import CipherList from "$lib/CipherList.svelte";
   import CipherDetail from "$lib/CipherDetail.svelte";
@@ -144,7 +144,7 @@
     <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
 
     {#if auth.phase === "loggedIn"}
-      <SessionBar
+      <Toolbar
         syncing={vault.syncing}
         hasSync={vault.summary !== null}
         lastSyncAt={vault.lastSyncAt}
@@ -152,6 +152,11 @@
         onSync={() => vault.sync()}
         onLock={lockAndReset}
         onSwitchAccount={switchAccountAndReset}
+        onCreateItem={() => vault.openCreateEditor()}
+        onOpenImport={() => (importOpen = true)}
+        onOpenGenerator={() => generatorDialog?.open()}
+        onOpenAudit={() => auditDialog?.open()}
+        onOpenStats={() => statsDialog?.open()}
       />
 
       {#if vault.summary}
@@ -176,11 +181,6 @@
                 onMoveCipherToFolder={(id, fid) => vault.moveCipherToFolder(id, fid)}
                 onMoveCipherToCollection={(id, cid) => vault.moveCipherToCollection(id, cid)}
                 onMoveFolderPath={(s, t) => vault.performFolderMove(s, t)}
-                onCreateItem={() => vault.openCreateEditor()}
-                onOpenImport={() => (importOpen = true)}
-                onOpenGenerator={() => generatorDialog?.open()}
-                onOpenAudit={() => auditDialog?.open()}
-                onOpenStats={() => statsDialog?.open()}
               />
 
               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

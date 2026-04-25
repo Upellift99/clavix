@@ -127,17 +127,25 @@
   font-family: var(--font-data);
 }
 
-.cipher-row:nth-child(even) {
-  background: #fafafa;
+/* Zebra striping driven by absolute row index, not :nth-child —
+   the cipher list is virtualised, so the DOM only contains a window
+   of rows and `:nth-child(even)` would flicker as the user scrolls. */
+.cipher-row.zebra {
+  background: #eaf2fc;
 }
 
 .cipher-row:hover {
-  background: #eef3fb;
+  background: #cfe0f5;
 }
 
-.cipher-row.selected {
-  background: #e3ecff;
-  color: #1e3a8a;
+.cipher-row.zebra:hover {
+  background: #c2d6f0;
+}
+
+.cipher-row.selected,
+.cipher-row.zebra.selected {
+  background: #a8c8f0;
+  color: #0f2a5a;
 }
 
 .cipher-row.dragging {
@@ -188,9 +196,11 @@
   .cipher-header.active { color: #aabaff; }
   .col-username,
   .col-uri { color: #999; }
-  .cipher-row:nth-child(even) { background: #262626; }
-  .cipher-row:hover { background: #2c3452; }
-  .cipher-row.selected { background: #1f2a54; color: #aabaff; }
+  .cipher-row.zebra { background: #1d2738; }
+  .cipher-row:hover { background: #2c3a55; }
+  .cipher-row.zebra:hover { background: #324168; }
+  .cipher-row.selected,
+  .cipher-row.zebra.selected { background: #2c4280; color: #cfdcff; }
 }
 
 :root.force-dark .list-pane .cipher-scroll { background: #232323; border-color: #333; }
@@ -203,6 +213,8 @@
 :root.force-dark .cipher-header.active { color: #aabaff; }
 :root.force-dark .col-username,
 :root.force-dark .col-uri { color: #999; }
-:root.force-dark .cipher-row:nth-child(even) { background: #262626; }
-:root.force-dark .cipher-row:hover { background: #2c3452; }
-:root.force-dark .cipher-row.selected { background: #1f2a54; color: #aabaff; }
+:root.force-dark .cipher-row.zebra { background: #1d2738; }
+:root.force-dark .cipher-row:hover { background: #2c3a55; }
+:root.force-dark .cipher-row.zebra:hover { background: #324168; }
+:root.force-dark .cipher-row.selected,
+:root.force-dark .cipher-row.zebra.selected { background: #2c4280; color: #cfdcff; }

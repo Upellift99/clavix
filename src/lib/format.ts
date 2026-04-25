@@ -37,7 +37,7 @@ export type SessionStatus = "syncing" | "fresh" | "stale" | "offline" | "unknown
 export const SESSION_FRESH_MS = 10 * 60 * 1000;
 
 /**
- * Derive the 5-state session status used by the SessionBar indicator.
+ * Derive the 5-state session status used by the toolbar indicator.
  * Split out of the Svelte component so it can be covered by vitest
  * (without needing a DOM) and reused if another surface wants to show
  * the same signal — e.g. a menu badge or a tray icon.

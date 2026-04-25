@@ -158,12 +158,13 @@
           class="enc-list cipher-list"
           style:transform="translateY({virtualWindow.offsetY}px)"
         >
-          {#each virtualWindow.items as c (c.id)}
+          {#each virtualWindow.items as c, i (c.id)}
             {@const fav = faviconUrl(c, storedAccount)}
             <li style:height="{ROW_HEIGHT}px">
               <button
                 type="button"
                 class="cipher-row cipher-columns"
+                class:zebra={(virtualWindow.start + i) % 2 === 1}
                 class:selected={selectedId === c.id}
                 class:dragging={drag.cipherId === c.id}
                 onclick={() => onOpenCipher(c.id)}
