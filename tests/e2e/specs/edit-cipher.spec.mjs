@@ -17,9 +17,7 @@ import { loginAsSeededUser } from "../helpers/auth.mjs";
 
 const RENAMED = "GitHub ▸ E2E renamed";
 
-// SKIPPED — see issue #25. Position-dependent flake on the shared
-// Vaultwarden container; comes back when per-spec teardown lands.
-describe.skip("Edit a personal login", () => {
+describe("Edit a personal login", () => {
   it("renames the seeded cipher via the editor and persists across sync", async () => {
     await loginAsSeededUser();
 

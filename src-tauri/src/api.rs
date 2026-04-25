@@ -342,6 +342,28 @@ impl VaultwardenClient {
         })
     }
 
+    /// Delete a personal folder. Bitwarden detaches every cipher that
+    /// referenced the folder rather than cascade-deleting them, so it's
+    /// safe to wipe folders without losing user content.
+    pub async fn delete_folder(&self, access_token: &str, folder_id: &str) -> Result<()> {
+        let url = self.api_endpoint(&format!("folders/{folder_id}"))?;
+        let response = self
+            .http
+            .delete(url)
+            .bearer_auth(access_token)
+            .send()
+            .await?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+        Ok(())
+    }
+
     pub async fn update_folder_name(
         &self,
         access_token: &str,

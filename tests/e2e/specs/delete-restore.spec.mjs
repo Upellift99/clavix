@@ -19,9 +19,7 @@
 
 import { loginAsSeededUser } from "../helpers/auth.mjs";
 
-// SKIPPED — see issue #25. Position-dependent flake on the shared
-// Vaultwarden container; comes back when per-spec teardown lands.
-describe.skip("Delete and restore", () => {
+describe("Delete and restore", () => {
   it("soft-deletes a cipher then restores it, both observable in sync", async () => {
     await loginAsSeededUser();
 

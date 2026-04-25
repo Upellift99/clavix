@@ -22,18 +22,7 @@ import { loginAsSeededUser } from "../helpers/auth.mjs";
 
 const ITEM_NAME = "E2E permanent-delete subject";
 
-// SKIPPED — same positional flake as logout.spec (issue #25): once
-// the alphabetical run reaches the 9th spec on a shared Vaultwarden
-// container, the next test reliably hits the 120 s mocha cap with
-// a webview "socket hang up", regardless of which spec sits at
-// position 9. logout.spec was skipped first; with that out, this
-// spec takes the slot and shows the exact same symptom. The flow
-// itself runs cleanly when isolated (and the unit-tested
-// `delete_cipher` already covers the encrypt/POST path).
-//
-// Bring back as soon as the per-spec Vaultwarden teardown lands —
-// see issue #25 for the plan.
-describe.skip("Permanent delete", () => {
+describe("Permanent delete", () => {
   it("removes the cipher from the server beyond recovery", async () => {
     await loginAsSeededUser();
 

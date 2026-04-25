@@ -32,9 +32,7 @@ const PARENT_B = `e2e-cascade-b-${RUN}`;
 const NEW_PARENT_A = `${PARENT_B}/${PARENT_A}`;
 const NEW_SUB_A = `${PARENT_B}/${PARENT_A}/sub`;
 
-// SKIPPED — see issue #25. Position-dependent flake on the shared
-// Vaultwarden container; comes back when per-spec teardown lands.
-describe.skip("Folder move cascade", () => {
+describe("Folder move cascade", () => {
   it("moves a parent folder and renames descendants in the same batch", async () => {
     await loginAsSeededUser();
 

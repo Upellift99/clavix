@@ -157,6 +157,42 @@ export const config = {
     }
   },
 
+  // Per-spec Vaultwarden reset. Without this, every spec inherits the
+  // accumulated state of the ones that ran before it (4+ ciphers, a
+  // few folders, plus whatever the seed added). By the time the run
+  // hits the 9th alphabetical spec, sync responses are heavy enough
+  // and the webview lethargic enough that one of them reliably
+  // hangs at the mocha cap with a "socket hang up" — see issue #25
+  // for the full context.
+  //
+  // Strategy: wipe the Vaultwarden volume between specs and re-run
+  // the seed. Slow (~15-20 s per spec, ~3 min on the full suite) but
+  // bulletproof — every spec starts on the canonical fixture state
+  // the seed just minted, identical to a fresh CI container.
+  //
+  // Gated behind E2E_PER_SPEC_RESET=1 so iterating locally with
+  // E2E_SKIP_DOCKER=1 keeps its existing fast path. The CI workflow
+  // sets the var explicitly.
+  async beforeEach() {
+    if (process.env.E2E_PER_SPEC_RESET !== "1") {
+      return;
+    }
+    if (process.env.E2E_SKIP_DOCKER !== "1") {
+      run("docker", ["compose", "-f", composeFile, "down", "--volumes"]);
+      run("docker", ["compose", "-f", composeFile, "up", "-d"]);
+    }
+    await waitForVaultwarden();
+    run("cargo", ["run", "--quiet", "--example", "e2e_seed"], {
+      cwd: resolve(projectRoot, "src-tauri"),
+      env: {
+        ...process.env,
+        E2E_SERVER_URL: e2eServer,
+        E2E_EMAIL: e2eEmail,
+        E2E_PASSWORD: e2ePassword,
+      },
+    });
+  },
+
   // Spin up tauri-driver per session; it in turn spawns WebKitWebDriver on
   // 127.0.0.1:4445. Forcing the host to 127.0.0.1 sidesteps the IPv6 bind
   // issue reported in tauri-apps/tauri#3815.
