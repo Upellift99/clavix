@@ -133,12 +133,16 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Toke
 /// key, for a Bitwarden-style challenge.  Returns the JSON string that
 /// must be sent back to the server as `twoFactorToken` with provider=7.
 ///
+/// `server_url` is the Vaultwarden URL the user typed into the login
+/// form. It anchors the rpId validation so a hostile or MITM'd server
+/// can't make us sign an assertion for an unrelated origin.
+///
 /// Blocking CTAP2 I/O is offloaded to the async runtime's blocking pool
 /// so the Tauri main loop stays responsive while the user taps their key.
 #[tauri::command]
-pub async fn webauthn_sign_challenge(challenge_json: String) -> Result<String> {
+pub async fn webauthn_sign_challenge(server_url: String, challenge_json: String) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
-        crate::webauthn::sign_bitwarden_challenge(&challenge_json)
+        crate::webauthn::sign_bitwarden_challenge(&challenge_json, &server_url)
     })
     .await
     .map_err(|e| Error::Crypto {

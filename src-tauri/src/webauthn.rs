@@ -91,14 +91,53 @@ fn b64url_encode(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
+/// Validate that `rp_id` is the user-facing host of `server_url` or a
+/// registrable suffix of it. Without this check, a hostile (or MITM'd)
+/// Vaultwarden can pick any `rpId` it likes and trick the FIDO2 token
+/// into signing an assertion that is valid for an unrelated origin.
+///
+/// Acceptance rule (matches the WebAuthn spec's "registrable domain
+/// suffix" notion at the textual level — we don't pull in the full
+/// public suffix list, but the comparison is strict enough that an
+/// attacker can't pass `rpId="attacker.com"` for `server="vault.x.y"`):
+///   - exact match: host == rp_id
+///   - subdomain match: host ends with `.{rp_id}`
+fn validate_rp_id(rp_id: &str, server_url: &str) -> Result<()> {
+    let rp_id = rp_id.trim().to_ascii_lowercase();
+    if rp_id.is_empty() || rp_id.contains('/') || rp_id.contains(':') {
+        return Err(Error::InvalidResponse {
+            reason: format!("malformed rpId from server: {rp_id:?}"),
+        });
+    }
+
+    let host = url::Url::parse(server_url)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_ascii_lowercase))
+        .ok_or_else(|| Error::InvalidResponse {
+            reason: format!("server_url has no host: {server_url}"),
+        })?;
+
+    if host == rp_id || host.ends_with(&format!(".{rp_id}")) {
+        Ok(())
+    } else {
+        Err(Error::Crypto {
+            reason: format!(
+                "WebAuthn rpId {rp_id:?} is not a registrable suffix of server host {host:?} — refusing to sign"
+            ),
+        })
+    }
+}
+
 /// Blocking call that talks to the first attached FIDO2 device.  Meant to
 /// be invoked from a Tauri async command via
 /// `tauri::async_runtime::spawn_blocking`.
-pub fn sign_bitwarden_challenge(challenge_json: &str) -> Result<String> {
+pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Result<String> {
     let raw: RawChallenge =
         serde_json::from_str(challenge_json).map_err(|e| Error::InvalidResponse {
             reason: format!("webauthn challenge parse: {e}"),
         })?;
+
+    validate_rp_id(&raw.rp_id, server_url)?;
 
     // 1. Construct clientDataJSON exactly like a browser would.  The
     //    stringification has to be byte-stable because the authenticator
@@ -268,12 +307,70 @@ mod tests {
 
     #[test]
     fn sign_bitwarden_challenge_reports_missing_device_as_crypto_error() {
+        // rpId matches server host, so validate_rp_id passes. The error
+        // bubbles up later from the missing FIDO2 device. We assert
+        // Error::Crypto specifically because the rpId-mismatch path also
+        // returns Error::Crypto — the next two tests guard against false
+        // positives by comparing the error message.
         let json =
             r#"{"challenge":"Y2hhbGxlbmdl","rpId":"vault.example.com","allowCredentials":[]}"#;
-        let res = sign_bitwarden_challenge(json);
+        let res = sign_bitwarden_challenge(json, "https://vault.example.com");
         match res {
-            Err(Error::Crypto { .. }) => {}
+            Err(Error::Crypto { reason }) => {
+                assert!(
+                    !reason.contains("registrable suffix"),
+                    "rpId path should not have triggered, got: {reason}"
+                );
+            }
             other => panic!("expected Error::Crypto, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn validate_rp_id_accepts_exact_host_match() {
+        assert!(validate_rp_id("vault.example.com", "https://vault.example.com").is_ok());
+        assert!(validate_rp_id("vault.example.com", "https://vault.example.com:8443").is_ok());
+        assert!(validate_rp_id("vault.example.com", "https://vault.example.com/path").is_ok());
+    }
+
+    #[test]
+    fn validate_rp_id_accepts_apex_when_user_logs_into_subdomain() {
+        // Vaultwarden admins sometimes register the FIDO2 credential at
+        // the apex domain even though users connect via a subdomain.
+        // Spec calls this "registrable suffix" — we accept it so users
+        // with apex-registered keys can still log in.
+        assert!(validate_rp_id("example.com", "https://vault.example.com").is_ok());
+    }
+
+    #[test]
+    fn validate_rp_id_rejects_unrelated_domain() {
+        // Hostile or MITM'd server tries to make us sign an assertion
+        // for an unrelated origin. This is the whole point of the check.
+        let err = validate_rp_id("attacker.com", "https://vault.example.com").unwrap_err();
+        assert!(matches!(err, Error::Crypto { .. }));
+    }
+
+    #[test]
+    fn validate_rp_id_rejects_suffix_lookalike() {
+        // "example.com.attacker.com" trivially "ends with example.com"
+        // string-wise, but the registrable-suffix rule requires the
+        // dot-separated boundary. Make sure we don't naively substring.
+        let err = validate_rp_id("example.com", "https://example.com.attacker.com").unwrap_err();
+        assert!(matches!(err, Error::Crypto { .. }));
+    }
+
+    #[test]
+    fn validate_rp_id_rejects_malformed_rp_id() {
+        assert!(validate_rp_id("", "https://vault.example.com").is_err());
+        assert!(validate_rp_id("https://vault.example.com", "https://vault.example.com").is_err());
+        assert!(validate_rp_id("vault.example.com/x", "https://vault.example.com").is_err());
+    }
+
+    #[test]
+    fn validate_rp_id_is_case_insensitive() {
+        // Hosts are case-insensitive by spec; some servers are sloppy
+        // about casing in the rpId field.
+        assert!(validate_rp_id("Vault.Example.Com", "https://vault.example.com").is_ok());
+        assert!(validate_rp_id("vault.example.com", "https://VAULT.EXAMPLE.COM").is_ok());
     }
 }

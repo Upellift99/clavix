@@ -90,7 +90,7 @@ export class AuthController {
     this.webauthnBusy = true;
     this.error = null;
     try {
-      const token = await api.webauthnSignChallenge(this.webauthnChallenge);
+      const token = await api.webauthnSignChallenge(this.serverUrl, this.webauthnChallenge);
       await this.finishTwoFactor(token, 7);
     } catch (e) {
       this.error = formatError(e);
