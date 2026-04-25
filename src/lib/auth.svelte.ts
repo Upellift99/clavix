@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { formatError } from "./format";
-import type { Phase, StoredAccount, TokenSet } from "./types";
+import type { Phase, StoredAccount } from "./types";
 
 export type AuthEvent = "loggedIn";
 export type AuthListener = (event: AuthEvent) => void | Promise<void>;
@@ -17,7 +17,6 @@ export class AuthController {
   webauthnBusy = $state(false);
 
   phase = $state<Phase>("init");
-  tokens = $state<TokenSet | null>(null);
   storedAccount = $state<StoredAccount | null>(null);
   error = $state<string | null>(null);
 
@@ -63,7 +62,6 @@ export class AuthController {
     try {
       const result = await api.login(this.serverUrl, this.email, this.password);
       if (result.type === "success") {
-        this.tokens = result.data;
         this.storedAccount = { serverUrl: this.serverUrl, email: this.email };
         this.password = "";
         this.phase = "loggedIn";
@@ -102,7 +100,7 @@ export class AuthController {
   private async finishTwoFactor(code: string, provider: number) {
     this.phase = "authenticating";
     try {
-      this.tokens = await api.loginWithTwoFactor(
+      await api.loginWithTwoFactor(
         this.serverUrl,
         this.email,
         this.password,
@@ -130,7 +128,7 @@ export class AuthController {
     this.phase = "authenticating";
     this.error = null;
     try {
-      this.tokens = await api.loginWithTwoFactor(
+      await api.loginWithTwoFactor(
         this.serverUrl,
         this.email,
         this.password,
@@ -154,7 +152,7 @@ export class AuthController {
     this.phase = "authenticating";
     this.error = null;
     try {
-      this.tokens = await api.unlock(this.password);
+      await api.unlock(this.password);
       this.password = "";
       this.phase = "loggedIn";
       await this.emit("loggedIn");
@@ -172,7 +170,6 @@ export class AuthController {
     }
     this.password = "";
     this.totpCode = "";
-    this.tokens = null;
     this.pendingProviders = [];
     this.error = null;
     this.phase = this.storedAccount ? "unlock" : "idle";
@@ -187,7 +184,6 @@ export class AuthController {
     this.storedAccount = null;
     this.password = "";
     this.totpCode = "";
-    this.tokens = null;
     this.pendingProviders = [];
     this.error = null;
     this.phase = "idle";
@@ -197,7 +193,6 @@ export class AuthController {
     this.phase = this.storedAccount ? "unlock" : "idle";
     this.error = null;
     this.totpCode = "";
-    this.tokens = null;
     this.pendingProviders = [];
     this.password = "";
   }

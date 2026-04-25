@@ -3,15 +3,11 @@
   import * as m from "$lib/paraglide/messages";
   import {
     computeSessionStatus,
-    formatExpiry,
     formatRelativeAgo,
-    truncate,
     type SessionStatus,
   } from "./format";
-  import type { TokenSet } from "./types";
 
   type Props = {
-    tokens: TokenSet;
     syncing: boolean;
     hasSync: boolean;
     lastSyncAt: number | null;
@@ -22,7 +18,6 @@
   };
 
   let {
-    tokens,
     syncing,
     hasSync,
     lastSyncAt,
@@ -71,8 +66,6 @@
     aria-hidden="true"
   ></span>
   <span class="session-label" aria-live="polite">{statusLabel}</span>
-  <code class="session-token">{truncate(tokens.access_token)}</code>
-  <span class="session-expiry">{formatExpiry(tokens.expires_in)}</span>
   <div class="session-actions">
     <button type="button" class="secondary small" onclick={onSwitchAccount}>{m.action_logout()}</button>
     <button type="button" class="secondary small" onclick={onLock}>{m.action_lock()}</button>
@@ -149,20 +142,6 @@
     color: #444;
   }
 
-  .session-token {
-    font-family: var(--font-data);
-    font-size: 0.78rem;
-    background: #f3f4f6;
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    color: #555;
-  }
-
-  .session-expiry {
-    color: #4a4a4a;
-    font-variant-numeric: tabular-nums;
-  }
-
   .session-actions {
     margin-left: auto;
     display: flex;
@@ -172,12 +151,8 @@
   @media (prefers-color-scheme: dark) {
     .session-bar { background: #232323; border-color: #333; }
     .session-label { color: #ccc; }
-    .session-token { background: #2b2b2b; color: #aaa; }
-    .session-expiry { color: #999; }
   }
 
   :global(:root.force-dark) .session-bar { background: #232323; border-color: #333; }
   :global(:root.force-dark) .session-label { color: #ccc; }
-  :global(:root.force-dark) .session-token { background: #2b2b2b; color: #aaa; }
-  :global(:root.force-dark) .session-expiry { color: #999; }
 </style>

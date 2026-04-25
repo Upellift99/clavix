@@ -3,11 +3,11 @@ import type {
   AuditResult,
   CipherDetail,
   EditorPayload,
+  LoginOk,
   LoginResult,
   SshAgentStatus,
   StoredAccount,
   SyncSummary,
-  TokenSet,
 } from "./types";
 
 function nullIfEmpty(s: string): string | null {
@@ -86,7 +86,7 @@ export const api = {
     code: string,
     provider: number,
   ) =>
-    invoke<TokenSet>("login_with_two_factor", {
+    invoke<LoginOk>("login_with_two_factor", {
       serverUrl,
       email,
       password,
@@ -94,7 +94,7 @@ export const api = {
       provider,
     }),
 
-  unlock: (password: string) => invoke<TokenSet>("unlock", { password }),
+  unlock: (password: string) => invoke<LoginOk>("unlock", { password }),
 
   lock: () => invoke<void>("lock"),
 

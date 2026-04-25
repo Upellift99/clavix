@@ -6,7 +6,7 @@ use crate::api::VaultwardenClient;
 use crate::cache;
 use crate::crypto::{decrypt_private_key, decrypt_user_key, derive_master_key, encrypt_string};
 use crate::error::{Error, Result};
-use crate::models::{LoginResult, Prelogin, TokenSet, TwoFactorProvider};
+use crate::models::{LoginOk, LoginOutcome, LoginResult, Prelogin, TwoFactorProvider};
 use crate::services::auth::{
     device_info, extract_session_keys, persist_session, prepare_credentials, recover_refresh_token,
     store_session,
@@ -41,20 +41,28 @@ pub async fn login(
     server_url: String,
     email: String,
     password: String,
-) -> Result<LoginResult> {
+) -> Result<LoginOutcome> {
     let password: SecretString = password.into();
     let (client, pre, master_key, hash) =
         prepare_credentials(&server_url, &email, &password).await?;
     let device = device_info()?;
     let result = client.login(&email, &hash, &device).await?;
 
-    if let LoginResult::Success(ref tokens) = result {
-        let (user_key, private_key) = extract_session_keys(&master_key, tokens)?;
-        persist_session(&server_url, &email, &pre, tokens, &user_key)?;
-        store_session(&state, client, tokens.clone(), user_key, private_key);
+    match result {
+        LoginResult::Success(tokens) => {
+            let (user_key, private_key) = extract_session_keys(&master_key, &tokens)?;
+            persist_session(&server_url, &email, &pre, &tokens, &user_key)?;
+            store_session(&state, client, tokens, user_key, private_key);
+            Ok(LoginOutcome::Success(LoginOk { email }))
+        }
+        LoginResult::TwoFactorRequired {
+            providers,
+            webauthn_challenge,
+        } => Ok(LoginOutcome::TwoFactorRequired {
+            providers,
+            webauthn_challenge,
+        }),
     }
-
-    Ok(result)
 }
 
 #[tauri::command]
@@ -65,7 +73,7 @@ pub async fn login_with_two_factor(
     password: String,
     code: String,
     provider: u8,
-) -> Result<TokenSet> {
+) -> Result<LoginOk> {
     let typed_provider = TwoFactorProvider::try_from(provider)
         .map_err(|_| Error::TwoFactorProviderUnsupported { provider })?;
     let password: SecretString = password.into();
@@ -78,12 +86,12 @@ pub async fn login_with_two_factor(
 
     let (user_key, private_key) = extract_session_keys(&master_key, &tokens)?;
     persist_session(&server_url, &email, &pre, &tokens, &user_key)?;
-    store_session(&state, client, tokens.clone(), user_key, private_key);
-    Ok(tokens)
+    store_session(&state, client, tokens, user_key, private_key);
+    Ok(LoginOk { email })
 }
 
 #[tauri::command]
-pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<TokenSet> {
+pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<LoginOk> {
     let persisted = store::load_session()?.ok_or_else(|| Error::Storage {
         reason: "no stored session to unlock".into(),
     })?;
@@ -124,9 +132,10 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Toke
     updated.encrypted_refresh_token = Some(encrypted_refresh);
     store::save_session(&updated)?;
 
-    store_session(&state, client, tokens.clone(), user_key, private_key);
+    let email = persisted.email.clone();
+    store_session(&state, client, tokens, user_key, private_key);
     crate::state::mark_activity(&state);
-    Ok(tokens)
+    Ok(LoginOk { email })
 }
 
 /// Perform a WebAuthn / FIDO2 assertion against the user's USB security

@@ -143,9 +143,8 @@
 
     <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
 
-    {#if auth.phase === "loggedIn" && auth.tokens}
+    {#if auth.phase === "loggedIn"}
       <SessionBar
-        tokens={auth.tokens}
         syncing={vault.syncing}
         hasSync={vault.summary !== null}
         lastSyncAt={vault.lastSyncAt}

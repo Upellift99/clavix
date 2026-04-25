@@ -20,19 +20,10 @@ export type TauriError = {
   data?: Record<string, unknown>;
 };
 
-export type TokenSet = {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
-  key: string | null;
-  privateKey: string | null;
-  kdf: 0 | 1 | null;
-  kdfIterations: number | null;
-};
+export type LoginOk = { email: string };
 
 export type LoginResult =
-  | { type: "success"; data: TokenSet }
+  | { type: "success"; data: LoginOk }
   | {
       type: "twoFactorRequired";
       data: { providers: number[]; webauthnChallenge?: string };

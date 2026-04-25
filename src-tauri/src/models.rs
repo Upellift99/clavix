@@ -74,8 +74,11 @@ pub struct TokenSet {
     pub kdf_iterations: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+/// Internal result of an HTTP login call. The `TokenSet` here is consumed
+/// by `commands::auth` to build the in-memory `Session`; it is **not**
+/// serialised to the frontend (see `LoginOutcome` for the IPC-facing
+/// shape).
+#[derive(Debug, Clone)]
 pub enum LoginResult {
     Success(TokenSet),
     TwoFactorRequired {
@@ -83,6 +86,27 @@ pub enum LoginResult {
         /// When the server offers WebAuthn (provider 7), the challenge
         /// object it wants us to sign. Serialised JSON string so we can
         /// hand it to the CTAP2 backend verbatim without re-shaping.
+        webauthn_challenge: Option<String>,
+    },
+}
+
+/// Public payload returned to the frontend on a successful login/unlock.
+/// Intentionally token-free: the access/refresh tokens and the user key
+/// stay inside the Rust `AppState` and never cross the IPC boundary.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginOk {
+    pub email: String,
+}
+
+/// IPC-facing variant of `LoginResult` — same shape as the old type, minus
+/// the `TokenSet` payload that has no business reaching the WebView.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+pub enum LoginOutcome {
+    Success(LoginOk),
+    TwoFactorRequired {
+        providers: Vec<TwoFactorProvider>,
         #[serde(skip_serializing_if = "Option::is_none")]
         webauthn_challenge: Option<String>,
     },

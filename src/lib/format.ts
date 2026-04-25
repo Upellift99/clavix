@@ -31,16 +31,6 @@ export function formatError(e: unknown): string {
   }
 }
 
-export function truncate(s: string, n: number = 24): string {
-  return s.length > n ? `${s.slice(0, n)}…` : s;
-}
-
-export function formatExpiry(seconds: number): string {
-  const minutes = Math.round(seconds / 60);
-  if (minutes >= 60) return `${(minutes / 60).toFixed(1)} h`;
-  return `${minutes} min`;
-}
-
 export type SessionStatus = "syncing" | "fresh" | "stale" | "offline" | "unknown";
 
 /** Ciphers-staleness threshold: the session dot flips amber after this. */

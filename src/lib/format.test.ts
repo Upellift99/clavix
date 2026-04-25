@@ -5,11 +5,9 @@ import {
   computeSessionStatus,
   extractDomain,
   faviconUrl,
-  formatExpiry,
   mask,
   providerLabel,
   SESSION_FRESH_MS,
-  truncate,
 } from "./format";
 import type { CipherSummary, StoredAccount } from "./types";
 
@@ -28,25 +26,6 @@ function cipher(p: Partial<CipherSummary>): CipherSummary {
     deletedDate: null,
   };
 }
-
-describe("truncate", () => {
-  it("adds ellipsis past the limit", () => {
-    expect(truncate("abcdefghij", 5)).toBe("abcde…");
-  });
-  it("returns the string untouched under the limit", () => {
-    expect(truncate("abc", 5)).toBe("abc");
-  });
-});
-
-describe("formatExpiry", () => {
-  it("uses minutes under an hour", () => {
-    expect(formatExpiry(30 * 60)).toBe("30 min");
-  });
-  it("switches to hours with one decimal at or past 60 min", () => {
-    expect(formatExpiry(60 * 60)).toBe("1.0 h");
-    expect(formatExpiry(90 * 60)).toBe("1.5 h");
-  });
-});
 
 describe("mask", () => {
   it("defaults to 12 masked bullets max", () => {
