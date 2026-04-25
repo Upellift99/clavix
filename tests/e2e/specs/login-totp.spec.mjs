@@ -61,9 +61,15 @@ describe("Login flow ▸ TOTP 2FA", () => {
       timeoutMsg: "TOTP input never appeared after submit — 2FA branch not entered",
     });
 
-    // RFC 6238 code at "now". The window is 30 s, so even a slow
-    // Argon2id step on the previous IPC call won't have us land
-    // outside the validity window of the code we just minted.
+    // RFC 6238 code at "now", but wait until the next 30 s window
+    // before computing it. Vaultwarden's TOTP validator tracks the
+    // last accepted step to block replay, and the seed's
+    // `enable_totp_2fa` just consumed the current step a couple of
+    // seconds ago to activate the authenticator — reusing the same
+    // step here would come back as "Invalid TOTP code".
+    const period = 30_000;
+    const msUntilNextStep = period - (Date.now() % period) + 50;
+    await new Promise((r) => setTimeout(r, msUntilNextStep));
     const code = totpCode(TOTP_SECRET);
     await totpInput.setValue(code);
 
