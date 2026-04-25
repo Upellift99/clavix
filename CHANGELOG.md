@@ -5,6 +5,56 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.15] — 2026-04-25
+
+### Added
+- **Trash bucket workflow.** `soft_delete_cipher` (PUT
+  `/api/ciphers/{id}/delete`) sends a cipher to the server's trash
+  with `deletedDate` stamped; `restore_cipher` clears it again. The
+  cipher detail panel now shows a "Supprimer" button on a normal
+  item (alongside "Éditer"); a trashed item still gets the existing
+  "Restaurer" / "Supprimer définitivement" pair. Before this
+  release Clavix could only hard-delete (DELETE) — items only ever
+  reached the trash if a different client put them there.
+- **User-pickable visible columns on the cipher list.** The
+  Identifiant and URL columns are now hideable per user preference
+  (Type icon and Name stay always-on). Choice is persisted in
+  `localStorage` under `clavix.visibleColumns`. Native
+  `<details>/<summary>` popover anchored to the leftmost header
+  cell — click-outside-to-close, ESC-to-close and tab-trapping
+  come for free without a popover library.
+
+### Changed
+- **Cipher list polish**:
+  - Searching no longer leaves a tall blank band at the top of the
+    virtualised list. Filter shrinks `items.length`, scrollTop is
+    clamped to the new content range so the rendered slice stays
+    within the viewport.
+  - Rows paint flush edge-to-edge: the `<li>` is `align-items:
+    stretch`, the `<button>` is `height: 100%`, no more thin white
+    sliver above and below each row.
+  - Hover and selected states pulled up two notches in saturation
+    so they're clearly distinct from the zebra background. Same
+    treatment in dark mode and on the tree view.
+  - Identifiant and URL columns rendered at `0.82em`, smaller than
+    the name column. Bump them (and the name) so all three text
+    columns read at roughly the same size.
+
+### Tests
+- Three new E2E specs: `logout.spec` (asserts session.json
+  cleared, AuthGate re-renders the login form not the unlock
+  form), `edit-cipher.spec` (UI-driven rename round-trip), and
+  `delete-restore.spec` (soft delete → trash → restore). Brings
+  the E2E suite from 6 specs to 9.
+
+### Internal
+- The previous CI run shipped a self-inflicted regression where
+  `delete-restore.spec` called `delete_cipher` (hard delete)
+  thinking it was soft, wiping the seed for every spec that ran
+  after it (six in a row failed). The new soft-delete plumbing
+  fixes the root cause; the spec now uses `soft_delete_cipher`
+  with a comment that calls out the trap explicitly.
+
 ## [0.1.14] — 2026-04-25
 
 ### Fixed
