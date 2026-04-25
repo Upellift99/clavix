@@ -5,6 +5,50 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.17] — 2026-04-25
+
+### Fixed
+- **No more global window scroll.** The default user-agent
+  `<body>` margin (8 px top + 8 px bottom) was overflowing every
+  `100vh` layout by exactly 16 px, producing a permanent vertical
+  scrollbar regardless of window size or content. Reset
+  `html`/`body` margins to 0, locked `body { overflow: hidden }`,
+  and switched `.container.wide` from `100vh` to `100%`. Inner
+  panes (folder tree, cipher list, detail panel, dialogs) keep
+  their own `overflow: auto`, so long content still scrolls
+  inside its panel — only the chrome can no longer scroll.
+
+### Changed
+- **Cleaner main view chrome.** Removed the redundant
+  `<h1>{m.app_name()}</h1>` page title — the OS window chrome
+  already shows the app name, and the duplicate was wasting
+  vertical space on the 800×600 default window.
+- **Tighter cipher detail values.** `.value` rows now use
+  `flex: 0 1 auto` instead of `flex: 1 1 auto` so action buttons
+  (copy / show / hide) sit snug against the value text instead
+  of being pushed to the panel's right edge.
+
+### Tests
+- **TOTP 2FA spec stability.** `login-totp.spec` now waits one
+  extra step before submitting the 2FA code, eliminating a race
+  where the form was being submitted before the WebView had
+  finished swapping to the 2FA prompt.
+- **Smoke spec re-anchored to `main.container`.** Following the
+  `<h1>` removal above, `tests/e2e/specs/smoke.spec.mjs` now
+  asserts on the Svelte-injected `<main class="container">`
+  element. Same anti-blank-window guarantee (the static
+  `app.html` body is an empty wrapper, so this node only exists
+  post-hydration), no app-code change needed.
+
+### Tooling
+- **Manual Linux dev-build workflow.**
+  `.github/workflows/dev-build.yml`, triggered via
+  `workflow_dispatch`, builds an `.AppImage` on a GitHub runner
+  and uploads it as a 14-day artifact. Lets contributors test
+  changes on a real Tauri build without running `tauri dev`
+  locally — the parallel Rust + Vite + WebView pipeline is too
+  heavy on lower-RAM machines.
+
 ## [0.1.16] — 2026-04-25
 
 ### Added
