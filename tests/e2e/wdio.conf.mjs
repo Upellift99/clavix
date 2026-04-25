@@ -6,7 +6,14 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const projectRoot = resolve(here, "../..");
-const app = resolve(projectRoot, "src-tauri/target/debug/clavix");
+
+// Build profile is selected via E2E_BUILD_PROFILE so a release-build
+// smoke job can reuse this same conf without duplicating it. Default is
+// "debug" because that's what the full local + CI E2E suite runs
+// against — release builds take much longer to compile and are reserved
+// for the CSP/regression smoke job.
+const buildProfile = process.env.E2E_BUILD_PROFILE === "release" ? "release" : "debug";
+const app = resolve(projectRoot, `src-tauri/target/${buildProfile}/clavix`);
 const tauriDriverBin = resolve(homedir(), ".cargo/bin/tauri-driver");
 const composeFile = resolve(here, "docker-compose.yml");
 
@@ -52,9 +59,11 @@ async function waitForVaultwarden(timeoutMs = 30_000) {
 }
 
 if (!existsSync(app)) {
-  throw new Error(
-    `Built Clavix binary not found at ${app}. Run \`pnpm tauri build --debug\` first.`,
-  );
+  const buildHint =
+    buildProfile === "release"
+      ? "Run `pnpm tauri build --no-bundle` first."
+      : "Run `pnpm tauri build --debug --no-bundle` first.";
+  throw new Error(`Built Clavix binary not found at ${app}. ${buildHint}`);
 }
 if (!existsSync(tauriDriverBin)) {
   throw new Error(
@@ -87,9 +96,14 @@ export const config = {
   mochaOpts: { ui: "bdd", timeout: 60_000 },
   port: 4444,
 
-  // Boots Vaultwarden and seeds it before any spec runs. Set
-  // E2E_SKIP_DOCKER=1 to reuse an externally-managed container (useful
-  // when iterating on specs locally — saves ~3 s per run).
+  // Boots Vaultwarden and seeds it before any spec runs. Knobs:
+  //   - E2E_SKIP_DOCKER=1: reuse an externally-managed container
+  //     (useful when iterating on specs locally — saves ~3 s per run).
+  //   - E2E_SKIP_SEED=1: don't boot Vaultwarden and don't run the seed.
+  //     Used by the release-build smoke job, which only validates that
+  //     the bundled binary boots and the WebView hydrates — no
+  //     Vaultwarden traffic involved. Skipping shaves ~30 s + ~50 s
+  //     compile from the smoke job.
   //
   // We don't pass `--wait` to `docker compose up` because Vaultwarden's
   // first boot sometimes blows through the healthcheck's 60 s window
@@ -98,6 +112,9 @@ export const config = {
   // aborts the whole orchestrator. Our own `waitForVaultwarden()` polls
   // `/alive` with a friendlier timeout.
   async onPrepare() {
+    if (process.env.E2E_SKIP_SEED === "1") {
+      return;
+    }
     if (process.env.E2E_SKIP_DOCKER !== "1") {
       run("docker", ["compose", "-f", composeFile, "up", "-d"]);
     }
@@ -118,6 +135,9 @@ export const config = {
   },
 
   onComplete() {
+    if (process.env.E2E_SKIP_SEED === "1") {
+      return;
+    }
     if (
       process.env.E2E_SKIP_DOCKER !== "1" &&
       process.env.E2E_KEEP_CONTAINER !== "1"

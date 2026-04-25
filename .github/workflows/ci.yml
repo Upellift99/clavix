@@ -172,3 +172,84 @@ jobs:
           path: tests/e2e/screenshots/
           if-no-files-found: ignore
           retention-days: 7
+
+  smoke-release:
+    name: Smoke E2E (release build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Why a separate release-build smoke job exists: the main e2e job
+    # builds with `--debug`, where Tauri does not enforce the release
+    # CSP. v0.1.11 shipped a blank-window .deb because the strict
+    # release CSP nuked the SvelteKit bootstrap and no spec ever ran
+    # against a release binary. This job rebuilds in release and runs
+    # smoke.spec only — enough to assert that the Svelte tree
+    # hydrates under the production CSP, not enough to inflate CI
+    # time with a full suite.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Tauri + WebDriver system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libxdo-dev \
+            libssl-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libudev-dev \
+            webkit2gtk-driver \
+            xvfb \
+            build-essential \
+            pkg-config
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: release
+
+      - name: Install tauri-driver
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-driver
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Clavix (release)
+        run: pnpm tauri build --no-bundle
+
+      - name: Run smoke spec against release binary
+        env:
+          E2E_BUILD_PROFILE: release
+          E2E_SKIP_SEED: "1"
+        run: |
+          xvfb-run -a pnpm exec wdio run tests/e2e/wdio.conf.mjs \
+            --spec tests/e2e/specs/smoke.spec.mjs
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-release-screenshots
+          path: tests/e2e/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
