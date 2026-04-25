@@ -1,5 +1,6 @@
 .cipher-detail {
   margin-top: 0.5rem;
+  padding: 0.85rem 1rem;
 }
 
 .detail-header {
@@ -8,35 +9,97 @@
   align-items: flex-start;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e5e5;
+  padding-bottom: 0.6rem;
+}
+
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .detail-header h2 {
-  margin: 0.15rem 0 0;
+  margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Inline icon next to the action label inside .secondary buttons in
+   the header (Éditer / Supprimer). The button itself is normal-size,
+   we just align the icon to the text baseline. */
+.detail-header .secondary :global(svg) {
+  margin-right: 0.25rem;
+  vertical-align: -2px;
+}
+
+.detail-header .danger {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+.detail-header .danger:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+/* Sections group related fields under a small uppercase header so
+   the eye can scan a long card / identity item without re-reading
+   every label. The dividing whitespace + the section title together
+   stand in for an explicit border. */
+.detail-section {
+  margin: 0 0 0.75rem;
+}
+
+.detail-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.detail-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin: 0 0 0.4rem;
+  padding-bottom: 0.2rem;
 }
 
 .detail-field {
   display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 0.35rem 0.85rem;
+  grid-template-columns: 130px 1fr;
+  gap: 0.3rem 0.85rem;
   align-items: center;
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.3rem;
 }
 
 .detail-field dt {
-  font-weight: 600;
+  font-weight: 500;
   color: #555;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
 }
 
 .detail-field dd {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   flex-wrap: wrap;
   font-family: var(--font-data);
+}
+
+/* `.value` wraps any single-field content (string, code, password
+   spans). It picks up the data font and sits on the same baseline as
+   the action buttons that follow. */
+.value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-data);
+  font-size: 0.92rem;
 }
 
 .password {
@@ -50,25 +113,62 @@
    what looked like a long letter run actually has a digit buried
    inside it. Letters keep the default body colour. */
 .password .ch-digit {
-  color: #1d4ed8; /* blue-700 */
+  color: #1d4ed8;
   font-weight: 600;
 }
 .password .ch-symbol {
-  color: #b91c1c; /* red-700 */
+  color: #b91c1c;
   font-weight: 600;
 }
-.password .ch-letter {
-  /* default — no override */
+
+/* Compact icon-only buttons used to replace the verbose
+   "Copier" / "Afficher" word buttons. Looks like the buttons inside
+   the Toolbar (same hit area, same hover treatment) so the visual
+   rhythm of the panel stays consistent with the rest of the UI. */
+.icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #4a4a4a;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 100ms ease, border-color 100ms ease, color 100ms ease;
+  flex: 0 0 auto;
+}
+.icon-btn:hover:not(:disabled) {
+  background: #dde9f8;
+  border-color: #b6cdec;
+  color: #1d4ed8;
+}
+.icon-btn:active:not(:disabled) {
+  background: #cfe0f5;
+}
+.icon-btn:focus-visible {
+  outline: 2px solid #396cd8;
+  outline-offset: 1px;
+}
+.icon-btn.primary:hover:not(:disabled) {
+  background: #cfe0f5;
 }
 
 .uri-list {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0 0 0 130px;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  flex: 1;
+  gap: 0.2rem;
+}
+
+.uri-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .uri-list code {
@@ -76,33 +176,90 @@
 }
 
 .notes {
+  margin: 0 0 0 130px;
   white-space: pre-wrap;
   font-size: 0.88rem;
   font-family: var(--font-data);
+  color: #333;
 }
 
 .ssh-key {
   display: block;
-  max-width: 100%;
+  width: 100%;
   white-space: pre-wrap;
   word-break: break-all;
   max-height: 10rem;
   overflow-y: auto;
+  font-size: 0.78rem;
+  background: #f6f8fb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
 }
 
 .detail-footer {
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+@media (max-width: 720px) {
+  .detail-field {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+  .uri-list,
+  .notes {
+    margin-left: 0;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
-  .detail-field dt { color: #aaa; }
-  /* Brighter blue/red on the dark background so the contrast is the
-     same perceived "loud" as it is in light mode. */
+  .detail-header { border-bottom-color: #2e3a52; }
+  .detail-section-title { color: #9ca3af; }
+  .detail-field dt { color: #b8b8b8; }
+  .icon-btn {
+    color: #aab;
+  }
+  .icon-btn:hover:not(:disabled) {
+    background: #2c3a55;
+    border-color: #3b4f72;
+    color: #aabaff;
+  }
+  .icon-btn:active:not(:disabled) {
+    background: #364871;
+  }
+  .icon-btn.primary:hover:not(:disabled) {
+    background: #3b4f72;
+  }
   .password .ch-digit { color: #93c5fd; }
   .password .ch-symbol { color: #fca5a5; }
+  .ssh-key {
+    background: #1d2738;
+    border-color: #2e3a52;
+    color: #cfdcff;
+  }
+  .notes { color: #d1d5db; }
+  .detail-footer { color: #9ca3af; }
 }
 
-:root.force-dark .detail-field dt { color: #aaa; }
+:root.force-dark .detail-header { border-bottom-color: #2e3a52; }
+:root.force-dark .detail-section-title { color: #9ca3af; }
+:root.force-dark .detail-field dt { color: #b8b8b8; }
+:root.force-dark .icon-btn { color: #aab; }
+:root.force-dark .icon-btn:hover:not(:disabled) {
+  background: #2c3a55;
+  border-color: #3b4f72;
+  color: #aabaff;
+}
+:root.force-dark .icon-btn:active:not(:disabled) { background: #364871; }
+:root.force-dark .icon-btn.primary:hover:not(:disabled) { background: #3b4f72; }
 :root.force-dark .password .ch-digit { color: #93c5fd; }
 :root.force-dark .password .ch-symbol { color: #fca5a5; }
+:root.force-dark .ssh-key {
+  background: #1d2738;
+  border-color: #2e3a52;
+  color: #cfdcff;
+}
+:root.force-dark .notes { color: #d1d5db; }
+:root.force-dark .detail-footer { color: #9ca3af; }
