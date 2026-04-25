@@ -583,10 +583,38 @@ fn collect_known_providers(ids: impl Iterator<Item = u64>) -> Vec<TwoFactorProvi
         .collect()
 }
 
+/// Hosts where we tolerate plain `http://` for development convenience
+/// (running Vaultwarden locally in Docker is the typical case). Any
+/// other host must use `https://`. Match is exact and case-insensitive.
+fn is_local_host(host: &str) -> bool {
+    matches!(
+        host.to_ascii_lowercase().as_str(),
+        "localhost" | "127.0.0.1" | "::1" | "[::1]"
+    )
+}
+
 fn normalize_base_url(input: &str) -> Result<Url> {
     let mut url = Url::parse(input.trim()).map_err(|_| Error::InvalidUrl {
         url: input.to_string(),
     })?;
+
+    // Reject anything that is not http(s) outright. `file://`,
+    // `javascript:`, etc. parse as URLs but have no business reaching
+    // a Vaultwarden client. http is allowed only for clearly-local
+    // hosts so a user can't be tricked (or trick themselves) into
+    // posting a master password hash over plaintext on a hostile WiFi.
+    let scheme = url.scheme();
+    let host = url.host_str().unwrap_or("").to_string();
+    match scheme {
+        "https" => {}
+        "http" if is_local_host(&host) => {}
+        _ => {
+            return Err(Error::InvalidUrl {
+                url: input.to_string(),
+            });
+        }
+    }
+
     if !url.path().ends_with('/') {
         let new_path = format!("{}/", url.path());
         url.set_path(&new_path);
@@ -617,6 +645,37 @@ mod tests {
     fn normalize_base_url_rejects_garbage() {
         assert!(normalize_base_url("not a url").is_err());
         assert!(normalize_base_url("").is_err());
+    }
+
+    #[test]
+    fn normalize_base_url_rejects_plain_http_against_remote_host() {
+        // Cleartext over the internet would let a wifi-cafe attacker
+        // collect every master password hash on the wire. Block it
+        // explicitly rather than rely on Vaultwarden's TLS posture.
+        assert!(normalize_base_url("http://vault.example.com").is_err());
+        assert!(normalize_base_url("http://example.com:8080/path").is_err());
+    }
+
+    #[test]
+    fn normalize_base_url_allows_http_for_local_dev() {
+        // The standard self-hosted dev loop is `docker compose up` on
+        // localhost without TLS — refusing it would force every
+        // contributor to wire up a self-signed cert, which is the kind
+        // of friction that pushes people to disable security elsewhere.
+        for host in ["localhost", "127.0.0.1", "[::1]"] {
+            let u = normalize_base_url(&format!("http://{host}:8080/")).unwrap();
+            assert!(u.as_str().starts_with("http://"));
+        }
+    }
+
+    #[test]
+    fn normalize_base_url_rejects_non_http_schemes() {
+        // Defence in depth against an `Url::parse`-friendly but
+        // semantically wrong input (config import, copy-paste from a
+        // browser address bar, etc.).
+        assert!(normalize_base_url("file:///etc/passwd").is_err());
+        assert!(normalize_base_url("javascript:alert(1)").is_err());
+        assert!(normalize_base_url("ftp://vault.example.com").is_err());
     }
 
     #[test]
