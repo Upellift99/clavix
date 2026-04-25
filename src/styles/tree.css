@@ -138,6 +138,14 @@
   font-weight: 500;
 }
 
+/* Inline-flex container for the (icon + label) pair so the SVG sits
+   on the text baseline and grouping doesn't break with long labels. */
+.tree-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .tree-all:hover {
   background: #cfe0f5;
 }

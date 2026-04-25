@@ -6,6 +6,7 @@
     formatRelativeAgo,
     type SessionStatus,
   } from "./format";
+  import Icon from "./Icon.svelte";
 
   type Props = {
     syncing: boolean;
@@ -84,7 +85,7 @@
       title={syncTitle}
       aria-label={syncTitle}
     >
-      {#if syncing}⟳{:else}🔄{/if}
+      <Icon name="refresh" size={18} class={syncing ? "icon-spin" : ""} />
     </button>
     <button
       type="button"
@@ -93,7 +94,7 @@
       title={m.action_lock()}
       aria-label={m.action_lock()}
     >
-      🔒
+      <Icon name="lock" size={18} />
     </button>
     <button
       type="button"
@@ -102,7 +103,7 @@
       title={m.action_logout()}
       aria-label={m.action_logout()}
     >
-      ⏻
+      <Icon name="log-out" size={18} />
     </button>
   </div>
 
@@ -117,7 +118,7 @@
       title={m.action_new_item()}
       aria-label={m.action_new_item()}
     >
-      ＋
+      <Icon name="plus" size={18} />
     </button>
     <button
       type="button"
@@ -126,7 +127,7 @@
       title={m.import_label()}
       aria-label={m.import_label()}
     >
-      📥
+      <Icon name="download" size={18} />
     </button>
   </div>
 
@@ -141,7 +142,7 @@
       title={m.generator_label()}
       aria-label={m.generator_label()}
     >
-      🎲
+      <Icon name="dice" size={18} />
     </button>
     <button
       type="button"
@@ -150,7 +151,7 @@
       title={m.audit_label()}
       aria-label={m.audit_label()}
     >
-      🛡
+      <Icon name="shield" size={18} />
     </button>
     <button
       type="button"
@@ -159,7 +160,7 @@
       title={m.tree_infos_label()}
       aria-label={m.tree_infos_label()}
     >
-      ⓘ
+      <Icon name="info" size={18} />
     </button>
   </div>
 

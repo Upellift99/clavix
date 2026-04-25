@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import Icon, { type IconName } from "./Icon.svelte";
   import { canDropFolderOn, isCipherDroppable, isFolderDropTarget } from "./drag";
   import type { DragController } from "./drag.svelte";
   import { folderPathFromKey } from "./tree";
@@ -126,6 +127,20 @@
   }
 
   const numberLocale = $derived(currentLocale === "fr" ? "fr-FR" : "en-US");
+
+  // The cipher-type filter rows under the "Types" disclosure. Kept
+  // here rather than inline in the template so the per-row icon name
+  // gets typed as `IconName` and not as the union of every literal in
+  // the table.
+  const typeRows: Array<{ kind: number; icon: IconName; label: string }> = $derived(
+    [
+      { kind: 1, icon: "key", label: m.type_login() },
+      { kind: 2, icon: "note", label: m.type_note() },
+      { kind: 3, icon: "card", label: m.type_card() },
+      { kind: 4, icon: "id-card", label: m.type_identity() },
+      { kind: 5, icon: "terminal", label: m.type_ssh_key() },
+    ],
+  );
 </script>
 
 <aside class="tree-pane">
@@ -150,7 +165,7 @@
     class:selected={quickFilter === "favorites"}
     onclick={() => onSelectQuickFilter("favorites")}
   >
-    <span>★ {m.tree_favorites()}</span>
+    <span class="tree-all-label"><Icon name="star" size={14} />{m.tree_favorites()}</span>
     <span class="tree-count">{cipherIndex.favorites}</span>
   </button>
   <button
@@ -159,26 +174,22 @@
     class:selected={quickFilter === "trash"}
     onclick={() => onSelectQuickFilter("trash")}
   >
-    <span>🗑 {m.tree_trash()}</span>
+    <span class="tree-all-label"><Icon name="trash" size={14} />{m.tree_trash()}</span>
     <span class="tree-count">{cipherIndex.trash}</span>
   </button>
   <details class="tree-types">
     <summary>{m.tree_types()}</summary>
-    {#each [
-      [1, "🔐", m.type_login()],
-      [2, "📝", m.type_note()],
-      [3, "💳", m.type_card()],
-      [4, "🪪", m.type_identity()],
-      [5, "🔑", m.type_ssh_key()],
-    ] as [k, icon, label]}
+    {#each typeRows as row (row.kind)}
       <button
         type="button"
         class="tree-all tree-type-btn"
-        class:selected={quickFilter === `type:${k}`}
-        onclick={() => onSelectQuickFilter(`type:${k}` as QuickFilter)}
+        class:selected={quickFilter === `type:${row.kind}`}
+        onclick={() => onSelectQuickFilter(`type:${row.kind}` as QuickFilter)}
       >
-        <span>{icon} {label}</span>
-        <span class="tree-count">{cipherIndex.byType.get(k as number) ?? 0}</span>
+        <span class="tree-all-label">
+          <Icon name={row.icon} size={14} />{row.label}
+        </span>
+        <span class="tree-count">{cipherIndex.byType.get(row.kind) ?? 0}</span>
       </button>
     {/each}
   </details>
@@ -227,7 +238,7 @@
           onclick={() => onToggleExpanded(node.key)}
           aria-label={expanded.has(node.key) ? "Réduire" : "Déplier"}
         >
-          {expanded.has(node.key) ? "▼" : "▶"}
+          <Icon name={expanded.has(node.key) ? "chevron-down" : "chevron-right"} size={12} />
         </button>
       {:else}
         <span class="tree-spacer"></span>
@@ -271,7 +282,7 @@
           onclick={() => onToggleExpanded(node.key)}
           aria-label={expanded.has(node.key) ? "Réduire" : "Déplier"}
         >
-          {expanded.has(node.key) ? "▼" : "▶"}
+          <Icon name={expanded.has(node.key) ? "chevron-down" : "chevron-right"} size={12} />
         </button>
       {:else}
         <span class="tree-spacer"></span>

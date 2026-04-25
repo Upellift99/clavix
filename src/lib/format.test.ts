@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  cipherTypeIcon,
+  cipherTypeIconName,
   cipherTypeLabel,
   computeSessionStatus,
   extractDomain,
@@ -74,14 +74,15 @@ describe("providerLabel", () => {
   });
 });
 
-describe("cipherTypeLabel / cipherTypeIcon", () => {
+describe("cipherTypeLabel / cipherTypeIconName", () => {
   it("maps known kinds", () => {
     expect(cipherTypeLabel(1)).toBe("Login");
-    expect(cipherTypeIcon(5)).toBe("🔑");
+    expect(cipherTypeIconName(1)).toBe("key");
+    expect(cipherTypeIconName(5)).toBe("terminal");
   });
   it("falls back for unknown kinds", () => {
     expect(cipherTypeLabel(42)).toBe("Type 42");
-    expect(cipherTypeIcon(42)).toBe("❔");
+    expect(cipherTypeIconName(42)).toBe("info");
   });
 });
 

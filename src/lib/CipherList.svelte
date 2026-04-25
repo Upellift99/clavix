@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { cipherTypeIcon, cipherTypeLabel, faviconUrl } from "./format";
+  import Icon from "./Icon.svelte";
+  import { cipherTypeIconName, cipherTypeLabel, faviconUrl } from "./format";
   import type { DragController } from "./drag.svelte";
   import type { CipherListColumns } from "./prefs.svelte";
   import type { CipherSummary, SortKey, StoredAccount } from "./types";
@@ -158,7 +159,9 @@
           class="cipher-icon"
           title={m.columns_chooser_title()}
           aria-label={m.columns_chooser_title()}
-        >⋯</summary>
+        >
+          <Icon name="more-horizontal" size={14} />
+        </summary>
         <div class="columns-popover" role="menu">
           <div class="columns-popover-title">{m.columns_chooser_title()}</div>
           <label>
@@ -188,7 +191,7 @@
         onclick={() => onToggleSort("name")}
       >
         {m.col_name()}
-        {#if sortKey === "name"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+        {#if sortKey === "name"}<Icon name={sortAsc ? "chevron-up" : "chevron-down"} size={12} class="sort-arrow" />{/if}
       </button>
       {#if visibleColumns.username}
         <button
@@ -198,7 +201,7 @@
           onclick={() => onToggleSort("username")}
         >
           {m.col_username()}
-          {#if sortKey === "username"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+          {#if sortKey === "username"}<Icon name={sortAsc ? "chevron-up" : "chevron-down"} size={12} class="sort-arrow" />{/if}
         </button>
       {/if}
       {#if visibleColumns.uri}
@@ -209,7 +212,7 @@
           onclick={() => onToggleSort("uri")}
         >
           {m.col_url()}
-          {#if sortKey === "uri"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+          {#if sortKey === "uri"}<Icon name={sortAsc ? "chevron-up" : "chevron-down"} size={12} class="sort-arrow" />{/if}
         </button>
       {/if}
     </div>
@@ -245,19 +248,21 @@
                         const img = e.currentTarget as HTMLImageElement;
                         img.style.display = "none";
                         const fallback = img.nextElementSibling as HTMLElement | null;
-                        if (fallback) fallback.style.display = "inline";
+                        if (fallback) fallback.style.display = "inline-flex";
                       }}
                     />
-                    <span class="emoji-fallback" style:display="none">
-                      {cipherTypeIcon(c.kind)}
+                    <span class="icon-fallback" style:display="none">
+                      <Icon name={cipherTypeIconName(c.kind)} size={16} />
                     </span>
                   {:else}
-                    <span class="emoji-fallback">{cipherTypeIcon(c.kind)}</span>
+                    <span class="icon-fallback">
+                      <Icon name={cipherTypeIconName(c.kind)} size={16} />
+                    </span>
                   {/if}
                 </span>
                 <span class="col-name">
                   {c.name}
-                  {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
+                  {#if c.favorite}<span class="star" title="Favori"><Icon name="star" size={12} /></span>{/if}
                 </span>
                 {#if visibleColumns.username}
                   <span class="col-username" title={c.username ?? ""}>

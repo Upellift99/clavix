@@ -124,13 +124,21 @@ export function cipherTypeLabel(k: number): string {
   }
 }
 
-export function cipherTypeIcon(k: number): string {
+/** Maps a Bitwarden cipher kind to the right SVG `Icon` name. The
+ *  emojis we used to render here looked OK on macOS but rendered as
+ *  multicolour bitmap glyphs on most Linux GTK builds, fighting the
+ *  rest of the monochrome UI. Returning a name + letting the
+ *  consumer do `<Icon name={...}/>` keeps everything inheriting
+ *  `currentColor`. */
+export function cipherTypeIconName(
+  k: number,
+): "key" | "note" | "card" | "id-card" | "terminal" | "info" {
   switch (k) {
-    case 1: return "🔐";
-    case 2: return "📝";
-    case 3: return "💳";
-    case 4: return "🪪";
-    case 5: return "🔑";
-    default: return "❔";
+    case 1: return "key";
+    case 2: return "note";
+    case 3: return "card";
+    case 4: return "id-card";
+    case 5: return "terminal";
+    default: return "info";
   }
 }
