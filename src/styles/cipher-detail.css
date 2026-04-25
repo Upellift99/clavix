@@ -103,7 +103,7 @@
    spans). It picks up the data font and sits on the same baseline as
    the action buttons that follow. */
 .value {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
   background: transparent;

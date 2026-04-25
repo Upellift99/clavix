@@ -139,8 +139,6 @@
 
 <main class="container" class:wide>
   {#key prefs.currentLocale}
-    <h1>{m.app_name()}</h1>
-
     <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
 
     {#if auth.phase === "loggedIn"}
