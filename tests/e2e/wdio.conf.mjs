@@ -170,36 +170,40 @@ export const config = {
   // bulletproof — every spec starts on the canonical fixture state
   // the seed just minted, identical to a fresh CI container.
   //
+  // Wired into `beforeSession` (and not `beforeEach`, which WDIO's
+  // launcher does NOT recognise as a hook — it gets silently
+  // ignored). `beforeSession` runs once per spec file, before
+  // tauri-driver and the binary boot, so the reset finishes
+  // before the WebView ever connects to Vaultwarden.
+  //
   // Gated behind E2E_PER_SPEC_RESET=1 so iterating locally with
   // E2E_SKIP_DOCKER=1 keeps its existing fast path. The CI workflow
   // sets the var explicitly.
-  async beforeEach() {
-    if (process.env.E2E_PER_SPEC_RESET !== "1") {
-      return;
+  async beforeSession() {
+    if (process.env.E2E_PER_SPEC_RESET === "1") {
+      if (process.env.E2E_SKIP_DOCKER !== "1") {
+        run("docker", ["compose", "-f", composeFile, "down", "--volumes"]);
+        run("docker", ["compose", "-f", composeFile, "up", "-d"]);
+      }
+      await waitForVaultwarden();
+      run("cargo", ["run", "--quiet", "--example", "e2e_seed"], {
+        cwd: resolve(projectRoot, "src-tauri"),
+        env: {
+          ...process.env,
+          E2E_SERVER_URL: e2eServer,
+          E2E_EMAIL: e2eEmail,
+          E2E_PASSWORD: e2ePassword,
+        },
+      });
     }
-    if (process.env.E2E_SKIP_DOCKER !== "1") {
-      run("docker", ["compose", "-f", composeFile, "down", "--volumes"]);
-      run("docker", ["compose", "-f", composeFile, "up", "-d"]);
-    }
-    await waitForVaultwarden();
-    run("cargo", ["run", "--quiet", "--example", "e2e_seed"], {
-      cwd: resolve(projectRoot, "src-tauri"),
-      env: {
-        ...process.env,
-        E2E_SERVER_URL: e2eServer,
-        E2E_EMAIL: e2eEmail,
-        E2E_PASSWORD: e2ePassword,
-      },
-    });
-  },
 
-  // Spin up tauri-driver per session; it in turn spawns WebKitWebDriver on
-  // 127.0.0.1:4445. Forcing the host to 127.0.0.1 sidesteps the IPv6 bind
-  // issue reported in tauri-apps/tauri#3815.
-  beforeSession() {
     rmSync(sandboxDataHome, { recursive: true, force: true });
     mkdirSync(sandboxDataHome, { recursive: true });
 
+    // Spin up tauri-driver per session; it in turn spawns
+    // WebKitWebDriver on 127.0.0.1:4445. Forcing the host to
+    // 127.0.0.1 sidesteps the IPv6 bind issue reported in
+    // tauri-apps/tauri#3815.
     tauriDriverProcess = spawn(
       tauriDriverBin,
       ["--native-host", "127.0.0.1"],
