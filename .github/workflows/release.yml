@@ -122,3 +122,69 @@ jobs:
             src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
           if-no-files-found: warn
           retention-days: 14
+
+  # Posts a release notification to a Discord channel after every
+  # platform-build job has succeeded. Silently no-ops when the secret
+  # is unset (forks, manual dry-runs) so the workflow itself never
+  # fails on the notification step.
+  notify:
+    name: Notify Discord
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send Discord webhook
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+          TAG: ${{ steps.tag.outputs.value }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        shell: bash
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "DISCORD_RELEASE_WEBHOOK_URL is not set — skipping notification."
+            exit 0
+          fi
+
+          # CHANGELOG sections are headed with `## [X.Y.Z]`. Strip the
+          # leading "v" from the tag to match. Pull the lines between
+          # this version's header and the next one, capped at 80 lines
+          # so we stay well below Discord's 4096-char description limit
+          # without risking a mid-UTF-8-codepoint truncation.
+          VERSION="${TAG#v}"
+          HIGHLIGHTS=$(awk -v ver="$VERSION" '
+            BEGIN { found = 0; lines = 0 }
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found && lines < 80 { print; lines++ }
+          ' CHANGELOG.md)
+
+          if [ -z "$(printf '%s' "$HIGHLIGHTS" | tr -d '[:space:]')" ]; then
+            HIGHLIGHTS="(see CHANGELOG.md for the full list)"
+          fi
+
+          # 0x175DDC = 1531356, the Bitwarden brand blue, kept in sync
+          # with the in-app accent so the notification visually matches
+          # the client.
+          PAYLOAD=$(jq -n \
+            --arg title "Clavix ${TAG} released" \
+            --arg url "${REPO_URL}/releases/tag/${TAG}" \
+            --arg desc "$HIGHLIGHTS" \
+            '{embeds: [{title: $title, url: $url, description: $desc, color: 1531356}]}')
+
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            --data-raw "$PAYLOAD" \
+            "$WEBHOOK"
