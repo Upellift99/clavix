@@ -278,6 +278,39 @@ pub async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Re
     Ok(())
 }
 
+/// Move a cipher to the trash. Reversible via `restore_cipher` until
+/// either the user empties the trash via `delete_cipher` (hard) or
+/// another client wipes it. The vault keeps the row; only its
+/// `deleted_date` is non-null.
+#[tauri::command]
+pub async fn soft_delete_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
+    let (client, access_token) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        (s.client.clone(), s.tokens.access_token.clone())
+    };
+    client.soft_delete_cipher(&access_token, &cipher_id).await?;
+
+    let mut guard = state.session.lock();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                // Optimistic: any non-null value moves the cipher
+                // into the trash bucket of every filter helper. The
+                // next sync overwrites this with the authoritative
+                // ISO 8601 timestamp from the server.
+                cipher.deleted_date = Some("pending-sync".into());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Permanent delete: removes the cipher row from the server. Used
+/// from inside the trash for the "Supprimer définitivement" action.
+/// Soft-deleting first via `soft_delete_cipher` is the default path
+/// for normal items.
 #[tauri::command]
 pub async fn delete_cipher(state: State<'_, AppState>, cipher_id: String) -> Result<()> {
     ensure_fresh_tokens(&state).await?;

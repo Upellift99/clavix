@@ -36,6 +36,7 @@
   "action_hide": "Hide",
   "action_clear_now": "Clear now",
   "action_restore": "Restore",
+  "action_soft_delete": "Delete",
   "action_delete_forever": "Delete permanently",
   "action_confirm_delete": "This item will be permanently deleted. Continue?",
 

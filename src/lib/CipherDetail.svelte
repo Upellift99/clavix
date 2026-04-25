@@ -12,6 +12,7 @@
     onClose: () => void;
     onEdit: () => void;
     onRestore: (id: string) => void;
+    onSoftDelete: (id: string) => void;
     onDeleteForever: (id: string) => void;
   };
 
@@ -23,6 +24,7 @@
     onClose,
     onEdit,
     onRestore,
+    onSoftDelete,
     onDeleteForever,
   }: Props = $props();
 
@@ -66,6 +68,9 @@
       {:else}
         <button type="button" class="secondary small" onclick={onEdit}>
           {m.action_edit()}
+        </button>
+        <button type="button" class="secondary small" onclick={() => onSoftDelete(detail.id)}>
+          {m.action_soft_delete()}
         </button>
       {/if}
       <button type="button" class="secondary small" onclick={onClose}>{m.action_close()}</button>

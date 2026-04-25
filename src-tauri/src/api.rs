@@ -217,6 +217,28 @@ impl VaultwardenClient {
         })
     }
 
+    /// Soft-delete: PUT /api/ciphers/{id}/delete. The cipher is moved
+    /// to the trash bucket on the server (the row stays, but
+    /// `deletedDate` is stamped). Reversible via `restore_cipher` and
+    /// permanently removable via `delete_cipher` (DELETE).
+    pub async fn soft_delete_cipher(&self, access_token: &str, cipher_id: &str) -> Result<()> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/delete"))?;
+        let response = self.http.put(url).bearer_auth(access_token).send().await?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+        Ok(())
+    }
+
+    /// Permanent delete: DELETE /api/ciphers/{id}. The row is gone
+    /// from the server. Used for the "Supprimer définitivement" path
+    /// from inside the trash; outside of trash, prefer
+    /// `soft_delete_cipher`.
     pub async fn delete_cipher(&self, access_token: &str, cipher_id: &str) -> Result<()> {
         let url = self.api_endpoint(&format!("ciphers/{cipher_id}"))?;
         let response = self

@@ -233,6 +233,22 @@ export class VaultController {
     }
   }
 
+  async softDeleteCipher(id: string) {
+    try {
+      await api.softDeleteCipher(id);
+      if (this.summary) {
+        const c = this.summary.ciphers.find((c) => c.id === id);
+        // Optimistic: any non-null deletedDate moves the row into the
+        // trash bucket of every filter helper. The next sync rewrites
+        // it with the server's authoritative ISO 8601 timestamp.
+        if (c) c.deletedDate = "pending-sync";
+      }
+      if (this.detail?.id === id) this.closeDetail();
+    } catch (e) {
+      this.error = formatError(e);
+    }
+  }
+
   async deleteCipherForever(id: string, confirm: string) {
     if (!window.confirm(confirm)) return;
     try {

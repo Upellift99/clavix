@@ -79,6 +79,7 @@ pub fn run() {
             commands::cipher::create_cipher,
             commands::cipher::update_cipher,
             commands::cipher::restore_cipher,
+            commands::cipher::soft_delete_cipher,
             commands::cipher::delete_cipher,
             commands::move_share::move_cipher_to_folder,
             commands::move_share::move_cipher_to_collection,

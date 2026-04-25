@@ -2,12 +2,17 @@
 //
 // Driven through Tauri IPC rather than UI: the Trash filter and the
 // restore button are already covered by the tree.test.ts /
-// filter.test.ts vitest suites on the pure helpers, what's missing
-// is end-to-end proof that `delete_cipher` and `restore_cipher`
-// hit Vaultwarden, that the server stamps `deletedDate`, and that
-// `restore_cipher` correctly clears it. UI clicks for trash add
-// drag-drop / DOM flake without touching the same code path the
-// IPC test does.
+// filter.test.ts vitest suites on the pure helpers; what's missing
+// is end-to-end proof that `soft_delete_cipher` hits PUT
+// /api/ciphers/{id}/delete on Vaultwarden, that the server stamps
+// `deletedDate`, and that `restore_cipher` (PUT
+// /api/ciphers/{id}/restore) clears it again.
+//
+// Important nuance vs the obvious approach: `delete_cipher` (DELETE
+// /api/ciphers/{id}) is *permanent* — the seeded "GitHub" cipher
+// would never come back, breaking every spec that runs after this
+// one. `soft_delete_cipher` is the trash-bucket operation, the only
+// safe one for a fixture-shared seed.
 //
 // Issue #10 — covers "delete -> restore -> verify visibility and
 // state".
@@ -34,7 +39,7 @@ describe("Delete and restore", () => {
     await browser.execute(async (id) => {
       // @ts-expect-error
       const { invoke } = window.__TAURI__.core;
-      await invoke("delete_cipher", { cipherId: id });
+      await invoke("soft_delete_cipher", { cipherId: id });
     }, cipherId);
 
     const afterDelete = await browser.execute(async (id) => {

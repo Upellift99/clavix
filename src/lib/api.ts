@@ -121,6 +121,9 @@ export const api = {
 
   restoreCipher: (cipherId: string) => invoke<void>("restore_cipher", { cipherId }),
 
+  softDeleteCipher: (cipherId: string) =>
+    invoke<void>("soft_delete_cipher", { cipherId }),
+
   deleteCipher: (cipherId: string) => invoke<void>("delete_cipher", { cipherId }),
 
   moveCipherToFolder: (cipherId: string, folderId: string | null) =>

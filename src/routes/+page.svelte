@@ -234,6 +234,7 @@
                   onClose={() => vault.closeDetail()}
                   onEdit={() => vault.openEditEditor()}
                   onRestore={(id) => vault.restoreCipher(id)}
+                  onSoftDelete={(id) => vault.softDeleteCipher(id)}
                   onDeleteForever={(id) =>
                     vault.deleteCipherForever(id, m.action_confirm_delete())}
                 />
