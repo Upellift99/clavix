@@ -91,17 +91,24 @@ fn b64url_encode(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-/// Validate that `rp_id` is the user-facing host of `server_url` or a
-/// registrable suffix of it. Without this check, a hostile (or MITM'd)
-/// Vaultwarden can pick any `rpId` it likes and trick the FIDO2 token
-/// into signing an assertion that is valid for an unrelated origin.
+/// Validate that `rp_id` is **exactly** the user-facing host of
+/// `server_url`. Without this check, a hostile (or MITM'd) Vaultwarden
+/// can pick any `rpId` it likes and trick the FIDO2 token into signing
+/// an assertion valid for an unrelated origin.
 ///
-/// Acceptance rule (matches the WebAuthn spec's "registrable domain
-/// suffix" notion at the textual level — we don't pull in the full
-/// public suffix list, but the comparison is strict enough that an
-/// attacker can't pass `rpId="attacker.com"` for `server="vault.x.y"`):
-///   - exact match: host == rp_id
-///   - subdomain match: host ends with `.{rp_id}`
+/// We deliberately do **not** accept registrable suffixes:
+///
+/// 1. Doing so correctly requires the Public Suffix List (otherwise
+///    `rpId="com"` slips through against `vault.example.com` because
+///    `.com` is a textual suffix). PSL is a non-trivial dependency.
+/// 2. The "user logs into a subdomain but the FIDO2 credential is
+///    registered on the apex domain" case is rare for self-hosted
+///    Vaultwarden — the typical setup uses `rpId == host`.
+/// 3. If someone really needs the apex case, it can be added later
+///    behind an explicit per-account opt-in (e.g. a stored
+///    `accepted_rp_id` distinct from the host) so the trust decision
+///    is made once by the human, not on every login by a remote
+///    server.
 fn validate_rp_id(rp_id: &str, server_url: &str) -> Result<()> {
     let rp_id = rp_id.trim().to_ascii_lowercase();
     if rp_id.is_empty() || rp_id.contains('/') || rp_id.contains(':') {
@@ -117,12 +124,12 @@ fn validate_rp_id(rp_id: &str, server_url: &str) -> Result<()> {
             reason: format!("server_url has no host: {server_url}"),
         })?;
 
-    if host == rp_id || host.ends_with(&format!(".{rp_id}")) {
+    if host == rp_id {
         Ok(())
     } else {
         Err(Error::Crypto {
             reason: format!(
-                "WebAuthn rpId {rp_id:?} is not a registrable suffix of server host {host:?} — refusing to sign"
+                "WebAuthn rpId {rp_id:?} does not match server host {host:?} exactly — refusing to sign"
             ),
         })
     }
@@ -307,18 +314,19 @@ mod tests {
 
     #[test]
     fn sign_bitwarden_challenge_reports_missing_device_as_crypto_error() {
-        // rpId matches server host, so validate_rp_id passes. The error
-        // bubbles up later from the missing FIDO2 device. We assert
-        // Error::Crypto specifically because the rpId-mismatch path also
-        // returns Error::Crypto — the next two tests guard against false
-        // positives by comparing the error message.
+        // rpId matches server host exactly, so validate_rp_id passes.
+        // The error bubbles up later from the missing FIDO2 device. We
+        // assert Error::Crypto specifically and check the message does
+        // not mention the rpId path — the rpId-mismatch path also
+        // returns Error::Crypto, so a regression that silently moved
+        // the failure earlier would otherwise stay invisible.
         let json =
             r#"{"challenge":"Y2hhbGxlbmdl","rpId":"vault.example.com","allowCredentials":[]}"#;
         let res = sign_bitwarden_challenge(json, "https://vault.example.com");
         match res {
             Err(Error::Crypto { reason }) => {
                 assert!(
-                    !reason.contains("registrable suffix"),
+                    !reason.contains("does not match server host"),
                     "rpId path should not have triggered, got: {reason}"
                 );
             }
@@ -334,12 +342,24 @@ mod tests {
     }
 
     #[test]
-    fn validate_rp_id_accepts_apex_when_user_logs_into_subdomain() {
-        // Vaultwarden admins sometimes register the FIDO2 credential at
-        // the apex domain even though users connect via a subdomain.
-        // Spec calls this "registrable suffix" — we accept it so users
-        // with apex-registered keys can still log in.
-        assert!(validate_rp_id("example.com", "https://vault.example.com").is_ok());
+    fn validate_rp_id_rejects_apex_even_when_user_logs_into_subdomain() {
+        // Without a Public Suffix List we can't tell "example.com" (a
+        // legitimate apex) from "com" (a TLD a hostile server could
+        // pass to widen its reach). To stay strict by default we
+        // reject every non-exact match, including legitimate apexes.
+        // If someone truly needs the apex case it should be a per-
+        // account explicit opt-in, not a server-driven decision.
+        let err = validate_rp_id("example.com", "https://vault.example.com").unwrap_err();
+        assert!(matches!(err, Error::Crypto { .. }));
+    }
+
+    #[test]
+    fn validate_rp_id_rejects_bare_tld() {
+        // Regression guard: prior implementation accepted any DNS
+        // suffix, so rpId="com" matched vault.example.com. Strict
+        // exact-match closes this.
+        let err = validate_rp_id("com", "https://vault.example.com").unwrap_err();
+        assert!(matches!(err, Error::Crypto { .. }));
     }
 
     #[test]
@@ -352,9 +372,12 @@ mod tests {
 
     #[test]
     fn validate_rp_id_rejects_suffix_lookalike() {
-        // "example.com.attacker.com" trivially "ends with example.com"
-        // string-wise, but the registrable-suffix rule requires the
-        // dot-separated boundary. Make sure we don't naively substring.
+        // "example.com.attacker.com" superficially "ends with example.com"
+        // string-wise. With strict exact match this is a non-issue, but
+        // the test still pulls its weight: it pins the behaviour so a
+        // future "let's loosen this back to suffix matching" change
+        // can't sneak past review without either flipping this test or
+        // facing the question head-on.
         let err = validate_rp_id("example.com", "https://example.com.attacker.com").unwrap_err();
         assert!(matches!(err, Error::Crypto { .. }));
     }
