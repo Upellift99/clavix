@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    Clavix logo — "C" stylised as a key bow.
+
+    The brand colour is Bitwarden's primary blue (#175ddc), the same
+    one already used as the in-app accent (zebra stripes, hover,
+    selected row, Discord webhook embed). Painting the rounded-square
+    frame with it ties the desktop icon visually to the running app
+    so a user dropping back from another window picks Clavix out at
+    a glance.
+
+    The mark itself is a wide white C whose right-side gap carries
+    two small horizontal teeth — a nod to a key bit. "Clavix" comes
+    from Latin clavis (key); making the gap in the C *do* the
+    key-bow work is the whole point. No emoji-glyph rendering, no
+    bundled font: the path is fully geometric so this SVG renders
+    identically anywhere from `rsvg-convert` to a browser dev tool.
+  -->
+
+  <!-- Frame -->
+  <rect width="512" height="512" rx="96" ry="96" fill="#175ddc"/>
+
+  <!-- C-as-key, drawn from the top of the bow round to the bottom,
+       leaving the right-hand opening clear for the teeth. The 64 px
+       stroke matches the visual weight of common 1024-square icon
+       marks at 256 viewbox so the tile reads well at every export
+       size from 32×32 up to the 1024×1024 macOS slot. -->
+  <path
+    d="M 372 156
+       A 132 132 0 1 0 372 356"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="64"
+    stroke-linecap="round"/>
+
+  <!-- Key teeth — two short horizontal pegs at the C opening so the
+       C reads as a key bow at the silhouette level, not just up
+       close. Slight vertical offset between them keeps the
+       silhouette asymmetric and recognisable in the taskbar. -->
+  <rect x="346" y="232"  width="62" height="22" rx="6" fill="#ffffff"/>
+  <rect x="346" y="266"  width="42" height="22" rx="6" fill="#ffffff"/>
+</svg>
