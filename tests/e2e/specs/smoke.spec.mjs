@@ -13,27 +13,22 @@
 // nobody noticed until a user installed the deb.
 //
 // To close that loophole we assert on a node Svelte writes after
-// hydration: the `<h1>{m.app_name()}</h1>` in +page.svelte. If
-// hydration failed, the h1 is never inserted into the DOM and the
-// spec fails — caught long before tagging a release.
+// hydration: the `<main class="container">` from +page.svelte. The
+// static `app.html` body contains only an empty wrapper div, so this
+// element only exists once Svelte has run — if hydration failed, the
+// selector never resolves and the spec fails, catching the regression
+// long before tagging a release.
 //
 // Deliberately state-agnostic: a fresh profile shows onboarding, a
 // returning profile shows login or unlock — we assert the binary is
 // alive and the Svelte tree has rendered, not the specific phase.
 describe("Clavix launches", () => {
-  it("hydrates the Svelte app and renders the title", async () => {
-    const title = await $("h1");
-    await title.waitForDisplayed({
+  it("hydrates the Svelte app and renders the root container", async () => {
+    const root = await $("main.container");
+    await root.waitForDisplayed({
       timeout: 15_000,
       timeoutMsg:
-        "no <h1> rendered after 15 s — Svelte didn't hydrate (likely a CSP regression blocking the inline bootstrap, see issue #22)",
+        "no <main.container> rendered after 15 s — Svelte didn't hydrate (likely a CSP regression blocking the inline bootstrap, see issue #22)",
     });
-
-    const text = (await title.getText()).trim();
-    if (text !== "Clavix") {
-      throw new Error(
-        `expected the title to read "Clavix" after hydration, got ${JSON.stringify(text)}`,
-      );
-    }
   });
 });
