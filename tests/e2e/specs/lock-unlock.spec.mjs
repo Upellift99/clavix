@@ -14,7 +14,9 @@ describe("Lock → unlock", () => {
   it("clears the vault on lock and restores it on unlock", async () => {
     await loginAsSeededUser();
 
-    const lockButton = await $("button=Verrouiller");
+    // Match on aria-label rather than text content: the toolbar button
+    // is icon-only (🔒) and exposes its label via aria-label / title.
+    const lockButton = await $("button[aria-label='Verrouiller']");
     await lockButton.click();
 
     // After lock, the session bar is gone and the UnlockForm is
