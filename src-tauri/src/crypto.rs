@@ -554,6 +554,82 @@ mod tests {
         assert_eq!(dec, "probe");
     }
 
+    // ── Property-based tests on EncString parsing/round-trip ──────────
+    //
+    // Goal: anything the server hands us as an EncString is adversarial
+    // input. The parser must never panic and must reject malformed
+    // values; the encrypt/parse/decrypt round-trip must be lossless for
+    // any plaintext; and any single-bit flip in IV/ciphertext/MAC must
+    // be caught by the HMAC.
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(64))]
+
+            // Garbage input must produce a Result, not a panic. The
+            // server can hand us anything; we must survive it.
+            #[test]
+            fn parse_never_panics_on_arbitrary_strings(s in ".{0,256}") {
+                let _ = EncString::parse(&s);
+            }
+
+            // encrypt → parse → decrypt is the identity for any byte
+            // sequence we might throw at it (binary safe, length safe).
+            #[test]
+            fn encrypt_parse_decrypt_roundtrip(plaintext in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let key = deterministic_sym_key(31);
+                let encoded = encrypt_bytes(&plaintext, &key).expect("encrypt");
+                let parsed = EncString::parse(&encoded).expect("parse");
+                let decoded = parsed.decrypt_sym(&key).expect("decrypt");
+                prop_assert_eq!(decoded, plaintext);
+            }
+
+            // Flip exactly one bit somewhere in the IV / ciphertext /
+            // MAC base64 portion of a valid type-2 EncString. After
+            // re-parsing, the HMAC must reject the tampered value.
+            //
+            // We flip a bit in the *raw* (decoded) bytes rather than in
+            // the base64 string so we don't accidentally produce
+            // unparseable b64 — this exercises the HMAC, not the
+            // base64 decoder (which we cover separately).
+            #[test]
+            fn single_bit_flip_breaks_decryption(
+                plaintext in proptest::collection::vec(any::<u8>(), 1..256),
+                part_idx in 0usize..3,
+                byte_idx in any::<u32>(),
+                bit_idx in 0u8..8,
+            ) {
+                let key = deterministic_sym_key(37);
+                let encoded = encrypt_bytes(&plaintext, &key).expect("encrypt");
+                let (iv_b64, ct_b64, mac_b64) = split_parts(&encoded);
+
+                let (target, others): (String, [String; 2]) = match part_idx {
+                    0 => (iv_b64, [ct_b64, mac_b64]),
+                    1 => (ct_b64, [iv_b64, mac_b64]),
+                    _ => (mac_b64, [iv_b64, ct_b64]),
+                };
+
+                let mut bytes = STANDARD.decode(&target).expect("valid b64");
+                let i = (byte_idx as usize) % bytes.len();
+                bytes[i] ^= 1u8 << bit_idx;
+                let tampered_b64 = STANDARD.encode(&bytes);
+
+                let tampered = match part_idx {
+                    0 => format!("2.{tampered_b64}|{}|{}", others[0], others[1]),
+                    1 => format!("2.{}|{tampered_b64}|{}", others[0], others[1]),
+                    _ => format!("2.{}|{}|{tampered_b64}", others[0], others[1]),
+                };
+
+                // Tampered IV may parse fine (still 16 bytes) — what
+                // matters is that decryption fails, not where exactly.
+                let result = EncString::parse(&tampered).and_then(|p| p.decrypt_sym(&key));
+                prop_assert!(result.is_err(), "MAC should have rejected single-bit flip");
+            }
+        }
+    }
+
     #[test]
     fn reencrypt_with_key_pivots_value_correctly() {
         let key_a = deterministic_sym_key(23);

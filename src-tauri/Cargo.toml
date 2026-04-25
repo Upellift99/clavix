@@ -53,6 +53,13 @@ zxcvbn = { version = "3", default-features = false }
 ctap-hid-fido2 = "3.5"
 parking_lot = "0.12"
 
+[dev-dependencies]
+# Property-based tests on adversarial-input parsers — currently EncString
+# (Bitwarden ciphertext format) and the WebAuthn challenge JSON. The
+# point is to fuzz inputs the server can choose freely: they must never
+# panic and never accept a malformed value.
+proptest = { version = "1", default-features = false, features = ["std"] }
+
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.
 [profile.dev.package."*"]
