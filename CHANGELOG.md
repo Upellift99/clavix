@@ -5,6 +5,52 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] — 2026-04-25
+
+### Fixed
+- **Blank window in `0.1.12.deb` (and 0.1.11.deb).** The
+  `'unsafe-inline'` mitigation in 0.1.12 was a non-fix: Tauri 2
+  injects its own nonce into `script-src` at runtime (the
+  `__TAURI_SCRIPT_NONCE__` placeholder is visible in the binary
+  strings), and CSP3 says the presence of a nonce in a directive
+  causes `'unsafe-inline'` to be ignored. So the SvelteKit
+  bootstrap (which has neither nonce nor hash) was still blocked.
+  Cause was identified by inspecting the actual `.deb` and the
+  CSP3 spec — there was nothing wrong with the build.
+
+  The real fix is hash-based: `svelte.config.js` now uses
+  `kit.csp.mode = "hash"`, which makes SvelteKit emit a
+  `<meta http-equiv="content-security-policy">` listing the
+  exact SHA-256 of every inline script it generated. The CSP
+  permits exactly that script and nothing else inline. Hashes
+  are recomputed on every build so chunk-name churn is
+  invisible. `tauri.conf.json` sets `"csp": null` so Tauri does
+  not re-inject its own conflicting policy.
+
+### CI
+- **`smoke-release` job** rebuilds in release and runs only
+  `smoke.spec` against the production binary. v0.1.11/0.1.12
+  shipped blank-window `.deb`s because the existing E2E job runs
+  `pnpm tauri build --debug`, where the release CSP isn't
+  enforced. The new job (cached separately, `key: release`) is
+  the floor: any future CSP / hydration regression that would
+  ship a blank `.deb` now turns CI red on the PR.
+- **`smoke.spec`** no longer asserts on "body has any text" — that
+  was a false positive on the 0.1.11/0.1.12 case because the
+  inline `<script>` and `<link rel=modulepreload>` tags can
+  register as text under some WebDriver implementations even when
+  the JS never runs. It now checks the post-hydration
+  `<h1>Clavix</h1>`, which only exists if Svelte actually
+  rendered.
+- **`wdio.conf.mjs`** is now parametric: `E2E_BUILD_PROFILE`
+  picks `target/debug` vs `target/release`, `E2E_SKIP_SEED=1`
+  skips Vaultwarden Docker + the Rust seed for jobs that don't
+  need them. Default behaviour unchanged.
+
+### Documentation
+- The `MANUAL_VALIDATION.md` rpId-mismatch step quotes the new
+  strict-match error message text.
+
 ## [0.1.12] — 2026-04-25
 
 ### Fixed
