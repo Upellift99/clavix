@@ -93,7 +93,16 @@ export const config = {
   connectionRetryCount: 3,
   reporters: ["spec"],
   framework: "mocha",
-  mochaOpts: { ui: "bdd", timeout: 60_000 },
+  // 120 s per test rather than the mocha default 60 s. Specs share a
+  // single Vaultwarden container without a between-spec teardown, so
+  // by the time we reach the bottom of the alphabetical run the
+  // /sync response is bigger than at the top — login + sync was
+  // already taking ~30 s on a fresh container, which leaves no
+  // margin once the suite has accumulated 11 specs' worth of side
+  // effects. A proper per-spec reset is the right long-term fix
+  // (issue: tracked separately) but doubling the mocha timeout
+  // closes the immediate flake.
+  mochaOpts: { ui: "bdd", timeout: 120_000 },
   port: 4444,
 
   // Boots Vaultwarden and seeds it before any spec runs. Knobs:
