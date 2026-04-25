@@ -5,6 +5,60 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.12] — 2026-04-25
+
+### Fixed
+- **Blank window in the `0.1.11.deb` (and earlier release builds).**
+  `index.html` produced by `adapter-static` boots the app via an
+  inline `<script>` that imports the SvelteKit entry chunks; the
+  previous CSP `script-src 'self'` blocked it silently in release
+  builds, leaving an empty body. The CI E2E suite never noticed
+  because it runs `pnpm tauri build --debug` (Tauri does not
+  enforce the same CSP in debug). Loosen `script-src` to
+  `'self' 'unsafe-inline'`. The downgrade is bounded in this
+  codebase: bundled HTML, no `{@html}` anywhere in `src/`, Svelte 5
+  always escapes interpolations. Tighter hash/nonce-based CSP
+  tracked separately as a follow-up.
+
+### Security
+- **Strict-exact-match WebAuthn rpId.** `0.1.11` accepted both
+  `host == rp_id` and `host.ends_with(".{rp_id}")`. The second
+  branch was a textual DNS suffix, which is too loose: `rpId="com"`
+  matched any `*.com` host. A hostile or MITM'd Vaultwarden could
+  exploit that. Drop the suffix branch entirely; only exact host
+  match passes. The rare apex-with-subdomain case is now rejected
+  and should come back, if at all, behind an explicit per-account
+  opt-in.
+- **HTTPS required for the Vaultwarden URL** (with an allow-list
+  of `localhost` / `127.0.0.1` / `::1` for local dev with Docker
+  Vaultwarden over plain HTTP). `normalize_base_url` used to swallow
+  any scheme `Url::parse` could parse — `http://`, `file://`,
+  `javascript:`, `ftp://`, … — and just appended a trailing slash.
+  Posting a master-password hash over plaintext on a hostile WiFi
+  was one config-import or copy-paste away.
+
+### Documentation
+- **Three corrections in `MANUAL_VALIDATION.md`** flagged by external
+  review:
+  - The rpId-mismatch failure path now quotes the new strict-match
+    error message.
+  - The SSH-agent "expected" line no longer claims keys are wiped
+    "immediately after" each signature — the lifecycle is the
+    agent's, not the individual sign call's. Keys are never on
+    disk and disappear on stop / lock / logout / quit.
+  - The socket-permissions check now expects `srw-------` (0600)
+    to match what `ssh_agent.rs` actually sets.
+
+### CI
+- **Discord webhook** posts a release notification once all three
+  platform builds succeed (silently no-ops without
+  `DISCORD_RELEASE_WEBHOOK_URL`). Pulls highlights for the freshly-
+  tagged version out of `CHANGELOG.md`, capped at 80 lines so we
+  stay under Discord's 4096-char description limit. Embed colour is
+  the Bitwarden brand blue (`0x175DDC`). `allowed_mentions:
+  { parse: [] }` is set on the payload so a stray `@everyone` in a
+  future CHANGELOG entry can't ping the entire Discord server.
+
 ## [0.1.11] — 2026-04-25
 
 ### Security
