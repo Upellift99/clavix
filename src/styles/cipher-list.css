@@ -40,14 +40,21 @@
 
 .cipher-list li {
   display: flex;
-  align-items: center;
+  align-items: stretch;
 }
 
+/* Fill the parent <li> top to bottom: without `height: 100%` the
+   button only paints around its text content, leaving a thin white
+   sliver at the top and bottom of every row. The sliver is only
+   noticeable once you start zebra-striping or hovering — it shows
+   up as a faint horizontal stripe between rows that the user reads
+   as "gap between rows". Killing it makes the list visually flush. */
 .cipher-row {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   width: 100%;
+  height: 100%;
   padding: 0.2rem 0.5rem;
   background: transparent;
   border: none;
@@ -117,13 +124,13 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
 }
 
 .col-username,
 .col-uri {
   color: #4a4a4a;
-  font-size: 0.82em;
+  font-size: 0.88rem;
   font-family: var(--font-data);
 }
 
@@ -134,18 +141,22 @@
   background: #eaf2fc;
 }
 
+/* Hover: pulled up two notches in saturation so it's clearly
+   distinct from the zebra background and from the "no hover" white
+   row. The previous #cfe0f5 read as essentially the same colour as
+   the zebra to several users. */
 .cipher-row:hover {
-  background: #cfe0f5;
+  background: #b3d2f0;
 }
 
 .cipher-row.zebra:hover {
-  background: #c2d6f0;
+  background: #a3c6ec;
 }
 
 .cipher-row.selected,
 .cipher-row.zebra.selected {
-  background: #a8c8f0;
-  color: #0f2a5a;
+  background: #6ea3df;
+  color: #0a1f47;
 }
 
 .cipher-row.dragging {
@@ -195,12 +206,12 @@
   .cipher-header:hover,
   .cipher-header.active { color: #aabaff; }
   .col-username,
-  .col-uri { color: #999; }
+  .col-uri { color: #b8b8b8; }
   .cipher-row.zebra { background: #1d2738; }
-  .cipher-row:hover { background: #2c3a55; }
-  .cipher-row.zebra:hover { background: #324168; }
+  .cipher-row:hover { background: #3b4f78; }
+  .cipher-row.zebra:hover { background: #44598a; }
   .cipher-row.selected,
-  .cipher-row.zebra.selected { background: #2c4280; color: #cfdcff; }
+  .cipher-row.zebra.selected { background: #4467b0; color: #e6efff; }
 }
 
 :root.force-dark .list-pane .cipher-scroll { background: #232323; border-color: #333; }
@@ -212,9 +223,9 @@
 :root.force-dark .cipher-header:hover,
 :root.force-dark .cipher-header.active { color: #aabaff; }
 :root.force-dark .col-username,
-:root.force-dark .col-uri { color: #999; }
+:root.force-dark .col-uri { color: #b8b8b8; }
 :root.force-dark .cipher-row.zebra { background: #1d2738; }
-:root.force-dark .cipher-row:hover { background: #2c3a55; }
-:root.force-dark .cipher-row.zebra:hover { background: #324168; }
+:root.force-dark .cipher-row:hover { background: #3b4f78; }
+:root.force-dark .cipher-row.zebra:hover { background: #44598a; }
 :root.force-dark .cipher-row.selected,
-:root.force-dark .cipher-row.zebra.selected { background: #2c4280; color: #cfdcff; }
+:root.force-dark .cipher-row.zebra.selected { background: #4467b0; color: #e6efff; }

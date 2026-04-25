@@ -61,6 +61,26 @@
     return () => observer.disconnect();
   });
 
+  // Clamp the scroll position when the visible items shrink (typical
+  // case: the user types in the search box, the filter cuts the list
+  // from N to a handful). Without this, listScrollTop keeps its old
+  // value, virtualWindow.offsetY still translates the rendered slice
+  // by hundreds of pixels, and the user sees a tall empty band above
+  // the matches. Force both the DOM scrollTop and the local state
+  // back into the legal range.
+  $effect(() => {
+    void items.length;
+    if (!listScrollEl) return;
+    const maxScroll = Math.max(
+      0,
+      items.length * ROW_HEIGHT - listViewportHeight,
+    );
+    if (listScrollTop > maxScroll) {
+      listScrollEl.scrollTop = maxScroll;
+      listScrollTop = maxScroll;
+    }
+  });
+
   const virtualWindow = $derived.by(() => {
     const total = items.length;
     const start = Math.max(0, Math.floor(listScrollTop / ROW_HEIGHT) - OVERSCAN);

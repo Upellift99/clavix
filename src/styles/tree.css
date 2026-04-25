@@ -98,12 +98,12 @@
 }
 
 .tree-label:hover {
-  background: #eef0f2;
+  background: #cfe0f5;
 }
 
 .tree-row.selected > .tree-label {
-  background: #e3ecff;
-  color: #1e3a8a;
+  background: #6ea3df;
+  color: #0a1f47;
   font-weight: 500;
 }
 
@@ -139,12 +139,12 @@
 }
 
 .tree-all:hover {
-  background: #eef0f2;
+  background: #cfe0f5;
 }
 
 .tree-all.selected {
-  background: #e3ecff;
-  color: #1e3a8a;
+  background: #6ea3df;
+  color: #0a1f47;
 }
 
 .tree-row.org-root > .tree-label {
@@ -194,13 +194,13 @@
   .tree-pane { background: #232323; border-color: #333; box-shadow: none; }
   .tree-pane h4 { color: #888; }
   .tree-label:hover,
-  .tree-all:hover { background: #2f2f2f; }
+  .tree-all:hover { background: #2c3a55; }
   .tree-row.selected > .tree-label,
-  .tree-all.selected { background: #1f2a54; color: #aabaff; }
+  .tree-all.selected { background: #4467b0; color: #e6efff; }
   .tree-count { background: transparent; color: #888; }
   .tree-row.selected > .tree-label .tree-count {
     background: transparent;
-    color: #aabaff;
+    color: #e6efff;
   }
   .tree-children { border-left-color: #3a3a3a; }
 }
@@ -208,12 +208,12 @@
 :root.force-dark .tree-pane { background: #232323; border-color: #333; box-shadow: none; }
 :root.force-dark .tree-pane h4 { color: #888; }
 :root.force-dark .tree-label:hover,
-:root.force-dark .tree-all:hover { background: #2f2f2f; }
+:root.force-dark .tree-all:hover { background: #2c3a55; }
 :root.force-dark .tree-row.selected > .tree-label,
-:root.force-dark .tree-all.selected { background: #1f2a54; color: #aabaff; }
+:root.force-dark .tree-all.selected { background: #4467b0; color: #e6efff; }
 :root.force-dark .tree-count { background: transparent; color: #888; }
 :root.force-dark .tree-row.selected > .tree-label .tree-count {
   background: transparent;
-  color: #aabaff;
+  color: #e6efff;
 }
 :root.force-dark .tree-children { border-left-color: #3a3a3a; }
