@@ -7,6 +7,19 @@ const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
 const DETAIL_HEIGHT_STORAGE_KEY = "clavix.detailHeight";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
+const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
+
+/** Cipher-list columns the user can hide. The Type icon and the Name
+ *  are not in here because hiding either makes the list unusable. */
+export type CipherListColumns = {
+  username: boolean;
+  uri: boolean;
+};
+
+const VISIBLE_COLUMNS_DEFAULT: CipherListColumns = {
+  username: true,
+  uri: true,
+};
 
 export const TREE_WIDTH_MIN = 180;
 export const TREE_WIDTH_MAX = 560;
@@ -23,6 +36,7 @@ export class PrefsController {
   detailHeight = $state<number>(DETAIL_HEIGHT_DEFAULT);
   autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
   lastActivityAt = $state<number>(Date.now());
+  visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
 
   /** Loads persisted values from localStorage and applies side effects. */
   bootstrap() {
@@ -67,8 +81,38 @@ export class PrefsController {
           this.autoLockMinutes = parsed;
         }
       }
+      const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
+      if (savedColumns) {
+        try {
+          const parsed = JSON.parse(savedColumns) as Partial<CipherListColumns>;
+          this.visibleColumns = {
+            username:
+              typeof parsed.username === "boolean"
+                ? parsed.username
+                : VISIBLE_COLUMNS_DEFAULT.username,
+            uri:
+              typeof parsed.uri === "boolean"
+                ? parsed.uri
+                : VISIBLE_COLUMNS_DEFAULT.uri,
+          };
+        } catch {
+          // malformed JSON in localStorage — keep defaults
+        }
+      }
     } catch {
       // ignore
+    }
+  }
+
+  setVisibleColumn(key: keyof CipherListColumns, value: boolean) {
+    this.visibleColumns = { ...this.visibleColumns, [key]: value };
+    try {
+      localStorage.setItem(
+        VISIBLE_COLUMNS_STORAGE_KEY,
+        JSON.stringify(this.visibleColumns),
+      );
+    } catch {
+      // best-effort
     }
   }
 

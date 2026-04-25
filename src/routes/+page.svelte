@@ -200,9 +200,11 @@
                 sortKey={vault.sortKey}
                 sortAsc={vault.sortAsc}
                 storedAccount={auth.storedAccount}
+                visibleColumns={prefs.visibleColumns}
                 {drag}
                 onOpenCipher={(id) => vault.openCipher(id)}
                 onToggleSort={(k) => vault.toggleSort(k)}
+                onToggleColumn={(k, v) => prefs.setVisibleColumn(k, v)}
                 onSearchInputRef={(el) => (searchInput = el)}
                 bind:search={vault.search}
               />

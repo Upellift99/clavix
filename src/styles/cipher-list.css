@@ -73,6 +73,80 @@
   align-items: center;
 }
 
+/* User-driven column visibility (Identifiant / URL). The default
+   layout assumes both visible; classes added when one or both are
+   hidden collapse the grid template accordingly. Less-specific than
+   the responsive media queries below, so on narrow screens the auto
+   responsive behaviour still wins — that's deliberate: the user's
+   choice is "what to show when there's room", not "force this even
+   on a phone-width window". */
+.cipher-columns.hide-username {
+  grid-template-columns: 1.25rem minmax(0, 2fr) minmax(0, 2fr);
+}
+.cipher-columns.hide-uri {
+  grid-template-columns: 1.25rem minmax(0, 2fr) minmax(0, 1.4fr);
+}
+.cipher-columns.hide-username.hide-uri {
+  grid-template-columns: 1.25rem minmax(0, 2fr);
+}
+
+/* Column-chooser popover anchored to a <details> element so we get
+   click-outside-to-close, ESC-to-close and tab-trapping for free
+   without writing a popover library. */
+.columns-chooser {
+  position: relative;
+}
+.columns-chooser > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  color: #555;
+  font-weight: 600;
+}
+.columns-chooser > summary::-webkit-details-marker {
+  display: none;
+}
+.columns-chooser > summary:hover {
+  color: #1e3a8a;
+}
+.columns-popover {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 5;
+  min-width: 12rem;
+  background: #fff;
+  border: 1px solid #d6e0ee;
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #333;
+  font-weight: 400;
+}
+.columns-popover-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+}
+.columns-popover label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+.columns-popover input[type="checkbox"] {
+  margin: 0;
+}
+
 .cipher-headers {
   padding: 0.3rem 0.5rem;
   font-size: 0.7rem;
@@ -205,6 +279,15 @@
   }
   .cipher-header:hover,
   .cipher-header.active { color: #aabaff; }
+  .columns-chooser > summary { color: #9a9a9a; }
+  .columns-chooser > summary:hover { color: #aabaff; }
+  .columns-popover {
+    background: #232b3a;
+    border-color: #2e3a52;
+    color: #e0e0e0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  .columns-popover-title { color: #9a9a9a; }
   .col-username,
   .col-uri { color: #b8b8b8; }
   .cipher-row.zebra { background: #1d2738; }
@@ -222,6 +305,15 @@
 }
 :root.force-dark .cipher-header:hover,
 :root.force-dark .cipher-header.active { color: #aabaff; }
+:root.force-dark .columns-chooser > summary { color: #9a9a9a; }
+:root.force-dark .columns-chooser > summary:hover { color: #aabaff; }
+:root.force-dark .columns-popover {
+  background: #232b3a;
+  border-color: #2e3a52;
+  color: #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+:root.force-dark .columns-popover-title { color: #9a9a9a; }
 :root.force-dark .col-username,
 :root.force-dark .col-uri { color: #b8b8b8; }
 :root.force-dark .cipher-row.zebra { background: #1d2738; }

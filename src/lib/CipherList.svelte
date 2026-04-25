@@ -2,6 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import { cipherTypeIcon, cipherTypeLabel, faviconUrl } from "./format";
   import type { DragController } from "./drag.svelte";
+  import type { CipherListColumns } from "./prefs.svelte";
   import type { CipherSummary, SortKey, StoredAccount } from "./types";
 
   type Props = {
@@ -12,9 +13,11 @@
     sortKey: SortKey;
     sortAsc: boolean;
     storedAccount: StoredAccount | null;
+    visibleColumns: CipherListColumns;
     drag: DragController;
     onOpenCipher: (id: string) => void;
     onToggleSort: (key: SortKey) => void;
+    onToggleColumn: (key: keyof CipherListColumns, value: boolean) => void;
     onSearchInputRef: (el: HTMLInputElement | null) => void;
     search: string;
   };
@@ -27,9 +30,11 @@
     sortKey,
     sortAsc,
     storedAccount,
+    visibleColumns,
     drag,
     onOpenCipher,
     onToggleSort,
+    onToggleColumn,
     onSearchInputRef,
     search = $bindable(),
   }: Props = $props();
@@ -142,8 +147,40 @@
       {/if}
     </p>
   {:else}
-    <div class="cipher-headers cipher-columns" role="row">
-      <span></span>
+    <div
+      class="cipher-headers cipher-columns"
+      class:hide-username={!visibleColumns.username}
+      class:hide-uri={!visibleColumns.uri}
+      role="row"
+    >
+      <details class="columns-chooser">
+        <summary
+          class="cipher-icon"
+          title={m.columns_chooser_title()}
+          aria-label={m.columns_chooser_title()}
+        >⋯</summary>
+        <div class="columns-popover" role="menu">
+          <div class="columns-popover-title">{m.columns_chooser_title()}</div>
+          <label>
+            <input
+              type="checkbox"
+              checked={visibleColumns.username}
+              onchange={(e) =>
+                onToggleColumn("username", (e.currentTarget as HTMLInputElement).checked)}
+            />
+            {m.col_username()}
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={visibleColumns.uri}
+              onchange={(e) =>
+                onToggleColumn("uri", (e.currentTarget as HTMLInputElement).checked)}
+            />
+            {m.col_url()}
+          </label>
+        </div>
+      </details>
       <button
         type="button"
         class="cipher-header"
@@ -153,24 +190,28 @@
         {m.col_name()}
         {#if sortKey === "name"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
       </button>
-      <button
-        type="button"
-        class="cipher-header"
-        class:active={sortKey === "username"}
-        onclick={() => onToggleSort("username")}
-      >
-        {m.col_username()}
-        {#if sortKey === "username"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
-      </button>
-      <button
-        type="button"
-        class="cipher-header"
-        class:active={sortKey === "uri"}
-        onclick={() => onToggleSort("uri")}
-      >
-        {m.col_url()}
-        {#if sortKey === "uri"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
-      </button>
+      {#if visibleColumns.username}
+        <button
+          type="button"
+          class="cipher-header"
+          class:active={sortKey === "username"}
+          onclick={() => onToggleSort("username")}
+        >
+          {m.col_username()}
+          {#if sortKey === "username"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+        </button>
+      {/if}
+      {#if visibleColumns.uri}
+        <button
+          type="button"
+          class="cipher-header"
+          class:active={sortKey === "uri"}
+          onclick={() => onToggleSort("uri")}
+        >
+          {m.col_url()}
+          {#if sortKey === "uri"}<span class="sort-arrow">{sortAsc ? "▲" : "▼"}</span>{/if}
+        </button>
+      {/if}
     </div>
     <div class="cipher-scroll" bind:this={listScrollEl} onscroll={onListScroll}>
       <div class="cipher-spacer" style:height="{virtualWindow.totalHeight}px">
@@ -187,6 +228,8 @@
                 class:zebra={(virtualWindow.start + i) % 2 === 1}
                 class:selected={selectedId === c.id}
                 class:dragging={drag.cipherId === c.id}
+                class:hide-username={!visibleColumns.username}
+                class:hide-uri={!visibleColumns.uri}
                 onclick={() => onOpenCipher(c.id)}
                 draggable="true"
                 ondragstart={(e) => onCipherDragStart(e, c.id)}
@@ -216,12 +259,16 @@
                   {c.name}
                   {#if c.favorite}<span class="star" title="Favori">★</span>{/if}
                 </span>
-                <span class="col-username" title={c.username ?? ""}>
-                  {c.username ?? ""}
-                </span>
-                <span class="col-uri" title={c.primaryUri ?? ""}>
-                  {c.primaryUri ?? ""}
-                </span>
+                {#if visibleColumns.username}
+                  <span class="col-username" title={c.username ?? ""}>
+                    {c.username ?? ""}
+                  </span>
+                {/if}
+                {#if visibleColumns.uri}
+                  <span class="col-uri" title={c.primaryUri ?? ""}>
+                    {c.primaryUri ?? ""}
+                  </span>
+                {/if}
               </button>
             </li>
           {/each}

@@ -185,6 +185,8 @@
   "col_name": "Nom",
   "col_username": "Identifiant",
   "col_url": "URL",
+  "columns_label": "Colonnes",
+  "columns_chooser_title": "Colonnes affichées",
 
   "detail_item_id": "Item #{id}",
   "detail_organization": "Organisation : {name}",
