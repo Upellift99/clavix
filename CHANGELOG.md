@@ -5,6 +5,79 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] — 2026-04-25
+
+### Security
+- **WebAuthn rpId validation.** The 2FA WebAuthn path used to trust
+  whatever `rpId` Vaultwarden sent in the challenge and feed it into
+  the `clientDataJSON` we hand to the FIDO2 token. A hostile or
+  MITM'd server could pick `rpId="other-service.com"` and walk away
+  with a valid assertion for that origin. We now reject any rpId that
+  is not the configured `server_url`'s host or a registrable suffix
+  of it (with a strict dot-boundary check so `example.com.attacker.com`
+  is rejected). The `server_url` is plumbed from the user's typed
+  login form value through the Tauri command, so the comparison is
+  anchored on user input rather than anything the server controls.
+- **Tokens no longer cross the IPC boundary.** `login`,
+  `login_with_two_factor` and `unlock` used to return the full
+  `TokenSet` (access + refresh tokens, encrypted user key, encrypted
+  private key) to the WebView — useful as a "yes we got something"
+  signal during early bring-up, irrelevant now. They now return
+  `LoginOk { email }` (or a similar `LoginOutcome` for the 2FA branch)
+  and the Rust `AppState` is the single owner of every session secret.
+  The frontend cannot accidentally log, persist, or post a token it
+  doesn't have.
+- **9 Dependabot alerts cleared** in 0.1.10's tail (`rustls-webpki`
+  CVE on the Rust side, plus `tar-fs`, `ws`, `serialize-javascript`,
+  `minimatch`, `tmp`, … pulled transitively by `@wdio/*` v7 — fixed
+  via `pnpm.overrides` rather than a wdio major bump). One additional
+  `uuid < 14.0.0` advisory closed shortly after.
+
+### Added
+- **KeePassXC-style top toolbar.** Action buttons used to live in two
+  places: the SessionBar under the title (Sync / Lock / Logout) and
+  the bottom of the VaultSidebar (Add / Import / Generator / Audit /
+  Stats). They are now grouped into a single horizontal toolbar with
+  three vertical-divider-separated sections. Buttons are icon-only
+  with `title` + `aria-label` for tooltip / a11y; the live session-
+  freshness dot and "il y a N min" label are tucked to the right
+  edge of the bar.
+- **Zebra-striped cipher list** with the Bitwarden / Vaultwarden blue
+  palette (`#eaf2fc` / `#cfe0f5` / `#a8c8f0` in light mode, navy
+  equivalents in dark). Stripes are driven by absolute row index
+  rather than `:nth-child(even)` so they stay stable as the user
+  scrolls the virtualised list.
+- **Property-based tests on `EncString` parsing** (proptest, 64
+  cases per property): the parser must never panic on arbitrary
+  input, encrypt/parse/decrypt is the identity for any 0..512 byte
+  payload, and any single-bit flip in IV / ciphertext / MAC must be
+  caught by the HMAC. `proptest` is dev-only; release artefacts are
+  unchanged.
+- **E2E fixture matrix.** The seed binary now covers the canonical
+  test matrix (more cipher types, folders, organisations) and
+  provisions a secondary 2FA-enabled account so future 2FA-aware
+  specs have something to log into.
+
+### Changed
+- **Recovery snapshots / op-log honesty.** `CRYPTO.md`,
+  `THREAT_MODEL.md` and `AUDIT_SCOPE.md` used to describe the
+  per-cipher pre-modification snapshots and folder-rename op-log
+  written around destructive flows as a "crash recovery" mechanism,
+  but nothing in the running app actually replays them: they are
+  inserted, marked completed, and dropped on logout. The four
+  mentions are now reworded as a write-only forensic trail useful
+  for post-mortem analysis, with the gap called out explicitly so
+  reviewers don't treat it as a mitigation.
+
+### Internal
+- E2E `lock-unlock` spec switched its lock-button selector from
+  text-content match (`button=Verrouiller`) to `button[aria-label=
+  'Verrouiller']`, since the toolbar button is now icon-only. More
+  robust against future label changes too.
+- Removed `truncate` and `formatExpiry` helpers (and their tests):
+  they only existed to format the pre-alpha access-token / expiry
+  debug strip in the SessionBar, which is gone.
+
 ## [0.1.10] — 2026-04-21
 
 ### Added
