@@ -60,6 +60,15 @@ parking_lot = "0.12"
 # panic and never accept a malformed value.
 proptest = { version = "1", default-features = false, features = ["std"] }
 
+# Mock HTTP server for the integration tests that exercise the
+# Vaultwarden client without booting a real container — covers the
+# token-refresh and login round-trips plumbed by issue #24.
+mockito = "1"
+# Per-test isolated XDG_DATA_HOME so the integration tests that read
+# / write session.json don't trample the dev machine.
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt"] }
+
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.
 [profile.dev.package."*"]

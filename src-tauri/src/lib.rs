@@ -12,7 +12,12 @@ pub mod models;
 pub mod services;
 mod ssh_agent;
 mod state;
-mod store;
+// `store` is widened to `pub` for the integration tests in
+// `src-tauri/tests/persisted_session_disk.rs` (issue #24): the
+// session-lifecycle scenarios listed in #9 that don't fit a WDIO
+// spec — disk-artifact assertions, restart-simulation — need direct
+// access to load_session / save_session / clear_session.
+pub mod store;
 mod webauthn;
 
 use std::time::Duration;
