@@ -121,9 +121,23 @@ pub async fn move_folder_path(
         // Decrypt all names up-front so plan_folder_renames — which is
         // pure and unit-tested — can decide which folders participate
         // without caring about the crypto.
+        //
+        // `commands::vault::create_folder` deliberately stamps the
+        // plaintext name back into `vault.folders` after a successful
+        // POST so the front-end summary sees the new folder without a
+        // round-trip sync. That's a useful UX optimisation, but it
+        // means the in-memory list is a mix of EncString-encoded and
+        // plaintext entries until the next full sync. Treat a
+        // decryption failure as "this row is already plaintext" and
+        // use the name verbatim — `EncString::parse` rejects anything
+        // that doesn't start with `2.` or `4.`, which is exactly the
+        // shape of a plaintext folder name.
         let mut decrypted: Vec<(String, String)> = Vec::with_capacity(vault.folders.len());
         for f in &vault.folders {
-            let name = decrypt_name(&f.name, &session.user_key)?;
+            let name = match decrypt_name(&f.name, &session.user_key) {
+                Ok(n) => n,
+                Err(_) => f.name.clone(),
+            };
             decrypted.push((f.id.clone(), name));
         }
         let plan = plan_folder_renames(&decrypted, &source_path, &new_base);
