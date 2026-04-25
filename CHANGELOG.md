@@ -5,6 +5,32 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.14] — 2026-04-25
+
+### Fixed
+- **Blank window on Linux desktops where the running user is not in
+  the `render` group.** Ubuntu 24.04 ships WebKit2GTK 4.1 with the
+  DMABUF renderer enabled by default; that renderer needs to allocate
+  GBM buffers through `/dev/dri/*`, which fresh installs gate behind
+  the `render` (or sometimes `video`) group. Users who weren't added
+  to that group saw exactly one symptom: a blank window. The
+  underlying message
+  `KMS: DRM_IOCTL_MODE_CREATE_DUMB failed: Permission denied` only
+  showed up when launching from a terminal — invisible to anyone
+  starting Clavix from the desktop launcher.
+
+  This was the actual cause behind the 0.1.11/0.1.12/0.1.13 "blank
+  window" reports. The CSP fixes in 0.1.12/0.1.13 were correct and
+  necessary on their own merits but they were chasing the wrong
+  bug — the .deb didn't paint anything regardless of the policy.
+
+  Set `WEBKIT_DISABLE_DMABUF_RENDERER=1` from `main.rs` before
+  starting the Tauri runtime so WebKit falls back to the non-DMABUF
+  compositor. The fallback's perf cost is negligible for a CSS-only
+  UI like Clavix's (no canvas, no animation). Power users with a
+  working DMABUF stack can opt back in by exporting
+  `WEBKIT_DISABLE_DMABUF_RENDERER=0` before launching.
+
 ## [0.1.13] — 2026-04-25
 
 ### Fixed
