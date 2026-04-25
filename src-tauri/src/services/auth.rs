@@ -12,7 +12,7 @@ use crate::crypto::{
 };
 use crate::error::{Error, Result};
 use crate::models::{Prelogin, TokenSet};
-use crate::state::{AppState, Session};
+use crate::state::{AppState, PendingTwoFactor, Session, PENDING_2FA_TTL_SECS};
 use crate::store::{self, PersistedSession};
 
 /// Recover the refresh token from a persisted session. Prefers the encrypted
@@ -156,6 +156,44 @@ pub async fn ensure_fresh_tokens(state: &State<'_, AppState>) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Park the in-flight 2FA login material so the second-factor IPC
+/// calls can read from a Rust-owned slot instead of taking the same
+/// values back from the renderer. Replaces (and zeroizes) any previous
+/// pending login, so the user clicking "Se connecter" twice does not
+/// leave keys hanging around for the longer of the two TTLs.
+pub fn set_pending_two_factor(state: &AppState, pending: PendingTwoFactor) {
+    let mut slot = state.pending_2fa.lock();
+    *slot = Some(pending);
+}
+
+/// Drop and zeroize any pending 2FA slot. Cheap; safe to call when
+/// nothing is pending.
+pub fn clear_pending_two_factor(state: &AppState) {
+    let mut slot = state.pending_2fa.lock();
+    *slot = None;
+}
+
+/// Borrow the pending 2FA slot for a single async section. Returns an
+/// error when nothing is pending or when the slot has gone stale past
+/// the TTL — the stale path zeroizes the slot on the way out.
+pub fn with_pending_two_factor<R>(
+    state: &AppState,
+    f: impl FnOnce(&PendingTwoFactor) -> Result<R>,
+) -> Result<R> {
+    let mut slot = state.pending_2fa.lock();
+    let stale = slot
+        .as_ref()
+        .map(|p| p.created_at.elapsed() > Duration::from_secs(PENDING_2FA_TTL_SECS))
+        .unwrap_or(false);
+    if stale {
+        *slot = None;
+    }
+    let pending = slot.as_ref().ok_or_else(|| Error::Storage {
+        reason: "no 2FA login is pending — call `login` first".into(),
+    })?;
+    f(pending)
 }
 
 pub fn persist_session(

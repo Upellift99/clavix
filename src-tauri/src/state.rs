@@ -3,10 +3,11 @@ use std::time::Instant;
 
 use parking_lot::Mutex;
 use rsa::RsaPrivateKey;
+use zeroize::ZeroizeOnDrop;
 
 use crate::api::VaultwardenClient;
-use crate::crypto::SymmetricKey;
-use crate::models::{SyncResponse, TokenSet};
+use crate::crypto::{MasterKey, MasterPasswordHash, SymmetricKey};
+use crate::models::{Prelogin, SyncResponse, TokenSet};
 use crate::ssh_agent::SshAgentHandle;
 
 pub struct AppState {
@@ -23,6 +24,14 @@ pub struct AppState {
     /// production UI only ever writes positive integers. The frontend
     /// keeps this in sync via the `set_auto_lock_minutes` command.
     pub auto_lock_minutes: Mutex<Option<f64>>,
+    /// Login that returned `TwoFactorRequired` parks its derived material
+    /// here while the user reaches for their hardware key / authenticator.
+    /// `webauthn_sign_challenge` and `login_with_two_factor` read from
+    /// this slot rather than from JS-passed arguments — without this the
+    /// renderer could swap the rpId anchor or the master key between the
+    /// two IPC calls. Cleared on success, on auth failure, on
+    /// `cancel_two_factor`, and after the TTL elapses.
+    pub pending_2fa: Mutex<Option<PendingTwoFactor>>,
 }
 
 impl Default for AppState {
@@ -32,9 +41,41 @@ impl Default for AppState {
             ssh_agent: Mutex::new(None),
             last_activity: Mutex::new(Instant::now()),
             auto_lock_minutes: Mutex::new(None),
+            pending_2fa: Mutex::new(None),
         }
     }
 }
+
+/// Material derived during the `login` step that has to survive until
+/// the user completes the second factor. Living here rather than being
+/// re-derived on `login_with_two_factor` saves an Argon2id round (~1 s
+/// on hardened settings), but the security win is the headline: the
+/// rpId anchor used by `webauthn_sign_challenge` is now sourced from
+/// here, not from a JS argument that a compromised renderer could
+/// rewrite between calls.
+#[derive(ZeroizeOnDrop)]
+pub struct PendingTwoFactor {
+    #[zeroize(skip)]
+    pub server_url: String,
+    #[zeroize(skip)]
+    pub email: String,
+    pub master_key: MasterKey,
+    pub password_hash: MasterPasswordHash,
+    #[zeroize(skip)]
+    pub prelogin: Prelogin,
+    #[zeroize(skip)]
+    pub client: VaultwardenClient,
+    /// Wall-clock instant the slot was opened. Anything older than the
+    /// TTL is treated as expired by `take_pending_two_factor`.
+    #[zeroize(skip)]
+    pub created_at: Instant,
+}
+
+/// How long a `PendingTwoFactor` slot stays valid. Long enough that a
+/// user can fish their YubiKey out of a bag and tap it; short enough
+/// that a forgotten slot doesn't accumulate keying material in memory
+/// indefinitely.
+pub const PENDING_2FA_TTL_SECS: u64 = 300;
 
 /// Bumps `last_activity` to now. Cheap; called at the start of any command
 /// that proves the user is still around (sync, decrypt, refresh, etc).

@@ -65,6 +65,7 @@ pub fn run() {
             commands::auth::prelogin,
             commands::auth::login,
             commands::auth::login_with_two_factor,
+            commands::auth::cancel_two_factor,
             commands::auth::unlock,
             commands::auth::lock,
             commands::auth::logout,

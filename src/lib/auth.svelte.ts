@@ -88,7 +88,7 @@ export class AuthController {
     this.webauthnBusy = true;
     this.error = null;
     try {
-      const token = await api.webauthnSignChallenge(this.serverUrl, this.webauthnChallenge);
+      const token = await api.webauthnSignChallenge(this.webauthnChallenge);
       await this.finishTwoFactor(token, 7);
     } catch (e) {
       this.error = formatError(e);
@@ -100,13 +100,7 @@ export class AuthController {
   private async finishTwoFactor(code: string, provider: number) {
     this.phase = "authenticating";
     try {
-      await api.loginWithTwoFactor(
-        this.serverUrl,
-        this.email,
-        this.password,
-        code,
-        provider,
-      );
+      await api.loginWithTwoFactor(code, provider);
       this.storedAccount = { serverUrl: this.serverUrl, email: this.email };
       this.password = "";
       this.totpCode = "";
@@ -128,13 +122,7 @@ export class AuthController {
     this.phase = "authenticating";
     this.error = null;
     try {
-      await api.loginWithTwoFactor(
-        this.serverUrl,
-        this.email,
-        this.password,
-        codeSnapshot,
-        this.selectedProvider,
-      );
+      await api.loginWithTwoFactor(codeSnapshot, this.selectedProvider);
       this.storedAccount = { serverUrl: this.serverUrl, email: this.email };
       this.password = "";
       this.totpCode = "";
@@ -189,7 +177,16 @@ export class AuthController {
     this.phase = "idle";
   }
 
-  cancelTwoFactor() {
+  async cancelTwoFactor() {
+    // Tell Rust to drop the parked PendingTwoFactor slot so the
+    // master key + password hash get zeroized immediately rather
+    // than waiting for the 5-minute TTL. Best-effort: swallowing the
+    // error here is fine since the slot will expire on its own.
+    try {
+      await api.cancelTwoFactor();
+    } catch {
+      // best-effort
+    }
     this.phase = this.storedAccount ? "unlock" : "idle";
     this.error = null;
     this.totpCode = "";

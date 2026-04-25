@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use secrecy::SecretString;
 use serde::Serialize;
 use tauri::State;
@@ -8,10 +10,11 @@ use crate::crypto::{decrypt_private_key, decrypt_user_key, derive_master_key, en
 use crate::error::{Error, Result};
 use crate::models::{LoginOk, LoginOutcome, LoginResult, Prelogin, TwoFactorProvider};
 use crate::services::auth::{
-    device_info, extract_session_keys, persist_session, prepare_credentials, recover_refresh_token,
-    store_session,
+    clear_pending_two_factor, device_info, extract_session_keys, persist_session,
+    prepare_credentials, recover_refresh_token, set_pending_two_factor, store_session,
+    with_pending_two_factor,
 };
-use crate::state::AppState;
+use crate::state::{AppState, PendingTwoFactor};
 use crate::store;
 
 #[derive(Debug, Clone, Serialize)]
@@ -50,6 +53,10 @@ pub async fn login(
 
     match result {
         LoginResult::Success(tokens) => {
+            // Single-factor login won — drop any leftover pending slot
+            // (e.g. a previous attempt that needed 2FA but never
+            // finished) before opening the new session.
+            clear_pending_two_factor(&state);
             let (user_key, private_key) = extract_session_keys(&master_key, &tokens)?;
             persist_session(&server_url, &email, &pre, &tokens, &user_key)?;
             store_session(&state, client, tokens, user_key, private_key);
@@ -58,36 +65,89 @@ pub async fn login(
         LoginResult::TwoFactorRequired {
             providers,
             webauthn_challenge,
-        } => Ok(LoginOutcome::TwoFactorRequired {
-            providers,
-            webauthn_challenge,
-        }),
+        } => {
+            // Park the derived material so `webauthn_sign_challenge`
+            // and `login_with_two_factor` can read from a Rust-owned
+            // slot rather than re-receiving it from the renderer. The
+            // renderer never needs to send back the server URL, the
+            // email, or the password again — closes the gap where a
+            // compromised JS could swap any of those between the two
+            // IPC calls.
+            set_pending_two_factor(
+                &state,
+                PendingTwoFactor {
+                    server_url,
+                    email,
+                    master_key,
+                    password_hash: hash,
+                    prelogin: pre,
+                    client,
+                    created_at: Instant::now(),
+                },
+            );
+            Ok(LoginOutcome::TwoFactorRequired {
+                providers,
+                webauthn_challenge,
+            })
+        }
     }
 }
 
 #[tauri::command]
 pub async fn login_with_two_factor(
     state: State<'_, AppState>,
-    server_url: String,
-    email: String,
-    password: String,
     code: String,
     provider: u8,
 ) -> Result<LoginOk> {
     let typed_provider = TwoFactorProvider::try_from(provider)
         .map_err(|_| Error::TwoFactorProviderUnsupported { provider })?;
-    let password: SecretString = password.into();
-    let (client, pre, master_key, hash) =
-        prepare_credentials(&server_url, &email, &password).await?;
+
+    // Pull the pending slot's contents out under the lock, then drop
+    // it so the secrets are zeroized as soon as the await below
+    // finishes — success or failure.
+    let (server_url, email, hash, master_key, prelogin, client) =
+        with_pending_two_factor(&state, |p| {
+            Ok((
+                p.server_url.clone(),
+                p.email.clone(),
+                p.password_hash.clone(),
+                p.master_key.clone(),
+                p.prelogin.clone(),
+                p.client.clone(),
+            ))
+        })?;
+
     let device = device_info()?;
-    let tokens = client
+    let tokens = match client
         .login_with_two_factor(&email, &hash, &device, typed_provider, &code)
-        .await?;
+        .await
+    {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            // Wrong code: keep the pending slot alive so the user can
+            // retry without redoing the Argon2id round. Other errors
+            // (network, malformed response) clear the slot to be safe.
+            if !matches!(err, Error::AuthFailed { .. }) {
+                clear_pending_two_factor(&state);
+            }
+            return Err(err);
+        }
+    };
 
     let (user_key, private_key) = extract_session_keys(&master_key, &tokens)?;
-    persist_session(&server_url, &email, &pre, &tokens, &user_key)?;
+    persist_session(&server_url, &email, &prelogin, &tokens, &user_key)?;
     store_session(&state, client, tokens, user_key, private_key);
+    clear_pending_two_factor(&state);
     Ok(LoginOk { email })
+}
+
+/// Drop the parked 2FA login slot. Called by the frontend when the
+/// user clicks "Annuler" on the 2FA screen, and as a defensive
+/// cleanup whenever the session is reset.
+#[tauri::command]
+pub fn cancel_two_factor(state: State<'_, AppState>) -> Result<()> {
+    clear_pending_two_factor(&state);
+    Ok(())
 }
 
 #[tauri::command]
@@ -139,17 +199,23 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Logi
 }
 
 /// Perform a WebAuthn / FIDO2 assertion against the user's USB security
-/// key, for a Bitwarden-style challenge.  Returns the JSON string that
+/// key, for a Bitwarden-style challenge. Returns the JSON string that
 /// must be sent back to the server as `twoFactorToken` with provider=7.
 ///
-/// `server_url` is the Vaultwarden URL the user typed into the login
-/// form. It anchors the rpId validation so a hostile or MITM'd server
-/// can't make us sign an assertion for an unrelated origin.
+/// The rpId anchor used by `validate_rp_id` is read from the parked
+/// `PendingTwoFactor` slot — the same `server_url` the user typed at
+/// the start of `login()`. The renderer no longer passes it back: a
+/// compromised JS layer could otherwise swap the anchor between the
+/// `login` and `webauthn_sign_challenge` calls.
 ///
 /// Blocking CTAP2 I/O is offloaded to the async runtime's blocking pool
 /// so the Tauri main loop stays responsive while the user taps their key.
 #[tauri::command]
-pub async fn webauthn_sign_challenge(server_url: String, challenge_json: String) -> Result<String> {
+pub async fn webauthn_sign_challenge(
+    state: State<'_, AppState>,
+    challenge_json: String,
+) -> Result<String> {
+    let server_url = with_pending_two_factor(&state, |p| Ok(p.server_url.clone()))?;
     tauri::async_runtime::spawn_blocking(move || {
         crate::webauthn::sign_bitwarden_challenge(&challenge_json, &server_url)
     })
@@ -179,8 +245,14 @@ pub fn lock(state: State<'_, AppState>) -> Result<()> {
     if let Some(h) = agent {
         h.stop_sync();
     }
-    let mut guard = state.session.lock();
-    *guard = None;
+    {
+        let mut guard = state.session.lock();
+        *guard = None;
+    }
+    // A pending 2FA slot only matters for an in-flight login; once the
+    // session is locked there is no scenario where we want to keep
+    // those secrets around.
+    clear_pending_two_factor(&state);
     Ok(())
 }
 
@@ -197,6 +269,7 @@ pub fn logout(state: State<'_, AppState>) -> Result<()> {
         let mut guard = state.session.lock();
         *guard = None;
     }
+    clear_pending_two_factor(&state);
     store::clear_session()?;
     if let Err(e) = cache::clear_all() {
         eprintln!("[clavix] vault cache clear failed: {e}");

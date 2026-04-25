@@ -79,20 +79,10 @@ export const api = {
   login: (serverUrl: string, email: string, password: string) =>
     invoke<LoginResult>("login", { serverUrl, email, password }),
 
-  loginWithTwoFactor: (
-    serverUrl: string,
-    email: string,
-    password: string,
-    code: string,
-    provider: number,
-  ) =>
-    invoke<LoginOk>("login_with_two_factor", {
-      serverUrl,
-      email,
-      password,
-      code,
-      provider,
-    }),
+  loginWithTwoFactor: (code: string, provider: number) =>
+    invoke<LoginOk>("login_with_two_factor", { code, provider }),
+
+  cancelTwoFactor: () => invoke<void>("cancel_two_factor"),
 
   unlock: (password: string) => invoke<LoginOk>("unlock", { password }),
 
@@ -102,8 +92,8 @@ export const api = {
 
   setAutoLockMinutes: (minutes: number) => invoke<void>("set_auto_lock_minutes", { minutes }),
 
-  webauthnSignChallenge: (serverUrl: string, challengeJson: string) =>
-    invoke<string>("webauthn_sign_challenge", { serverUrl, challengeJson }),
+  webauthnSignChallenge: (challengeJson: string) =>
+    invoke<string>("webauthn_sign_challenge", { challengeJson }),
 
   sync: () => invoke<SyncSummary>("sync"),
 

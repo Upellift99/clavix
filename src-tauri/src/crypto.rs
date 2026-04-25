@@ -19,9 +19,20 @@ type Aes256CbcDec = cbc::Decryptor<Aes256>;
 type Aes256CbcEnc = cbc::Encryptor<Aes256>;
 type HmacSha256 = Hmac<Sha256>;
 
-#[derive(Zeroize, ZeroizeOnDrop)]
+// Clone is required so the parked `PendingTwoFactor` slot can hand
+// out copies of the master key for the second-factor IPC step
+// without releasing the original. The clone keeps the same
+// ZeroizeOnDrop semantics — both copies are wiped when their
+// respective owners go out of scope.
+#[derive(Zeroize, ZeroizeOnDrop, Clone)]
 pub struct MasterKey([u8; 32]);
 
+// MasterPasswordHash gained Zeroize/ZeroizeOnDrop alongside the
+// PendingTwoFactor refactor: the hash is the credential we actually
+// post to /connect/token, so it deserves the same wipe-on-drop
+// treatment as the master key. zeroize 1.8 implements Zeroize for
+// String out of the box, so the derive Just Works.
+#[derive(Zeroize, ZeroizeOnDrop, Clone)]
 pub struct MasterPasswordHash(String);
 
 impl MasterPasswordHash {
