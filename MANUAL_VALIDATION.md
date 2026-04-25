@@ -86,9 +86,10 @@ session-scoped on purpose.
 - [ ] **rpId mismatch** *(synthetic test, optional)*: configure a
   Vaultwarden instance whose advertised `rpId` does not match the
   URL the user typed → app refuses to sign with an
-  `Error::Crypto { reason: "WebAuthn rpId … is not a registrable
-  suffix of server host …" }`. This is the safety net added in
-  `0.1.11`; if it doesn't trigger, the rpId validation has regressed.
+  `Error::Crypto { reason: "WebAuthn rpId … does not match server
+  host … exactly — refusing to sign" }`. This is the safety net
+  added in `0.1.11` and tightened to strict exact-match in `0.1.12`;
+  if it doesn't trigger, the rpId validation has regressed.
 
 ### Known limitations
 
@@ -146,8 +147,12 @@ button.
 - [ ] `git ls-remote git@<host>:<path>.git` works the same way (this
   is the realistic developer use case).
 
-**Expected**: each successful sign uses the in-memory decrypted key,
-which is wiped immediately after.
+**Expected**: signatures use the in-memory decrypted keys held by
+the running agent's `KeyStore`. Those keys are **never written to
+disk** — they live in process memory only — and are wiped when the
+agent is stopped (lock, auto-lock, logout, app quit). Don't expect
+a per-signature wipe; the lifecycle bound is the agent's, not the
+individual sign call's.
 
 ### Lifecycle / lockdown
 
@@ -172,8 +177,11 @@ which is wiped immediately after.
   agent → it cleans up the prior socket and binds afresh, no
   EADDRINUSE error.
 - [ ] **Socket permissions** — `ls -l "$SSH_AUTH_SOCK"` shows
-  `srwx------` (0700, owner only). Anyone else on a multi-user
-  machine cannot connect to the agent.
+  `srw-------` (0600, owner read/write only). Anyone else on a
+  multi-user machine cannot connect to the agent. The execute bit
+  is intentionally not set — Unix-domain sockets only need read +
+  write to be usable, and tightening to 0600 cuts off any tooling
+  that would mistakenly probe with `x`.
 
 ### Known limitations
 

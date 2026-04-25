@@ -178,11 +178,18 @@ jobs:
           # 0x175DDC = 1531356, the Bitwarden brand blue, kept in sync
           # with the in-app accent so the notification visually matches
           # the client.
+          # allowed_mentions: parse=[] so a stray @everyone or @here in
+          # the changelog excerpt cannot ping the entire Discord server.
+          # Keep this on the payload, not just on the embed: Discord
+          # parses mentions from the embed description regardless.
           PAYLOAD=$(jq -n \
             --arg title "Clavix ${TAG} released" \
             --arg url "${REPO_URL}/releases/tag/${TAG}" \
             --arg desc "$HIGHLIGHTS" \
-            '{embeds: [{title: $title, url: $url, description: $desc, color: 1531356}]}')
+            '{
+              allowed_mentions: { parse: [] },
+              embeds: [{title: $title, url: $url, description: $desc, color: 1531356}]
+            }')
 
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
