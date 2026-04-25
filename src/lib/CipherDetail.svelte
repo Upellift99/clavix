@@ -49,6 +49,18 @@
       ? (organizations.find((o) => o.id === detail.organizationId)?.name ?? "?")
       : null,
   );
+
+  /**
+   * Classify a single character of a revealed password so the CSS can
+   * paint digits / letters / symbols differently. Same trick KeePassXC
+   * uses to make a typed-out password readable: a quick visual scan
+   * tells you "1" from "l" or "0" from "O" without staring.
+   */
+  function charClass(ch: string): string {
+    if (/\d/.test(ch)) return "ch-digit";
+    if (/[a-zA-Z]/.test(ch)) return "ch-letter";
+    return "ch-symbol";
+  }
 </script>
 
 <section class="box cipher-detail">
@@ -98,11 +110,17 @@
       <dl class="detail-field">
         <dt>Mot de passe</dt>
         <dd>
-          <code class="password">
-            {showPassword
-              ? detail.login.password
-              : "•".repeat(Math.min(detail.login.password.length, 16))}
-          </code>
+          {#if showPassword}
+            <code class="password">
+              {#each [...detail.login.password] as ch}<span
+                  class={charClass(ch)}>{ch}</span
+                >{/each}
+            </code>
+          {:else}
+            <code class="password">
+              {"•".repeat(Math.min(detail.login.password.length, 16))}
+            </code>
+          {/if}
           <button
             type="button"
             class="secondary small"

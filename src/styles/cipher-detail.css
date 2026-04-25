@@ -44,6 +44,23 @@
   letter-spacing: 0.08em;
 }
 
+/* Character-class colouring inside a revealed password — the same
+   convention KeePassXC uses. The point is readability: at a glance
+   you can tell `1` from `l` and `0` from `O`, and you can see that
+   what looked like a long letter run actually has a digit buried
+   inside it. Letters keep the default body colour. */
+.password .ch-digit {
+  color: #1d4ed8; /* blue-700 */
+  font-weight: 600;
+}
+.password .ch-symbol {
+  color: #b91c1c; /* red-700 */
+  font-weight: 600;
+}
+.password .ch-letter {
+  /* default — no override */
+}
+
 .uri-list {
   list-style: none;
   padding: 0;
@@ -80,6 +97,12 @@
 
 @media (prefers-color-scheme: dark) {
   .detail-field dt { color: #aaa; }
+  /* Brighter blue/red on the dark background so the contrast is the
+     same perceived "loud" as it is in light mode. */
+  .password .ch-digit { color: #93c5fd; }
+  .password .ch-symbol { color: #fca5a5; }
 }
 
 :root.force-dark .detail-field dt { color: #aaa; }
+:root.force-dark .password .ch-digit { color: #93c5fd; }
+:root.force-dark .password .ch-symbol { color: #fca5a5; }
