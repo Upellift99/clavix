@@ -127,8 +127,15 @@ See:
 ### Offline Cache
 
 The local SQLite cache stores an encrypted vault blob keyed by account.
-Recovery logs for destructive operations are also stored as encrypted
-blobs where appropriate.
+Per-cipher pre-modification snapshots and a folder-rename op-log are
+also written to encrypted columns before destructive operations
+(move, share, cross-org re-encryption, cascade folder rename).
+
+These snapshots are currently a **forensic trail, not an automated
+recovery mechanism**: nothing in the running app replays them after a
+crash. They can help a maintainer reconstruct what was attempted in
+post-mortem analysis, but the user-visible state after a partially
+applied operation is whatever the server returns on the next sync.
 
 See:
 

@@ -124,7 +124,8 @@ These flows deserve concentrated review:
 - token refresh and migration away from legacy plaintext refresh tokens
 - offline cache encryption and decryption
 - organization item sharing and cross-org re-encryption
-- folder rename batch operations and crash recovery logs
+- folder rename batch operations and the (write-only, not yet replayed)
+  pre-operation snapshots and op-log entries persisted around them
 - SSH agent socket exposure and request handling
 - WebAuthn challenge parsing and authenticator interaction
 - clipboard handling and auto-lock behavior when the UI freezes
@@ -175,7 +176,10 @@ These mitigations reduce risk; they do not replace external review.
   command path?
 - Are there platform-specific permission or path issues on macOS and
   Windows not visible from Linux-centric testing?
-- Are there crash windows where move/share recovery logs are
-  insufficient to restore consistency?
+- Crash windows in move/share are currently **not** auto-recovered: the
+  pre-operation snapshots and op-log entries written by `cache.rs` are
+  not replayed on restart. Reviewers should treat this as a known gap
+  rather than as a mitigation, and assess whether the resulting risk
+  (locally inconsistent state until next successful sync) is acceptable.
 - Is the SSH agent feature acceptable for the intended threat model, or
   should it be more isolated or more explicit about risk?

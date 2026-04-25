@@ -65,7 +65,9 @@ Review topics:
 - refresh token protection at rest
 - local file permissions and path choices
 - encrypted cache design
-- crash-safety and recovery logs for destructive flows
+- pre-operation snapshots and op-log entries written around destructive
+  flows — note these are currently a write-only forensic trail (no
+  automatic replay on restart), not a crash-recovery mechanism
 
 ### 3. Tauri Command Surface
 
