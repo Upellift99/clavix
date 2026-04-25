@@ -5,6 +5,75 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.16] — 2026-04-25
+
+### Added
+- **Project logo.** Replaces the Tauri default with a Clavix mark
+  — a wide white "C" whose right-hand opening carries two short
+  horizontal teeth (a key bow), painted on a Bitwarden-blue
+  rounded square that matches the in-app accent. Source SVG
+  lives at `assets/clavix-logo.svg`; `scripts/regen-icons.sh`
+  rasters every PNG / ICO / ICNS Tauri ships with.
+- **Inline SVG icons** across the toolbar, cipher list, sidebar
+  and detail panel, replacing the previous emoji set. Lucide-
+  style geometry, monochrome, inheriting `currentColor`. Fixes
+  the rendering inconsistency between Linux GTK / macOS / Windows
+  emoji stacks.
+- **Restructured `CipherDetail` panel.** Fields are now grouped
+  into typed sections (Identifiants / URLs / Sécurité / Carte
+  bancaire / Identité / Clé SSH / Notes) with small uppercase
+  headers and a consistent label-vs-value grid. Verbose
+  Copier / Afficher / Masquer word buttons collapse into icon-
+  only marks (copy / eye / eye-off) with title + aria-label, same
+  hit area as the toolbar buttons.
+- **Empty states** with a large icon, title, body and CTA, on the
+  cipher list (no search match → "Effacer la recherche" button;
+  empty folder → guidance to create or import).
+- **Subtle motion**: 100 ms fade on cipher-row hover/selection
+  (no more snap-flash) and 140 ms fade-up on the detail panel
+  when it mounts.
+
+### Security
+- **In-flight 2FA login state is parked Rust-side.** New
+  `PendingTwoFactor` slot in `AppState` carrying server_url,
+  email, master_key, password_hash, prelogin and client. Derives
+  `ZeroizeOnDrop`. `webauthn_sign_challenge` and
+  `login_with_two_factor` now read from this slot rather than
+  re-receiving the same values from the renderer between calls.
+  A compromised JS layer can no longer swap the rpId anchor or
+  the master key between `login()` and the second-factor IPC.
+  5-minute TTL on the slot. Closes the gap noted in #21.
+
+### Tests
+- **TOTP 2FA E2E spec** (`login-totp.spec`) walks the full second-
+  factor login against the seeded `e2e-2fa@clavix.test` account.
+  Pure-Node RFC 6238 helper (~25 lines, no `otplib` dep).
+- **Rust integration tests** for the session-lifecycle pieces
+  that don't fit a WDIO spec: `refresh_token_endpoint.rs` mocks
+  `/identity/connect/token` and asserts the form payload + the
+  400 → AuthFailed mapping; `persisted_session_disk.rs` covers
+  the save / load / clear round-trip and the legacy-plaintext
+  refresh-token recovery in an XDG_DATA_HOME tempdir.
+- Six new E2E specs are now actively running again after #25
+  landed: cipher-types, delete-restore, edit-cipher, folder-
+  cascade, logout, permanent-delete. The suite stands at 13
+  specs.
+
+### Changed
+- **Per-spec Vaultwarden reset** in `wdio.conf.mjs` (gated
+  behind `E2E_PER_SPEC_RESET=1`, set in CI). docker-compose-down
+  + up + reseed before each spec so cumulative state can't make
+  late-position specs hang in `socket hang up`. Adds ~3 minutes
+  to the suite, removes the position-dependent flake entirely.
+- **Strict-exact-match WebAuthn rpId** (continued from 0.1.12 —
+  the 0.1.11 implementation accepted any DNS suffix).
+- `delete_folder` was added to `VaultwardenClient` for future
+  per-account teardown helpers.
+
+### Tooling
+- `mockito`, `tempfile`, `tokio` (test feature) added as Rust
+  dev-dependencies for the new integration suite.
+
 ## [0.1.15] — 2026-04-25
 
 ### Added
