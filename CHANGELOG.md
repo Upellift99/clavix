@@ -22,6 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   silent-skip behaviour where `start_ssh_agent` would just bump
   `skipped_count` for any encrypted key in the vault.
 
+### Tests
+- **End-to-end SSH passphrase import spec**
+  (`tests/e2e/specs/ssh-passphrase-import.spec.mjs`). Drives the new
+  prompt through the real Tauri WebView: generates a fresh
+  passphrase-protected ed25519 key (and a no-passphrase ECDSA key)
+  via `ssh-keygen` in the `before` hook, opens the cipher editor,
+  asserts the passphrase prompt appears, that a wrong passphrase
+  surfaces "Phrase de passe incorrecte." inline without closing
+  the editor, that the correct passphrase saves a cipher whose
+  `keyFingerprint` is auto-filled with `SHA256:…` and whose
+  `privateKey` is the cleartext PEM (no `ENCRYPTED` marker), and
+  that an ECDSA paste fails fast in the main editor error line
+  without ever rendering the passphrase prompt.
+
 ## [0.1.17] — 2026-04-25
 
 ### Fixed
