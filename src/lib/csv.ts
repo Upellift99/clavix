@@ -118,3 +118,86 @@ export function parseKeepassCsv(text: string): KeepassEntry[] {
     totp: pick(row, cols.totp).trim(),
   }));
 }
+
+// ============ Bitwarden-format CSV export ============
+//
+// Matches the column set Bitwarden Desktop produces with File → Export
+// vault → .csv, so the file imports cleanly back into Bitwarden if a
+// user wants to migrate elsewhere. CSV only carries Login and
+// SecureNote — Cards, Identities and SSH keys don't fit the Bitwarden
+// CSV schema (the matching field columns aren't standardised) and
+// would have to ship through the JSON export instead. We mirror that
+// behaviour: the caller filters down to logins + notes before passing
+// rows in here.
+
+export type CsvExportRow = {
+  /** Folder name, empty string for "no folder" / personal root. */
+  folder: string;
+  favorite: boolean;
+  type: "login" | "note";
+  name: string;
+  notes: string;
+  /** All login URIs; serialised newline-separated inside the quoted CSV cell. */
+  loginUris: string[];
+  loginUsername: string;
+  loginPassword: string;
+  loginTotp: string;
+};
+
+const BITWARDEN_HEADERS = [
+  "folder",
+  "favorite",
+  "type",
+  "name",
+  "notes",
+  "fields",
+  "reprompt",
+  "login_uri",
+  "login_username",
+  "login_password",
+  "login_totp",
+] as const;
+
+/**
+ * RFC 4180 escape: wrap in double-quotes when the cell contains a comma,
+ * a quote, or a newline; double up any inner quote.
+ */
+export function escapeCsvField(value: string): string {
+  if (
+    value.includes(",") ||
+    value.includes('"') ||
+    value.includes("\n") ||
+    value.includes("\r")
+  ) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Serialise a list of cipher rows to the Bitwarden CSV dialect:
+ * CRLF line endings, header row first, `fields`/`reprompt` columns
+ * always empty / 0 (Clavix has no custom fields and no per-cipher
+ * reprompt setting). Multiple URIs join with `\n` inside the
+ * `login_uri` cell.
+ */
+export function serializeBitwardenCsv(rows: CsvExportRow[]): string {
+  const lines: string[] = [BITWARDEN_HEADERS.join(",")];
+  for (const row of rows) {
+    const cells = [
+      row.folder,
+      row.favorite ? "1" : "0",
+      row.type,
+      row.name,
+      row.notes,
+      "", // fields (unsupported in Clavix)
+      "0", // reprompt (unsupported in Clavix)
+      row.loginUris.join("\n"),
+      row.loginUsername,
+      row.loginPassword,
+      row.loginTotp,
+    ].map(escapeCsvField);
+    lines.push(cells.join(","));
+  }
+  return lines.join("\r\n") + "\r\n";
+}

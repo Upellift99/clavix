@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CSV export** matching Bitwarden Desktop's column set
+  (`folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp`),
+  so the resulting file imports directly back into Bitwarden if you
+  decide to migrate elsewhere. Toolbar gets a new upload-arrow button
+  next to import; the dialog shows live counts per type, lets you
+  toggle Logins / Secure Notes independently, displays a warning
+  banner about plaintext-on-disk, and triggers the download via a
+  Blob URL named `clavix-export-YYYY-MM-DD.csv`. Cards, Identities,
+  SSH keys and trashed items are skipped — same as Bitwarden's own
+  CSV export — since the column schema doesn't carry their fields.
+  New `csv.ts` helpers: `escapeCsvField` and `serializeBitwardenCsv`,
+  both covered by vitest including a CSV roundtrip via `parseCsv`.
 - **Generate an Ed25519 SSH key from the cipher editor.** When you
   open a new SSH-key cipher and the private-key field is still empty,
   a "Générer une clé Ed25519" button shows up above the textarea —

@@ -18,6 +18,7 @@
     onSwitchAccount: () => void;
     onCreateItem: () => void;
     onOpenImport: () => void;
+    onOpenExport: () => void;
     onOpenGenerator: () => void;
     onOpenAudit: () => void;
     onOpenStats: () => void;
@@ -33,6 +34,7 @@
     onSwitchAccount,
     onCreateItem,
     onOpenImport,
+    onOpenExport,
     onOpenGenerator,
     onOpenAudit,
     onOpenStats,
@@ -128,6 +130,15 @@
       aria-label={m.import_label()}
     >
       <Icon name="download" size={18} />
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      onclick={onOpenExport}
+      title={m.export_label()}
+      aria-label={m.export_label()}
+    >
+      <Icon name="upload" size={18} />
     </button>
   </div>
 
