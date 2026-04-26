@@ -5,6 +5,23 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **SSH passphrase prompt at cipher import.** When you paste a
+  passphrase-protected OpenSSH private key into the cipher editor,
+  Clavix now asks for the passphrase, decrypts the PEM client-side,
+  and stores the cleartext key inside the cipher (which itself stays
+  encrypted at rest under the master key). Same model as Bitwarden
+  Desktop's `import_key`: the passphrase is consumed once and never
+  stored. Public key and SHA-256 fingerprint are auto-filled when
+  empty. ECDSA / DSA inputs are rejected up front before any
+  passphrase prompt, so you don't type a passphrase for nothing.
+  New Tauri command `decrypt_ssh_private_key` with typed errors
+  `ssh_passphrase_required` and `ssh_wrong_passphrase`. Closes the
+  silent-skip behaviour where `start_ssh_agent` would just bump
+  `skipped_count` for any encrypted key in the vault.
+
 ## [0.1.17] — 2026-04-25
 
 ### Fixed

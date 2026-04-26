@@ -99,6 +99,11 @@
   "ssh_agent_stopped": "Arrêté",
   "ssh_agent_copy_export": "Copier export SSH_AUTH_SOCK",
   "ssh_agent_skipped": "{count} clé(s) non supportée(s) ignorée(s) (ECDSA / DSA pour l'instant).",
+  "ssh_passphrase_label": "Phrase de passe de la clé SSH",
+  "ssh_passphrase_required": "Cette clé est protégée par une phrase de passe — saisissez-la pour la déchiffrer.",
+  "ssh_passphrase_wrong": "Phrase de passe incorrecte.",
+  "ssh_passphrase_verify": "Déchiffrer",
+  "ssh_passphrase_hint": "La phrase de passe n'est pas conservée — la clé sera stockée déchiffrée dans le coffre, comme le fait Bitwarden Desktop.",
 
   "import_label": "Importer (CSV KeePassXC)",
   "import_title": "Importer depuis KeePassXC",

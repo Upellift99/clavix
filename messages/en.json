@@ -99,6 +99,11 @@
   "ssh_agent_stopped": "Stopped",
   "ssh_agent_copy_export": "Copy export SSH_AUTH_SOCK",
   "ssh_agent_skipped": "{count} unsupported key(s) skipped (ECDSA / DSA not handled yet).",
+  "ssh_passphrase_label": "SSH key passphrase",
+  "ssh_passphrase_required": "This key is passphrase-protected — enter the passphrase to decrypt it.",
+  "ssh_passphrase_wrong": "Wrong passphrase.",
+  "ssh_passphrase_verify": "Decrypt",
+  "ssh_passphrase_hint": "The passphrase is not kept — the key will be stored decrypted inside the vault, the same way Bitwarden Desktop does.",
 
   "import_label": "Import (KeePassXC CSV)",
   "import_title": "Import from KeePassXC",
