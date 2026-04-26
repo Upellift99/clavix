@@ -35,6 +35,29 @@ const PASSPHRASE = "test-passphrase-do-not-use";
 const ITEM_NAME_OK = "E2E SSH ▸ encrypted import";
 const ITEM_NAME_ECDSA = "E2E SSH ▸ ecdsa rejection";
 
+// WDIO's `setValue` types a multi-line PEM character-by-character via
+// the WebDriver protocol; the leading `-----BEGIN OPENSSH PRIVATE KEY-----`
+// header gets dropped intermittently on Tauri's wry WebView (we caught
+// this on a CI run that surfaced "PEM type label invalid"). Setting the
+// `value` property programmatically and dispatching an `input` event is
+// the reliable path for Svelte-bound form fields.
+async function pasteIntoTextarea(selector, value) {
+  await browser.execute(
+    (sel, val) => {
+      const el = document.querySelector(sel);
+      if (!el) throw new Error(`textarea ${sel} not found`);
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        "value",
+      ).set;
+      setter.call(el, val);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+    selector,
+    value,
+  );
+}
+
 let workdir;
 let encryptedPem;
 let ecdsaPem;
@@ -91,18 +114,22 @@ describe("Import an encrypted SSH key", () => {
     const nameInput = await editor.$('input[type="text"][required]');
     await nameInput.setValue(ITEM_NAME_OK);
 
-    // Paste the encrypted PEM into the private-key textarea.
-    // setValue clears first, then types — safe for the multi-line content.
-    const pkArea = await editor.$("textarea.ssh-private-key");
-    await pkArea.setValue(encryptedPem);
+    // Paste the encrypted PEM into the private-key textarea via JS to
+    // sidestep the WDIO setValue char-by-char path (it intermittently
+    // drops the leading PEM header on the wry WebView).
+    await pasteIntoTextarea(".editor-panel textarea.ssh-private-key", encryptedPem);
 
     // First save attempt: no passphrase yet, the command returns
     // ssh_passphrase_required and the editor renders the prompt.
     const submit = await editor.$('button[type="submit"]');
     await submit.click();
 
-    const promptLabel = await editor.$("label*=Phrase de passe de la clé SSH");
-    await promptLabel.waitForDisplayed({
+    // The .ssh-passphrase-hint element is rendered only inside the
+    // `{#if sshPassphrasePrompt}` block — its presence is the signal
+    // that the prompt is up. Class selector is more reliable than
+    // partial-text matching on a label that wraps multiple children.
+    const passphraseHint = await editor.$(".ssh-passphrase-hint");
+    await passphraseHint.waitForDisplayed({
       timeout: 5_000,
       timeoutMsg: "passphrase prompt did not appear after first save attempt",
     });
@@ -214,8 +241,7 @@ describe("Import an encrypted SSH key", () => {
     const nameInput = await editor.$('input[type="text"][required]');
     await nameInput.setValue(ITEM_NAME_ECDSA);
 
-    const pkArea = await editor.$("textarea.ssh-private-key");
-    await pkArea.setValue(ecdsaPem);
+    await pasteIntoTextarea(".editor-panel textarea.ssh-private-key", ecdsaPem);
 
     const submit = await editor.$('button[type="submit"]');
     await submit.click();
