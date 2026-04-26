@@ -139,4 +139,6 @@ export const api = {
 
   decryptSshPrivateKey: (privateKey: string, passphrase: string | null) =>
     invoke<DecryptedSshKey>("decrypt_ssh_private_key", { privateKey, passphrase }),
+
+  generateSshKey: () => invoke<DecryptedSshKey>("generate_ssh_key"),
 };

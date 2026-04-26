@@ -5,6 +5,21 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Generate an Ed25519 SSH key from the cipher editor.** When you
+  open a new SSH-key cipher and the private-key field is still empty,
+  a "Générer une clé Ed25519" button shows up above the textarea —
+  one click runs `ssh_key::PrivateKey::random` server-side and fills
+  privateKey + publicKey + keyFingerprint with a fresh OpenSSH PEM,
+  ssh-ed25519 line and SHA-256 fingerprint. The key is generated
+  in the Rust process, never touches disk, and lands directly in
+  the cipher (which is then encrypted under the master key like any
+  other field). RSA generation can come later as an algorithm
+  parameter; users with infra requiring RSA can paste an existing
+  key for now. New Tauri command `generate_ssh_key`.
+
 ## [0.1.18] — 2026-04-26
 
 ### Added

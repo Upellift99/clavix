@@ -104,6 +104,9 @@
   "ssh_passphrase_wrong": "Phrase de passe incorrecte.",
   "ssh_passphrase_verify": "Déchiffrer",
   "ssh_passphrase_hint": "La phrase de passe n'est pas conservée — la clé sera stockée déchiffrée dans le coffre, comme le fait Bitwarden Desktop.",
+  "ssh_generate_action": "Générer une clé Ed25519",
+  "ssh_generate_running": "Génération…",
+  "ssh_generate_hint": "Génère une nouvelle paire Ed25519 à la volée. Sinon, collez une clé existante ci-dessous.",
 
   "import_label": "Importer (CSV KeePassXC)",
   "import_title": "Importer depuis KeePassXC",
