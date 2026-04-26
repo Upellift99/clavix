@@ -65,6 +65,92 @@
   overflow-wrap: anywhere;
 }
 
+.ssh-agent-env-ok {
+  color: #18683a;
+  font-size: 0.78rem;
+  margin: 0.1rem 0 0.4rem;
+}
+
+.ssh-agent-env-mismatch,
+.ssh-agent-env-unset {
+  color: #7a3b00;
+  font-size: 0.78rem;
+  margin: 0.1rem 0 0.4rem;
+}
+
+.ssh-agent-keys {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0.6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  max-height: 9rem;
+  overflow-y: auto;
+}
+
+.ssh-agent-key {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.82rem;
+}
+
+.ssh-agent-key:last-child {
+  border-bottom: none;
+}
+
+.ssh-agent-key-comment {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ssh-agent-key-algo {
+  font-family: ui-monospace, monospace;
+  font-size: 0.74rem;
+  color: #666;
+  background: #f3f4f6;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.ssh-agent-key-fp {
+  font-family: ui-monospace, monospace;
+  font-size: 0.74rem;
+  color: #444;
+}
+
+.ssh-agent-skipped-list {
+  margin: 0.3rem 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.ssh-agent-skipped-list summary {
+  cursor: pointer;
+  color: #7a3b00;
+}
+
+.ssh-agent-skipped-list ul {
+  list-style: none;
+  padding: 0.4rem 0 0;
+  margin: 0;
+}
+
+.ssh-agent-skipped-list li {
+  padding: 0.2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ssh-agent-skip-reason {
+  color: #666;
+  font-size: 0.78rem;
+}
+
 .audit-error {
   color: #7a1d1d;
   background: #fdecec;

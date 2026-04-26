@@ -30,11 +30,12 @@
   let sshAgent = $state<SshAgentStatus>({
     running: false,
     socketPath: null,
-    keyCount: 0,
-    skippedCount: 0,
+    keys: [],
+    skipped: [],
   });
   let sshAgentBusy = $state(false);
   let sshAgentError = $state<string | null>(null);
+  let sshAuthSockEnv = $state<string | null>(null);
 
   async function refreshSshAgent() {
     try {
@@ -42,6 +43,19 @@
     } catch (e) {
       console.warn("[clavix] ssh_agent_status failed:", e);
     }
+    try {
+      sshAuthSockEnv = await api.sshAuthSock();
+    } catch (e) {
+      console.warn("[clavix] ssh_auth_sock failed:", e);
+    }
+  }
+
+  // Truncate a SHA256:abcdef… fingerprint for compact display while
+  // keeping enough characters to spot the right key at a glance.
+  // Full fingerprint is still shown via the title attribute on hover.
+  function shortFingerprint(fp: string): string {
+    if (fp.length <= 24) return fp;
+    return fp.slice(0, 17) + "…" + fp.slice(-4);
   }
 
   async function toggleSshAgent() {
@@ -142,7 +156,7 @@
       </button>
       <span class="ssh-agent-state" class:on={sshAgent.running}>
         {sshAgent.running
-          ? m.ssh_agent_running({ count: String(sshAgent.keyCount) })
+          ? m.ssh_agent_running({ count: String(sshAgent.keys.length) })
           : m.ssh_agent_stopped()}
       </span>
     </div>
@@ -157,9 +171,43 @@
           {m.ssh_agent_copy_export()}
         </button>
       </div>
+      {#if sshAuthSockEnv === sshAgent.socketPath}
+        <p class="ssh-agent-env-ok">✓ {m.ssh_agent_env_ok()}</p>
+      {:else if sshAuthSockEnv}
+        <p class="ssh-agent-env-mismatch">
+          {m.ssh_agent_env_mismatch({ current: sshAuthSockEnv })}
+        </p>
+      {:else}
+        <p class="ssh-agent-env-unset">{m.ssh_agent_env_unset()}</p>
+      {/if}
     {/if}
-    {#if sshAgent.skippedCount > 0}
-      <p class="hint">{m.ssh_agent_skipped({ count: String(sshAgent.skippedCount) })}</p>
+    {#if sshAgent.running && sshAgent.keys.length > 0}
+      <ul class="ssh-agent-keys">
+        {#each sshAgent.keys as key (key.fingerprint)}
+          <li class="ssh-agent-key">
+            <span class="ssh-agent-key-comment">{key.comment || "—"}</span>
+            <span class="ssh-agent-key-algo">{key.algorithm}</span>
+            <code class="ssh-agent-key-fp" title={key.fingerprint}>
+              {shortFingerprint(key.fingerprint)}
+            </code>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+    {#if sshAgent.skipped.length > 0}
+      <details class="ssh-agent-skipped-list">
+        <summary>
+          {m.ssh_agent_skipped({ count: String(sshAgent.skipped.length) })}
+        </summary>
+        <ul>
+          {#each sshAgent.skipped as sk (sk.name + sk.reason)}
+            <li>
+              <strong>{sk.name}</strong>
+              <span class="ssh-agent-skip-reason">{sk.reason}</span>
+            </li>
+          {/each}
+        </ul>
+      </details>
     {/if}
     {#if sshAgentError}
       <p class="audit-error">{sshAgentError}</p>

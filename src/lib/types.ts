@@ -248,11 +248,22 @@ export const EMPTY_EDITOR_INITIAL: EditorInitial = {
 
 export type EditorPayload = Omit<EditorInitial, "id">;
 
+export type ExposedKey = {
+  comment: string;
+  algorithm: string;
+  fingerprint: string;
+};
+
+export type SkippedKey = {
+  name: string;
+  reason: string;
+};
+
 export type SshAgentStatus = {
   running: boolean;
   socketPath: string | null;
-  keyCount: number;
-  skippedCount: number;
+  keys: ExposedKey[];
+  skipped: SkippedKey[];
 };
 
 export type AuditEntry = { cipherId: string; name: string; count: number };
