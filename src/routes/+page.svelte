@@ -3,6 +3,7 @@
   import * as m from "$lib/paraglide/messages";
   import CipherEditor from "$lib/CipherEditor.svelte";
   import ImportDialog from "$lib/ImportDialog.svelte";
+  import ExportDialog from "$lib/ExportDialog.svelte";
   import AuthGate from "$lib/AuthGate.svelte";
   import Toolbar from "$lib/Toolbar.svelte";
   import VaultSidebar from "$lib/VaultSidebar.svelte";
@@ -40,6 +41,7 @@
   let auditDialog = $state<{ open: () => Promise<void> } | null>(null);
   let generatorDialog = $state<{ open: () => void } | null>(null);
   let importOpen = $state(false);
+  let exportOpen = $state(false);
 
   auth.on(async (event) => {
     if (event === "loggedIn") {
@@ -152,6 +154,7 @@
         onSwitchAccount={switchAccountAndReset}
         onCreateItem={() => vault.openCreateEditor()}
         onOpenImport={() => (importOpen = true)}
+        onOpenExport={() => (exportOpen = true)}
         onOpenGenerator={() => generatorDialog?.open()}
         onOpenAudit={() => auditDialog?.open()}
         onOpenStats={() => statsDialog?.open()}
@@ -299,5 +302,11 @@
       importOpen = false;
       await vault.sync();
     }}
+  />
+  <ExportDialog
+    open={exportOpen}
+    ciphers={vault.summary?.ciphers ?? []}
+    folders={vault.summary?.folders ?? []}
+    onCancel={() => (exportOpen = false)}
   />
 {/key}
