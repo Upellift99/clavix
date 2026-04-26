@@ -143,6 +143,49 @@ Examples of realistic failures to look for:
 - insecure file or socket permissions on some platforms
 - information disclosure through logs, error serialization, or UI state
 
+## Optional: Yubikey Re-Unlock (planned)
+
+A planned feature lets the user release the in-memory session via a
+FIDO2 hardware token (CTAP2 `hmac-secret` extension) instead of
+re-typing the master password after auto-lock. The full design lives
+in `YUBIKEY_UNLOCK.md`. The threat-model implications below apply
+only when a user has explicitly opted in.
+
+What enabling Yubikey re-unlock changes:
+
+- **a new on-disk asset.** The session file gains an encrypted copy
+  of the user key, wrapped under a key derived from the
+  authenticator's `hmac-secret` output. The wrap key never touches
+  disk; only the ciphertext, the GCM nonce, the per-credential
+  salt, the credential id, and a non-secret 16-byte HKDF
+  fingerprint of the user key.
+- **a shifted at-rest threat.** While the wrap is present, the
+  encrypted user key on disk is protected by the Yubikey's secret
+  rather than by the master password. An attacker who steals the
+  laptop and the Yubikey can unlock the vault — equivalent to
+  stealing the master password. An attacker with the laptop alone
+  cannot.
+- **an extra unlock surface.** Two new Rust commands
+  (`enroll_yubikey_unlock`, `unlock_with_yubikey`) talk to the
+  authenticator over the existing CTAP-HID stack. The same input
+  validation rules as the WebAuthn 2FA path apply.
+- **stale-wrap detection.** If the master password is rotated on
+  another client, the wrapped user key becomes invalid. The stored
+  fingerprint lets the unlock command detect this, drop the wrap,
+  and require a fresh enrolment after a master-password sign-in.
+  No silent decryption with the wrong key.
+
+What it explicitly does **not** change:
+
+- The master password remains the only way to perform a *first*
+  sign-in. The Yubikey wrap is created from an already-unlocked
+  session and only replaces the unlock step on subsequent runs.
+- The master password input remains available on the unlock view
+  even when the Yubikey wrap is present, so a lost Yubikey does
+  not lock the user out of their vault.
+- The on-server material is unchanged. No server-side key escrow,
+  no extra protocol field. The wrap is purely a local convenience.
+
 ## Out of Scope for the Current Design
 
 The current project does not attempt to solve:
