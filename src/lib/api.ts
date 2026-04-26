@@ -141,4 +141,6 @@ export const api = {
     invoke<DecryptedSshKey>("decrypt_ssh_private_key", { privateKey, passphrase }),
 
   generateSshKey: () => invoke<DecryptedSshKey>("generate_ssh_key"),
+
+  sshAuthSock: () => invoke<string | null>("ssh_auth_sock"),
 };

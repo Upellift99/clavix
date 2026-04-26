@@ -9,11 +9,38 @@ use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ExposedKey {
+    /// Comment field of the OpenSSH key — falls back to the cipher name
+    /// when the key's own comment is empty.
+    pub comment: String,
+    /// Wire-format algorithm name, e.g. `"ssh-ed25519"` / `"ssh-rsa"`.
+    pub algorithm: String,
+    /// Same `"SHA256:…"` format `ssh-add -l` prints.
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkippedKey {
+    /// Cipher name (or key comment if cipher decryption failed).
+    pub name: String,
+    /// Human-readable reason — surfaced to the user so they know whether
+    /// the key was skipped because of an unsupported algorithm
+    /// (ECDSA / DSA), a leftover passphrase-encrypted PEM that pre-dates
+    /// the import-time decrypt flow, or a malformed key.
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SshAgentStatus {
     pub running: bool,
     pub socket_path: Option<String>,
-    pub key_count: usize,
-    pub skipped_count: usize,
+    pub keys: Vec<ExposedKey>,
+    /// Populated only by the `start_ssh_agent` response — the
+    /// `ssh_agent_status` command keeps it empty since it doesn't
+    /// re-attempt the load from the vault.
+    pub skipped: Vec<SkippedKey>,
 }
 
 #[tauri::command]
@@ -57,24 +84,52 @@ pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatu
     let socket_path = ssh_agent::default_socket_path()?;
 
     let mut agent_keys = Vec::new();
-    let mut skipped = 0usize;
+    let mut skipped: Vec<SkippedKey> = Vec::new();
     for (_id, name, pem) in &decrypted {
         match ssh_agent::try_load_agent_key(pem, name) {
             Ok(Some(k)) => agent_keys.push(k),
-            Ok(None) => skipped += 1, // unsupported type (rsa, ecdsa, ...)
+            Ok(None) => skipped.push(SkippedKey {
+                name: name.clone(),
+                reason: "unsupported algorithm (only Ed25519 and RSA load into the agent today)"
+                    .into(),
+            }),
+            Err(Error::Crypto { reason }) => {
+                // The most common case here is the legacy "passphrase-protected"
+                // marker from before the import-time decrypt flow shipped.
+                // Surface the underlying message verbatim so the user
+                // understands what to do (re-open the cipher to decrypt it,
+                // or fix a malformed PEM).
+                eprintln!("[clavix agent] skipping '{name}': {reason}");
+                skipped.push(SkippedKey {
+                    name: name.clone(),
+                    reason,
+                });
+            }
             Err(e) => {
                 eprintln!("[clavix agent] skipping '{name}': {e}");
-                skipped += 1;
+                skipped.push(SkippedKey {
+                    name: name.clone(),
+                    reason: e.to_string(),
+                });
             }
         }
     }
 
     let handle = ssh_agent::start_agent(socket_path.clone(), agent_keys).await?;
+    let exposed: Vec<ExposedKey> = handle
+        .keys
+        .iter()
+        .map(|k| ExposedKey {
+            comment: k.comment.clone(),
+            algorithm: k.algorithm.clone(),
+            fingerprint: k.fingerprint.clone(),
+        })
+        .collect();
     let status = SshAgentStatus {
         running: true,
         socket_path: Some(handle.socket_path.to_string_lossy().into_owned()),
-        key_count: handle.key_count,
-        skipped_count: skipped,
+        keys: exposed,
+        skipped,
     };
 
     {
@@ -265,14 +320,32 @@ pub fn ssh_agent_status(state: State<'_, AppState>) -> Result<SshAgentStatus> {
         Some(h) => SshAgentStatus {
             running: true,
             socket_path: Some(h.socket_path.to_string_lossy().into_owned()),
-            key_count: h.key_count,
-            skipped_count: 0,
+            keys: h
+                .keys
+                .iter()
+                .map(|k| ExposedKey {
+                    comment: k.comment.clone(),
+                    algorithm: k.algorithm.clone(),
+                    fingerprint: k.fingerprint.clone(),
+                })
+                .collect(),
+            skipped: Vec::new(),
         },
         None => SshAgentStatus {
             running: false,
             socket_path: None,
-            key_count: 0,
-            skipped_count: 0,
+            keys: Vec::new(),
+            skipped: Vec::new(),
         },
     })
+}
+
+/// Returns whatever `SSH_AUTH_SOCK` was set to in the process
+/// environment when Clavix launched. Used by the agent UI to tell the
+/// user whether the variable already points at our socket or whether
+/// they still need to export it. Reads only this single variable, no
+/// arbitrary env access.
+#[tauri::command]
+pub fn ssh_auth_sock() -> Option<String> {
+    std::env::var("SSH_AUTH_SOCK").ok()
 }

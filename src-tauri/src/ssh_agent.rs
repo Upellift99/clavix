@@ -14,9 +14,16 @@ pub use unix::*;
 mod stub {
     use super::*;
 
+    #[derive(Debug, Clone)]
+    pub struct KeyInfo {
+        pub comment: String,
+        pub algorithm: String,
+        pub fingerprint: String,
+    }
+
     pub struct SshAgentHandle {
         pub socket_path: PathBuf,
-        pub key_count: usize,
+        pub keys: Vec<KeyInfo>,
     }
 
     impl SshAgentHandle {
@@ -56,7 +63,7 @@ mod unix {
     use rsa::signature::{RandomizedSigner, SignatureEncoding};
     use rsa::RsaPrivateKey;
     use sha2::{Sha256, Sha512};
-    use ssh_key::{Algorithm, PrivateKey};
+    use ssh_key::{Algorithm, HashAlg, PrivateKey};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::{UnixListener, UnixStream};
     use tokio::sync::Mutex;
@@ -87,17 +94,45 @@ mod unix {
         /// SSH wire-format public key blob (what clients compare against).
         pub pub_blob: Vec<u8>,
         pub comment: String,
+        /// Wire-format SSH algorithm name, e.g. `"ssh-ed25519"` or `"ssh-rsa"`.
+        pub algorithm: String,
+        /// `"SHA256:…"` fingerprint of the public key, matches what
+        /// `ssh-add -l` would print.
+        pub fingerprint: String,
         pub kind: SignerKind,
+    }
+
+    /// Slim, signing-material-free summary of an exposed key — what the
+    /// agent status surface returns to the front-end. Mirrors the rows
+    /// you'd see from `ssh-add -l`.
+    #[derive(Debug, Clone)]
+    pub struct KeyInfo {
+        pub comment: String,
+        pub algorithm: String,
+        pub fingerprint: String,
+    }
+
+    impl From<&AgentKey> for KeyInfo {
+        fn from(k: &AgentKey) -> Self {
+            Self {
+                comment: k.comment.clone(),
+                algorithm: k.algorithm.clone(),
+                fingerprint: k.fingerprint.clone(),
+            }
+        }
     }
 
     type KeyStore = Arc<Mutex<Vec<AgentKey>>>;
 
     pub struct SshAgentHandle {
         pub socket_path: PathBuf,
-        pub key_count: usize,
+        /// Public-only summary of every key currently exposed by the agent.
+        /// The signing material itself stays in the keystore guarded by the
+        /// task; this list is safe to clone into a status response.
+        pub keys: Vec<KeyInfo>,
         task: JoinHandle<()>,
         #[allow(dead_code)]
-        keys: KeyStore,
+        key_store: KeyStore,
     }
 
     impl SshAgentHandle {
@@ -158,6 +193,8 @@ mod unix {
         } else {
             public_comment.to_string()
         };
+        let algorithm = pk.algorithm().to_string();
+        let fingerprint = pk.fingerprint(HashAlg::Sha256).to_string();
         let kind = match pk.algorithm() {
             Algorithm::Ed25519 => {
                 let keypair = pk.key_data().ed25519().ok_or_else(|| Error::Crypto {
@@ -188,6 +225,8 @@ mod unix {
         Ok(Some(AgentKey {
             pub_blob,
             comment,
+            algorithm,
+            fingerprint,
             kind,
         }))
     }
@@ -204,7 +243,7 @@ mod unix {
             let _ = std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o600));
         }
 
-        let key_count = keys.len();
+        let key_summaries: Vec<KeyInfo> = keys.iter().map(KeyInfo::from).collect();
         let store: KeyStore = Arc::new(Mutex::new(keys));
         let store_task = store.clone();
         let path_for_task = socket_path.clone();
@@ -233,9 +272,9 @@ mod unix {
 
         Ok(SshAgentHandle {
             socket_path,
-            key_count,
+            keys: key_summaries,
             task,
-            keys: store,
+            key_store: store,
         })
     }
 

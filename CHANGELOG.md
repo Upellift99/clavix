@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   other field). RSA generation can come later as an algorithm
   parameter; users with infra requiring RSA can paste an existing
   key for now. New Tauri command `generate_ssh_key`.
+- **Detailed SSH agent panel.** The agent section in Préférences now
+  lists every exposed key by comment + algorithm + truncated SHA-256
+  fingerprint (full hash on hover via `title`), so you can tell at a
+  glance which keys `ssh-add -l` will surface. Below it, a
+  `<details>` summary shows skipped keys with a per-key reason —
+  ECDSA/DSA unsupported algorithm, leftover passphrase-encrypted PEM
+  pre-dating the import-time decrypt flow, malformed key, etc. A new
+  `ssh_auth_sock` Tauri command reads the `SSH_AUTH_SOCK` env var so
+  the dialog can show "✓ pointe sur Clavix", "pointe ailleurs" or
+  "non définie" inline next to the socket path. The `SshAgentStatus`
+  shape now carries `keys: ExposedKey[]` and `skipped: SkippedKey[]`
+  instead of the previous opaque counts.
 
 ## [0.1.18] — 2026-04-26
 
