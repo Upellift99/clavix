@@ -159,6 +159,43 @@ pub fn decrypt_ssh_private_key(
     })
 }
 
+/// Generate a fresh Ed25519 SSH keypair, returning the canonical
+/// OpenSSH-format private key, the public-key line, and the SHA-256
+/// fingerprint. Same shape as `decrypt_ssh_private_key` so the editor
+/// can drop the result straight into its sshKey state.
+///
+/// Ed25519 only for now: it's the modern default (`ssh-keygen` picks
+/// it by default since OpenSSH 9.5), 256-bit equivalent security with
+/// 32-byte keys, generation is essentially instantaneous. RSA support
+/// can ship later as a separate algorithm parameter — until then,
+/// users with infra that requires RSA can paste an existing key.
+#[tauri::command]
+pub fn generate_ssh_key() -> Result<DecryptedSshKey> {
+    use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey};
+
+    let mut rng = rand::thread_rng();
+    let pk = PrivateKey::random(&mut rng, Algorithm::Ed25519).map_err(|e| Error::Crypto {
+        reason: format!("generate ed25519 ssh key: {e}"),
+    })?;
+
+    let private_pem = pk
+        .to_openssh(LineEnding::LF)
+        .map_err(|e| Error::Crypto {
+            reason: format!("encode generated private key: {e}"),
+        })?
+        .to_string();
+    let public_pem = pk.public_key().to_openssh().map_err(|e| Error::Crypto {
+        reason: format!("encode generated public key: {e}"),
+    })?;
+    let fingerprint = pk.fingerprint(HashAlg::Sha256).to_string();
+
+    Ok(DecryptedSshKey {
+        private_key: private_pem,
+        public_key: public_pem,
+        key_fingerprint: fingerprint,
+    })
+}
+
 #[cfg(test)]
 mod decrypt_tests {
     use super::*;
@@ -183,6 +220,41 @@ mod decrypt_tests {
         // Truncated mid-header — must not panic, must return parse error.
         let res = decrypt_ssh_private_key("-----BEGIN OPENSSH PRIVATE KEY-----\n".into(), None);
         assert!(matches!(res, Err(Error::Crypto { .. })));
+    }
+}
+
+#[cfg(test)]
+mod generate_tests {
+    use super::*;
+
+    #[test]
+    fn generated_key_round_trips_through_decrypt_command() {
+        // Fresh Ed25519 → returned PEM is unencrypted, so feeding it
+        // back through decrypt_ssh_private_key (no passphrase) gives
+        // a stable result. Catches regressions where the encoder and
+        // parser disagree on the wire format.
+        let gen = generate_ssh_key().expect("generate ed25519");
+        assert!(gen.public_key.starts_with("ssh-ed25519 "));
+        assert!(gen.key_fingerprint.starts_with("SHA256:"));
+        assert!(gen.private_key.contains("BEGIN OPENSSH PRIVATE KEY"));
+        assert!(!gen.private_key.contains("ENCRYPTED"));
+
+        let parsed = decrypt_ssh_private_key(gen.private_key.clone(), None)
+            .expect("freshly generated key parses back");
+        assert_eq!(parsed.public_key, gen.public_key);
+        assert_eq!(parsed.key_fingerprint, gen.key_fingerprint);
+    }
+
+    #[test]
+    fn two_calls_produce_different_keys() {
+        // Sanity check that the RNG is actually being consumed —
+        // a wedged generator that returned a constant key would
+        // be a serious zero-day (and a hilarious test failure).
+        let a = generate_ssh_key().unwrap();
+        let b = generate_ssh_key().unwrap();
+        assert_ne!(a.key_fingerprint, b.key_fingerprint);
+        assert_ne!(a.private_key, b.private_key);
+        assert_ne!(a.public_key, b.public_key);
     }
 }
 

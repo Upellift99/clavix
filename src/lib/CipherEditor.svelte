@@ -154,6 +154,14 @@
   let sshPassphrasePrompt = $state(false);
   let sshPassphraseError = $state<string | null>(null);
 
+  // SSH key generation (create mode only) — calls into the Rust
+  // `generate_ssh_key` command which produces a fresh Ed25519 keypair
+  // via ssh_key::PrivateKey::random and returns the canonical OpenSSH
+  // PEM + ssh-ed25519 line + SHA-256 fingerprint, which we drop straight
+  // into the bound state. Mirrors Bitwarden Desktop's "generate" button
+  // in the SSH cipher editor.
+  let sshGenerating = $state(false);
+
   const orgCollections = $derived(
     organizationId ? collections.filter((c) => c.organizationId === organizationId) : [],
   );
@@ -180,8 +188,25 @@
       sshPassphrase = "";
       sshPassphrasePrompt = false;
       sshPassphraseError = null;
+      sshGenerating = false;
     }
   });
+
+  async function handleGenerateSshKey() {
+    if (sshGenerating) return;
+    sshGenerating = true;
+    error = null;
+    try {
+      const fresh = await api.generateSshKey();
+      sshKey.privateKey = fresh.privateKey;
+      sshKey.publicKey = fresh.publicKey;
+      sshKey.keyFingerprint = fresh.keyFingerprint;
+    } catch (e) {
+      error = (e as Error).message ?? String(e);
+    } finally {
+      sshGenerating = false;
+    }
+  }
 
   function tauriCode(e: unknown): string | null {
     if (e && typeof e === "object" && "code" in e) {
@@ -525,6 +550,19 @@
             </label>
           </div>
         {:else if cipherType === 5}
+          {#if mode === "create" && sshKey.privateKey.trim().length === 0}
+            <div class="ssh-generate-row">
+              <button
+                type="button"
+                class="ssh-generate-btn"
+                onclick={handleGenerateSshKey}
+                disabled={sshGenerating}
+              >
+                {sshGenerating ? m.ssh_generate_running() : m.ssh_generate_action()}
+              </button>
+              <small class="ssh-generate-hint">{m.ssh_generate_hint()}</small>
+            </div>
+          {/if}
           <label>
             {m.detail_field_private_key()}
             <textarea
@@ -666,6 +704,22 @@
   .ssh-private-key {
     font-family: ui-monospace, monospace;
     font-size: 0.82rem;
+  }
+
+  .ssh-generate-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .ssh-generate-btn {
+    align-self: flex-start;
+  }
+
+  .ssh-generate-hint {
+    color: var(--color-muted, #888);
+    font-size: 0.78rem;
   }
 
   .ssh-passphrase-hint {
