@@ -95,6 +95,7 @@ pub fn run() {
             commands::ssh::start_ssh_agent,
             commands::ssh::stop_ssh_agent,
             commands::ssh::ssh_agent_status,
+            commands::ssh::decrypt_ssh_private_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

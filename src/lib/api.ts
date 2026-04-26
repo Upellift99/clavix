@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AuditResult,
   CipherDetail,
+  DecryptedSshKey,
   EditorPayload,
   LoginOk,
   LoginResult,
@@ -135,4 +136,7 @@ export const api = {
   stopSshAgent: () => invoke<void>("stop_ssh_agent"),
 
   sshAgentStatus: () => invoke<SshAgentStatus>("ssh_agent_status"),
+
+  decryptSshPrivateKey: (privateKey: string, passphrase: string | null) =>
+    invoke<DecryptedSshKey>("decrypt_ssh_private_key", { privateKey, passphrase }),
 };

@@ -112,6 +112,12 @@ export type SshKeyDetail = {
   keyFingerprint: string | null;
 };
 
+export type DecryptedSshKey = {
+  privateKey: string;
+  publicKey: string;
+  keyFingerprint: string;
+};
+
 export type CipherDetail = {
   id: string;
   kind: number;

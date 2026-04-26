@@ -1,6 +1,8 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
   import QrScanner from "$lib/QrScanner.svelte";
+  import { api } from "$lib/api";
+  import type { TauriError } from "$lib/types";
 
   type FolderSummary = { id: string; name: string };
   type OrganizationSummary = { id: string; name: string };
@@ -144,6 +146,14 @@
   let error = $state<string | null>(null);
   let qrOpen = $state(false);
 
+  // SSH passphrase prompt state — populated when the user pastes an
+  // encrypted OpenSSH private key. The passphrase is consumed once
+  // (decrypts the PEM, fills publicKey/fingerprint if empty) and never
+  // stored anywhere — same model as Bitwarden Desktop's import flow.
+  let sshPassphrase = $state("");
+  let sshPassphrasePrompt = $state(false);
+  let sshPassphraseError = $state<string | null>(null);
+
   const orgCollections = $derived(
     organizationId ? collections.filter((c) => c.organizationId === organizationId) : [],
   );
@@ -167,8 +177,62 @@
       showPassword = false;
       submitting = false;
       error = null;
+      sshPassphrase = "";
+      sshPassphrasePrompt = false;
+      sshPassphraseError = null;
     }
   });
+
+  function tauriCode(e: unknown): string | null {
+    if (e && typeof e === "object" && "code" in e) {
+      return (e as TauriError).code;
+    }
+    return null;
+  }
+
+  /**
+   * Normalize the SSH key fields before submit. Returns true if the editor
+   * can proceed with submit; false if we showed a passphrase prompt and need
+   * the user to fill it in. Fills `publicKey`/`keyFingerprint` if empty.
+   */
+  async function prepareSshKey(): Promise<boolean> {
+    if (cipherType !== 5) return true;
+    const pem = sshKey.privateKey.trim();
+    if (pem.length === 0) return true;
+    // Skip work when the private key is unchanged from what the cipher
+    // already holds — we don't want to re-normalize on every save.
+    if (mode === "edit" && pem === initial.sshKey.privateKey.trim()) return true;
+
+    try {
+      const decrypted = await api.decryptSshPrivateKey(
+        pem,
+        sshPassphrase.length > 0 ? sshPassphrase : null,
+      );
+      sshKey.privateKey = decrypted.privateKey;
+      if (sshKey.publicKey.trim().length === 0) sshKey.publicKey = decrypted.publicKey;
+      if (sshKey.keyFingerprint.trim().length === 0)
+        sshKey.keyFingerprint = decrypted.keyFingerprint;
+      sshPassphrase = "";
+      sshPassphrasePrompt = false;
+      sshPassphraseError = null;
+      return true;
+    } catch (e) {
+      const code = tauriCode(e);
+      if (code === "ssh_passphrase_required") {
+        sshPassphrasePrompt = true;
+        sshPassphraseError = null;
+        return false;
+      }
+      if (code === "ssh_wrong_passphrase") {
+        sshPassphrasePrompt = true;
+        sshPassphraseError = m.ssh_passphrase_wrong();
+        return false;
+      }
+      // Any other error (parse, unsupported algorithm) — surface it on the
+      // main editor error line and let the user fix the input.
+      throw e;
+    }
+  }
 
   function generatePassword() {
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -193,6 +257,11 @@
     submitting = true;
     error = null;
     try {
+      const ready = await prepareSshKey();
+      if (!ready) {
+        submitting = false;
+        return;
+      }
       const uris = urisInput
         .split(/\r?\n/)
         .map((u) => u.trim())
@@ -465,6 +534,21 @@
               class="ssh-private-key"
             ></textarea>
           </label>
+          {#if sshPassphrasePrompt}
+            <label>
+              {m.ssh_passphrase_label()}
+              <input
+                type="password"
+                bind:value={sshPassphrase}
+                autocomplete="off"
+                placeholder="••••••••"
+              />
+              <small class="ssh-passphrase-hint">
+                {sshPassphraseError ?? m.ssh_passphrase_required()}
+              </small>
+              <small class="ssh-passphrase-note">{m.ssh_passphrase_hint()}</small>
+            </label>
+          {/if}
           <label>
             {m.detail_field_public_key()}
             <textarea bind:value={sshKey.publicKey} rows="2" placeholder="ssh-ed25519 AAAA…"></textarea>
@@ -582,6 +666,21 @@
   .ssh-private-key {
     font-family: ui-monospace, monospace;
     font-size: 0.82rem;
+  }
+
+  .ssh-passphrase-hint {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--color-warning, #c97a00);
+    font-size: 0.78rem;
+  }
+
+  .ssh-passphrase-note {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--color-muted, #888);
+    font-size: 0.72rem;
+    font-style: italic;
   }
 
   .password-row,

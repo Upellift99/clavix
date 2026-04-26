@@ -32,6 +32,12 @@ pub enum Error {
 
     #[error("Local storage error: {reason}")]
     Storage { reason: String },
+
+    #[error("SSH private key is passphrase-protected — passphrase required")]
+    SshPassphraseRequired,
+
+    #[error("SSH passphrase is incorrect")]
+    SshWrongPassphrase,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -71,6 +77,8 @@ impl Serialize for Error {
             ),
             Error::NotAuthenticated => ("not_authenticated", serde_json::json!({})),
             Error::Storage { reason } => ("storage_error", serde_json::json!({ "reason": reason })),
+            Error::SshPassphraseRequired => ("ssh_passphrase_required", serde_json::json!({})),
+            Error::SshWrongPassphrase => ("ssh_wrong_passphrase", serde_json::json!({})),
         };
 
         ErrorPayload {
