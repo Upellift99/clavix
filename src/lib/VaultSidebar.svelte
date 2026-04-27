@@ -25,6 +25,8 @@
     onMoveCipherToFolder: (cipherId: string, folderId: string | null) => Promise<void>;
     onMoveCipherToCollection: (cipherId: string, collectionId: string) => Promise<void>;
     onMoveFolderPath: (source: string, targetParent: string | null) => Promise<void>;
+    onDeleteFolder: (folderId: string) => Promise<void>;
+    onRenameFolder: (folderId: string, name: string) => Promise<void>;
   };
 
   let {
@@ -45,7 +47,65 @@
     onMoveCipherToFolder,
     onMoveCipherToCollection,
     onMoveFolderPath,
+    onDeleteFolder,
+    onRenameFolder,
   }: Props = $props();
+
+  // Right-click context menu state. `node` is the folder leaf the
+  // menu was opened against; `x`/`y` are viewport coordinates of the
+  // contextmenu event so the menu pops up where the cursor was.
+  // Native fields rather than a dedicated component because we have
+  // no other context-menu surface in the app yet — keeps the footprint
+  // small.
+  let menuNode = $state<TreeNode | null>(null);
+  let menuX = $state(0);
+  let menuY = $state(0);
+  let renamingNode = $state<TreeNode | null>(null);
+  let renameValue = $state("");
+
+  function openContextMenu(event: MouseEvent, node: TreeNode) {
+    if (!node.folderId) return;
+    event.preventDefault();
+    menuNode = node;
+    menuX = event.clientX;
+    menuY = event.clientY;
+  }
+
+  function closeContextMenu() {
+    menuNode = null;
+  }
+
+  async function confirmDelete() {
+    const node = menuNode;
+    if (!node?.folderId) return;
+    closeContextMenu();
+    const ok = window.confirm(
+      m.folder_delete_confirm({ name: node.label, count: String(node.itemCount) }),
+    );
+    if (!ok) return;
+    await onDeleteFolder(node.folderId);
+  }
+
+  function startRename() {
+    if (!menuNode?.folderId) return;
+    renamingNode = menuNode;
+    renameValue = menuNode.label;
+    closeContextMenu();
+  }
+
+  async function commitRename(event: Event) {
+    event.preventDefault();
+    const node = renamingNode;
+    if (!node?.folderId) return;
+    const next = renameValue.trim();
+    renamingNode = null;
+    if (next.length === 0 || next === node.label) return;
+    await onRenameFolder(node.folderId, next);
+  }
+
+  function cancelRename() {
+    renamingNode = null;
+  }
 
   function onFolderDragStart(event: DragEvent, node: TreeNode) {
     const path = folderPathFromKey(node.key);
@@ -204,6 +264,7 @@
     </div>
   {/if}
   {#if folderTree && folderTree.children.length > 0}
+    <h4>{m.tree_my_vault()}</h4>
     <ul class="tree-root">
       {#each folderTree.children as node (node.key)}
         {@render treeNode(node)}
@@ -219,6 +280,28 @@
     </ul>
   {/if}
 </aside>
+
+{#if menuNode}
+  <!-- Click-anywhere-else dismisses; right-clicking on another folder
+       repositions the same menu. The svelte-ignore is fine here:
+       this is a transient dismiss layer, the keyboard reaches the
+       menu items beneath it via tab order. -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="tree-menu-backdrop" onclick={closeContextMenu} oncontextmenu={(e) => e.preventDefault()}></div>
+  <div
+    class="tree-menu"
+    role="menu"
+    style="left: {menuX}px; top: {menuY}px;"
+  >
+    <button type="button" role="menuitem" onclick={startRename}>
+      {m.folder_action_rename()}
+    </button>
+    <button type="button" role="menuitem" class="danger" onclick={confirmDelete}>
+      {m.folder_action_delete()}
+    </button>
+  </div>
+{/if}
 
 {#snippet treeNode(node: TreeNode)}
   <li>
@@ -243,24 +326,44 @@
       {:else}
         <span class="tree-spacer"></span>
       {/if}
-      <button
-        type="button"
-        class="tree-label"
-        draggable={node.kind === "folder"}
-        onclick={() => onSelectNode(node.key)}
-        ondragstart={node.kind === "folder" ? (e) => onFolderDragStart(e, node) : undefined}
-        ondragend={node.kind === "folder" ? onFolderDragEnd : undefined}
-        ondragover={(e) => onNodeDragOver(e, node.key)}
-        ondragleave={() => onNodeDragLeave(node.key)}
-        ondrop={node.kind === "folder"
-          ? (e) => onDropOnFolderNode(e, node)
-          : node.kind === "collection" && node.collectionId !== null
-            ? (e) => onDropOnCollection(e, node.collectionId!)
-            : undefined}
-      >
-        <span class="tree-label-text">{node.label}</span>
-        <span class="tree-count">{node.itemCount}</span>
-      </button>
+      {#if renamingNode?.key === node.key}
+        <form class="tree-rename" onsubmit={commitRename}>
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            type="text"
+            bind:value={renameValue}
+            autofocus
+            onkeydown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                cancelRename();
+              }
+            }}
+            onblur={cancelRename}
+          />
+        </form>
+      {:else}
+        <button
+          type="button"
+          class="tree-label"
+          draggable={node.kind === "folder"}
+          onclick={() => onSelectNode(node.key)}
+          oncontextmenu={(e) =>
+            node.kind === "folder" && node.folderId ? openContextMenu(e, node) : undefined}
+          ondragstart={node.kind === "folder" ? (e) => onFolderDragStart(e, node) : undefined}
+          ondragend={node.kind === "folder" ? onFolderDragEnd : undefined}
+          ondragover={(e) => onNodeDragOver(e, node.key)}
+          ondragleave={() => onNodeDragLeave(node.key)}
+          ondrop={node.kind === "folder"
+            ? (e) => onDropOnFolderNode(e, node)
+            : node.kind === "collection" && node.collectionId !== null
+              ? (e) => onDropOnCollection(e, node.collectionId!)
+              : undefined}
+        >
+          <span class="tree-label-text">{node.label}</span>
+          <span class="tree-count">{node.itemCount}</span>
+        </button>
+      {/if}
     </div>
     {#if expanded.has(node.key) && node.children.length > 0}
       <ul class="tree-children">

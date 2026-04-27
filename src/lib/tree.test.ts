@@ -69,6 +69,17 @@ describe("folderPathFromKey", () => {
   it("returns null for keys without the prefix", () => {
     expect(folderPathFromKey("org/abc")).toBeNull();
   });
+
+  it("strips the #id disambiguator that duplicates carry", () => {
+    // Path-based operations (drag-drop reparenting, move_folder_path)
+    // only understand names — collapsing the suffix back to the bare
+    // path keeps them working when the user has two folders with the
+    // same path. Their right-click delete/rename uses folderId so
+    // duplicates stay individually addressable for the actions that
+    // matter.
+    expect(folderPathFromKey(`${FOLDERS_ROOT_PREFIX}Finance#abc-123`)).toBe("Finance");
+    expect(folderPathFromKey(`${FOLDERS_ROOT_PREFIX}work/projects#xyz`)).toBe("work/projects");
+  });
 });
 
 describe("insertIntoTree + computeFolderCounts", () => {
@@ -81,6 +92,46 @@ describe("insertIntoTree + computeFolderCounts", () => {
     const work = root.children[0];
     expect(work.label).toBe("work");
     expect(work.children.map((c) => c.label).sort()).toEqual(["notes", "projects"]);
+  });
+
+  it("two folders with the same path produce two distinct leaves", () => {
+    // Regression: pre-fix the second insert silently rewrote the
+    // first leaf's folderId, so the user saw one "Finance" entry in
+    // the sidebar even though Vaultwarden held two — and items
+    // belonging to the rewritten folder lost their tree node.
+    const root = rootFolderNode();
+    insertIntoTree(root, ["Finance"], { folderId: "f-aaa", kind: "folder" });
+    insertIntoTree(root, ["Finance"], { folderId: "f-bbb", kind: "folder" });
+
+    expect(root.children).toHaveLength(2);
+    const ids = root.children.map((c) => c.folderId).sort();
+    expect(ids).toEqual(["f-aaa", "f-bbb"]);
+    // Keys must be unique even though the labels collide.
+    const keys = root.children.map((c) => c.key);
+    expect(new Set(keys).size).toBe(2);
+    // The first occurrence keeps the natural path key so existing
+    // path-based selection (and `findNode("folders/Finance")`)
+    // continues to work for the common single-folder case.
+    expect(keys).toContain("folders/Finance");
+  });
+
+  it("a child of a duplicated parent still nests under the first occurrence", () => {
+    // Document the behaviour the implementation actually delivers:
+    // when two folders share a path AND one of them has a sub-path,
+    // the sub-path attaches to whichever ancestor was inserted
+    // first. There is no unambiguous answer here without a server-
+    // side parent reference (Bitwarden folders are flat); we settle
+    // for "consistent with insertion order" rather than guessing.
+    const root = rootFolderNode();
+    insertIntoTree(root, ["Finance"], { folderId: "f-aaa", kind: "folder" });
+    insertIntoTree(root, ["Finance", "Reports"], { folderId: "f-rep", kind: "folder" });
+    insertIntoTree(root, ["Finance"], { folderId: "f-bbb", kind: "folder" });
+
+    expect(root.children).toHaveLength(2);
+    const aaa = root.children.find((c) => c.folderId === "f-aaa")!;
+    const bbb = root.children.find((c) => c.folderId === "f-bbb")!;
+    expect(aaa.children.map((c) => c.folderId)).toEqual(["f-rep"]);
+    expect(bbb.children).toEqual([]);
   });
 
   it("computes cumulative item counts", () => {

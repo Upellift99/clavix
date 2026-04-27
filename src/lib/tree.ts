@@ -10,7 +10,15 @@ export const FOLDERS_ROOT_PREFIX = "folders/";
 
 export function folderPathFromKey(key: string): string | null {
   if (!key.startsWith(FOLDERS_ROOT_PREFIX)) return null;
-  return key.slice(FOLDERS_ROOT_PREFIX.length);
+  const path = key.slice(FOLDERS_ROOT_PREFIX.length);
+  // Trim the `#id` disambiguator that `insertIntoTree` appends when
+  // two folders have identical paths. Path-based operations (drag-
+  // drop reparenting, `move_folder_path`) only know about names, so
+  // the duplicate's path collapses back to the name; the right-click
+  // delete/rename actions use the folder id directly and stay
+  // unambiguous on duplicates.
+  const hashIdx = path.lastIndexOf("#");
+  return hashIdx >= 0 ? path.slice(0, hashIdx) : path;
 }
 
 export function splitPath(name: string): string[] {
@@ -29,28 +37,76 @@ export function insertIntoTree(
 ) {
   let current = root;
   let acc = root.key;
+  const lastIdx = segments.length - 1;
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     acc = `${acc}/${seg}`;
-    let child = current.children.find((c) => c.label === seg);
-    if (!child) {
-      child = {
-        key: acc,
-        label: seg,
-        kind: leaf.kind,
-        folderId: null,
-        organizationId: leaf.organizationId ?? null,
-        collectionId: null,
-        children: [],
-        itemCount: 0,
-      };
-      current.children.push(child);
+    if (i < lastIdx) {
+      // Internal segment: dedupe by label so nested siblings share
+      // their ancestors (e.g. "work/a" and "work/b" hang under one
+      // "work" node). It's fine to attach under a node that already
+      // has a folderId — that means "work" is *both* a real folder
+      // and a parent of "work/a"; that's also how the previous
+      // implementation worked.
+      let child = current.children.find((c) => c.label === seg);
+      if (!child) {
+        child = {
+          key: acc,
+          label: seg,
+          kind: leaf.kind,
+          folderId: null,
+          organizationId: leaf.organizationId ?? null,
+          collectionId: null,
+          children: [],
+          itemCount: 0,
+        };
+        current.children.push(child);
+      }
+      current = child;
+    } else {
+      // Leaf branch. Two cases worth distinguishing:
+      //
+      // 1. A synthetic-parent node already lives at this slot — i.e.
+      //    we previously inserted "{seg}/sub" and created "{seg}" as
+      //    a no-id ancestor. Promoting it preserves its children.
+      //
+      // 2. A real folder of the same name already exists here. The
+      //    pre-fix code silently rewrote the existing leaf's
+      //    `folderId` to the new value and orphaned the first
+      //    folder's items in the UI. The fix is to create a sibling
+      //    instead, so two server-side folders with identical paths
+      //    end up as two distinct nodes — addresses the user-
+      //    reported "I see duplicates in Vaultwarden but only one in
+      //    Clavix". Suffix the React-style key with the new leaf's
+      //    id so the colliding labels don't share a key (Svelte
+      //    `{#each ... (key)}` requires uniqueness).
+      const tagId = leaf.folderId ?? leaf.collectionId ?? null;
+      const promotable = current.children.find(
+        (c) => c.label === seg && c.folderId === null && c.collectionId === null,
+      );
+      if (promotable) {
+        if (leaf.folderId) promotable.folderId = leaf.folderId;
+        if (leaf.collectionId) promotable.collectionId = leaf.collectionId;
+      } else {
+        const collision = current.children.find((c) => c.label === seg);
+        const child: TreeNode = {
+          // Keep the natural path key when there is no collision so
+          // existing flows that decode the key back to a path
+          // (drag-and-drop reparenting, `folderPathFromKey`) carry
+          // on unchanged for the common case. The `#id` suffix only
+          // appears on the *second* and subsequent collisions.
+          key: collision && tagId ? `${acc}#${tagId}` : acc,
+          label: seg,
+          kind: leaf.kind,
+          folderId: leaf.folderId ?? null,
+          organizationId: leaf.organizationId ?? null,
+          collectionId: leaf.collectionId ?? null,
+          children: [],
+          itemCount: 0,
+        };
+        current.children.push(child);
+      }
     }
-    if (i === segments.length - 1) {
-      if (leaf.folderId) child.folderId = leaf.folderId;
-      if (leaf.collectionId) child.collectionId = leaf.collectionId;
-    }
-    current = child;
   }
 }
 

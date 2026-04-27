@@ -424,6 +424,30 @@ export class VaultController {
     }
   }
 
+  async deleteFolder(folderId: string) {
+    // Vaultwarden's web UI doesn't let users delete folders at all;
+    // this command is the only path. Sync after the call so detached
+    // ciphers (Bitwarden semantics: items move to "no folder" rather
+    // than being deleted) and the dropped folder both surface.
+    try {
+      await api.deleteFolder(folderId);
+      this.summary = await api.sync();
+    } catch (e) {
+      this.error = formatError(e);
+    }
+  }
+
+  async renameFolder(folderId: string, name: string) {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return;
+    try {
+      await api.renameFolder(folderId, trimmed);
+      this.summary = await api.sync();
+    } catch (e) {
+      this.error = formatError(e);
+    }
+  }
+
   async jumpToCipher(id: string) {
     if (this.detail?.id !== id) {
       await this.openCipher(id);
