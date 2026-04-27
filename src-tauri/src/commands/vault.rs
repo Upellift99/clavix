@@ -97,6 +97,84 @@ pub async fn create_folder(state: State<'_, AppState>, name: String) -> Result<S
     Ok(id)
 }
 
+/// Delete a personal folder by id. The Vaultwarden web UI doesn't
+/// expose a delete control at all today (Vaultwarden bug — the
+/// upstream Bitwarden HTTP path works fine), so this command is the
+/// only way for a Clavix user to clean up legacy or duplicate
+/// folders. Bitwarden detaches every cipher that referenced the
+/// folder rather than cascade-deleting them; we mirror that locally
+/// by clearing `folder_id` on every affected cipher so the UI doesn't
+/// keep pointing at a folder that no longer exists.
+#[tauri::command]
+pub async fn delete_folder(state: State<'_, AppState>, folder_id: String) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
+    let (client, access_token) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        (s.client.clone(), s.tokens.access_token.clone())
+    };
+    client.delete_folder(&access_token, &folder_id).await?;
+
+    let mut guard = state.session.lock();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            vault.folders.retain(|f| f.id != folder_id);
+            for c in vault.ciphers.iter_mut() {
+                if c.folder_id.as_deref() == Some(folder_id.as_str()) {
+                    c.folder_id = None;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Rename a personal folder. The new name is encrypted under the user
+/// key and PUT to /folders/{id}; the local vault cache is updated in
+/// place so the sidebar reflects the change without a full re-sync.
+/// Trailing whitespace is trimmed and an empty string is rejected —
+/// the upstream API would accept it but it produces a UI-broken
+/// folder no one can address afterwards.
+#[tauri::command]
+pub async fn rename_folder(
+    state: State<'_, AppState>,
+    folder_id: String,
+    name: String,
+) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
+    let trimmed = name.trim().to_string();
+    if trimmed.is_empty() {
+        return Err(Error::Storage {
+            reason: "folder name cannot be empty".into(),
+        });
+    }
+    let (client, access_token, encrypted_name) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let enc = encrypt_string(&trimmed, &s.user_key)?;
+        (s.client.clone(), s.tokens.access_token.clone(), enc)
+    };
+    client
+        .update_folder_name(&access_token, &folder_id, &encrypted_name)
+        .await?;
+
+    let mut guard = state.session.lock();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            for f in vault.folders.iter_mut() {
+                if f.id == folder_id {
+                    // Stamp the plaintext name back so the next
+                    // build_sync_summary sees it without a round-trip
+                    // through the EncString decoder. Same trick
+                    // `create_folder` uses.
+                    f.name = trimmed.clone();
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn load_cached_vault(state: State<'_, AppState>) -> Result<Option<SyncSummary>> {
     crate::state::mark_activity(&state);

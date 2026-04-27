@@ -113,6 +113,11 @@ export const api = {
 
   createFolder: (name: string) => invoke<string>("create_folder", { name }),
 
+  deleteFolder: (folderId: string) => invoke<void>("delete_folder", { folderId }),
+
+  renameFolder: (folderId: string, name: string) =>
+    invoke<void>("rename_folder", { folderId, name }),
+
   getCipher: (id: string) => invoke<CipherDetail>("get_cipher", { id }),
 
   createCipher: (input: EditorPayload) =>

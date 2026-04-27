@@ -225,3 +225,75 @@
   color: #e6efff;
 }
 :root.force-dark .tree-children { border-left-color: #3a3a3a; }
+
+.tree-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: transparent;
+}
+
+.tree-menu {
+  position: fixed;
+  z-index: 51;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+  min-width: 160px;
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-menu button {
+  background: transparent;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.tree-menu button:hover {
+  background: #eef2fa;
+}
+
+.tree-menu button.danger {
+  color: #b9301a;
+}
+
+.tree-menu button.danger:hover {
+  background: #fdecec;
+}
+
+.tree-rename {
+  flex: 1;
+  display: flex;
+}
+
+.tree-rename input {
+  flex: 1;
+  font: inherit;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid #98c2ff;
+  border-radius: 4px;
+  background: #fff;
+  outline: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tree-menu { background: #2a2a2a; border-color: #444; }
+  .tree-menu button:hover { background: #2c3a55; }
+  .tree-menu button.danger { color: #ffb4a8; }
+  .tree-menu button.danger:hover { background: #5a2222; }
+  .tree-rename input { background: #1f1f1f; border-color: #4467b0; color: inherit; }
+}
+
+:root.force-dark .tree-menu { background: #2a2a2a; border-color: #444; }
+:root.force-dark .tree-menu button:hover { background: #2c3a55; }
+:root.force-dark .tree-menu button.danger { color: #ffb4a8; }
+:root.force-dark .tree-menu button.danger:hover { background: #5a2222; }
+:root.force-dark .tree-rename input { background: #1f1f1f; border-color: #4467b0; color: inherit; }
