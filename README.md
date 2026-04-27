@@ -40,6 +40,13 @@ Against a real Vaultwarden instance, Clavix:
   master password, the OAuth2 token refreshes automatically 60 s
   before expiry, and the refresh token stored on disk is itself
   encrypted under the user key;
+- **unlocks with a Yubikey** (optional) — after an enrolment from
+  Préférences, touching a registered FIDO2 token releases the
+  cached user key without re-typing the master password (CTAP2
+  `hmac-secret`, conceptually identical to Bitwarden Web's "PRF
+  Unlock"). The master password remains accepted in fallback;
+  rotating it on another client invalidates the wrap automatically
+  rather than producing wrong decrypts;
 - syncs the full vault (items, folders, collections, organizations);
 - **decrypts and encrypts everything client-side**: AES-256-CBC +
   HMAC-SHA256 for the personal vault, RSA-OAEP-SHA1 for organization
@@ -73,6 +80,10 @@ Against a real Vaultwarden instance, Clavix:
   and all cipher types;
 - **drag & drops whole folders** to rearrange the tree — all their
   sub-folders are renamed in cascade on the server;
+- **right-click on a personal folder** to rename or delete it
+  (Vaultwarden's web UI doesn't expose a delete control today);
+  same-name folders coming from the server are shown as separate
+  entries instead of being silently merged;
 - runs a **security audit** (🛡) combining HIBP k-anonymity breach
   lookups with local detection of **reused** and **weak** passwords
   (zxcvbn score ≤ 2);
@@ -157,6 +168,10 @@ community.
 - [x] KeePassXC CSV import with automatic folder creation
 - [x] **SSH agent** (Unix socket) — Ed25519 and RSA
 - [x] **WebAuthn / FIDO2** in 2FA via CTAP2/HID (no browser needed)
+- [x] **Yubikey re-unlock** via the CTAP2 `hmac-secret` extension
+  (touch instead of master password after auto-lock)
+- [x] **Folder management** — right-click delete + rename, fix for
+  same-name folders showing as one entry
 
 ### Planned
 
