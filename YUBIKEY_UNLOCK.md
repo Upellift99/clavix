@@ -83,21 +83,20 @@ opts in to Yubikey unlock:
   "yubikey_unlock": {
     "version": 1,
     "rp_id": "clavix.local",
-    "credential_id": "<base64url>",      // CTAP2 credential id
+    "credential_id": "<base64>",         // CTAP2 credential id
     "salt": "<base64 32 bytes>",         // hmac-secret input, random per enrolment
-    "wrapped_user_key": {                // AES-256-GCM ciphertext of the user key
-      "ciphertext": "<base64>",
-      "nonce": "<base64 12 bytes>",
-      "tag": "<base64 16 bytes>"
-    },
-    "user_key_fingerprint": "<base64>"   // HKDF(user_key, info="clavix-yk-fp-v1") trunc 16 bytes
+    "wrapped_user_key": "2.<iv>|<ct>|<mac>",  // Bitwarden-style EncString of the 64-byte user key
+    "user_key_fingerprint": "<base64 16 bytes>"  // HKDF(user_key, info="clavix-yk-fp-v1") trunc 16 bytes
   }
 }
 ```
 
 Field-by-field rationale:
 
-- **version**: future-proofing. Bumped on any wire change.
+- **version**: future-proofing. Bumped on any wire change. The
+  current implementation refuses unknown versions outright rather
+  than guessing — better to ask the user to re-enrol than risk
+  producing wrong decrypts off a future-format wrap.
 - **rp_id**: stable Relying Party identifier for the credential.
   We use a fixed local string — the credential is bound to Clavix on
   this machine, not to a domain.
@@ -107,9 +106,17 @@ Field-by-field rationale:
   ~25-50 slots on a Yubikey 5).
 - **salt**: 32 random bytes, fresh per enrolment. Same value reused
   for every unlock. Bound to this credential.
-- **wrapped_user_key**: the user key encrypted with the wrap key
-  derived from the hmac-secret output. Format is AES-256-GCM, the
-  same primitive already used elsewhere in the app for at-rest data.
+- **wrapped_user_key**: the 64-byte user key (`enc || mac`) encrypted
+  with the wrap key derived from the hmac-secret output. Stored as a
+  Bitwarden-style type-2 `EncString` (AES-256-CBC + HMAC-SHA256) —
+  the *same* primitive used elsewhere in the app for at-rest data,
+  which the existing proptests in `crypto.rs` already cover. The
+  earlier draft of this doc proposed AES-256-GCM; we pivoted because
+  introducing `aes-gcm` would have required updating `Cargo.lock` in
+  a CI environment that runs `cargo test --locked`. The security
+  properties are equivalent (encrypt-then-MAC, AES-256, fresh IV
+  per wrap) and reusing the well-trodden primitive shrinks the
+  attack surface to "code already audited".
 - **user_key_fingerprint**: a non-secret HKDF derivative of the user
   key. Lets us detect that the master password was changed on
   another client (which rotates the user key) so we can drop the
@@ -121,14 +128,18 @@ Field-by-field rationale:
 
 ```
 prf_secret  = hmac-secret response (32 bytes from authenticator)
-wrap_key    = HKDF-SHA256(prf_secret, salt = "", info = b"clavix-yubikey-unlock-v1")[:32]
-nonce       = random 12 bytes (fresh per wrap)
-ciphertext  = AES-256-GCM-Encrypt(wrap_key, nonce, user_key)
+wrap_key    = HKDF-SHA256(prf_secret, salt = "", info = b"clavix-yubikey-unlock-v1")[:64]
+              # split as 32 enc bytes || 32 mac bytes (Bitwarden SymmetricKey shape)
+iv          = random 16 bytes (fresh per wrap)
+ciphertext  = AES-256-CBC-Encrypt(wrap_key.enc, iv, pkcs7-padded user_key)
+mac         = HMAC-SHA-256(wrap_key.mac, iv || ciphertext)
 ```
 
-`wrap_key` is zeroized as soon as encrypt or decrypt finishes. `prf_secret`
-likewise. Both are wrapped in `Zeroizing<[u8; 32]>` for the duration
-of the call.
+`wrap_key` is zeroized as soon as encrypt or decrypt finishes
+(`SymmetricKey: ZeroizeOnDrop`). `prf_secret` likewise
+(`Zeroizing<[u8; 32]>`). The decrypted user-key plaintext is also
+held in `Zeroizing<Vec<u8>>` then immediately copied into a
+`Zeroizing<[u8; 64]>` array before the `Vec` is wiped.
 
 ## Flows
 

@@ -19,6 +19,7 @@ mod state;
 // access to load_session / save_session / clear_session.
 pub mod store;
 mod webauthn;
+mod yubikey_unlock;
 
 use std::time::Duration;
 
@@ -76,6 +77,10 @@ pub fn run() {
             commands::auth::logout,
             commands::auth::set_auto_lock_minutes,
             commands::auth::webauthn_sign_challenge,
+            commands::auth::yubikey_unlock_state,
+            commands::auth::enroll_yubikey_unlock,
+            commands::auth::disenroll_yubikey_unlock,
+            commands::auth::unlock_with_yubikey,
             commands::vault::sync,
             commands::vault::load_cached_vault,
             commands::vault::create_folder,

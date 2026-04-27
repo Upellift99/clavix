@@ -20,6 +20,16 @@ export class AuthController {
   storedAccount = $state<StoredAccount | null>(null);
   error = $state<string | null>(null);
 
+  /** True when the persisted session has a Yubikey wrap on disk;
+   * drives the "Toucher la Yubikey" button on the unlock view. */
+  yubikeyAvailable = $state(false);
+  /** True while a CTAP call is in flight (key-tap window).
+   * Lets the UI disable the button to prevent re-tap loops. */
+  yubikeyBusy = $state(false);
+  /** PIN bound to the unlock view's optional input. Cleared after
+   * each unlock attempt (success or failure). */
+  yubikeyPin = $state("");
+
   private listeners = new Set<AuthListener>();
 
   on(listener: AuthListener): () => void {
@@ -46,6 +56,15 @@ export class AuthController {
         this.serverUrl = account.serverUrl;
         this.email = account.email;
         this.phase = "unlock";
+        // Best-effort: tell the unlock view whether to render the
+        // Yubikey button. A failure here just hides it — the master
+        // password path always works.
+        try {
+          this.yubikeyAvailable = await api.yubikeyUnlockState();
+        } catch (e) {
+          console.warn("[clavix] yubikey_unlock_state failed:", e);
+          this.yubikeyAvailable = false;
+        }
       } else {
         this.phase = opts.onboarded ? "idle" : "onboarding";
       }
@@ -147,6 +166,37 @@ export class AuthController {
     } catch (e) {
       this.error = formatError(e);
       this.phase = "unlock";
+    }
+  }
+
+  /** Try to release the cached user key by touching the registered
+   * FIDO2 token. Falls back to leaving the master-password field
+   * functional on any error — no silent fallback, the user has to
+   * explicitly retry or use the password.
+   *
+   * On `yubikey_stale_wrap` the backend has already dropped the
+   * on-disk wrap; we mirror that here by hiding the button until the
+   * user signs in with the master password and re-enrols. */
+  async submitYubikey() {
+    if (!this.yubikeyAvailable || this.yubikeyBusy) return;
+    this.yubikeyBusy = true;
+    this.error = null;
+    try {
+      const pin = this.yubikeyPin.trim();
+      await api.unlockWithYubikey(pin.length > 0 ? pin : null);
+      this.password = "";
+      this.yubikeyPin = "";
+      this.phase = "loggedIn";
+      await this.emit("loggedIn");
+    } catch (e) {
+      const tauriErr = e as { code?: string };
+      if (tauriErr?.code === "yubikey_stale_wrap") {
+        this.yubikeyAvailable = false;
+      }
+      this.error = formatError(e);
+      this.yubikeyPin = "";
+    } finally {
+      this.yubikeyBusy = false;
     }
   }
 

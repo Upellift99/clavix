@@ -10,7 +10,7 @@ use rsa::{pkcs8::DecodePrivateKey, Oaep, RsaPrivateKey};
 use secrecy::{ExposeSecret, SecretString};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::error::{Error, Result};
 use crate::models::KdfType;
@@ -59,6 +59,18 @@ impl SymmetricKey {
         enc.copy_from_slice(&bytes[..32]);
         mac.copy_from_slice(&bytes[32..]);
         Ok(Self { enc, mac })
+    }
+
+    /// Return the raw 64-byte representation (`enc || mac`) wrapped in
+    /// `Zeroizing` so the caller's copy is wiped on drop. Reserved for
+    /// the Yubikey unlock path, which has to wrap the user key under a
+    /// hardware-derived key — every other consumer should keep the key
+    /// behind the existing `decrypt_*` / `encrypt_*` helpers.
+    pub fn to_bytes(&self) -> Zeroizing<[u8; 64]> {
+        let mut out = [0u8; 64];
+        out[..32].copy_from_slice(&self.enc);
+        out[32..].copy_from_slice(&self.mac);
+        Zeroizing::new(out)
     }
 }
 

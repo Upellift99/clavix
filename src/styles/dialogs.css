@@ -158,6 +158,34 @@
   border-radius: 6px;
 }
 
+.yubikey-warning {
+  color: #7a3b00;
+  background: #fff5e0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0.75rem 0;
+}
+
+.yubikey-enroll,
+.yubikey-disenroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.yubikey-enroll button,
+.yubikey-disenroll button {
+  align-self: flex-start;
+}
+
+.yubikey-message {
+  color: #18683a;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
 .audit-success {
   color: #18683a;
   font-weight: 500;

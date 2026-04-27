@@ -96,6 +96,17 @@ export const api = {
   webauthnSignChallenge: (challengeJson: string) =>
     invoke<string>("webauthn_sign_challenge", { challengeJson }),
 
+  yubikeyUnlockState: () => invoke<boolean>("yubikey_unlock_state"),
+
+  enrollYubikeyUnlock: (pin: string | null) =>
+    invoke<void>("enroll_yubikey_unlock", { pin }),
+
+  disenrollYubikeyUnlock: (password: string) =>
+    invoke<void>("disenroll_yubikey_unlock", { password }),
+
+  unlockWithYubikey: (pin: string | null) =>
+    invoke<LoginOk>("unlock_with_yubikey", { pin }),
+
   sync: () => invoke<SyncSummary>("sync"),
 
   loadCachedVault: () => invoke<SyncSummary | null>("load_cached_vault"),
