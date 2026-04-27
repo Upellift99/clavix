@@ -223,9 +223,8 @@ pub fn unwrap_user_key<F: FidoDevice>(
     // Wrap the decrypted Vec in `Zeroizing` so its allocation is wiped
     // when this function returns, including on the early-return paths
     // below. `decrypt_sym` itself returns a plain `Vec<u8>`.
-    let plaintext = Zeroizing::new(
-        EncString::parse(&block.wrapped_user_key)?.decrypt_sym(&wrap_key)?,
-    );
+    let plaintext =
+        Zeroizing::new(EncString::parse(&block.wrapped_user_key)?.decrypt_sym(&wrap_key)?);
     if plaintext.len() != 64 {
         return Err(Error::Crypto {
             reason: format!("wrapped user key must be 64 bytes, got {}", plaintext.len()),
@@ -283,9 +282,7 @@ impl FidoDevice for CtapHidDevice {
         pin: Option<&str>,
         salt: &[u8; 32],
     ) -> Result<EnrolledCredential> {
-        use ctap_hid_fido2::fidokey::{
-            CredentialExtension as Mext, MakeCredentialArgsBuilder,
-        };
+        use ctap_hid_fido2::fidokey::{CredentialExtension as Mext, MakeCredentialArgsBuilder};
         use ctap_hid_fido2::{get_fidokey_devices, Cfg, FidoKeyHidFactory};
 
         if get_fidokey_devices().is_empty() {
@@ -407,16 +404,18 @@ fn ctap_replay(
 }
 
 /// Best-effort classification of `ctap-hid-fido2` errors. The crate
-/// returns `anyhow::Error` whose `Display` carries the CTAP error
-/// code in human-readable form; we sniff for the few cases the UI
-/// can usefully react to and fall back to `Error::Crypto` for the
-/// rest. Sniffing strings is fragile, so we route conservatively —
-/// a misclassified PIN error is annoying, but a misclassified
-/// "device unplugged" looking like a successful unlock would be
-/// dangerous, and that direction is impossible since unmatched
-/// errors land in `Error::Crypto` and abort the unlock.
+/// returns its errors as `anyhow::Error`, which we don't have a
+/// direct dependency on — generic `Display` handles the conversion
+/// without naming the type. We sniff the message for the few cases
+/// the UI can usefully react to and fall back to `Error::Crypto`
+/// for the rest. String-sniffing is fragile, so we route
+/// conservatively: a misclassified PIN error is annoying, but a
+/// misclassified "device unplugged" looking like a successful
+/// unlock would be dangerous, and that direction is impossible
+/// since unmatched errors land in `Error::Crypto` and abort the
+/// unlock.
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-fn map_ctap_error(err: anyhow::Error) -> Error {
+fn map_ctap_error(err: impl std::fmt::Display) -> Error {
     let msg = err.to_string();
     let lc = msg.to_ascii_lowercase();
     if lc.contains("pininvalid") || lc.contains("pin invalid") {
@@ -457,7 +456,9 @@ mod tests {
         fn new(seed: u8) -> Self {
             let mut cred_random = [0u8; 32];
             for (i, b) in cred_random.iter_mut().enumerate() {
-                *b = (i as u8).wrapping_mul(seed.wrapping_add(7)).wrapping_add(seed);
+                *b = (i as u8)
+                    .wrapping_mul(seed.wrapping_add(7))
+                    .wrapping_add(seed);
             }
             Self { cred_random }
         }
@@ -509,7 +510,9 @@ mod tests {
     fn deterministic_user_key(seed: u8) -> SymmetricKey {
         let mut bytes = [0u8; 64];
         for (i, b) in bytes.iter_mut().enumerate() {
-            *b = (i as u8).wrapping_mul(seed.wrapping_add(1)).wrapping_add(seed);
+            *b = (i as u8)
+                .wrapping_mul(seed.wrapping_add(1))
+                .wrapping_add(seed);
         }
         SymmetricKey::from_bytes(&bytes).unwrap()
     }

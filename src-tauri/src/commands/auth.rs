@@ -247,10 +247,7 @@ pub fn yubikey_unlock_state() -> Result<bool> {
 /// to the runtime's blocking pool so the Tauri main loop stays
 /// responsive while the user taps their key.
 #[tauri::command]
-pub async fn enroll_yubikey_unlock(
-    state: State<'_, AppState>,
-    pin: Option<String>,
-) -> Result<()> {
+pub async fn enroll_yubikey_unlock(state: State<'_, AppState>, pin: Option<String>) -> Result<()> {
     crate::state::mark_activity(&state);
 
     let user_key = clone_user_key(&state)?;
@@ -288,10 +285,7 @@ pub async fn enroll_yubikey_unlock(
 /// authenticator requires a separate FIDO2 management flow we don't
 /// run — `ykman fido credentials` is the user's tool for that.
 #[tauri::command]
-pub async fn disenroll_yubikey_unlock(
-    state: State<'_, AppState>,
-    password: String,
-) -> Result<()> {
+pub async fn disenroll_yubikey_unlock(state: State<'_, AppState>, password: String) -> Result<()> {
     crate::state::mark_activity(&state);
 
     let mut persisted = store::load_session()?.ok_or_else(|| Error::Storage {

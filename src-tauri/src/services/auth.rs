@@ -220,6 +220,10 @@ pub fn persist_session(
         kdf_parallelism: pre.kdf_parallelism,
         encrypted_user_key,
         encrypted_private_key: tokens.private_key.clone(),
+        // Fresh login replaces any prior wrap that lived against the
+        // previous user key. The user re-enrols from Préférences
+        // after this if they want the touch shortcut back.
+        yubikey_unlock: None,
     };
     store::save_session(&persisted)
 }
@@ -253,6 +257,7 @@ mod tests {
             kdf_parallelism: None,
             encrypted_user_key: String::new(),
             encrypted_private_key: None,
+            yubikey_unlock: None,
         }
     }
 

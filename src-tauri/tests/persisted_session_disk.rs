@@ -60,6 +60,7 @@ fn sample_session_with_legacy_plaintext() -> PersistedSession {
         kdf_parallelism: None,
         encrypted_user_key: "2.aGVsbG8=|d29ybGQ=|aGVsbG8=".into(),
         encrypted_private_key: None,
+        yubikey_unlock: None,
     }
 }
 
