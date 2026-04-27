@@ -156,9 +156,10 @@ What enabling Yubikey re-unlock changes:
 - **a new on-disk asset.** The session file gains an encrypted copy
   of the user key, wrapped under a key derived from the
   authenticator's `hmac-secret` output. The wrap key never touches
-  disk; only the ciphertext, the GCM nonce, the per-credential
-  salt, the credential id, and a non-secret 16-byte HKDF
-  fingerprint of the user key.
+  disk; only the AES-256-CBC + HMAC-SHA256 ciphertext (Bitwarden
+  EncString format, the same primitive already used elsewhere in
+  the app), the per-credential salt, the credential id, and a
+  non-secret 16-byte HKDF fingerprint of the user key.
 - **a shifted at-rest threat.** While the wrap is present, the
   encrypted user key on disk is protected by the Yubikey's secret
   rather than by the master password. An attacker who steals the

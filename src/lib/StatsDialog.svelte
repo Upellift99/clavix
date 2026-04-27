@@ -37,6 +37,18 @@
   let sshAgentError = $state<string | null>(null);
   let sshAuthSockEnv = $state<string | null>(null);
 
+  // Yubikey re-unlock enrolment state. The toggle here mutates
+  // session.json on disk; the unlock view re-reads it on bootstrap,
+  // which is why there's no two-way sync between this dialog and the
+  // live `auth` controller. Closing and reopening the app picks up
+  // any change made here.
+  let yubikeyEnrolled = $state(false);
+  let yubikeyEnrollPin = $state("");
+  let yubikeyDisenrollPassword = $state("");
+  let yubikeyBusy = $state(false);
+  let yubikeyError = $state<string | null>(null);
+  let yubikeyMessage = $state<string | null>(null);
+
   async function refreshSshAgent() {
     try {
       sshAgent = await api.sshAgentStatus();
@@ -47,6 +59,48 @@
       sshAuthSockEnv = await api.sshAuthSock();
     } catch (e) {
       console.warn("[clavix] ssh_auth_sock failed:", e);
+    }
+  }
+
+  async function refreshYubikey() {
+    try {
+      yubikeyEnrolled = await api.yubikeyUnlockState();
+    } catch (e) {
+      console.warn("[clavix] yubikey_unlock_state failed:", e);
+      yubikeyEnrolled = false;
+    }
+  }
+
+  async function enrollYubikey() {
+    yubikeyBusy = true;
+    yubikeyError = null;
+    yubikeyMessage = null;
+    try {
+      const pin = yubikeyEnrollPin.trim();
+      await api.enrollYubikeyUnlock(pin.length > 0 ? pin : null);
+      yubikeyEnrollPin = "";
+      yubikeyMessage = m.yubikey_unlock_enrolled();
+      await refreshYubikey();
+    } catch (e) {
+      yubikeyError = formatError(e);
+    } finally {
+      yubikeyBusy = false;
+    }
+  }
+
+  async function disenrollYubikey() {
+    if (yubikeyDisenrollPassword.length === 0) return;
+    yubikeyBusy = true;
+    yubikeyError = null;
+    yubikeyMessage = null;
+    try {
+      await api.disenrollYubikeyUnlock(yubikeyDisenrollPassword);
+      yubikeyDisenrollPassword = "";
+      await refreshYubikey();
+    } catch (e) {
+      yubikeyError = formatError(e);
+    } finally {
+      yubikeyBusy = false;
     }
   }
 
@@ -80,6 +134,7 @@
   export async function open() {
     dialog?.showModal();
     await refreshSshAgent();
+    await refreshYubikey();
   }
 
   function close() {
@@ -211,6 +266,65 @@
     {/if}
     {#if sshAgentError}
       <p class="audit-error">{sshAgentError}</p>
+    {/if}
+
+    <h3>{m.yubikey_unlock_section_title()}</h3>
+    <p class="hint">{m.yubikey_unlock_section_hint()}</p>
+    <p class="yubikey-warning">{m.yubikey_unlock_warning()}</p>
+    {#if yubikeyEnrolled}
+      <form
+        class="yubikey-disenroll"
+        onsubmit={(e) => {
+          e.preventDefault();
+          disenrollYubikey();
+        }}
+      >
+        <label>
+          {m.yubikey_unlock_disenroll_password()}
+          <input
+            type="password"
+            bind:value={yubikeyDisenrollPassword}
+            autocomplete="off"
+            disabled={yubikeyBusy}
+            required
+          />
+        </label>
+        <button
+          type="submit"
+          class="secondary"
+          disabled={yubikeyBusy || yubikeyDisenrollPassword.length === 0}
+        >
+          {yubikeyBusy ? m.yubikey_unlock_disenrolling() : m.yubikey_unlock_disenroll()}
+        </button>
+      </form>
+    {:else}
+      <form
+        class="yubikey-enroll"
+        onsubmit={(e) => {
+          e.preventDefault();
+          enrollYubikey();
+        }}
+      >
+        <label>
+          {m.yubikey_unlock_pin_label()}
+          <input
+            type="password"
+            bind:value={yubikeyEnrollPin}
+            autocomplete="off"
+            disabled={yubikeyBusy}
+            placeholder={m.yubikey_unlock_pin_placeholder()}
+          />
+        </label>
+        <button type="submit" disabled={yubikeyBusy}>
+          {yubikeyBusy ? m.yubikey_unlock_enrolling() : m.yubikey_unlock_enroll()}
+        </button>
+      </form>
+    {/if}
+    {#if yubikeyMessage}
+      <p class="yubikey-message">{yubikeyMessage}</p>
+    {/if}
+    {#if yubikeyError}
+      <p class="audit-error">{yubikeyError}</p>
     {/if}
 
     <h3>{m.stats_breakdown()}</h3>

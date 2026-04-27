@@ -29,6 +29,44 @@ pub struct PersistedSession {
     pub kdf_parallelism: Option<u32>,
     pub encrypted_user_key: String,
     pub encrypted_private_key: Option<String>,
+    /// Optional Yubikey re-unlock material. Present only when the user
+    /// has explicitly enrolled a FIDO2 token. `skip_serializing_if`
+    /// means session files written before this feature shipped stay
+    /// byte-identical until the user opts in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub yubikey_unlock: Option<YubikeyUnlockBlock>,
+}
+
+/// On-disk material that lets a FIDO2 token release the cached user key
+/// without re-typing the master password. Schema documented in
+/// `YUBIKEY_UNLOCK.md`. The wrap key never touches disk: only the
+/// ciphertext, the per-credential salt, the credential id, and a
+/// non-secret HKDF fingerprint of the user key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YubikeyUnlockBlock {
+    /// Schema version. Bumped on any wire change.
+    pub version: u32,
+    /// Stable Relying Party identifier for the credential. We use a
+    /// fixed local string — the credential is bound to Clavix on this
+    /// machine, not to a domain.
+    pub rp_id: String,
+    /// CTAP2 credential id, base64-standard. Stored client-side because
+    /// we use **non-resident** credentials, which saves the limited
+    /// resident-key slots on the user's token.
+    pub credential_id: String,
+    /// 32 random bytes, fresh per enrolment. Reused at every unlock as
+    /// the input to the hmac-secret extension. Base64-standard.
+    pub salt: String,
+    /// User key (64 raw bytes, enc + mac concatenated) wrapped under
+    /// the hmac-secret-derived key. Stored as a Bitwarden-style type-2
+    /// `EncString` (AES-256-CBC + HMAC-SHA256) — same primitive used
+    /// elsewhere in the app, well-covered by existing proptests.
+    pub wrapped_user_key: String,
+    /// HKDF-SHA256 derivative of the user key, truncated to 16 bytes,
+    /// base64-standard. Lets us detect that the master password was
+    /// rotated on another client (which rotates the user key) so we
+    /// can drop the stale wrap rather than producing wrong decrypts.
+    pub user_key_fingerprint: String,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -37,7 +37,11 @@
     account={auth.storedAccount}
     bind:password={auth.password}
     disabled={auth.phase === "authenticating"}
+    yubikeyAvailable={auth.yubikeyAvailable}
+    yubikeyBusy={auth.yubikeyBusy}
+    bind:yubikeyPin={auth.yubikeyPin}
     onSubmit={(e) => auth.submitUnlock(e)}
+    onYubikey={() => auth.submitYubikey()}
     onSwitchAccount={() => auth.switchAccount()}
   />
 {/if}

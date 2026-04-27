@@ -38,6 +38,24 @@ pub enum Error {
 
     #[error("SSH passphrase is incorrect")]
     SshWrongPassphrase,
+
+    #[error("No FIDO2 device found — plug in your security key and retry")]
+    YubikeyNoDevice,
+
+    #[error("This security key requires a PIN")]
+    YubikeyPinRequired,
+
+    #[error("PIN refused by the security key")]
+    YubikeyWrongPin,
+
+    #[error("Operation cancelled on the security key")]
+    YubikeyUserCancelled,
+
+    /// Saved Yubikey wrap was produced under a previous user key (the
+    /// master password was rotated on another client). The frontend
+    /// should prompt for re-enrolment after a master-password unlock.
+    #[error("Yubikey wrap is stale — re-enrol after signing in with your master password")]
+    YubikeyStaleWrap,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -79,6 +97,11 @@ impl Serialize for Error {
             Error::Storage { reason } => ("storage_error", serde_json::json!({ "reason": reason })),
             Error::SshPassphraseRequired => ("ssh_passphrase_required", serde_json::json!({})),
             Error::SshWrongPassphrase => ("ssh_wrong_passphrase", serde_json::json!({})),
+            Error::YubikeyNoDevice => ("yubikey_no_device", serde_json::json!({})),
+            Error::YubikeyPinRequired => ("yubikey_pin_required", serde_json::json!({})),
+            Error::YubikeyWrongPin => ("yubikey_wrong_pin", serde_json::json!({})),
+            Error::YubikeyUserCancelled => ("yubikey_user_cancelled", serde_json::json!({})),
+            Error::YubikeyStaleWrap => ("yubikey_stale_wrap", serde_json::json!({})),
         };
 
         ErrorPayload {

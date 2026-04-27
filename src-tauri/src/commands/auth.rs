@@ -6,7 +6,9 @@ use tauri::State;
 
 use crate::api::VaultwardenClient;
 use crate::cache;
-use crate::crypto::{decrypt_private_key, decrypt_user_key, derive_master_key, encrypt_string};
+use crate::crypto::{
+    decrypt_private_key, decrypt_user_key, derive_master_key, encrypt_string, SymmetricKey,
+};
 use crate::error::{Error, Result};
 use crate::models::{LoginOk, LoginOutcome, LoginResult, Prelogin, TwoFactorProvider};
 use crate::services::auth::{
@@ -16,6 +18,7 @@ use crate::services::auth::{
 };
 use crate::state::{AppState, PendingTwoFactor};
 use crate::store;
+use crate::yubikey_unlock;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -223,6 +226,181 @@ pub async fn webauthn_sign_challenge(
     .map_err(|e| Error::Crypto {
         reason: format!("webauthn blocking task panicked: {e}"),
     })?
+}
+
+/// Whether the persisted session has a Yubikey wrap on disk. Lets the
+/// unlock view decide whether to render the "Toucher la Yubikey"
+/// button. Returns `false` (rather than an error) when no session is
+/// stored yet, so the caller can ignore the value during onboarding.
+#[tauri::command]
+pub fn yubikey_unlock_state() -> Result<bool> {
+    Ok(store::load_session()?
+        .map(|s| s.yubikey_unlock.is_some())
+        .unwrap_or(false))
+}
+
+/// Wrap the in-memory user key under a freshly-enrolled FIDO2
+/// credential and persist the resulting block. Requires an unlocked
+/// session (the wrap target is the live user key — we never re-derive
+/// it from the master password here, which keeps this command
+/// password-free by construction). The blocking CTAP I/O is offloaded
+/// to the runtime's blocking pool so the Tauri main loop stays
+/// responsive while the user taps their key.
+#[tauri::command]
+pub async fn enroll_yubikey_unlock(
+    state: State<'_, AppState>,
+    pin: Option<String>,
+) -> Result<()> {
+    crate::state::mark_activity(&state);
+
+    let user_key = clone_user_key(&state)?;
+
+    let block = tauri::async_runtime::spawn_blocking(move || {
+        yubikey_unlock::enroll(
+            &yubikey_unlock::CtapHidDevice,
+            yubikey_unlock::DEFAULT_RP_ID,
+            pin.as_deref(),
+            &user_key,
+        )
+    })
+    .await
+    .map_err(|e| Error::Crypto {
+        reason: format!("yubikey enrol task panicked: {e}"),
+    })??;
+
+    let mut persisted = store::load_session()?.ok_or_else(|| Error::Storage {
+        reason: "no stored session — yubikey enrolment requires a previous master-password sign-in"
+            .into(),
+    })?;
+    persisted.yubikey_unlock = Some(block);
+    store::save_session(&persisted)?;
+    Ok(())
+}
+
+/// Drop the on-disk Yubikey wrap. Requires the master password to
+/// avoid the "logged-in laptop briefly unattended → attacker
+/// disenrols silently" scenario from the threat model. We validate
+/// the password by deriving and decrypting the existing
+/// `encrypted_user_key`; that proves possession without contacting
+/// the server.
+///
+/// The credential remains on the token. Removing it from the
+/// authenticator requires a separate FIDO2 management flow we don't
+/// run — `ykman fido credentials` is the user's tool for that.
+#[tauri::command]
+pub async fn disenroll_yubikey_unlock(
+    state: State<'_, AppState>,
+    password: String,
+) -> Result<()> {
+    crate::state::mark_activity(&state);
+
+    let mut persisted = store::load_session()?.ok_or_else(|| Error::Storage {
+        reason: "no stored session to disenrol from".into(),
+    })?;
+
+    let password: SecretString = password.into();
+    let master_key = derive_master_key(
+        &password,
+        &persisted.email,
+        persisted.kdf,
+        persisted.kdf_iterations,
+        persisted.kdf_memory,
+        persisted.kdf_parallelism,
+    )?;
+    // Probe: if the password is wrong this errors out before we touch
+    // the on-disk block, so a wrong-password call is a no-op rather
+    // than a silent disenrolment.
+    let _ = decrypt_user_key(&master_key, &persisted.encrypted_user_key)?;
+
+    persisted.yubikey_unlock = None;
+    store::save_session(&persisted)?;
+    Ok(())
+}
+
+/// Release the cached user key by replaying the stored salt against
+/// the registered FIDO2 credential. Drops the wrap and surfaces
+/// `YubikeyStaleWrap` if the master password was rotated on another
+/// client (detected via the user-key fingerprint). Beyond the
+/// user-key recovery, the rest of the flow mirrors `unlock` byte-
+/// for-byte: refresh the access token, re-encrypt the rotated
+/// refresh token under the user key, restore the session.
+#[tauri::command]
+pub async fn unlock_with_yubikey(
+    state: State<'_, AppState>,
+    pin: Option<String>,
+) -> Result<LoginOk> {
+    let persisted = store::load_session()?.ok_or_else(|| Error::Storage {
+        reason: "no stored session to unlock".into(),
+    })?;
+    let block = persisted
+        .yubikey_unlock
+        .clone()
+        .ok_or_else(|| Error::Storage {
+            reason: "no yubikey wrap stored — enrol after a master-password unlock first".into(),
+        })?;
+
+    let unwrap_result = tauri::async_runtime::spawn_blocking(move || {
+        yubikey_unlock::unwrap_user_key(&yubikey_unlock::CtapHidDevice, &block, pin.as_deref())
+    })
+    .await
+    .map_err(|e| Error::Crypto {
+        reason: format!("yubikey unlock task panicked: {e}"),
+    })?;
+
+    let user_key_bytes = match unwrap_result {
+        Ok(bytes) => bytes,
+        Err(Error::YubikeyStaleWrap) => {
+            // The wrap on disk no longer matches the server's user
+            // key (master password rotated elsewhere). Drop it so the
+            // unlock view stops offering the Yubikey button until a
+            // fresh enrolment after master-password sign-in.
+            if let Ok(Some(mut updated)) = store::load_session() {
+                updated.yubikey_unlock = None;
+                let _ = store::save_session(&updated);
+            }
+            return Err(Error::YubikeyStaleWrap);
+        }
+        Err(other) => return Err(other),
+    };
+
+    let user_key = SymmetricKey::from_bytes(user_key_bytes.as_slice())?;
+    let private_key = persisted
+        .encrypted_private_key
+        .as_deref()
+        .map(|pk| decrypt_private_key(&user_key, pk))
+        .transpose()?;
+    let refresh_token_plain = recover_refresh_token(&persisted, &user_key)?;
+
+    let client = VaultwardenClient::new(&persisted.server_url)?;
+    let device = device_info()?;
+    let mut tokens = client.refresh_token(&refresh_token_plain, &device).await?;
+    if tokens.refresh_token.is_empty() {
+        tokens.refresh_token = refresh_token_plain.clone();
+    }
+
+    let encrypted_refresh = encrypt_string(&tokens.refresh_token, &user_key)?;
+    let mut updated = persisted.clone();
+    updated.refresh_token = None;
+    updated.encrypted_refresh_token = Some(encrypted_refresh);
+    store::save_session(&updated)?;
+
+    let email = persisted.email.clone();
+    store_session(&state, client, tokens, user_key, private_key);
+    crate::state::mark_activity(&state);
+    Ok(LoginOk { email })
+}
+
+/// Clone the unlocked user key out of the session lock for use by a
+/// blocking CTAP task. Errors out (rather than silently failing) if
+/// no session is open, so a frontend that calls enrol from the
+/// unlock view by mistake gets a clean "not authenticated" message.
+fn clone_user_key(state: &AppState) -> Result<SymmetricKey> {
+    let guard = state.session.lock();
+    let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+    // SymmetricKey is not Clone — round-trip through the 64-byte
+    // representation, the same shape `from_bytes` already validates.
+    let bytes = session.user_key.to_bytes();
+    SymmetricKey::from_bytes(bytes.as_slice())
 }
 
 #[tauri::command]
