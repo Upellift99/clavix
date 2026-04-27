@@ -719,7 +719,7 @@ dependencies = [
  "parking_lot",
  "pbkdf2",
  "proptest",
- "rand 0.8.6",
+ "rand 0.9.4",
  "rayon",
  "reqwest 0.12.28",
  "rsa",
