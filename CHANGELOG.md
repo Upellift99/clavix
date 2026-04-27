@@ -5,6 +5,71 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20] — 2026-04-27
+
+### Added
+- **Yubikey re-unlock with FIDO2 hmac-secret.** After a normal
+  master-password sign-in, the user can release the cached user key
+  by touching a registered FIDO2 token instead of re-typing the
+  password. Conceptually the same flow as Bitwarden Web's "PRF
+  Unlock"; under the hood we register a non-resident credential
+  with the CTAP2 `hmac-secret` extension turned on, derive a wrap
+  key via HKDF-SHA256 from the per-credential PRF output, and wrap
+  the 64-byte user key under it using the existing AES-256-CBC +
+  HMAC-SHA256 EncString primitive (same code path the rest of the
+  app already runs through). The wrap, the per-credential salt, the
+  credential id and a 16-byte HKDF fingerprint of the user key live
+  in `session.json`; the wrap key never touches disk. Stale-wrap
+  detection: rotating the master password on another client
+  invalidates the fingerprint, the unlock command drops the wrap
+  and surfaces a clear "re-enrol after sign-in" message instead of
+  handing back a key the server no longer accepts. Three new Tauri
+  commands (`enroll_yubikey_unlock`, `unlock_with_yubikey`,
+  `disenroll_yubikey_unlock`) plus `yubikey_unlock_state` for the
+  unlock view to know whether to render the touch button. UI lives
+  in Préférences (enrol / disenrol with explicit threat-model
+  warning, master-password confirmation required to disenrol) and
+  on the unlock view (touch button next to the password field, PIN
+  input for tokens with one set). The full design + threat-model
+  addendum landed in `YUBIKEY_UNLOCK.md` and `THREAT_MODEL.md`
+  ahead of any code; CTAP I/O sits behind a `FidoDevice` trait so
+  the crypto path is fully covered by unit + property tests
+  without a real authenticator on the runner.
+- **Right-click delete + rename on personal folders.** Vaultwarden's
+  web UI doesn't expose a folder-delete control today (upstream
+  Bitwarden does — looks like a regression), so for users with
+  cluttered or duplicate folders Clavix is now the only path. Right-
+  click on a folder leaf in the sidebar pops up a small menu with
+  Rename and Delete; rename is an inline editable input, delete
+  confirms before firing and matches Bitwarden semantics (ciphers
+  detach to "no folder", they are not cascade-deleted). Two new
+  Tauri commands (`delete_folder`, `rename_folder`) wrap the
+  pre-existing HTTP layer in `api.rs`; both update the in-memory
+  vault in lockstep so the sidebar reflects the change without a
+  full re-sync. New E2E spec `folder-rename-delete.spec.mjs`
+  exercises both commands through the IPC layer (mirrors the
+  cascade spec — synthetic right-click under WebDriver is too
+  brittle, the menu's only job is to call these handlers anyway).
+- **"Mon coffre" header** above the personal folder tree, mirroring
+  the existing "Organisations" h4 — clearly separates personal
+  items from shared org items at a glance.
+
+### Fixed
+- **Same-name folders no longer collapse into one sidebar entry.**
+  `insertIntoTree` matched leaves by label, so two server-side
+  folders named "Finance" merged into a single node and the second
+  silently rewrote the first's `folderId` — every cipher in folder
+  #1 disappeared from the tree (the count was still right under
+  "All items", but you couldn't filter to it). The fix keeps merging
+  *synthetic-parent* nodes (so "work/a" and "work/b" still hang
+  under one shared "work" ancestor) but creates a sibling when two
+  real folders share a path. Disambiguator suffix on the colliding
+  React-style key keeps Svelte happy without polluting the natural
+  path key for the common single-folder case;
+  `folderPathFromKey` strips the suffix back so drag-drop and
+  `move_folder_path` continue working unchanged. New tests cover
+  the duplicate cases.
+
 ## [0.1.19] — 2026-04-26
 
 ### Added
