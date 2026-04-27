@@ -41,7 +41,7 @@ hmac = "0.12"
 hkdf = "0.12"
 rsa = "0.9"
 sha1 = "0.10"
-dirs = "5"
+dirs = "6"
 rand = "0.8"
 rusqlite = { version = "0.32", features = ["bundled"] }
 rayon = "1"
