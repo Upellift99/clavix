@@ -111,6 +111,48 @@ pub async fn move_folder_path(
         compute_new_folder_base(&source_path, target_parent_path.as_deref())
             .map_err(|reason| Error::Storage { reason })?;
 
+    apply_folder_path_rename(state, &source_path, &new_base).await
+}
+
+/// Cascade-rename a folder path. Behaves like `move_folder_path` except
+/// the caller hands in the *new* path verbatim instead of a target
+/// parent — used by the sidebar's right-click rename when the clicked
+/// node may be a synthetic parent (`work` showing only because
+/// `work/projects` exists). The same `plan_folder_renames` machinery
+/// then rewrites every folder whose name equals or sits under
+/// `source_path`.
+#[tauri::command]
+pub async fn rename_folder_path(
+    state: State<'_, AppState>,
+    source_path: String,
+    new_path: String,
+) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
+
+    let source = source_path.trim().trim_matches('/').to_string();
+    let new_base = new_path.trim().trim_matches('/').to_string();
+    if source.is_empty() || new_base.is_empty() {
+        return Err(Error::Storage {
+            reason: "folder path cannot be empty".into(),
+        });
+    }
+    if new_base == source {
+        return Ok(());
+    }
+    if new_base.starts_with(&format!("{source}/")) {
+        return Err(Error::Storage {
+            reason: "cannot rename a folder into one of its descendants".into(),
+        });
+    }
+
+    apply_folder_path_rename(state, &source, &new_base).await
+}
+
+async fn apply_folder_path_rename(
+    state: State<'_, AppState>,
+    source_path: &str,
+    new_base: &str,
+) -> Result<()> {
     let (client, access_token, operations) = {
         let guard = state.session.lock();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
@@ -140,7 +182,7 @@ pub async fn move_folder_path(
             };
             decrypted.push((f.id.clone(), name));
         }
-        let plan = plan_folder_renames(&decrypted, &source_path, &new_base);
+        let plan = plan_folder_renames(&decrypted, source_path, new_base);
         if plan.is_empty() {
             return Err(Error::Storage {
                 reason: format!("no folder matches path '{source_path}'"),

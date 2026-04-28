@@ -3,7 +3,7 @@
   import Icon, { type IconName } from "./Icon.svelte";
   import { canDropFolderOn, isCipherDroppable, isFolderDropTarget } from "./drag";
   import type { DragController } from "./drag.svelte";
-  import { folderPathFromKey } from "./tree";
+  import { collectFolderIds, folderPathFromKey } from "./tree";
   import type { CipherIndex } from "./tree";
   import type { Locale, QuickFilter, SyncSummary, TreeNode } from "./types";
 
@@ -25,8 +25,8 @@
     onMoveCipherToFolder: (cipherId: string, folderId: string | null) => Promise<void>;
     onMoveCipherToCollection: (cipherId: string, collectionId: string) => Promise<void>;
     onMoveFolderPath: (source: string, targetParent: string | null) => Promise<void>;
-    onDeleteFolder: (folderId: string) => Promise<void>;
-    onRenameFolder: (folderId: string, name: string) => Promise<void>;
+    onDeleteFolder: (folderIds: string[]) => Promise<void>;
+    onRenameFolder: (sourcePath: string, newPath: string) => Promise<void>;
   };
 
   let {
@@ -64,7 +64,13 @@
   let renameValue = $state("");
 
   function openContextMenu(event: MouseEvent, node: TreeNode) {
-    if (!node.folderId) return;
+    // Synthetic parents (folderId === null because they only exist
+    // as path containers for nested folders like `work` from
+    // `work/projects`) still get the menu. Both rename and delete
+    // operate on the path: the Rust side cascades through every
+    // descendant by prefix match, so the user does not need to know
+    // whether the node is real or synthesised.
+    if (node.kind !== "folder") return;
     event.preventDefault();
     menuNode = node;
     menuX = event.clientX;
@@ -77,17 +83,35 @@
 
   async function confirmDelete() {
     const node = menuNode;
-    if (!node?.folderId) return;
+    if (!node) return;
     closeContextMenu();
-    const ok = window.confirm(
-      m.folder_delete_confirm({ name: node.label, count: String(node.itemCount) }),
-    );
+
+    // Collect every real folder id under this node (the node itself
+    // included when it has one). Synthetic parents have folderId ===
+    // null, so deleting them is purely a cascade through descendants.
+    const ids = new Set<string>();
+    collectFolderIds(node, ids);
+    if (ids.size === 0) return;
+
+    const path = folderPathFromKey(node.key) ?? node.label;
+    const message =
+      ids.size === 1 && node.folderId
+        ? m.folder_delete_confirm({ name: path, count: String(node.itemCount) })
+        : m.folder_delete_confirm_cascade({
+            name: path,
+            // `subCount` excludes the clicked node when it is a real
+            // folder, so the dialog reads naturally: "delete `work`
+            // and 2 sub-folders" rather than counting `work` twice.
+            subCount: String(node.folderId ? ids.size - 1 : ids.size),
+            itemCount: String(node.itemCount),
+          });
+    const ok = window.confirm(message);
     if (!ok) return;
-    await onDeleteFolder(node.folderId);
+    await onDeleteFolder(Array.from(ids));
   }
 
   function startRename() {
-    if (!menuNode?.folderId) return;
+    if (!menuNode || menuNode.kind !== "folder") return;
     renamingNode = menuNode;
     renameValue = menuNode.label;
     closeContextMenu();
@@ -96,11 +120,22 @@
   async function commitRename(event: Event) {
     event.preventDefault();
     const node = renamingNode;
-    if (!node?.folderId) return;
+    if (!node) return;
     const next = renameValue.trim();
     renamingNode = null;
     if (next.length === 0 || next === node.label) return;
-    await onRenameFolder(node.folderId, next);
+    // Compose the new path by replacing the last segment of the old
+    // path with the user's input, so renaming a node nested at
+    // `work/projects` to `archive` lands on `work/archive` (rather
+    // than re-rooting). Synthetic parents go through the exact same
+    // path because the Rust side cascades on prefix match.
+    const oldPath = folderPathFromKey(node.key);
+    if (!oldPath) return;
+    const segments = oldPath.split("/");
+    segments[segments.length - 1] = next;
+    const newPath = segments.join("/");
+    if (newPath === oldPath) return;
+    await onRenameFolder(oldPath, newPath);
   }
 
   function cancelRename() {
@@ -349,7 +384,7 @@
           draggable={node.kind === "folder"}
           onclick={() => onSelectNode(node.key)}
           oncontextmenu={(e) =>
-            node.kind === "folder" && node.folderId ? openContextMenu(e, node) : undefined}
+            node.kind === "folder" ? openContextMenu(e, node) : undefined}
           ondragstart={node.kind === "folder" ? (e) => onFolderDragStart(e, node) : undefined}
           ondragend={node.kind === "folder" ? onFolderDragEnd : undefined}
           ondragover={(e) => onNodeDragOver(e, node.key)}

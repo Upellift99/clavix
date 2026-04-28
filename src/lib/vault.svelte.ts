@@ -424,13 +424,23 @@ export class VaultController {
     }
   }
 
-  async deleteFolder(folderId: string) {
+  async deleteFolder(folderIds: string[]) {
     // Vaultwarden's web UI doesn't let users delete folders at all;
     // this command is the only path. Sync after the call so detached
     // ciphers (Bitwarden semantics: items move to "no folder" rather
     // than being deleted) and the dropped folder both surface.
+    //
+    // Multiple ids cover the cascade case: Bitwarden folders are flat
+    // with `/` in the name, so the sidebar synthesises parents like
+    // `work` from a real `work/projects`. Deleting the visual `work`
+    // group means deleting every real folder whose path falls under
+    // it; the caller collects the ids and we delete them serially so
+    // partial failures still surface a sensible vault state on the
+    // next sync.
     try {
-      await api.deleteFolder(folderId);
+      for (const id of folderIds) {
+        await api.deleteFolder(id);
+      }
       this.summary = await api.sync();
     } catch (e) {
       this.error = formatError(e);
@@ -442,6 +452,23 @@ export class VaultController {
     if (trimmed.length === 0) return;
     try {
       await api.renameFolder(folderId, trimmed);
+      this.summary = await api.sync();
+    } catch (e) {
+      this.error = formatError(e);
+    }
+  }
+
+  async renameFolderPath(sourcePath: string, newPath: string) {
+    // Path-based rename so the sidebar can rename a synthetic parent
+    // (`work` showing only because `work/projects` exists) the same
+    // way it renames a real folder. The Rust side reuses
+    // `plan_folder_renames`, so descendants get re-prefixed in the
+    // same batch.
+    const source = sourcePath.trim();
+    const next = newPath.trim();
+    if (source.length === 0 || next.length === 0 || source === next) return;
+    try {
+      await api.renameFolderPath(source, next);
       this.summary = await api.sync();
     } catch (e) {
       this.error = formatError(e);

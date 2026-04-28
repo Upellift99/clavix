@@ -97,6 +97,7 @@ pub fn run() {
             commands::move_share::move_cipher_to_folder,
             commands::move_share::move_cipher_to_collection,
             commands::move_share::move_folder_path,
+            commands::move_share::rename_folder_path,
             commands::move_share::share_cipher_to_collection,
             commands::audit::audit_vault_passwords,
             commands::ssh::start_ssh_agent,
