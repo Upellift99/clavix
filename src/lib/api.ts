@@ -98,6 +98,8 @@ export const api = {
   setMinimizeToTray: (value: boolean) =>
     invoke<void>("set_minimize_to_tray", { value }),
 
+  setTrayLocale: (locale: string) => invoke<void>("set_tray_locale", { locale }),
+
   webauthnSignChallenge: (challengeJson: string) =>
     invoke<string>("webauthn_sign_challenge", { challengeJson }),
 

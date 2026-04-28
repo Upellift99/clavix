@@ -1,20 +1,21 @@
 //! System-tray wiring (issue #38).
 //!
-//! Three responsibilities:
-//!   - `build_tray` constructs the tray icon, its right-click menu
-//!     ("Ouvrir" / "Verrouiller maintenant" / "Quitter") and the
-//!     left-click toggle. Called once from `lib.rs::run` setup.
-//!   - `handle_window_close` interprets `WindowEvent::CloseRequested`
-//!     against the user's `close_to_tray` preference: hide-or-quit.
-//!   - `set_close_to_tray` is the IPC the renderer calls every time
-//!     the preference changes (and on bootstrap, to hydrate the
-//!     Rust mirror from `localStorage`).
-//!
-//! Native menu strings are hard-coded in French. The renderer-side
-//! Paraglide pipeline doesn't reach native menus; supporting English
-//! tray entries would mean reading the user's locale from a config
-//! file at startup and rebuilding the tray on language change. Out
-//! of scope until someone asks.
+//! Four responsibilities:
+//!   - `build_tray` constructs the tray icon, its right-click menu,
+//!     and the left-click toggle. Called once from `lib.rs::run`
+//!     setup. Initial build uses French labels to match the
+//!     codebase default; the renderer follows up with
+//!     `set_tray_locale` once `prefs.bootstrap()` has read the user
+//!     locale from `localStorage`.
+//!   - `handle_window_event` interprets `WindowEvent::CloseRequested`
+//!     against the user's `close_to_tray` preference, and
+//!     `WindowEvent::Resized` against `minimize_to_tray`.
+//!   - `set_close_to_tray` / `set_minimize_to_tray` are the IPCs
+//!     the renderer calls every time the matching preference
+//!     changes (and on bootstrap, to hydrate the Rust mirror).
+//!   - `set_tray_locale` rebuilds the menu strings without
+//!     recreating the tray, so changing the language in Préférences
+//!     swaps the labels live.
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -28,6 +29,32 @@ const ITEM_OPEN: &str = "tray.open";
 const ITEM_LOCK: &str = "tray.lock";
 const ITEM_QUIT: &str = "tray.quit";
 const MAIN_WINDOW: &str = "clavix";
+
+/// Native tray menu labels per locale. Native menus don't go through
+/// Paraglide, so the renderer hands the locale code over IPC and we
+/// pick the matching strings here. Anything we don't recognise falls
+/// back to French — same default the rest of the app uses.
+struct TrayStrings {
+    open: &'static str,
+    lock: &'static str,
+    quit: &'static str,
+}
+
+fn tray_strings(locale: &str) -> TrayStrings {
+    match locale {
+        "en" => TrayStrings {
+            open: "Open Clavix",
+            lock: "Lock now",
+            quit: "Quit",
+        },
+        // "fr" and any unknown locale share the French default.
+        _ => TrayStrings {
+            open: "Ouvrir Clavix",
+            lock: "Verrouiller maintenant",
+            quit: "Quitter",
+        },
+    }
+}
 
 /// Renderer-driven flag that decides what the X button does.
 /// Mirrors `prefs.closeToTray` in `src/lib/prefs.svelte.ts`. The
@@ -67,10 +94,7 @@ pub fn build_tray(app: &AppHandle) {
     };
 
     let result = (|| -> tauri::Result<()> {
-        let open = MenuItem::with_id(app, ITEM_OPEN, "Ouvrir Clavix", true, None::<&str>)?;
-        let lock = MenuItem::with_id(app, ITEM_LOCK, "Verrouiller maintenant", true, None::<&str>)?;
-        let quit = MenuItem::with_id(app, ITEM_QUIT, "Quitter", true, None::<&str>)?;
-        let menu = Menu::with_items(app, &[&open, &lock, &quit])?;
+        let menu = build_menu(app, "fr")?;
 
         TrayIconBuilder::with_id(TRAY_ID)
             .icon(icon)
@@ -103,6 +127,39 @@ pub fn build_tray(app: &AppHandle) {
     if let Err(e) = result {
         eprintln!("[clavix] tray icon setup failed (non-fatal): {e}");
     }
+}
+
+fn build_menu(app: &AppHandle, locale: &str) -> tauri::Result<Menu<tauri::Wry>> {
+    let s = tray_strings(locale);
+    let open = MenuItem::with_id(app, ITEM_OPEN, s.open, true, None::<&str>)?;
+    let lock = MenuItem::with_id(app, ITEM_LOCK, s.lock, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, ITEM_QUIT, s.quit, true, None::<&str>)?;
+    Menu::with_items(app, &[&open, &lock, &quit])
+}
+
+/// Swap the tray menu strings to match the user's locale.
+///
+/// Called by the renderer on bootstrap (after `prefs.bootstrap()`
+/// reads `clavix.locale` from `localStorage`) and on every locale
+/// change. The whole locale-change flow already does a window
+/// reload, but `setup()` only runs once, so without this IPC the
+/// tray would stay in the language it was built with at process
+/// start. Failure is non-fatal: a tray that's gone (no system
+/// tray on this WM, build_tray skipped earlier) just no-ops.
+#[tauri::command]
+pub fn set_tray_locale(app: AppHandle, locale: String) -> Result<()> {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return Ok(());
+    };
+    match build_menu(&app, &locale) {
+        Ok(menu) => {
+            if let Err(e) = tray.set_menu(Some(menu)) {
+                eprintln!("[clavix] tray set_menu failed (non-fatal): {e}");
+            }
+        }
+        Err(e) => eprintln!("[clavix] tray menu rebuild failed (non-fatal): {e}"),
+    }
+    Ok(())
 }
 
 fn show_main_window(app: &AppHandle) {
