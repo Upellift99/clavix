@@ -133,6 +133,15 @@
       console.warn("[clavix] setMinimizeToTray failed:", e);
     });
   });
+  // Hand the user's locale to the tray menu builder so the
+  // Ouvrir / Verrouiller / Quitter strings switch with the
+  // language toggle. Native menus don't go through Paraglide,
+  // hence the dedicated IPC.
+  $effect(() => {
+    api.setTrayLocale(prefs.currentLocale).catch((e) => {
+      console.warn("[clavix] setTrayLocale failed:", e);
+    });
+  });
 
   onMount(async () => {
     prefs.bootstrap();
