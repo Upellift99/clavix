@@ -90,9 +90,7 @@ fn classify_auth_message(message: &str) -> Option<&'static str> {
     // expired" verbatim or, on slightly older builds, the OAuth
     // generic "invalid_grant" with no `message`.
     if lower.contains("refresh token")
-        && (lower.contains("expired")
-            || lower.contains("invalid")
-            || lower.contains("not found"))
+        && (lower.contains("expired") || lower.contains("invalid") || lower.contains("not found"))
     {
         return Some("refresh_expired");
     }
