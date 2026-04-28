@@ -14,6 +14,30 @@ updates:
       - rust
     commit-message:
       prefix: "chore(deps-rust)"
+    # Ignore semver-major bumps for crates that depend on the same
+    # `digest 0.10` / `rand_core 0.6` slice as `rsa 0.9` (our stable).
+    # Bumping any one of them breaks the other six because `rsa` still
+    # carries the old traits. Lift these entries the moment `rsa 0.10`
+    # ships stable on crates.io — Dependabot will then re-open all the
+    # major bumps as one coherent group via the `rust-crypto` group
+    # below. Past blocked attempts: PR #31 (group bump), PR #35 (rand).
+    ignore:
+      - dependency-name: rand
+        update-types: ["version-update:semver-major"]
+      - dependency-name: sha2
+        update-types: ["version-update:semver-major"]
+      - dependency-name: sha1
+        update-types: ["version-update:semver-major"]
+      - dependency-name: hmac
+        update-types: ["version-update:semver-major"]
+      - dependency-name: hkdf
+        update-types: ["version-update:semver-major"]
+      - dependency-name: pbkdf2
+        update-types: ["version-update:semver-major"]
+      - dependency-name: aes
+        update-types: ["version-update:semver-major"]
+      - dependency-name: cbc
+        update-types: ["version-update:semver-major"]
     groups:
       rust-crypto:
         patterns:
