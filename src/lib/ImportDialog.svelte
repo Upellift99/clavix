@@ -2,6 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import { parseKeepassCsv, type KeepassEntry } from "$lib/csv";
   import { api } from "$lib/api";
+  import { formatError } from "$lib/format";
   import { EMPTY_EDITOR_INITIAL, type FolderSummary } from "$lib/types";
 
   let {
@@ -25,6 +26,12 @@
   let failedCount = $state(0);
   let lastError = $state<string | null>(null);
   let createFolders = $state(true);
+  // KDBX path: we hold the picked file until the user types the
+  // master password, then call `parse_kdbx` over IPC. The CSV path
+  // ignores all of these.
+  let pendingKdbxFile = $state<File | null>(null);
+  let kdbxPassword = $state("");
+  let kdbxParsing = $state(false);
 
   $effect(() => {
     if (open) {
@@ -36,8 +43,15 @@
       createdCount = 0;
       failedCount = 0;
       lastError = null;
+      pendingKdbxFile = null;
+      kdbxPassword = "";
+      kdbxParsing = false;
     }
   });
+
+  function isKdbx(file: File): boolean {
+    return file.name.toLowerCase().endsWith(".kdbx");
+  }
 
   async function onFileChange(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
@@ -45,6 +59,18 @@
     if (!file) return;
     fileName = file.name;
     parseError = null;
+    entries = [];
+    pendingKdbxFile = null;
+    kdbxPassword = "";
+
+    if (isKdbx(file)) {
+      // Defer the actual parsing to `decryptKdbx()` after the user
+      // types the master password — the keepass crate needs it
+      // up-front to derive the KDBX KDF.
+      pendingKdbxFile = file;
+      return;
+    }
+
     try {
       const text = await file.text();
       entries = parseKeepassCsv(text);
@@ -54,6 +80,29 @@
     } catch (e) {
       parseError = (e as Error).message ?? String(e);
       entries = [];
+    }
+  }
+
+  async function decryptKdbx(event: Event) {
+    event.preventDefault();
+    if (!pendingKdbxFile || kdbxPassword.length === 0 || kdbxParsing) return;
+    kdbxParsing = true;
+    parseError = null;
+    try {
+      const buffer = await pendingKdbxFile.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      // Same shape as the CSV result, by design: same `entries`
+      // state feeds the rest of the dialog (preview + loop).
+      entries = await api.parseKdbx(bytes, kdbxPassword);
+      if (entries.length === 0) {
+        parseError = m.import_empty();
+      }
+      pendingKdbxFile = null;
+      kdbxPassword = "";
+    } catch (e) {
+      parseError = formatError(e);
+    } finally {
+      kdbxParsing = false;
     }
   }
 
@@ -140,7 +189,34 @@
       </header>
       <p class="hint">{m.import_hint()}</p>
 
-      <input type="file" accept=".csv,text/csv" onchange={onFileChange} disabled={importing} />
+      <input
+        type="file"
+        accept=".csv,text/csv,.kdbx"
+        onchange={onFileChange}
+        disabled={importing || kdbxParsing}
+      />
+
+      {#if pendingKdbxFile}
+        <form class="kdbx-password-row" onsubmit={decryptKdbx}>
+          <label class="kdbx-password-label">
+            {m.import_kdbx_password_label()}
+          </label>
+          <div class="kdbx-password-input-row">
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              type="password"
+              bind:value={kdbxPassword}
+              autofocus
+              autocomplete="off"
+              disabled={kdbxParsing}
+            />
+            <button type="submit" disabled={kdbxParsing || kdbxPassword.length === 0}>
+              {kdbxParsing ? m.import_kdbx_decrypting() : m.import_kdbx_decrypt()}
+            </button>
+          </div>
+          <p class="hint">{m.import_kdbx_password_hint()}</p>
+        </form>
+      {/if}
 
       {#if parseError}
         <p class="import-error">{parseError}</p>
@@ -325,6 +401,35 @@
   .import-done {
     margin: 0.5rem 0;
     font-size: 0.9rem;
+  }
+
+  .kdbx-password-row {
+    margin: 0.6rem 0;
+    padding: 0.7rem 0.9rem;
+    background: #f7f8fa;
+    border: 1px solid #e2e4e8;
+    border-radius: 8px;
+  }
+
+  .kdbx-password-label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+    font-weight: 500;
+  }
+
+  .kdbx-password-input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .kdbx-password-input-row input {
+    flex: 1 1 auto;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    font: inherit;
   }
 
   .row {
