@@ -36,9 +36,16 @@ const CASCADE_CHILD_A = `${CASCADE_PARENT}/a`;
 const CASCADE_CHILD_B = `${CASCADE_PARENT}/b/deep`;
 
 describe("Folder rename + delete (path-based, cascade)", () => {
-  it("rename_folder_path renames the parent and every descendant in one batch", async () => {
+  before(async () => {
+    // Single login per spec file: WDIO keeps the same browser session
+    // across `it` blocks in this describe, so calling
+    // loginAsSeededUser in each one would deadlock on the URL input
+    // (already submitted in the first it). Same pattern as
+    // ssh-passphrase-import.spec.mjs.
     await loginAsSeededUser();
+  });
 
+  it("rename_folder_path renames the parent and every descendant in one batch", async () => {
     const ids = await browser.execute(
       async (parent, child, grandchild) => {
         // @ts-expect-error — tauri injects this global
@@ -99,8 +106,6 @@ describe("Folder rename + delete (path-based, cascade)", () => {
     // (path container for the leaf), and right-clicking it should
     // succeed: the rename cascades through the leaf without ever
     // requiring a real parent row.
-    await loginAsSeededUser();
-
     const leafId = await browser.execute(async (name) => {
       // @ts-expect-error
       const { invoke } = window.__TAURI__.core;
@@ -144,8 +149,6 @@ describe("Folder rename + delete (path-based, cascade)", () => {
     // store to delete them in sequence. Here we play the same script
     // through IPC to verify the server ends up consistent — every
     // listed folder gone, every cipher under them detached.
-    await loginAsSeededUser();
-
     const setup = await browser.execute(
       async (parent, childA, childB) => {
         // @ts-expect-error
