@@ -148,17 +148,13 @@ fn lock_session(app: &AppHandle) {
     crate::services::auth::clear_pending_two_factor(&state);
 }
 
-/// Two-branch window-event hook:
-///
-///   - `CloseRequested` → if `close_to_tray` is set, hide the
-///     window and call `prevent_close()` so Tauri leaves the
-///     process up.
-///   - `Resized` → on a minimise transition (`is_minimized()` true
-///     after the resize), if `minimize_to_tray` is set, unminimise
-///     + hide so the window lives in the tray rather than the
-///     taskbar.
-///
-/// Both branches no-op when the corresponding preference is off.
+/// Two-branch window-event hook. On `CloseRequested`: if
+/// `close_to_tray` is set, hide the window and call
+/// `prevent_close()` so Tauri leaves the process up. On `Resized`:
+/// on a minimise transition (`is_minimized()` true after the
+/// resize), if `minimize_to_tray` is set, unminimise + hide so the
+/// window lives in the tray rather than the taskbar. Both branches
+/// no-op when the corresponding preference is off.
 /// Native cross-platform minimise detection has no dedicated
 /// Tauri/tao event variant — `Resized` fires on every minimise
 /// path on Windows and most Linux WMs, and `is_minimized()` then
