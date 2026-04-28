@@ -182,8 +182,8 @@
                 onMoveCipherToFolder={(id, fid) => vault.moveCipherToFolder(id, fid)}
                 onMoveCipherToCollection={(id, cid) => vault.moveCipherToCollection(id, cid)}
                 onMoveFolderPath={(s, t) => vault.performFolderMove(s, t)}
-                onDeleteFolder={(id) => vault.deleteFolder(id)}
-                onRenameFolder={(id, name) => vault.renameFolder(id, name)}
+                onDeleteFolder={(ids) => vault.deleteFolder(ids)}
+                onRenameFolder={(src, dst) => vault.renameFolderPath(src, dst)}
               />
 
               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

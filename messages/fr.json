@@ -218,6 +218,7 @@
   "folder_action_rename": "Renommer",
   "folder_action_delete": "Supprimer",
   "folder_delete_confirm": "Supprimer le dossier « {name} » ? {count} item(s) seront détaché(s) (pas supprimé(s)) et apparaîtront dans « Tous les items ».",
+  "folder_delete_confirm_cascade": "Supprimer « {name} » ainsi que {subCount} sous-dossier(s) ? {itemCount} item(s) seront détaché(s) (pas supprimé(s)) et apparaîtront dans « Tous les items ».",
 
   "items_title": "Items",
   "items_search_placeholder": "Rechercher un item… (/ ou Ctrl+F)",

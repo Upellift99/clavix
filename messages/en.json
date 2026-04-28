@@ -218,6 +218,7 @@
   "folder_action_rename": "Rename",
   "folder_action_delete": "Delete",
   "folder_delete_confirm": "Delete folder “{name}”? {count} item(s) will be detached (not deleted) and appear under “All items”.",
+  "folder_delete_confirm_cascade": "Delete “{name}” and {subCount} sub-folder(s)? {itemCount} item(s) will be detached (not deleted) and appear under “All items”.",
 
   "items_title": "Items",
   "items_search_placeholder": "Search an item… (/ or Ctrl+F)",

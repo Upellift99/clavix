@@ -118,6 +118,9 @@ export const api = {
   renameFolder: (folderId: string, name: string) =>
     invoke<void>("rename_folder", { folderId, name }),
 
+  renameFolderPath: (sourcePath: string, newPath: string) =>
+    invoke<void>("rename_folder_path", { sourcePath, newPath }),
+
   getCipher: (id: string) => invoke<CipherDetail>("get_cipher", { id }),
 
   createCipher: (input: EditorPayload) =>
