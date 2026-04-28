@@ -58,6 +58,12 @@ Against a real Vaultwarden instance, Clavix:
 - **auto-locks** after your configured idle window, with a tokio
   watchdog on the Rust side that drops the in-memory session even if
   the WebView freezes;
+- **lives in the system tray**: an icon with a right-click menu
+  (Ouvrir / Verrouiller maintenant / Quitter) keeps Clavix one click
+  away while the window is hidden. The X button and the `_` minimise
+  button both hide into the tray by default (KeePassXC / Bitwarden
+  Desktop semantics) — flip either of them to "quit" / "minimise to
+  taskbar" from Préférences if you'd rather keep the platform default;
 - **generates TOTP codes** live from the stored secret (supports
   `otpauth://` URIs with custom period, digits, or hash algorithm);
 - **scans QR codes** through the device camera to populate the TOTP
@@ -80,9 +86,13 @@ Against a real Vaultwarden instance, Clavix:
   and all cipher types;
 - **drag & drops whole folders** to rearrange the tree — all their
   sub-folders are renamed in cascade on the server;
-- **right-click on a personal folder** to rename or delete it
-  (Vaultwarden's web UI doesn't expose a delete control today);
-  same-name folders coming from the server are shown as separate
+- **right-click on any folder** in the sidebar to rename or delete
+  it (Vaultwarden's web UI doesn't expose a delete control today),
+  including the path-only synthetic parents the tree builds from
+  `parent/child` names — both actions cascade through every folder
+  whose path falls under the clicked node, so deleting `work` also
+  drops `work/projects` and detaches its ciphers in one batch.
+  Same-name folders coming from the server are shown as separate
   entries instead of being silently merged;
 - runs a **security audit** (🛡) combining HIBP k-anonymity breach
   lookups with local detection of **reused** and **weak** passwords
@@ -170,8 +180,11 @@ community.
 - [x] **WebAuthn / FIDO2** in 2FA via CTAP2/HID (no browser needed)
 - [x] **Yubikey re-unlock** via the CTAP2 `hmac-secret` extension
   (touch instead of master password after auto-lock)
-- [x] **Folder management** — right-click delete + rename, fix for
-  same-name folders showing as one entry
+- [x] **Folder management** — right-click delete + rename on any
+  node (real or synthetic path-only parent), with cascade through
+  descendants; fix for same-name folders showing as one entry
+- [x] **System tray** — icon, right-click menu (Ouvrir / Verrouiller
+  / Quitter), and configurable close-to-tray + minimize-to-tray
 
 ### Planned
 
