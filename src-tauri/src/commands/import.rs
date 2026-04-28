@@ -14,9 +14,7 @@
 //! into the same `api.createCipher(...)` loop without branching on
 //! origin.
 
-use std::io::Cursor;
-
-use keepass::db::Group;
+use keepass::db::{EntryRef, GroupRef};
 use keepass::{Database, DatabaseKey};
 use serde::Serialize;
 
@@ -55,7 +53,7 @@ pub struct KdbxEntry {
 #[tauri::command]
 pub fn parse_kdbx(bytes: Vec<u8>, password: String) -> Result<Vec<KdbxEntry>> {
     let key = DatabaseKey::new().with_password(&password);
-    let db = Database::open(&mut Cursor::new(bytes), key).map_err(|e| {
+    let db = Database::parse(&bytes, key).map_err(|e| {
         // The keepass crate distinguishes "wrong password" from
         // "malformed file" but the variant types are awkward to
         // match exhaustively across versions. Surface the message
@@ -67,38 +65,38 @@ pub fn parse_kdbx(bytes: Vec<u8>, password: String) -> Result<Vec<KdbxEntry>> {
     })?;
 
     let mut out = Vec::new();
-    walk_group(&db.root, "", &mut out);
+    walk_group(&db.root(), "", &mut out);
     out.retain(|e| !(e.title.is_empty() && e.password.is_empty()));
     Ok(out)
 }
 
-fn walk_group(group: &Group, parent_path: &str, out: &mut Vec<KdbxEntry>) {
-    for child in &group.children {
-        match child {
-            keepass::db::Node::Group(g) => {
-                let next_path = if parent_path.is_empty() {
-                    g.name.clone()
-                } else {
-                    format!("{parent_path}/{}", g.name)
-                };
-                walk_group(g, &next_path, out);
-            }
-            keepass::db::Node::Entry(e) => {
-                out.push(KdbxEntry {
-                    title: e.get_title().unwrap_or("").to_string(),
-                    username: e.get_username().unwrap_or("").to_string(),
-                    password: e.get_password().unwrap_or("").to_string(),
-                    url: e.get_url().unwrap_or("").to_string(),
-                    notes: e.get("Notes").unwrap_or("").to_string(),
-                    totp: extract_totp(e),
-                    group: parent_path.to_string(),
-                });
-            }
-        }
+fn walk_group(group: &GroupRef<'_>, parent_path: &str, out: &mut Vec<KdbxEntry>) {
+    // GroupRef derefs to Group, so `sub.name` reads through to the
+    // underlying struct. Same for `groups()` / `entries()`, which
+    // yield further GroupRef / EntryRef views borrowed from the
+    // parent Database.
+    for entry in group.entries() {
+        out.push(KdbxEntry {
+            title: entry.get_title().unwrap_or("").to_string(),
+            username: entry.get_username().unwrap_or("").to_string(),
+            password: entry.get_password().unwrap_or("").to_string(),
+            url: entry.get_url().unwrap_or("").to_string(),
+            notes: entry.get("Notes").unwrap_or("").to_string(),
+            totp: extract_totp(&entry),
+            group: parent_path.to_string(),
+        });
+    }
+    for sub in group.groups() {
+        let next_path = if parent_path.is_empty() {
+            sub.name.clone()
+        } else {
+            format!("{parent_path}/{}", sub.name)
+        };
+        walk_group(&sub, &next_path, out);
     }
 }
 
-fn extract_totp(entry: &keepass::db::Entry) -> String {
+fn extract_totp(entry: &EntryRef<'_>) -> String {
     // KeePassXC writes the otpauth URI into a custom string field
     // named "otp"; older databases used "TOTP Seed" + "TOTP
     // Settings" pair. Either gets surfaced verbatim — Clavix's
