@@ -60,6 +60,148 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Map a Vaultwarden/Bitwarden auth-error message to a stable code
+/// the renderer can switch on for localisation. Returns `None` when
+/// the message doesn't match any known pattern — the caller then
+/// surfaces the raw `message` verbatim, which is what the UI did
+/// before this lookup landed.
+///
+/// Patterns observed against Vaultwarden 1.35.7 (the version used in
+/// the E2E suite) and the Bitwarden upstream that Vaultwarden mirrors
+/// on `/identity/connect/token`. Order matters — the classifier
+/// returns on the first hit, so put the more specific patterns first.
+fn classify_auth_message(message: &str) -> Option<&'static str> {
+    let lower = message.to_ascii_lowercase();
+
+    // 2FA second-factor failure. Catches both the Vaultwarden message
+    // and the synthetic "2FA code rejected by the server" string our
+    // own client sets in `api::login_with_two_factor` when the server
+    // responds TwoFactorRequired *again* on the second-step call.
+    if lower.contains("two-step")
+        || lower.contains("two-factor")
+        || lower.contains("two factor")
+        || lower.contains("totp code")
+        || lower.contains("2fa code rejected")
+    {
+        return Some("two_factor_invalid");
+    }
+
+    // Refresh-token grant failures. Vaultwarden returns "Refresh token
+    // expired" verbatim or, on slightly older builds, the OAuth
+    // generic "invalid_grant" with no `message`.
+    if lower.contains("refresh token")
+        && (lower.contains("expired") || lower.contains("invalid") || lower.contains("not found"))
+    {
+        return Some("refresh_expired");
+    }
+
+    // Captcha gating — Vaultwarden enables this under brute-force
+    // suspicion. The user has to solve it on the web UI first.
+    if lower.contains("captcha") {
+        return Some("captcha_required");
+    }
+
+    // Wrong email / password on the password grant. Bitwarden upstream
+    // returns "Username or password is incorrect" word-for-word;
+    // Vaultwarden also surfaces "Invalid password" / "Bad password".
+    if lower.contains("username or password is incorrect")
+        || lower.contains("invalid password")
+        || lower.contains("bad password")
+        || lower == "invalid_grant"
+    {
+        return Some("invalid_credentials");
+    }
+
+    // Unknown account on prelogin / login.
+    if lower.contains("user does not exist") || lower.contains("username does not exist") {
+        return Some("user_not_found");
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classify_recognises_invalid_credentials() {
+        assert_eq!(
+            classify_auth_message("Username or password is incorrect. Try again."),
+            Some("invalid_credentials"),
+        );
+        assert_eq!(
+            classify_auth_message("Invalid password"),
+            Some("invalid_credentials"),
+        );
+        assert_eq!(
+            classify_auth_message("invalid_grant"),
+            Some("invalid_credentials"),
+        );
+    }
+
+    #[test]
+    fn classify_recognises_two_factor_failures() {
+        assert_eq!(
+            classify_auth_message("Two-step token is invalid."),
+            Some("two_factor_invalid"),
+        );
+        assert_eq!(
+            classify_auth_message("2FA code rejected by the server"),
+            Some("two_factor_invalid"),
+        );
+        assert_eq!(
+            classify_auth_message("Invalid TOTP code"),
+            Some("two_factor_invalid"),
+        );
+    }
+
+    #[test]
+    fn classify_recognises_refresh_expired() {
+        assert_eq!(
+            classify_auth_message("Refresh token expired"),
+            Some("refresh_expired"),
+        );
+        assert_eq!(
+            classify_auth_message("Refresh token is invalid"),
+            Some("refresh_expired"),
+        );
+    }
+
+    #[test]
+    fn classify_recognises_captcha_required() {
+        assert_eq!(
+            classify_auth_message("Captcha required"),
+            Some("captcha_required"),
+        );
+        assert_eq!(
+            classify_auth_message("Captcha is invalid."),
+            Some("captcha_required"),
+        );
+    }
+
+    #[test]
+    fn classify_returns_none_for_app_internal_messages() {
+        // App-internal AuthFailed messages — these should not match
+        // any pattern; we want them to round-trip verbatim because
+        // they're already shown to the right user-facing context.
+        assert!(classify_auth_message(
+            "cipher already belongs to this organization — use move instead",
+        )
+        .is_none());
+        assert!(classify_auth_message(
+            "personal items cannot be dropped on an organization collection directly — share the item first",
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn classify_returns_none_for_truly_unknown_strings() {
+        assert!(classify_auth_message("Some other server message").is_none());
+        assert!(classify_auth_message("").is_none());
+    }
+}
+
 #[derive(Serialize)]
 struct ErrorPayload<'a> {
     code: &'a str,
@@ -86,7 +228,23 @@ impl Serialize for Error {
                 serde_json::json!({ "status": status, "message": message }),
             ),
             Error::AuthFailed { message } => {
-                ("auth_failed", serde_json::json!({ "message": message }))
+                // Classify the message against known Vaultwarden /
+                // Bitwarden patterns so the renderer can pick a
+                // localised string instead of falling back to the raw
+                // English message. The classifier is purely
+                // additive: anything we don't recognise still
+                // round-trips through `data.message`, so adding a
+                // pattern is safe and removing one only loses the
+                // localisation, not the error itself. See
+                // classify_auth_message + its unit tests below.
+                let reason = classify_auth_message(message);
+                let mut data = serde_json::json!({ "message": message });
+                if let Some(code) = reason {
+                    if let Some(obj) = data.as_object_mut() {
+                        obj.insert("reason".into(), serde_json::Value::from(code));
+                    }
+                }
+                ("auth_failed", data)
             }
             Error::Crypto { reason } => ("crypto_error", serde_json::json!({ "reason": reason })),
             Error::TwoFactorProviderUnsupported { provider } => (
