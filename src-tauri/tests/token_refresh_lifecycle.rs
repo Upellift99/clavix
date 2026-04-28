@@ -311,11 +311,7 @@ async fn ensure_fresh_tokens_is_a_noop_when_expires_at_is_outside_the_safety_mar
     let key = test_user_key();
 
     let original_enc = encrypt_string("untouched", &key).expect("encrypt");
-    store::save_session(&persisted_skeleton(
-        None,
-        Some(original_enc.clone()),
-    ))
-    .expect("save");
+    store::save_session(&persisted_skeleton(None, Some(original_enc.clone()))).expect("save");
 
     let mut server = mockito::Server::new_async().await;
     let mock = server
@@ -339,6 +335,9 @@ async fn ensure_fresh_tokens_is_a_noop_when_expires_at_is_outside_the_safety_mar
     // Disk must be untouched too — the `needs_write` guard protects
     // us from rewriting an identical session.json on every command.
     let after = store::load_session().expect("load").expect("present");
-    assert_eq!(after.encrypted_refresh_token.as_deref(), Some(original_enc.as_str()));
+    assert_eq!(
+        after.encrypted_refresh_token.as_deref(),
+        Some(original_enc.as_str())
+    );
     assert!(after.refresh_token.is_none());
 }
