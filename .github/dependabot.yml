@@ -75,6 +75,15 @@ updates:
       - javascript
     commit-message:
       prefix: "chore(deps-npm)"
+    # Ignore semver-major bumps for `@wdio/*`: the runtime plugin
+    # loader rejects mismatched majors across the cli / local-runner /
+    # mocha-framework / spec-reporter set, so a single-package major
+    # always lands E2E red. Past blocked attempt: PR #43 (mocha-framework
+    # 7→9 alone). When we choose to upgrade the whole family, lift this
+    # entry and let the `wdio` group below batch the bump.
+    ignore:
+      - dependency-name: "@wdio/*"
+        update-types: ["version-update:semver-major"]
     groups:
       svelte:
         patterns:
@@ -86,6 +95,10 @@ updates:
       paraglide:
         patterns:
           - "@inlang/*"
+      wdio:
+        patterns:
+          - "@wdio/*"
+          - webdriverio
 
   - package-ecosystem: github-actions
     directory: /
