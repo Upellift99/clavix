@@ -52,6 +52,11 @@ ed25519-dalek = "2"
 zxcvbn = { version = "3", default-features = false }
 ctap-hid-fido2 = "3.5"
 parking_lot = "0.12"
+# KDBX import (KeePass / KeePassXC native format). Default features are
+# enough — no `save_kdbx4`, no TOTP helper. We do the entry walk and
+# field extraction ourselves and pass plaintext fields up to the
+# existing import flow.
+keepass = "0.12"
 
 [dev-dependencies]
 # Property-based tests on adversarial-input parsers — currently EncString

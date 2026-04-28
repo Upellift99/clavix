@@ -167,4 +167,21 @@ export const api = {
   generateSshKey: () => invoke<DecryptedSshKey>("generate_ssh_key"),
 
   sshAuthSock: () => invoke<string | null>("ssh_auth_sock"),
+
+  parseKdbx: (bytes: Uint8Array, password: string) =>
+    invoke<KdbxEntry[]>("parse_kdbx", { bytes: Array.from(bytes), password }),
+};
+
+/// Flat entry shape returned by `parse_kdbx` — mirrors the CSV
+/// `KeepassEntry` so the import dialog can pour either source into
+/// the same `createCipher` loop. Empty strings rather than `null`
+/// for missing fields, same convention as the CSV path.
+export type KdbxEntry = {
+  title: string;
+  username: string;
+  password: string;
+  url: string;
+  notes: string;
+  totp: string;
+  group: string;
 };
