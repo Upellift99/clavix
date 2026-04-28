@@ -16,8 +16,29 @@ export function formatError(e: unknown): string {
       return m.err_invalid_response({ reason: str(data.reason) });
     case "http_status":
       return m.err_http_status({ status: str(data.status), message: str(data.message) });
-    case "auth_failed":
-      return m.err_auth_failed({ message: str(data.message) });
+    case "auth_failed": {
+      // The Rust side classifies known Vaultwarden patterns into a
+      // stable `reason` code (see `error::classify_auth_message`).
+      // When present, surface a localised string; otherwise fall
+      // back to the raw server message verbatim — same behaviour as
+      // before this dispatch existed, so an unknown server message
+      // is never lost.
+      const reason = str(data.reason);
+      switch (reason) {
+        case "invalid_credentials":
+          return m.err_auth_invalid_credentials();
+        case "two_factor_invalid":
+          return m.err_auth_two_factor_invalid();
+        case "refresh_expired":
+          return m.err_auth_refresh_expired();
+        case "captcha_required":
+          return m.err_auth_captcha_required();
+        case "user_not_found":
+          return m.err_auth_user_not_found();
+        default:
+          return m.err_auth_failed({ message: str(data.message) });
+      }
+    }
     case "crypto_error":
       return m.err_crypto({ reason: str(data.reason) });
     case "two_factor_provider_unsupported":
