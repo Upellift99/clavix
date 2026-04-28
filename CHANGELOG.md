@@ -5,6 +5,90 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-04-28
+
+### Added
+- **System-tray integration** (#38). Tray icon visible while the
+  app runs. Right-click menu (Ouvrir Clavix / Verrouiller maintenant
+  / Quitter); left-click toggles the main window between hidden and
+  shown. Native menu strings stay French because Paraglide doesn't
+  reach native menus — documented inline. The X button now hides
+  into the tray by default instead of quitting (KeePassXC and
+  Bitwarden Desktop semantics); the same shape applies to the `_`
+  minimise button. Both behaviours are configurable from
+  Préférences (`Bouton Fermer` and `Bouton Réduire` dropdowns) — the
+  renderer mirrors each toggle into an `AtomicBool` on `AppState`
+  via `set_close_to_tray` / `set_minimize_to_tray` so the
+  window-event hook always sees the latest value without a mutex on
+  the main loop. Tray setup is non-fatal: a CI runner under xvfb or
+  a Linux WM without a system tray launches the app fine, just
+  without the tray entry. Lock-from-tray inlines the same teardown
+  as `commands::auth::lock` (ssh-agent stop, session drop,
+  pending-2FA clear) since the menu handler holds an `AppHandle`,
+  not the `State<'_, AppState>` shape Tauri's dispatcher provides.
+  macOS minimise (cmd-M to dock) is best-effort: tao does not
+  expose a dedicated minimise event, so the `Resized` + `is_minimised()`
+  detection that works on Windows and most Linux WMs may not fire
+  on every macOS minimise path.
+- **Cascade folder rename + delete from the sidebar** (#39).
+  Vaultwarden has no real folder hierarchy on the server: a folder
+  named `work/projects` and a folder named `work` are two
+  independent rows. The sidebar paints them as a tree by splitting
+  on `/`, which means `work` can show up as a *synthetic* parent —
+  a path container the UI made up. Right-click did nothing on those
+  nodes, and deleting a real `work` orphaned its `work/...`
+  children. Right-click now opens the menu on any folder node, real
+  or synthetic; both Rename and Delete cascade through every folder
+  whose path equals or sits under the clicked node. Delete reuses
+  `delete_folder` in a loop after collecting descendant ids via
+  `collectFolderIds`; rename calls a new `rename_folder_path` Tauri
+  command that reuses the same `plan_folder_renames` machinery as
+  `move_folder_path`, so the rename batch is atomic on the Rust
+  side. Confirmation dialog now reports the sub-folder count when
+  more than one folder is going to be deleted. New E2E spec
+  `folder-rename-delete-path.spec.mjs` covers cascade rename of a
+  real parent with two levels of descendants, cascade rename of a
+  synthetic parent (no row on the server, only `parent/leaf`), and
+  cascade delete of a parent + multiple descendants.
+
+### Internal
+- **Integration test for `ensure_fresh_tokens` orchestration** (#46,
+  closes #24). Closes the orchestration gap left by the existing
+  two integration tests: `refresh_token_endpoint.rs` proves the
+  HTTP contract, `persisted_session_disk.rs` proves the disk
+  round-trip, and now `token_refresh_lifecycle.rs` exercises the
+  in-memory `Session` mutation, the re-encryption under the user
+  key, and the rewrite of `session.json` in lockstep. Three
+  scenarios: rotation when the on-disk session is already in the
+  post-migration shape, legacy migration when `refresh_token` is
+  set in plaintext (the load-bearing security claim against a
+  stolen disk image), and a no-op when `expires_at` is comfortably
+  ahead of the safety margin. Reachable from `tests/` because
+  `ensure_fresh_tokens` was rewritten to take `&AppState` directly
+  — production call sites still pass `&State<'_, AppState>` and
+  the `State<'r, T>: Deref<Target = T>` impl makes the coercion
+  free, so no command needed to change. CI now runs `cargo test
+  --tests` instead of `--lib`, which also picks up the two
+  pre-existing integration tests that had been silently uncovered.
+- **Dependabot ignore lists for the upstream-blocked majors.**
+  `rsa` stable is still 0.9.x (0.10 is RC), which pins the
+  codebase to `rand_core 0.6` and `digest 0.10`. Any major bump of
+  `rand`, `sha2`, `sha1`, `hmac`, `hkdf`, `pbkdf2`, `aes`, or `cbc`
+  fails to link against `rsa`; PR #31 (rust-crypto group) and #35
+  (rand 0.9) just cycled red on this. The ignore lives in
+  `.github/dependabot.yml` and is annotated with the unblock
+  condition. Same shape for `@wdio/*`: the runtime plugin loader
+  enforces matching majors across cli / local-runner /
+  mocha-framework / spec-reporter, so a single-package major
+  always lands E2E red (PR #43). Added a `wdio` group so future
+  coordinated bumps land as one PR, plus a semver-major ignore so
+  isolated majors stop being filed.
+
+### Changed
+- npm minor + patch bumps that landed clean: `vite` 6→8 (#44),
+  `vitest` 4.1.4→4.1.5 (#45), `@inlang/paraglide-js` 2.16→2.17
+  (#42), the `svelte` group (#41).
+
 ## [0.1.20] — 2026-04-27
 
 ### Added

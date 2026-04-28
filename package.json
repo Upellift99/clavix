@@ -1,6 +1,6 @@
 {
   "name": "clavix",
-  "version": "0.1.20",
+  "version": "0.2.0",
   "description": "Client desktop moderne pour Vaultwarden/Bitwarden",
   "type": "module",
   "scripts": {
