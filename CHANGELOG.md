@@ -5,6 +5,40 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-04-28
+
+### Added
+- **Native KDBX import** alongside the existing CSV path (#50). The
+  📥 dialog now accepts `.kdbx` next to `.csv`. KeePass / KeePassXC
+  databases come in directly with master password, group hierarchy,
+  notes and the KeePassXC `otp` custom field intact — better
+  fidelity than the CSV round-trip, which loses the otpauth URI
+  and the deep group nesting. Backed by the `keepass` crate (v0.12)
+  on the Rust side; the renderer's existing import loop replays both
+  sources uniformly. Limitations: no keyfile auth, no
+  challenge-response auth, no attachments. File a request if you
+  hit one of those.
+- **Localised tray menus** (#51). Native menus don't go through
+  Paraglide, so the strings stayed hard-coded in French regardless
+  of the language picked in Préférences. They now switch live: the
+  renderer hands the locale code over via a new `set_tray_locale`
+  IPC and Rust rebuilds the menu via `tray.set_menu(...)`. English
+  and French wired today; unknown locales fall back to French.
+
+### Changed
+- **Localised Vaultwarden auth-error messages** (#49). Until now
+  the server's `data.message` flowed through to the UI in English
+  (or whatever Vaultwarden's locale was). The Rust side now
+  classifies five known auth-error patterns into a stable `reason`
+  code attached to the serialised `AuthFailed` payload, and the
+  renderer switches on it to pick a Paraglide string. Reasons
+  covered: `invalid_credentials`, `two_factor_invalid`,
+  `refresh_expired`, `captcha_required`, `user_not_found`. The
+  classifier is purely additive — an unknown server message still
+  surfaces verbatim. App-internal `AuthFailed` strings (move-share
+  guards, etc.) deliberately don't match any pattern; they keep
+  their existing copy.
+
 ## [0.2.0] — 2026-04-28
 
 ### Added
