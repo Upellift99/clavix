@@ -281,6 +281,10 @@
   "stats_auto_lock_minutes": "{count} min",
   "stats_auto_lock_hour": "1 h",
 
+  "settings_close_to_tray": "Close button",
+  "settings_close_to_tray_tray": "Hide to tray",
+  "settings_close_to_tray_quit": "Quit Clavix",
+
   "clipboard_toast": "Clipboard ({label}) will be cleared in {seconds}s",
 
   "type_login": "Login",

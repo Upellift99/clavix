@@ -6,6 +6,7 @@ const THEME_STORAGE_KEY = "clavix.theme";
 const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
 const DETAIL_HEIGHT_STORAGE_KEY = "clavix.detailHeight";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
+const CLOSE_TO_TRAY_STORAGE_KEY = "clavix.closeToTray";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 
@@ -28,6 +29,10 @@ export const DETAIL_HEIGHT_MIN = 160;
 export const DETAIL_HEIGHT_MAX = 900;
 const DETAIL_HEIGHT_DEFAULT = 320;
 const AUTO_LOCK_DEFAULT_MINUTES = 10;
+// Default matches the Rust mirror: X button hides into tray. Same
+// shape as KeePassXC and Bitwarden Desktop. Users that want the X
+// to quit flip this off in Préférences.
+const CLOSE_TO_TRAY_DEFAULT = true;
 
 export class PrefsController {
   currentLocale = $state<Locale>("fr");
@@ -35,6 +40,7 @@ export class PrefsController {
   treeWidth = $state<number>(TREE_WIDTH_DEFAULT);
   detailHeight = $state<number>(DETAIL_HEIGHT_DEFAULT);
   autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
+  closeToTray = $state<boolean>(CLOSE_TO_TRAY_DEFAULT);
   lastActivityAt = $state<number>(Date.now());
   visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
 
@@ -80,6 +86,13 @@ export class PrefsController {
         if (Number.isFinite(parsed) && parsed >= 0) {
           this.autoLockMinutes = parsed;
         }
+      }
+      const savedTray = localStorage.getItem(CLOSE_TO_TRAY_STORAGE_KEY);
+      // Only flip the default when localStorage explicitly says
+      // "false" — anything else (including missing key for fresh
+      // installs) keeps the hide-to-tray behaviour.
+      if (savedTray === "false") {
+        this.closeToTray = false;
       }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
@@ -166,6 +179,15 @@ export class PrefsController {
     this.autoLockMinutes = minutes;
     try {
       localStorage.setItem(AUTO_LOCK_STORAGE_KEY, String(minutes));
+    } catch {
+      // ignore
+    }
+  }
+
+  setCloseToTray(value: boolean) {
+    this.closeToTray = value;
+    try {
+      localStorage.setItem(CLOSE_TO_TRAY_STORAGE_KEY, String(value));
     } catch {
       // ignore
     }

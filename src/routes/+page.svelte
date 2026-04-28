@@ -118,6 +118,17 @@
     onLock: lockAndReset,
   });
 
+  // Mirror the close-to-tray preference into Rust whenever it
+  // changes (and once on bootstrap, after `prefs.bootstrap()` lands
+  // the localStorage value). The window-event handler reads from
+  // an AtomicBool on AppState, so this keeps the X button's
+  // behaviour in lockstep with the dialog toggle.
+  $effect(() => {
+    api.setCloseToTray(prefs.closeToTray).catch((e) => {
+      console.warn("[clavix] setCloseToTray failed:", e);
+    });
+  });
+
   onMount(async () => {
     prefs.bootstrap();
     await auth.bootstrap({ onboarded: prefs.isOnboarded() });
@@ -272,9 +283,11 @@
     currentLocale={prefs.currentLocale}
     themePref={prefs.themePref}
     autoLockMinutes={prefs.autoLockMinutes}
+    closeToTray={prefs.closeToTray}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
     onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
+    onApplyCloseToTray={(v) => prefs.setCloseToTray(v)}
     onCopySocketPath={copySshAgentSocket}
   />
 {/if}

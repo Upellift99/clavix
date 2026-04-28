@@ -9,9 +9,11 @@
     currentLocale: Locale;
     themePref: ThemePref;
     autoLockMinutes: number;
+    closeToTray: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
+    onApplyCloseToTray: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -20,9 +22,11 @@
     currentLocale,
     themePref,
     autoLockMinutes,
+    closeToTray,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
+    onApplyCloseToTray,
     onCopySocketPath,
   }: Props = $props();
 
@@ -199,6 +203,19 @@
           <option value={15}>{m.stats_auto_lock_minutes({ count: "15" })}</option>
           <option value={30}>{m.stats_auto_lock_minutes({ count: "30" })}</option>
           <option value={60}>{m.stats_auto_lock_hour()}</option>
+        </select>
+      </dd>
+      <dt>{m.settings_close_to_tray()}</dt>
+      <dd>
+        <select
+          value={closeToTray ? "tray" : "quit"}
+          onchange={(e) =>
+            onApplyCloseToTray(
+              (e.currentTarget as HTMLSelectElement).value === "tray",
+            )}
+        >
+          <option value="tray">{m.settings_close_to_tray_tray()}</option>
+          <option value="quit">{m.settings_close_to_tray_quit()}</option>
         </select>
       </dd>
     </dl>

@@ -3,4 +3,5 @@ pub mod auth;
 pub mod cipher;
 pub mod move_share;
 pub mod ssh;
+pub mod tray;
 pub mod vault;

@@ -38,7 +38,21 @@ pub fn run() {
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .on_window_event(|window, event| {
+            // Close-to-tray hook. The handler is a no-op when the
+            // user disables the preference; otherwise it hides the
+            // window and calls `prevent_close()` so Tauri leaves the
+            // process up. See `commands::tray` for the full story.
+            commands::tray::handle_window_event(window.app_handle(), event);
+        })
         .setup(|app| {
+            // Tray icon + right-click menu (Ouvrir / Verrouiller /
+            // Quitter). Non-fatal if it fails — environments without
+            // a system tray (CI under xvfb, some minimal WMs) just
+            // run without the tray entry, which is the same shape
+            // the app had pre-#38.
+            commands::tray::build_tray(app.handle());
+
             // Auto-lock watchdog. Backend safety net: if the WebView freezes
             // or the JS timer is disabled, the session must still drop after
             // the configured idle window. Polls every 30 s — slow enough to be
@@ -111,6 +125,7 @@ pub fn run() {
             commands::ssh::decrypt_ssh_private_key,
             commands::ssh::generate_ssh_key,
             commands::ssh::ssh_auth_sock,
+            commands::tray::set_close_to_tray,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

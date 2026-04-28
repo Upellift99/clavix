@@ -93,6 +93,8 @@ export const api = {
 
   setAutoLockMinutes: (minutes: number) => invoke<void>("set_auto_lock_minutes", { minutes }),
 
+  setCloseToTray: (value: boolean) => invoke<void>("set_close_to_tray", { value }),
+
   webauthnSignChallenge: (challengeJson: string) =>
     invoke<string>("webauthn_sign_challenge", { challengeJson }),
 
