@@ -57,8 +57,13 @@ jobs:
       - name: cargo clippy (strict)
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: cargo test (lib)
-        run: cargo test --lib --locked
+      # `--tests` covers both lib unit tests AND integration tests
+      # under `src-tauri/tests/` (refresh_token_endpoint,
+      # persisted_session_disk, token_refresh_lifecycle). The previous
+      # `--lib` form left the integration suite — load-bearing for
+      # the #24 session-lifecycle scenarios — silently uncovered.
+      - name: cargo test (lib + integration)
+        run: cargo test --tests --locked
 
       - name: Install cargo-audit
         uses: taiki-e/install-action@v2
