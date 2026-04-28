@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 use parking_lot::Mutex;
@@ -32,6 +33,21 @@ pub struct AppState {
     /// two IPC calls. Cleared on success, on auth failure, on
     /// `cancel_two_factor`, and after the TTL elapses.
     pub pending_2fa: Mutex<Option<PendingTwoFactor>>,
+    /// Mirrors the renderer's `prefs.closeToTray`. Read by the
+    /// `WindowEvent::CloseRequested` handler in `lib.rs::run` to
+    /// decide whether the X button hides the window into the tray
+    /// (true, default) or quits the process (false). An atomic so
+    /// the window-event handler can read it without taking a mutex
+    /// — close events fire on the main loop and any contention here
+    /// would block UI input. Updated through
+    /// `commands::tray::set_close_to_tray`.
+    pub close_to_tray: AtomicBool,
+    /// Same shape as `close_to_tray` but for the `_` minimise
+    /// button: when true (default), a minimise transition is
+    /// converted to a hide-into-tray. When false, the window goes
+    /// to the taskbar like any other app. Read by the
+    /// `WindowEvent::Resized` handler.
+    pub minimize_to_tray: AtomicBool,
 }
 
 impl Default for AppState {
@@ -42,6 +58,12 @@ impl Default for AppState {
             last_activity: Mutex::new(Instant::now()),
             auto_lock_minutes: Mutex::new(None),
             pending_2fa: Mutex::new(None),
+            // Default to true so users on a fresh install land on the
+            // common password-manager behaviour (KeePassXC, Bitwarden
+            // Desktop): X button hides into the tray. The renderer
+            // overwrites this from localStorage on bootstrap.
+            close_to_tray: AtomicBool::new(true),
+            minimize_to_tray: AtomicBool::new(true),
         }
     }
 }

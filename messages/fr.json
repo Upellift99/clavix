@@ -281,6 +281,13 @@
   "stats_auto_lock_minutes": "{count} min",
   "stats_auto_lock_hour": "1 h",
 
+  "settings_close_to_tray": "Bouton Fermer",
+  "settings_close_to_tray_tray": "Réduire dans la zone de notification",
+  "settings_close_to_tray_quit": "Quitter Clavix",
+  "settings_minimize_to_tray": "Bouton Réduire",
+  "settings_minimize_to_tray_tray": "Réduire dans la zone de notification",
+  "settings_minimize_to_tray_taskbar": "Réduire dans la barre des tâches",
+
   "clipboard_toast": "Presse-papier ({label}) effacé dans {seconds}s",
 
   "type_login": "Login",
