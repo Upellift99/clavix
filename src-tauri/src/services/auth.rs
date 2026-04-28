@@ -3,7 +3,6 @@ use std::time::{Duration, Instant};
 
 use rsa::RsaPrivateKey;
 use secrecy::SecretString;
-use tauri::State;
 
 use crate::api::{DeviceInfo, VaultwardenClient};
 use crate::crypto::{
@@ -106,7 +105,12 @@ pub fn store_session(
 /// Refresh `tokens.access_token` if it is within 60 seconds of expiring.
 /// No-op otherwise. Commands that hit the Vaultwarden API call this before
 /// the first access-token use.
-pub async fn ensure_fresh_tokens(state: &State<'_, AppState>) -> Result<()> {
+///
+/// Takes `&AppState` rather than Tauri's `State<'_, AppState>` so the
+/// function is reachable from `tests/`. Tauri command call sites pass
+/// `&state` and the `State<'r, T>: Deref<Target = T>` impl coerces to
+/// `&AppState` for free, so no call-site change is required.
+pub async fn ensure_fresh_tokens(state: &AppState) -> Result<()> {
     crate::state::mark_activity(state);
     let (client, refresh) = {
         let guard = state.session.lock();

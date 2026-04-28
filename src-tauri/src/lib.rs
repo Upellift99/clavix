@@ -11,7 +11,12 @@ pub mod error;
 pub mod models;
 pub mod services;
 mod ssh_agent;
-mod state;
+// `state` is widened to `pub` so the integration test in
+// `src-tauri/tests/token_refresh_lifecycle.rs` (issue #24) can
+// build an `AppState` + `Session` from outside the Tauri runtime
+// — `ensure_fresh_tokens` operates on a real session lock and
+// can't be exercised end-to-end without one.
+pub mod state;
 // `store` is widened to `pub` for the integration tests in
 // `src-tauri/tests/persisted_session_disk.rs` (issue #24): the
 // session-lifecycle scenarios listed in #9 that don't fit a WDIO
