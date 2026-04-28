@@ -128,6 +128,11 @@
       console.warn("[clavix] setCloseToTray failed:", e);
     });
   });
+  $effect(() => {
+    api.setMinimizeToTray(prefs.minimizeToTray).catch((e) => {
+      console.warn("[clavix] setMinimizeToTray failed:", e);
+    });
+  });
 
   onMount(async () => {
     prefs.bootstrap();
@@ -284,10 +289,12 @@
     themePref={prefs.themePref}
     autoLockMinutes={prefs.autoLockMinutes}
     closeToTray={prefs.closeToTray}
+    minimizeToTray={prefs.minimizeToTray}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
     onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
     onApplyCloseToTray={(v) => prefs.setCloseToTray(v)}
+    onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
     onCopySocketPath={copySshAgentSocket}
   />
 {/if}

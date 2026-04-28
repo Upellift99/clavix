@@ -41,6 +41,18 @@ pub fn set_close_to_tray(state: State<'_, AppState>, value: bool) -> Result<()> 
     Ok(())
 }
 
+/// Sibling of `set_close_to_tray` for the `_` minimise button.
+/// Decides whether minimising hides into the tray (true, default)
+/// or sends the window to the taskbar (false). Same hydration
+/// pattern from the renderer.
+#[tauri::command]
+pub fn set_minimize_to_tray(state: State<'_, AppState>, value: bool) -> Result<()> {
+    state
+        .minimize_to_tray
+        .store(value, std::sync::atomic::Ordering::Relaxed);
+    Ok(())
+}
+
 /// Wire the tray icon onto an `AppHandle`. Failure is non-fatal: a
 /// CI runner or a Linux desktop without a system tray (xvfb, plain
 /// Sway without `waybar` etc.) just gets a working app without the
@@ -136,24 +148,60 @@ fn lock_session(app: &AppHandle) {
     crate::services::auth::clear_pending_two_factor(&state);
 }
 
-/// Wire `WindowEvent::CloseRequested` to the renderer-mirrored
-/// `close_to_tray` flag: if it's true (default), hide the window
-/// into the tray and call `prevent_close` so Tauri doesn't tear the
-/// app down. If false, this is a no-op and the default close path
-/// runs as usual.
+/// Two-branch window-event hook:
+///
+///   - `CloseRequested` → if `close_to_tray` is set, hide the
+///     window and call `prevent_close()` so Tauri leaves the
+///     process up.
+///   - `Resized` → on a minimise transition (`is_minimized()` true
+///     after the resize), if `minimize_to_tray` is set, unminimise
+///     + hide so the window lives in the tray rather than the
+///     taskbar.
+///
+/// Both branches no-op when the corresponding preference is off.
+/// Native cross-platform minimise detection has no dedicated
+/// Tauri/tao event variant — `Resized` fires on every minimise
+/// path on Windows and most Linux WMs, and `is_minimized()` then
+/// confirms the transition. macOS minimise (cmd-M to dock) is best
+/// effort: the Resized signal there isn't reliable, so the
+/// preference may not always intercept on macOS until the upstream
+/// API exposes a proper minimise event. Documented for the user.
 pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
-    let WindowEvent::CloseRequested { api, .. } = event else {
-        return;
-    };
-    let state = app.state::<AppState>();
-    if !state
-        .close_to_tray
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        return;
+    match event {
+        WindowEvent::CloseRequested { api, .. } => {
+            let state = app.state::<AppState>();
+            if !state
+                .close_to_tray
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                return;
+            }
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                let _ = window.hide();
+            }
+            api.prevent_close();
+        }
+        WindowEvent::Resized(_) => {
+            let state = app.state::<AppState>();
+            if !state
+                .minimize_to_tray
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                return;
+            }
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                if matches!(window.is_minimized(), Ok(true)) {
+                    // Unminimise first so `hide()` doesn't have to
+                    // race the OS minimise animation. Cheap on
+                    // Windows; a brief flicker on Linux WMs that
+                    // animate minimise is acceptable for the
+                    // intended UX (the window disappears into the
+                    // tray, not the taskbar).
+                    let _ = window.unminimize();
+                    let _ = window.hide();
+                }
+            }
+        }
+        _ => {}
     }
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-        let _ = window.hide();
-    }
-    api.prevent_close();
 }

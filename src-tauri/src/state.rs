@@ -42,6 +42,12 @@ pub struct AppState {
     /// would block UI input. Updated through
     /// `commands::tray::set_close_to_tray`.
     pub close_to_tray: AtomicBool,
+    /// Same shape as `close_to_tray` but for the `_` minimise
+    /// button: when true (default), a minimise transition is
+    /// converted to a hide-into-tray. When false, the window goes
+    /// to the taskbar like any other app. Read by the
+    /// `WindowEvent::Resized` handler.
+    pub minimize_to_tray: AtomicBool,
 }
 
 impl Default for AppState {
@@ -57,6 +63,7 @@ impl Default for AppState {
             // Desktop): X button hides into the tray. The renderer
             // overwrites this from localStorage on bootstrap.
             close_to_tray: AtomicBool::new(true),
+            minimize_to_tray: AtomicBool::new(true),
         }
     }
 }

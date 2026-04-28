@@ -126,6 +126,7 @@ pub fn run() {
             commands::ssh::generate_ssh_key,
             commands::ssh::ssh_auth_sock,
             commands::tray::set_close_to_tray,
+            commands::tray::set_minimize_to_tray,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

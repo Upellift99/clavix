@@ -7,6 +7,7 @@ const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
 const DETAIL_HEIGHT_STORAGE_KEY = "clavix.detailHeight";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
 const CLOSE_TO_TRAY_STORAGE_KEY = "clavix.closeToTray";
+const MINIMIZE_TO_TRAY_STORAGE_KEY = "clavix.minimizeToTray";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 
@@ -33,6 +34,7 @@ const AUTO_LOCK_DEFAULT_MINUTES = 10;
 // shape as KeePassXC and Bitwarden Desktop. Users that want the X
 // to quit flip this off in Préférences.
 const CLOSE_TO_TRAY_DEFAULT = true;
+const MINIMIZE_TO_TRAY_DEFAULT = true;
 
 export class PrefsController {
   currentLocale = $state<Locale>("fr");
@@ -41,6 +43,7 @@ export class PrefsController {
   detailHeight = $state<number>(DETAIL_HEIGHT_DEFAULT);
   autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
   closeToTray = $state<boolean>(CLOSE_TO_TRAY_DEFAULT);
+  minimizeToTray = $state<boolean>(MINIMIZE_TO_TRAY_DEFAULT);
   lastActivityAt = $state<number>(Date.now());
   visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
 
@@ -93,6 +96,10 @@ export class PrefsController {
       // installs) keeps the hide-to-tray behaviour.
       if (savedTray === "false") {
         this.closeToTray = false;
+      }
+      const savedMinTray = localStorage.getItem(MINIMIZE_TO_TRAY_STORAGE_KEY);
+      if (savedMinTray === "false") {
+        this.minimizeToTray = false;
       }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
@@ -188,6 +195,15 @@ export class PrefsController {
     this.closeToTray = value;
     try {
       localStorage.setItem(CLOSE_TO_TRAY_STORAGE_KEY, String(value));
+    } catch {
+      // ignore
+    }
+  }
+
+  setMinimizeToTray(value: boolean) {
+    this.minimizeToTray = value;
+    try {
+      localStorage.setItem(MINIMIZE_TO_TRAY_STORAGE_KEY, String(value));
     } catch {
       // ignore
     }

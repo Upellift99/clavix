@@ -284,6 +284,9 @@
   "settings_close_to_tray": "Close button",
   "settings_close_to_tray_tray": "Hide to tray",
   "settings_close_to_tray_quit": "Quit Clavix",
+  "settings_minimize_to_tray": "Minimise button",
+  "settings_minimize_to_tray_tray": "Hide to tray",
+  "settings_minimize_to_tray_taskbar": "Minimise to taskbar",
 
   "clipboard_toast": "Clipboard ({label}) will be cleared in {seconds}s",
 

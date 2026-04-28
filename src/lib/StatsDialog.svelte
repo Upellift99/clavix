@@ -10,10 +10,12 @@
     themePref: ThemePref;
     autoLockMinutes: number;
     closeToTray: boolean;
+    minimizeToTray: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
     onApplyCloseToTray: (value: boolean) => void;
+    onApplyMinimizeToTray: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -23,10 +25,12 @@
     themePref,
     autoLockMinutes,
     closeToTray,
+    minimizeToTray,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
     onApplyCloseToTray,
+    onApplyMinimizeToTray,
     onCopySocketPath,
   }: Props = $props();
 
@@ -216,6 +220,19 @@
         >
           <option value="tray">{m.settings_close_to_tray_tray()}</option>
           <option value="quit">{m.settings_close_to_tray_quit()}</option>
+        </select>
+      </dd>
+      <dt>{m.settings_minimize_to_tray()}</dt>
+      <dd>
+        <select
+          value={minimizeToTray ? "tray" : "taskbar"}
+          onchange={(e) =>
+            onApplyMinimizeToTray(
+              (e.currentTarget as HTMLSelectElement).value === "tray",
+            )}
+        >
+          <option value="tray">{m.settings_minimize_to_tray_tray()}</option>
+          <option value="taskbar">{m.settings_minimize_to_tray_taskbar()}</option>
         </select>
       </dd>
     </dl>

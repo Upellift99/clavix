@@ -95,6 +95,9 @@ export const api = {
 
   setCloseToTray: (value: boolean) => invoke<void>("set_close_to_tray", { value }),
 
+  setMinimizeToTray: (value: boolean) =>
+    invoke<void>("set_minimize_to_tray", { value }),
+
   webauthnSignChallenge: (challengeJson: string) =>
     invoke<string>("webauthn_sign_challenge", { challengeJson }),
 
