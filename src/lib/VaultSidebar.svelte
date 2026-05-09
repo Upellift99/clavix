@@ -60,6 +60,7 @@
   let menuNode = $state<TreeNode | null>(null);
   let menuX = $state(0);
   let menuY = $state(0);
+  let menuEl = $state<HTMLDivElement | null>(null);
   let renamingNode = $state<TreeNode | null>(null);
   let renameValue = $state("");
 
@@ -76,6 +77,20 @@
     menuX = event.clientX;
     menuY = event.clientY;
   }
+
+  // Tug the menu back inside the viewport once it has been laid out.
+  // Right-clicking near the right or bottom edge of the window would
+  // otherwise paint the menu past the edge and clip its actions.
+  // Reading menuEl after menuNode flips reactively gives us the post-
+  // paint rect for free; we only adjust if it actually overflows.
+  $effect(() => {
+    if (menuNode === null || menuEl === null) return;
+    const rect = menuEl.getBoundingClientRect();
+    const overflowX = rect.right - window.innerWidth;
+    const overflowY = rect.bottom - window.innerHeight;
+    if (overflowX > 0) menuX = Math.max(8, menuX - overflowX - 8);
+    if (overflowY > 0) menuY = Math.max(8, menuY - overflowY - 8);
+  });
 
   function closeContextMenu() {
     menuNode = null;
@@ -325,6 +340,7 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="tree-menu-backdrop" onclick={closeContextMenu} oncontextmenu={(e) => e.preventDefault()}></div>
   <div
+    bind:this={menuEl}
     class="tree-menu"
     role="menu"
     style="left: {menuX}px; top: {menuY}px;"
