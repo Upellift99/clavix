@@ -5,6 +5,84 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-05-09
+
+A pure bug-fix release that lands a session of UI testing — every
+visible anomaly the user could find without leaving the main flow.
+Patch bump because no IPC contract changes and `session.json` from
+0.2.1 unlocks unchanged.
+
+### Fixed
+- **Native context menu no longer leaks outside text fields**. Right-
+  clicking anywhere except a folder in the sidebar used to surface
+  WebKitGTK's default menu (Reload / Back / Forward / Inspect Element)
+  on top of the app — wrong for a packaged password manager. A global
+  `oncontextmenu` on the root layout now suppresses the native menu
+  except inside `<input>`, `<textarea>` or contenteditable surfaces, so
+  Paste / Copy / Spell-check still work where it matters. The folder
+  right-click menu in `VaultSidebar` is unaffected — its handler runs
+  in bubble phase first and is idempotent w.r.t. preventDefault.
+- **Folder context menu clamps inside the viewport**. Right-clicking
+  a folder near the bottom or right edge used to paint the
+  Renommer / Supprimer menu past the viewport edge, clipping the
+  Supprimer row. We measure the menu after layout and tug
+  `menuX` / `menuY` back inside with an 8 px inset; re-clamps when the
+  user right-clicks a different folder while the menu is already open.
+- **Escape closes custom dialogs from inside the panel**. CipherEditor,
+  ImportDialog, ExportDialog and QrScanner all use a backdrop+panel
+  layout where the panel calls `e.stopPropagation()` on keydown to
+  keep editing keystrokes from triggering the global vault shortcuts.
+  But that swallowed Escape too, so pressing it while focused on any
+  input inside one of those dialogs did *nothing* — only the native
+  `<dialog>`-based ones (Audit / Generator / Stats) closed because the
+  browser handles Escape there. Each panel now calls `onCancel()` on
+  Escape itself before stopping propagation; non-Escape keystrokes
+  still don't escape the panel.
+- **Force-dark theme stops painting every styled button primary
+  blue**. The user-toggled dark theme rules in `base.css` were written
+  as `:root.force-dark <tag>` (specificity 0,2,1), higher than
+  Svelte-scoped overrides like `.tb-btn { background: transparent }`
+  (0,2,0). System dark mode worked because `@media`-wrapped rules stay
+  at 0,0,1 and lose to scoped classes — the bug only surfaced when
+  toggling the theme to "Dark" inside the app. Every styled `<button>`
+  — toolbar, cipher rows, column headers, sidebar nodes, detail
+  copy/eye icons — got painted in the global primary blue (#396cd8).
+  Wrap the ancestor in `:where(...)` so all force-dark rules collapse
+  to the same specificity as their `@media` counterparts and scoped
+  overrides win the cascade exactly as they do in light mode.
+- **Dialog checkbox rows on a single line**. `base.css` sets `label
+  { flex-direction: column }` (correct for the auth/login forms whose
+  inputs sit below their text), but the dialog checkbox rows reused
+  the same `<label>` wrapping with only `display: flex` overridden.
+  That stacked the checkbox above its label text in GeneratorDialog
+  (5 checkboxes — Majuscules / Minuscules / Chiffres / Symboles /
+  Éviter ambigus), ImportDialog ("Créer dossiers manquants") and
+  ExportDialog ("Inclure logins" / "Inclure notes"). Force
+  `flex-direction: row` on each definition; ExportDialog had no scoped
+  `.checkbox-row` style at all and silently fell back to base — fixed
+  there too.
+- **Settings dialog scrolls inside its frame instead of spilling
+  beyond the viewport**. Native `<dialog>` elements have a UA-default
+  max-height (~viewport - 1 rem) but their default overflow is
+  visible, so the long Settings dialog (Coffre + Préférences + SSH
+  agent + YubiKey unlock) silently spilled past the bottom edge of the
+  window on shorter screens. Cap `.stats-dialog` at
+  `calc(100vh - 2rem)` and add `overflow-y: auto`. Audit and Generator
+  inherit harmless behaviour — their content is short and their inner
+  lists already had their own `max-height`.
+- **ClipboardToast through paraglide**. The clipboard countdown toast
+  (*Presse-papier (titulaire) effacé dans 30s*) and its *Effacer
+  maintenant* button were hardcoded in French, so users on the English
+  locale saw French strings whenever a copy timer was active. Both
+  keys (`clipboard_toast`, `action_clear_now`) already existed in
+  `messages/fr.json` and `messages/en.json` — the toast just never
+  migrated to paraglide.
+- **KDBX password label associated with its input**. The label sat
+  above the password input row inside the KDBX import flow but had
+  no `for=` attribute, so screen readers couldn't follow the
+  label-to-control link and clicking the label didn't focus the
+  field. Wired with `id="import-kdbx-password"` / `for=`.
+
 ## [0.2.1] — 2026-04-28
 
 ### Added
