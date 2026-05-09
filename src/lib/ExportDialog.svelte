@@ -221,6 +221,20 @@
     gap: 0.3rem;
   }
 
+  /* The label rows here were unstyled and inherited base.css
+     `label { flex-direction: column }`, stacking the checkbox above
+     its text. ImportDialog and CipherEditor define this class in
+     their own scoped <style>; reuse the same one here to keep the
+     two filter rows on a single line each. */
+  .checkbox-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.2rem 0;
+    font-size: 0.9rem;
+  }
+
   .export-summary {
     font-size: 0.88rem;
     margin: 0.4rem 0 0.6rem;

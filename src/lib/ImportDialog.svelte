@@ -342,6 +342,9 @@
 
   .checkbox-row {
     display: flex;
+    /* Override base.css `label { flex-direction: column }` so the
+       checkbox sits to the left of the label, not stacked above it. */
+    flex-direction: row;
     align-items: center;
     gap: 0.5rem;
     margin: 0.4rem 0;

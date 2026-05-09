@@ -275,6 +275,9 @@
 
 .generator-check {
   display: flex;
+  /* Override base.css `label { flex-direction: column }` — without
+     this the checkbox stacks on top of the label text. */
+  flex-direction: row;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.3rem;
