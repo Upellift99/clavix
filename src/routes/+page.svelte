@@ -110,6 +110,25 @@
     onError: (e) => (vault.error = formatError(e)),
   });
 
+  // Suppress the WebKitGTK native context menu (Reload / Back / Forward
+  // / Inspect Element) everywhere except inside text-editable surfaces,
+  // so users keep Paste / Copy / Spell-check on inputs, textareas and
+  // contenteditable nodes. The folder-tree right-click in VaultSidebar
+  // already calls preventDefault on its own; this handler covers every
+  // other surface (cipher list, detail, dialogs, toolbar, empty space)
+  // where the default debug menu would otherwise leak through.
+  function suppressNativeContextMenu(event: MouseEvent) {
+    const t = event.target;
+    if (
+      t instanceof HTMLInputElement ||
+      t instanceof HTMLTextAreaElement ||
+      (t instanceof HTMLElement && t.isContentEditable)
+    ) {
+      return;
+    }
+    event.preventDefault();
+  }
+
   setupAutoLock({
     getMinutes: () => prefs.autoLockMinutes,
     getLastActivityAt: () => prefs.lastActivityAt,
@@ -162,7 +181,7 @@
   const wide = $derived(auth.phase === "loggedIn" && vault.summary !== null);
 </script>
 
-<svelte:window onkeydown={handleGlobalKeydown} />
+<svelte:window onkeydown={handleGlobalKeydown} oncontextmenu={suppressNativeContextMenu} />
 
 <main class="container" class:wide>
   {#key prefs.currentLocale}
