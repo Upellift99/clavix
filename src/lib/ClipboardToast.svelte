@@ -1,4 +1,5 @@
 <script lang="ts">
+  import * as m from "$lib/paraglide/messages";
   import type { ClipboardController } from "./clipboard.svelte";
 
   type Props = {
@@ -11,10 +12,13 @@
 {#if clipboard.secondsLeft !== null}
   <aside class="clipboard-toast" role="status">
     <span>
-      Presse-papier ({clipboard.label}) effacé dans {clipboard.secondsLeft}s
+      {m.clipboard_toast({
+        label: clipboard.label ?? "",
+        seconds: String(clipboard.secondsLeft),
+      })}
     </span>
     <button type="button" class="secondary small" onclick={() => clipboard.clearNow()}>
-      Effacer maintenant
+      {m.action_clear_now()}
     </button>
   </aside>
 {/if}
