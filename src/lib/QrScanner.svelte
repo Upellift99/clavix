@@ -104,7 +104,15 @@
     <div
       class="qr-panel"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        // Escape closes the scanner; otherwise stopPropagation
+        // swallowed it before the backdrop's keydown handler ran.
+        if (e.key === "Escape") {
+          stop();
+          onCancel();
+        }
+        e.stopPropagation();
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="qr-title"

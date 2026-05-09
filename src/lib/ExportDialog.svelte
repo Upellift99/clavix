@@ -132,7 +132,14 @@
     <div
       class="import-panel"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        // Escape must reach a handler on this element — without that,
+        // stopPropagation prevented the backdrop's onkeydown from
+        // closing the dialog when the user was focused on a checkbox
+        // or button inside the panel.
+        if (e.key === "Escape" && !exporting) onCancel();
+        e.stopPropagation();
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="export-title"

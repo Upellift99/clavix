@@ -169,7 +169,14 @@
     <div
       class="import-panel"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        // Let Escape bubble to *us* so it closes the dialog when the
+        // user is focused inside the file picker, KDBX-password input
+        // or one of the import preview rows. stopPropagation alone
+        // swallowed it before the backdrop's keydown handler ran.
+        if (e.key === "Escape" && !importing) onCancel();
+        e.stopPropagation();
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-title"

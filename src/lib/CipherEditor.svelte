@@ -325,7 +325,16 @@
     <div
       class="editor-panel"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        // Escape needs to bubble *to the panel* so the dialog actually
+        // closes when the user is focused inside an input. Without this,
+        // stopPropagation prevented the backdrop's keydown handler from
+        // ever seeing it. We still swallow non-Escape keystrokes so the
+        // global vault shortcuts (Ctrl+L, /, etc.) don't fire while
+        // editing a field.
+        if (e.key === "Escape") onCancel();
+        e.stopPropagation();
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="editor-title"
