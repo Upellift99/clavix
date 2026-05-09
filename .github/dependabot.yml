@@ -21,6 +21,16 @@ updates:
     # ships stable on crates.io — Dependabot will then re-open all the
     # major bumps as one coherent group via the `rust-crypto` group
     # below. Past blocked attempts: PR #31 (group bump), PR #35 (rand).
+    #
+    # `tauri*` is fully ignored: tauri-action's smoke E2E rejects the
+    # build when the Cargo `tauri` and npm `@tauri-apps/*` versions
+    # drift on major/minor, and Dependabot can't bump both ecosystems
+    # atomically without losing the per-ecosystem groups (a single
+    # update entry can't be both grouped and split via
+    # multi-ecosystem-group, and two entries on the same ecosystem +
+    # directory + target-branch is rejected by Dependabot). Tauri
+    # bumps are reviewed manually so cargo and npm move together.
+    # Past blocked attempts: PR #54 (tauri group), PR #56 (tauri 2.11.1).
     ignore:
       - dependency-name: rand
         update-types: ["version-update:semver-major"]
@@ -38,6 +48,7 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: cbc
         update-types: ["version-update:semver-major"]
+      - dependency-name: "tauri*"
     groups:
       rust-crypto:
         patterns:
@@ -58,9 +69,6 @@ updates:
           - tokio*
           - url
           - uuid
-      tauri:
-        patterns:
-          - tauri*
 
   - package-ecosystem: npm
     directory: /
@@ -81,17 +89,20 @@ updates:
     # always lands E2E red. Past blocked attempt: PR #43 (mocha-framework
     # 7→9 alone). When we choose to upgrade the whole family, lift this
     # entry and let the `wdio` group below batch the bump.
+    #
+    # `@tauri-apps/*` is mirrored to the cargo `tauri*` ignore — see
+    # the comment on that block. The two ecosystems must move
+    # together, so we manage Tauri bumps by hand. Past blocked
+    # attempt: PR #53 (tauri-npm group).
     ignore:
       - dependency-name: "@wdio/*"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@tauri-apps/*"
     groups:
       svelte:
         patterns:
           - svelte*
           - "@sveltejs/*"
-      tauri-npm:
-        patterns:
-          - "@tauri-apps/*"
       paraglide:
         patterns:
           - "@inlang/*"
