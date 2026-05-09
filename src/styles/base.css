@@ -310,25 +310,39 @@ code {
   .badge { background: #1f2a54; color: #aabaff; }
 }
 
-:root.force-dark {
+/*
+ * The user-toggled `force-dark` rules used to be written as
+ * `:root.force-dark <tag>` (specificity 0,2,1), which silently beat
+ * Svelte-scoped component overrides like `.tb-btn { background:
+ * transparent }` (0,2,0). The `@media (prefers-color-scheme: dark)`
+ * block above is just `<tag>` (0,0,1), so system-dark mode worked,
+ * but flipping the in-app theme to "Dark" left every styled <button>
+ * (toolbar, cipher rows, column headers, sidebar nodes, copy icons)
+ * painted in the global primary blue.
+ *
+ * Wrap the ancestor in :where() so all the rules below collapse to
+ * the same specificity as the @media block (0,0,1 / 0,1,1) and
+ * scoped component overrides win as they always have in light mode.
+ */
+:where(:root.force-dark) {
   color: #f6f6f6;
   background-color: #1e1e1e;
 }
-:root.force-dark .subtitle,
-:root.force-dark h3 small,
-:root.force-dark .hint { color: #aaa; }
-:root.force-dark h3 { color: #ccc; }
-:root.force-dark form,
-:root.force-dark .box { background: #2b2b2b; box-shadow: none; }
-:root.force-dark label { color: #ccc; }
-:root.force-dark input,
-:root.force-dark button,
-:root.force-dark select,
-:root.force-dark textarea { background: #1e1e1e; color: #f6f6f6; border-color: #3a3a3a; }
-:root.force-dark button { background: #396cd8; border-color: #396cd8; }
-:root.force-dark button.secondary { background: #2b2b2b; color: #ddd; border-color: #3a3a3a; }
-:root.force-dark dt { color: #ccc; }
-:root.force-dark .box.error pre { color: #ff8a8a; }
-:root.force-dark pre { background: #181818; }
-:root.force-dark code { background: #333; }
-:root.force-dark .badge { background: #1f2a54; color: #aabaff; }
+:where(:root.force-dark) .subtitle,
+:where(:root.force-dark) h3 small,
+:where(:root.force-dark) .hint { color: #aaa; }
+:where(:root.force-dark) h3 { color: #ccc; }
+:where(:root.force-dark) form,
+:where(:root.force-dark) .box { background: #2b2b2b; box-shadow: none; }
+:where(:root.force-dark) label { color: #ccc; }
+:where(:root.force-dark) input,
+:where(:root.force-dark) button,
+:where(:root.force-dark) select,
+:where(:root.force-dark) textarea { background: #1e1e1e; color: #f6f6f6; border-color: #3a3a3a; }
+:where(:root.force-dark) button { background: #396cd8; border-color: #396cd8; }
+:where(:root.force-dark) button.secondary { background: #2b2b2b; color: #ddd; border-color: #3a3a3a; }
+:where(:root.force-dark) dt { color: #ccc; }
+:where(:root.force-dark) .box.error pre { color: #ff8a8a; }
+:where(:root.force-dark) pre { background: #181818; }
+:where(:root.force-dark) code { background: #333; }
+:where(:root.force-dark) .badge { background: #1f2a54; color: #aabaff; }
