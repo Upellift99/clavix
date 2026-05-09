@@ -4,6 +4,14 @@
   padding: 1.25rem 1.5rem;
   min-width: 320px;
   max-width: 480px;
+  /* Native <dialog>'s user-agent max-height (~viewport - 1rem) caps the
+     box, but its default overflow is visible — long content (the Stats
+     dialog is the worst offender: account info + preferences + SSH agent
+     + YubiKey unlock) silently spills past the bottom edge of the box
+     and the viewport. Cap a touch tighter than the UA default and let
+     the dialog scroll inside its frame. */
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
