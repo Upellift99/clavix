@@ -198,12 +198,13 @@
 
       {#if pendingKdbxFile}
         <form class="kdbx-password-row" onsubmit={decryptKdbx}>
-          <label class="kdbx-password-label">
+          <label class="kdbx-password-label" for="import-kdbx-password">
             {m.import_kdbx_password_label()}
           </label>
           <div class="kdbx-password-input-row">
             <!-- svelte-ignore a11y_autofocus -->
             <input
+              id="import-kdbx-password"
               type="password"
               bind:value={kdbxPassword}
               autofocus
