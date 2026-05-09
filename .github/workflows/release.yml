@@ -160,15 +160,28 @@ jobs:
 
           # CHANGELOG sections are headed with `## [X.Y.Z]`. Strip the
           # leading "v" from the tag to match. Pull the lines between
-          # this version's header and the next one, capped at 80 lines
-          # so we stay well below Discord's 4096-char description limit
-          # without risking a mid-UTF-8-codepoint truncation.
+          # this version's header and the next one, capped at 3800
+          # characters (Discord embed description limit is 4096; we
+          # leave headroom for jq escaping and the trailing "see full
+          # changelog" line). Cutting at line boundaries keeps the
+          # truncation UTF-8 safe — gawk's length() is char-aware
+          # under a UTF-8 locale, which the runner provides.
           VERSION="${TAG#v}"
-          HIGHLIGHTS=$(awk -v ver="$VERSION" '
-            BEGIN { found = 0; lines = 0 }
+          HIGHLIGHTS=$(LC_ALL=C.UTF-8 awk -v ver="$VERSION" -v max=3800 '
+            BEGIN { found = 0; total = 0 }
             $0 ~ "^## \\[" ver "\\]" { found = 1; next }
             found && /^## \[/ { exit }
-            found && lines < 80 { print; lines++ }
+            found {
+              extra = length($0) + 1
+              if (total + extra > max) {
+                print "…"
+                print ""
+                print "(see CHANGELOG.md for the full list)"
+                exit
+              }
+              print
+              total += extra
+            }
           ' CHANGELOG.md)
 
           if [ -z "$(printf '%s' "$HIGHLIGHTS" | tr -d '[:space:]')" ]; then
