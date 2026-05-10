@@ -17,7 +17,14 @@ jobs:
   rust:
     name: Rust (fmt + clippy + audit)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Cold-cache compile of the lib + integration tests pushes past
+    # 15 min when a Cargo.lock or Tauri pin bump invalidates
+    # Swatinem/rust-cache (last seen on the 0.2.3 release tag, where
+    # the run was killed mid-compile during `cargo test`). 25 min
+    # gives clippy ~14 min + test compile/run ~8 min + audit ~2 min
+    # of headroom on the worst day. Drop back if the warm-cache norm
+    # falls under 10 min again.
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: src-tauri
