@@ -30,11 +30,17 @@ export const DETAIL_HEIGHT_MIN = 160;
 export const DETAIL_HEIGHT_MAX = 900;
 const DETAIL_HEIGHT_DEFAULT = 320;
 const AUTO_LOCK_DEFAULT_MINUTES = 10;
-// Default matches the Rust mirror: X button hides into tray. Same
-// shape as KeePassXC and Bitwarden Desktop. Users that want the X
-// to quit flip this off in Préférences.
-const CLOSE_TO_TRAY_DEFAULT = true;
-const MINIMIZE_TO_TRAY_DEFAULT = true;
+// Hide-to-tray default matches the Rust mirror: on for Windows/macOS
+// (KeePassXC, Bitwarden Desktop shape), off for Linux. GNOME ships
+// tray support behind an extension whose runtime state is unreliable
+// (ubuntu-appindicators sits enabled-but-inactive on a stock Ubuntu
+// session, Wayland restricts SNI further), so defaulting to hide on
+// Linux strands the window with no way back. Users with a working
+// tray can flip it on in Préférences.
+const IS_LINUX =
+  typeof navigator !== "undefined" && /Linux/i.test(navigator.userAgent);
+const CLOSE_TO_TRAY_DEFAULT = !IS_LINUX;
+const MINIMIZE_TO_TRAY_DEFAULT = !IS_LINUX;
 
 export class PrefsController {
   currentLocale = $state<Locale>("fr");
@@ -90,15 +96,20 @@ export class PrefsController {
           this.autoLockMinutes = parsed;
         }
       }
+      // Honour an explicit stored value either way; absence keeps the
+      // platform default (off on Linux, on elsewhere) so a user who
+      // turned hide-to-tray on under a working tray keeps it across
+      // restarts even on Linux.
       const savedTray = localStorage.getItem(CLOSE_TO_TRAY_STORAGE_KEY);
-      // Only flip the default when localStorage explicitly says
-      // "false" — anything else (including missing key for fresh
-      // installs) keeps the hide-to-tray behaviour.
-      if (savedTray === "false") {
+      if (savedTray === "true") {
+        this.closeToTray = true;
+      } else if (savedTray === "false") {
         this.closeToTray = false;
       }
       const savedMinTray = localStorage.getItem(MINIMIZE_TO_TRAY_STORAGE_KEY);
-      if (savedMinTray === "false") {
+      if (savedMinTray === "true") {
+        this.minimizeToTray = true;
+      } else if (savedMinTray === "false") {
         this.minimizeToTray = false;
       }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);

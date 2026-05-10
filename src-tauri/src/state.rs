@@ -58,12 +58,16 @@ impl Default for AppState {
             last_activity: Mutex::new(Instant::now()),
             auto_lock_minutes: Mutex::new(None),
             pending_2fa: Mutex::new(None),
-            // Default to true so users on a fresh install land on the
-            // common password-manager behaviour (KeePassXC, Bitwarden
-            // Desktop): X button hides into the tray. The renderer
+            // Hide-to-tray by default on Windows/macOS (KeePassXC,
+            // Bitwarden Desktop shape), but off on Linux: GNOME ships
+            // tray support behind an extension whose runtime state is
+            // unreliable (ubuntu-appindicators is enabled-but-inactive
+            // on a stock Ubuntu session, and Wayland restricts SNI
+            // further). Defaulting to hide on Linux strands users with
+            // an invisible window and no way back. The renderer
             // overwrites this from localStorage on bootstrap.
-            close_to_tray: AtomicBool::new(true),
-            minimize_to_tray: AtomicBool::new(true),
+            close_to_tray: AtomicBool::new(!cfg!(target_os = "linux")),
+            minimize_to_tray: AtomicBool::new(!cfg!(target_os = "linux")),
         }
     }
 }
