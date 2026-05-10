@@ -5,6 +5,34 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-05-10
+
+A single-fix patch for a Linux desktop trap shipped in 0.2.2: clicking
+the X button could leave the window invisible with no way back. Patch
+bump because no IPC contract changes and `session.json` from 0.2.2
+unlocks unchanged.
+
+### Fixed
+- **X button no longer strands the window into an invisible tray on
+  Linux**. `close_to_tray` and `minimize_to_tray` defaulted to `true`
+  on every platform so the window would hide into the system tray on
+  close/minimise — fine on Windows / macOS, broken on Linux. On stock
+  Ubuntu GNOME the `ubuntu-appindicators` extension can sit
+  *enabled-but-INACTIVE* at runtime; Tauri's `TrayIconBuilder`
+  succeeds and `tray_by_id()` returns `Some`, but GNOME draws nothing
+  in the panel. Result: clicking X hid the window into a tray that
+  didn't exist visually, the process kept running, and the user had
+  no way to bring the window back. Both the Rust mirror
+  (`src-tauri/src/state.rs`) and the renderer default
+  (`src/lib/prefs.svelte.ts`) now key the default off the platform —
+  Linux defaults to *quit*, Windows / macOS keep the hide-to-tray
+  behaviour. Linux users with a working tray (KDE Plasma, a healthy
+  AppIndicator extension) can still flip both toggles on in
+  Préférences and the choice persists. The bootstrap also now honours
+  an explicit `"true"` in `localStorage`, not just `"false"` —
+  required so a Linux user who opted in actually keeps hide-to-tray
+  across restarts.
+
 ## [0.2.2] — 2026-05-09
 
 A pure bug-fix release that lands a session of UI testing — every
