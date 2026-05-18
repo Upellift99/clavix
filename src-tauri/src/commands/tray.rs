@@ -183,12 +183,27 @@ pub fn set_tray_locale(app: AppHandle, locale: String) -> Result<()> {
     Ok(())
 }
 
-fn show_main_window(app: &AppHandle) {
+/// Raise the main window and give it focus. On X11/GNOME Mutter
+/// silently drops `set_focus()` requests coming from a tray click as
+/// focus-stealing prevention — the window does un-hide, but stays
+/// behind whatever was already on top, defeating the whole point of
+/// the tray menu. Briefly toggling always-on-top is the standard
+/// workaround: the WM is forced to put the window above its siblings,
+/// `set_focus()` then succeeds, and releasing the constraint lets the
+/// window participate in normal stacking again. No-op on Windows /
+/// macOS where `set_focus()` alone already raises.
+fn raise_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.show();
         let _ = window.unminimize();
+        let _ = window.set_always_on_top(true);
         let _ = window.set_focus();
+        let _ = window.set_always_on_top(false);
     }
+}
+
+fn show_main_window(app: &AppHandle) {
+    raise_main_window(app);
 }
 
 fn toggle_main_window(app: &AppHandle) {
@@ -198,9 +213,7 @@ fn toggle_main_window(app: &AppHandle) {
                 let _ = window.hide();
             }
             Ok(false) | Err(_) => {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
+                raise_main_window(app);
             }
         }
     }
@@ -226,20 +239,21 @@ fn lock_session(app: &AppHandle) {
     crate::services::auth::clear_pending_two_factor(&state);
 }
 
-/// Two-branch window-event hook. On `CloseRequested`: if
-/// `close_to_tray` is set, hide the window and call
-/// `prevent_close()` so Tauri leaves the process up. On `Resized`:
-/// on a minimise transition (`is_minimized()` true after the
-/// resize), if `minimize_to_tray` is set, unminimise + hide so the
-/// window lives in the tray rather than the taskbar. Both branches
-/// no-op when the corresponding preference is off.
-/// Native cross-platform minimise detection has no dedicated
-/// Tauri/tao event variant — `Resized` fires on every minimise
-/// path on Windows and most Linux WMs, and `is_minimized()` then
-/// confirms the transition. macOS minimise (cmd-M to dock) is best
-/// effort: the Resized signal there isn't reliable, so the
-/// preference may not always intercept on macOS until the upstream
-/// API exposes a proper minimise event. Documented for the user.
+/// Window-event hook. On `CloseRequested`: if `close_to_tray` is set,
+/// hide the window and call `prevent_close()` so Tauri leaves the
+/// process up. On `Resized` *or* `Focused(false)`: if the window is
+/// now minimised and `minimize_to_tray` is set, unminimise + hide so
+/// the window lives in the tray rather than the taskbar. Both
+/// minimise branches no-op when the preference is off, and the
+/// `is_minimized()` guard means clicking through to another window
+/// (which also fires `Focused(false)`) is a no-op.
+/// Why two minimise triggers: on Windows and most Linux WMs `Resized`
+/// fires on every minimise path so `is_minimized()` confirms cleanly.
+/// On GNOME Mutter the minimise button is observed *not* to emit
+/// `Resized` — Mutter sends focus loss + an `_NET_WM_STATE_HIDDEN`
+/// change instead. `Focused(false)` catches that path. macOS minimise
+/// (cmd-M to dock) is still best-effort: neither signal is reliable
+/// there until upstream tao exposes a dedicated minimise event.
 pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
     match event {
         WindowEvent::CloseRequested { api, .. } => {
@@ -255,7 +269,7 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
             }
             api.prevent_close();
         }
-        WindowEvent::Resized(_) => {
+        WindowEvent::Resized(_) | WindowEvent::Focused(false) => {
             let state = app.state::<AppState>();
             if !state
                 .minimize_to_tray
