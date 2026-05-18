@@ -8,6 +8,7 @@ const DETAIL_HEIGHT_STORAGE_KEY = "clavix.detailHeight";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
 const CLOSE_TO_TRAY_STORAGE_KEY = "clavix.closeToTray";
 const MINIMIZE_TO_TRAY_STORAGE_KEY = "clavix.minimizeToTray";
+const HIDE_DOCK_ON_TRAY_STORAGE_KEY = "clavix.hideDockOnTray";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 
@@ -50,6 +51,7 @@ export class PrefsController {
   autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
   closeToTray = $state<boolean>(CLOSE_TO_TRAY_DEFAULT);
   minimizeToTray = $state<boolean>(MINIMIZE_TO_TRAY_DEFAULT);
+  hideDockOnTray = $state<boolean>(false);
   lastActivityAt = $state<number>(Date.now());
   visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
 
@@ -111,6 +113,12 @@ export class PrefsController {
         this.minimizeToTray = true;
       } else if (savedMinTray === "false") {
         this.minimizeToTray = false;
+      }
+      const savedHideDock = localStorage.getItem(HIDE_DOCK_ON_TRAY_STORAGE_KEY);
+      if (savedHideDock === "true") {
+        this.hideDockOnTray = true;
+      } else if (savedHideDock === "false") {
+        this.hideDockOnTray = false;
       }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
@@ -215,6 +223,15 @@ export class PrefsController {
     this.minimizeToTray = value;
     try {
       localStorage.setItem(MINIMIZE_TO_TRAY_STORAGE_KEY, String(value));
+    } catch {
+      // ignore
+    }
+  }
+
+  setHideDockOnTray(value: boolean) {
+    this.hideDockOnTray = value;
+    try {
+      localStorage.setItem(HIDE_DOCK_ON_TRAY_STORAGE_KEY, String(value));
     } catch {
       // ignore
     }

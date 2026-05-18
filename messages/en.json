@@ -291,6 +291,9 @@
   "settings_minimize_to_tray": "Minimise button",
   "settings_minimize_to_tray_tray": "Hide to tray",
   "settings_minimize_to_tray_taskbar": "Minimise to taskbar",
+  "settings_hide_dock_on_tray": "Hide dock icon when in tray",
+  "settings_hide_dock_on_tray_on": "Yes (tray icon only)",
+  "settings_hide_dock_on_tray_off": "No (keep dock entry)",
 
   "clipboard_toast": "Clipboard ({label}) will be cleared in {seconds}s",
 

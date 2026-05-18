@@ -291,6 +291,9 @@
   "settings_minimize_to_tray": "Bouton Réduire",
   "settings_minimize_to_tray_tray": "Réduire dans la zone de notification",
   "settings_minimize_to_tray_taskbar": "Réduire dans la barre des tâches",
+  "settings_hide_dock_on_tray": "Cacher l'icône du dock quand dans le tray",
+  "settings_hide_dock_on_tray_on": "Oui (icône tray uniquement)",
+  "settings_hide_dock_on_tray_off": "Non (garder l'entrée du dock)",
 
   "clipboard_toast": "Presse-papier ({label}) effacé dans {seconds}s",
 

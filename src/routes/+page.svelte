@@ -152,6 +152,11 @@
       console.warn("[clavix] setMinimizeToTray failed:", e);
     });
   });
+  $effect(() => {
+    api.setHideDockOnTray(prefs.hideDockOnTray).catch((e) => {
+      console.warn("[clavix] setHideDockOnTray failed:", e);
+    });
+  });
   // Hand the user's locale to the tray menu builder so the
   // Ouvrir / Verrouiller / Quitter strings switch with the
   // language toggle. Native menus don't go through Paraglide,
@@ -324,11 +329,13 @@
     autoLockMinutes={prefs.autoLockMinutes}
     closeToTray={prefs.closeToTray}
     minimizeToTray={prefs.minimizeToTray}
+    hideDockOnTray={prefs.hideDockOnTray}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
     onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
     onApplyCloseToTray={(v) => prefs.setCloseToTray(v)}
     onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
+    onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
     onCopySocketPath={copySshAgentSocket}
   />
 {/if}

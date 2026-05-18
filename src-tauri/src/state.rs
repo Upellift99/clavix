@@ -48,6 +48,16 @@ pub struct AppState {
     /// to the taskbar like any other app. Read by the
     /// `WindowEvent::Resized` handler.
     pub minimize_to_tray: AtomicBool,
+    /// Whether to also drop the dock / taskbar entry when the
+    /// window is hidden into the tray. When true, the tray-hide
+    /// path adds `set_skip_taskbar(true)` so GNOME / KDE / Windows
+    /// drop the icon from the dock too — keeping only the tray
+    /// icon as the visible affordance. The `raise_main_window`
+    /// path clears the flag when the window comes back. Off by
+    /// default on every platform: removing the dock entry surprises
+    /// people who expect their app to always be there. Updated
+    /// through `commands::tray::set_hide_dock_on_tray`.
+    pub hide_dock_on_tray: AtomicBool,
 }
 
 impl Default for AppState {
@@ -68,6 +78,7 @@ impl Default for AppState {
             // overwrites this from localStorage on bootstrap.
             close_to_tray: AtomicBool::new(!cfg!(target_os = "linux")),
             minimize_to_tray: AtomicBool::new(!cfg!(target_os = "linux")),
+            hide_dock_on_tray: AtomicBool::new(false),
         }
     }
 }

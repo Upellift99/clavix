@@ -80,6 +80,21 @@ pub fn set_minimize_to_tray(state: State<'_, AppState>, value: bool) -> Result<(
     Ok(())
 }
 
+/// Renderer-driven flag for the "also drop the dock entry when
+/// hidden into the tray" preference. When true, the hide path adds
+/// `set_skip_taskbar(true)` so the dock loses the icon and only the
+/// tray remains; `raise_main_window` clears it again on restore.
+/// Off by default — users who don't have a working tray would
+/// otherwise lose all visible affordances. Same hydration pattern
+/// as the other tray toggles.
+#[tauri::command]
+pub fn set_hide_dock_on_tray(state: State<'_, AppState>, value: bool) -> Result<()> {
+    state
+        .hide_dock_on_tray
+        .store(value, std::sync::atomic::Ordering::Relaxed);
+    Ok(())
+}
+
 /// Wire the tray icon onto an `AppHandle`. Failure is non-fatal: a
 /// CI runner or a Linux desktop without a system tray (xvfb, plain
 /// Sway without `waybar` etc.) just gets a working app without the
@@ -196,6 +211,10 @@ fn raise_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.show();
         let _ = window.unminimize();
+        // Clear any skip-taskbar hint set on the way down by the
+        // hide_dock_on_tray path. Safe to call unconditionally: a
+        // no-op when the hint was already false.
+        let _ = window.set_skip_taskbar(false);
         let _ = window.set_always_on_top(true);
         let _ = window.set_focus();
         let _ = window.set_always_on_top(false);
@@ -265,6 +284,12 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
                 return;
             }
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                if state
+                    .hide_dock_on_tray
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    let _ = window.set_skip_taskbar(true);
+                }
                 let _ = window.hide();
             }
             api.prevent_close();
@@ -286,6 +311,12 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
                     // intended UX (the window disappears into the
                     // tray, not the taskbar).
                     let _ = window.unminimize();
+                    if state
+                        .hide_dock_on_tray
+                        .load(std::sync::atomic::Ordering::Relaxed)
+                    {
+                        let _ = window.set_skip_taskbar(true);
+                    }
                     let _ = window.hide();
                 }
             }

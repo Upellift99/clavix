@@ -11,11 +11,13 @@
     autoLockMinutes: number;
     closeToTray: boolean;
     minimizeToTray: boolean;
+    hideDockOnTray: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
     onApplyCloseToTray: (value: boolean) => void;
     onApplyMinimizeToTray: (value: boolean) => void;
+    onApplyHideDockOnTray: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -26,11 +28,13 @@
     autoLockMinutes,
     closeToTray,
     minimizeToTray,
+    hideDockOnTray,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
     onApplyCloseToTray,
     onApplyMinimizeToTray,
+    onApplyHideDockOnTray,
     onCopySocketPath,
   }: Props = $props();
 
@@ -233,6 +237,19 @@
         >
           <option value="tray">{m.settings_minimize_to_tray_tray()}</option>
           <option value="taskbar">{m.settings_minimize_to_tray_taskbar()}</option>
+        </select>
+      </dd>
+      <dt>{m.settings_hide_dock_on_tray()}</dt>
+      <dd>
+        <select
+          value={hideDockOnTray ? "hide" : "keep"}
+          onchange={(e) =>
+            onApplyHideDockOnTray(
+              (e.currentTarget as HTMLSelectElement).value === "hide",
+            )}
+        >
+          <option value="hide">{m.settings_hide_dock_on_tray_on()}</option>
+          <option value="keep">{m.settings_hide_dock_on_tray_off()}</option>
         </select>
       </dd>
     </dl>

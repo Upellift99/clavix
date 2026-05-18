@@ -127,6 +127,7 @@ pub fn run() {
             commands::ssh::ssh_auth_sock,
             commands::tray::set_close_to_tray,
             commands::tray::set_minimize_to_tray,
+            commands::tray::set_hide_dock_on_tray,
             commands::tray::set_tray_locale,
             commands::import::parse_kdbx,
         ])
