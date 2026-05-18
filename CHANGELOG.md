@@ -5,6 +5,44 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] — 2026-05-18
+
+Three UX-quality wins driven by feedback after 0.2.5 landed. Patch
+bump because no IPC contract changes (the new tray IPC is additive)
+and `session.json` from 0.2.5 unlocks unchanged. The X-button-doesn't-
+hide bug reported alongside is not addressed here — needs runtime
+diagnostics on Tauri 2.11 + WebKitGTK first.
+
+### Added
+- **"Hide dock when in tray" preference**. New toggle in Préférences
+  next to the existing close- / minimize-to-tray dropdowns. When on,
+  the dock / taskbar entry vanishes the moment the window is hidden
+  into the tray (`set_skip_taskbar(true)` on hide,
+  `set_skip_taskbar(false)` on restore), so the tray icon becomes the
+  only visible affordance. Off by default on every platform — users
+  who don't have a working tray would otherwise lose all entry points
+  to the running app. Same `set_*` IPC + AtomicBool mirror shape as
+  the other two tray prefs.
+
+### Changed
+- **Vault remembers the last selected folder and quick-filter across
+  sessions**. Landing on "Tous les éléments" every launch was noisy
+  for vaults with many ciphers. `selectedKey` and `quickFilter` now
+  persist to localStorage on every change once a vault is loaded, and
+  are restored in the `VaultController` constructor. The persist hook
+  is gated by `summary != null` so locking (which calls `reset()`)
+  doesn't erase the stored selection. Quick-filter is validated on
+  restore — `all` / `favorites` / `trash` literal, or `type:<digits>`
+  for cipher kinds — so garbage in localStorage doesn't poison state.
+- **Auth screens (login / unlock / 2FA / onboarding) use Atkinson
+  Hyperlegible at ~10% larger sizing**. The accessibility-tuned font
+  was already loaded in the bundle for cipher detail values for the
+  same reason — disambiguating ambiguous characters (g/q, b/d, 1/I/l)
+  matters most where misreading a master password costs the most. A
+  `.auth-screen` wrapper added in `+page.svelte` scopes the change to
+  the pre-login surfaces; the vault UI stays in Inter at default
+  sizes. Zero KB cost since the font was already shipped.
+
 ## [0.2.5] — 2026-05-18
 
 The other half of the Linux tray story: 0.2.4 finally got the icon
