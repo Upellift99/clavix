@@ -5,6 +5,49 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] — 2026-05-18
+
+The other half of the Linux tray story: 0.2.4 finally got the icon
+shape past `TrayIconBuilder`, but two further GNOME-specific issues
+hid behind it. Plus a Tauri security bump. Patch bump because no IPC
+contract changes and `session.json` from 0.2.4 unlocks unchanged.
+
+### Fixed
+- **Tray icon now actually renders and the click menu actually
+  responds on Ubuntu GNOME**. With Tauri 2.10 / `tray-icon` 0.21 the
+  icon arrived at the `StatusNotifierWatcher` (0.2.4 fix) but rendered
+  as a black square and absorbed clicks without dispatching them.
+  Bumping Tauri to 2.11.2 pulls in `tray-icon` 0.23.1, where the
+  pixmap encoding and click-event plumbing for AppIndicator-on-X11
+  are repaired.
+- **"Ouvrir Clavix" from the tray menu raises the window**. The
+  standard `show()` + `unminimize()` + `set_focus()` recipe lands on
+  X11/GNOME but Mutter silently drops the focus request as
+  focus-stealing prevention — the window comes back from hidden but
+  stays buried behind whatever was on top. A brief
+  `set_always_on_top(true)` / `set_always_on_top(false)` toggle
+  around the focus call forces the WM to put the window above its
+  siblings; releasing the constraint lets normal stacking resume.
+  Same fix applies to the left-click toggle on the tray icon
+  (Windows / macOS path unchanged, `set_focus` already raises there).
+- **`_` minimise button now respects `minimize_to_tray` on GNOME**.
+  The handler watched `WindowEvent::Resized` which fires on minimise
+  on Windows and most Linux WMs, but Mutter goes straight to focus
+  loss without synthesising a resize. Hook `Focused(false)` as a
+  second trigger, guarded by the same `is_minimized()` check so
+  ordinary click-away on another window stays a no-op.
+
+### Security
+- **`tauri` 2.10.3 → 2.11.2 (cargo + npm, lockstep)**. Picks up
+  GHSA-7gmj-67g7-phm9: Origin Confusion lets a remote page in the
+  webview invoke local-only `#[tauri::command]` handlers. Clavix has
+  30+ such handlers covering auth, ssh-agent and session unlock — not
+  a class of bug to carry on a password manager. Bumped by hand per
+  `f4e6a28`: tauri-action rejects builds when the Cargo `tauri` and
+  the npm `@tauri-apps/*` resolved versions drift on major / minor,
+  so Dependabot is configured to ignore both sides and these bumps
+  move together by hand.
+
 ## [0.2.4] — 2026-05-18
 
 A single-fix patch for the Linux tray icon that 0.2.3 advertised but
