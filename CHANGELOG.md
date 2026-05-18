@@ -5,6 +5,36 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] — 2026-05-18
+
+A single-fix patch for the Linux tray icon that 0.2.3 advertised but
+never managed to draw on stock Ubuntu GNOME, even with the
+AppIndicators extension active. Patch bump because no IPC contract
+changes and `session.json` from 0.2.3 unlocks unchanged.
+
+### Fixed
+- **Tray icon now actually appears in the GNOME top bar when
+  AppIndicators is active**. `build_tray` reused
+  `app.default_window_icon()`, which on Linux resolves to an entry
+  from `bundle.icon` that Tauri hands to `TrayIconBuilder` as raw
+  RGBA. Our `icons/32x32.png` ships as 16-bit RGBA (8 bytes per pixel)
+  so the buffer is 8192 bytes for declared 32×32 dimensions, and
+  Tauri's `TrayIconBuilder::build` rejects the image with
+  `wrong data size, expected 4096 got 8192`. The error landed silently
+  in `journalctl --user` since clavix launches from gnome-shell, the
+  tray was never registered with the `StatusNotifierWatcher`, and the
+  `close_to_tray` / `minimize_to_tray` toggles in Préférences had
+  nothing to fall back on regardless of how they were set. The builder
+  now decodes `icons/32x32.png` itself via the `image` crate (already
+  in the build graph through `arboard`, no new transitive dep),
+  coercing to 8-bit RGBA regardless of the source file's bit depth.
+  Visible result: on a GNOME session with AppIndicators active, the
+  Clavix icon appears next to the clock with the same Ouvrir /
+  Verrouiller / Quitter menu it always had, and left-click toggles
+  the main window. The 0.2.3 default-off behaviour for `close_to_tray`
+  on Linux is unchanged — users who explicitly opt in now get a tray
+  that exists.
+
 ## [0.2.3] — 2026-05-10
 
 A single-fix patch for a Linux desktop trap shipped in 0.2.2: clicking
