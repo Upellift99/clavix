@@ -85,10 +85,20 @@ pub fn set_minimize_to_tray(state: State<'_, AppState>, value: bool) -> Result<(
 /// Sway without `waybar` etc.) just gets a working app without the
 /// tray entry. Logs the reason so it's traceable in the dev console.
 pub fn build_tray(app: &AppHandle) {
-    let icon = match app.default_window_icon().cloned() {
-        Some(icon) => icon,
-        None => {
-            eprintln!("[clavix] tray icon setup skipped: no default window icon");
+    // Don't reuse `default_window_icon()`: on Linux it picks an entry
+    // from `bundle.icon` and feeds it to `TrayIconBuilder` as raw RGBA.
+    // Our `icons/32x32.png` ships as 16-bit RGBA — Tauri keeps the
+    // declared 32×32 dimensions but the buffer is 8 bytes/pixel, so
+    // `TrayIconBuilder::build` rejects it with
+    // `wrong data size, expected 4096 got 8192` and the tray is never
+    // registered with the StatusNotifierWatcher (error lands in
+    // `journalctl --user` since clavix launches from gnome-shell).
+    // Decode the PNG ourselves into 8-bit RGBA — `image` is already
+    // transitively in our build via arboard, so this is free.
+    let icon = match decode_tray_icon() {
+        Ok(image) => image,
+        Err(e) => {
+            eprintln!("[clavix] tray icon setup skipped: {e}");
             return;
         }
     };
@@ -127,6 +137,19 @@ pub fn build_tray(app: &AppHandle) {
     if let Err(e) = result {
         eprintln!("[clavix] tray icon setup failed (non-fatal): {e}");
     }
+}
+
+/// Decode the bundled tray PNG into the 8-bit RGBA buffer that
+/// `tauri::image::Image::new_owned` expects, regardless of the source
+/// file's bit depth. `include_bytes!` bakes the asset into the binary
+/// so there is no runtime I/O.
+fn decode_tray_icon(
+) -> std::result::Result<tauri::image::Image<'static>, image::ImageError> {
+    let bytes: &[u8] = include_bytes!("../../icons/32x32.png");
+    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
+        .to_rgba8();
+    let (w, h) = img.dimensions();
+    Ok(tauri::image::Image::new_owned(img.into_raw(), w, h))
 }
 
 fn build_menu(app: &AppHandle, locale: &str) -> tauri::Result<Menu<tauri::Wry>> {

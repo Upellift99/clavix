@@ -804,6 +804,7 @@ dependencies = [
  "futures",
  "hkdf",
  "hmac 0.12.1",
+ "image",
  "keepass",
  "mockito",
  "parking_lot",
