@@ -143,11 +143,9 @@ pub fn build_tray(app: &AppHandle) {
 /// `tauri::image::Image::new_owned` expects, regardless of the source
 /// file's bit depth. `include_bytes!` bakes the asset into the binary
 /// so there is no runtime I/O.
-fn decode_tray_icon(
-) -> std::result::Result<tauri::image::Image<'static>, image::ImageError> {
+fn decode_tray_icon() -> std::result::Result<tauri::image::Image<'static>, image::ImageError> {
     let bytes: &[u8] = include_bytes!("../../icons/32x32.png");
-    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
-        .to_rgba8();
+    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?.to_rgba8();
     let (w, h) = img.dimensions();
     Ok(tauri::image::Image::new_owned(img.into_raw(), w, h))
 }
