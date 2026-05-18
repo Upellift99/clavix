@@ -96,6 +96,30 @@ h3 small {
   font-size: 0.9rem;
 }
 
+/* Login / Unlock / Two-Factor / Onboarding screens use the
+ * accessibility-tuned Atkinson Hyperlegible (already loaded for the
+ * cipher detail data font) and bump up form sizing by ~10% so the
+ * master-password input is comfortable to read under fatigue or in
+ * dim light. The wrapper class lives on the AuthGate parent div in
+ * +page.svelte; the main vault UI keeps Inter at default sizes. */
+.auth-screen {
+  font-family: var(--font-data);
+}
+.auth-screen .box h2 {
+  font-size: 1.45rem;
+}
+.auth-screen label {
+  font-size: 0.95rem;
+}
+.auth-screen input,
+.auth-screen button {
+  font-size: 1.05rem;
+  padding: 0.5rem 0.7rem;
+}
+.auth-screen .hint {
+  font-size: 1rem;
+}
+
 form {
   display: flex;
   flex-direction: column;

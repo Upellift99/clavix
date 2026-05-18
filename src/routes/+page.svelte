@@ -185,7 +185,13 @@
 
 <main class="container" class:wide>
   {#key prefs.currentLocale}
-    <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
+    {#if auth.phase !== "loggedIn"}
+      <div class="auth-screen">
+        <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
+      </div>
+    {:else}
+      <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
+    {/if}
 
     {#if auth.phase === "loggedIn"}
       <Toolbar
