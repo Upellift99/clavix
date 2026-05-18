@@ -19,6 +19,17 @@ import {
 } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 150;
+const SELECTED_KEY_STORAGE_KEY = "clavix.vault.selectedKey";
+const QUICK_FILTER_STORAGE_KEY = "clavix.vault.quickFilter";
+
+const QUICK_FILTER_FIXED: ReadonlySet<string> = new Set(["all", "favorites", "trash"]);
+const QUICK_FILTER_TYPE_PATTERN = /^type:\d+$/;
+function parseStoredQuickFilter(raw: string | null): QuickFilter | null {
+  if (raw === null) return null;
+  if (QUICK_FILTER_FIXED.has(raw)) return raw as QuickFilter;
+  if (QUICK_FILTER_TYPE_PATTERN.test(raw)) return raw as QuickFilter;
+  return null;
+}
 
 export class VaultController {
   summary = $state<SyncSummary | null>(null);
@@ -89,6 +100,21 @@ export class VaultController {
   );
 
   constructor() {
+    // Restore last vault selection from localStorage so the user lands
+    // back on whatever folder / quick-filter they last opened, instead
+    // of being dumped into "Tous les éléments" every launch.
+    // selectedKey is opaque to us (folder UUID or org:cipher path) — we
+    // don't validate it here; if the underlying entry no longer exists
+    // after sync, the renderer's filter naturally falls back to empty.
+    try {
+      const savedFilter = parseStoredQuickFilter(localStorage.getItem(QUICK_FILTER_STORAGE_KEY));
+      if (savedFilter) this.quickFilter = savedFilter;
+      const savedKey = localStorage.getItem(SELECTED_KEY_STORAGE_KEY);
+      if (savedKey) this.selectedKey = savedKey;
+    } catch {
+      // ignore: localStorage may be unavailable in tests
+    }
+
     this.effectCleanup = $effect.root(() => {
       $effect(() => {
         const current = this.search;
@@ -99,6 +125,32 @@ export class VaultController {
         return () => {
           if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
         };
+      });
+
+      // Persist selection on every change once a vault is loaded.
+      // localStorage writes are cheap and the user toggles selection
+      // at human speed, so no debounce needed. The `summary != null`
+      // gate matters because `reset()` wipes both selection AND
+      // summary on lock — without the gate, locking would erase the
+      // stored selection and the next session would start blank.
+      $effect(() => {
+        const key = this.selectedKey;
+        const filter = this.quickFilter;
+        if (this.summary === null) return;
+        try {
+          if (key) {
+            localStorage.setItem(SELECTED_KEY_STORAGE_KEY, key);
+          } else {
+            localStorage.removeItem(SELECTED_KEY_STORAGE_KEY);
+          }
+          if (filter !== "all") {
+            localStorage.setItem(QUICK_FILTER_STORAGE_KEY, filter);
+          } else {
+            localStorage.removeItem(QUICK_FILTER_STORAGE_KEY);
+          }
+        } catch {
+          // best-effort
+        }
       });
     });
   }
