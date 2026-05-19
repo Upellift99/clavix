@@ -5,6 +5,43 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] — 2026-05-19
+
+Follow-up tray fixes — once 0.2.7 made the window label match and
+the tray hooks finally fired, two latent issues surfaced under
+real-session testing on GNOME/X11. Patch bump, no IPC or storage
+changes.
+
+### Fixed
+- **Tray menu "Ouvrir Clavix" actually restores the window now.**
+  After 0.2.7 unblocked the close-to-tray path, the open-from-tray
+  recipe (`show` + `unminimize` + always-on-top dance +
+  `set_focus`) still left the window buried — symptom: clicking
+  "Ouvrir Clavix" produced no visible change. Root cause was a
+  race in `tao`'s Linux backend: every window op the recipe
+  queues goes through a glib channel that's only drained after
+  the current callback returns, and `set_focus` short-circuits
+  when `get_visible()` is still false. The Focus request (which
+  maps to `gtk_window_present_with_time`, the all-in-one show +
+  raise + focus GTK call) was therefore never sent. Fix bounces
+  the focus dance through a tokio task so the subsequent
+  `run_on_main_thread` call comes from a worker thread and goes
+  through the tao event proxy rather than the synchronous
+  main-thread fast path — that yields the loop long enough for
+  the queued `show()` to commit before `set_focus` runs.
+
+- **Tray menu "Verrouiller maintenant" updates the UI immediately.**
+  The menu handler tore the session down on the Rust side
+  (SSH-agent handle, in-memory session, pending two-factor slot)
+  but emitted nothing toward the renderer, so the WebView kept
+  showing the vault until the next IPC call hit a "no session"
+  error — and a window that was closed-to-tray at lock time came
+  back open on the vault when the user reopened it from the tray.
+  Lock now emits `clavix:session-locked` after the teardown; the
+  renderer listens in `+page.svelte` and reuses the existing
+  `lockAndReset` helper to flip the auth phase to `unlock` and
+  drop the cached vault.
+
 ## [0.2.7] — 2026-05-19
 
 Bug-fix release. Three tray preferences shipped over the last two

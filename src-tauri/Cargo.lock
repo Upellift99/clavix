@@ -792,7 +792,7 @@ dependencies = [
 
 [[package]]
 name = "clavix"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "aes 0.8.4",
  "argon2",
