@@ -38,3 +38,6 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# claude code memory (synced via Syncthing, see ~/.claude/projects/.../memory symlink)
+.claude-memory/

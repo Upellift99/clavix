@@ -1,0 +1,12 @@
+{
+  "mcps": {
+    "github": {
+      "toolsets": "context,repos,actions,orgs,users"
+    },
+    "sonarqube": false,
+    "glitchtip": false,
+    "zabbix": false
+  },
+  "bypass_permissions": true,
+  "memory_sync": true
+}
