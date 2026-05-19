@@ -5,6 +5,30 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] — 2026-05-19
+
+Bug-fix release. Three tray preferences shipped over the last two
+versions never actually took effect on the close / minimise / dock
+paths — chasing the runtime diagnostics flagged in 0.2.6 turned up
+the mismatch instantly. Patch bump, no IPC or storage changes.
+
+### Fixed
+- **Close-to-tray, minimize-to-tray and hide-dock-on-tray now apply.**
+  `commands::tray` looked the main window up by label `"clavix"`, but
+  `tauri.conf.json` declares the window without an explicit `label`,
+  so Tauri 2 assigned it the default label `"main"` (see tauri-utils
+  `default_window_label`; the capability in
+  `capabilities/default.json` was already correctly scoped to
+  `["main"]`). Every `app.get_webview_window("clavix")` returned
+  `None`, so the close / minimise / tray-click branches silently
+  skipped their `hide()` / `set_skip_taskbar()` / `unminimize()`
+  calls. CloseRequested still called `prevent_close()`, so the X
+  button appeared to do nothing instead of hiding to the tray —
+  matches the "X-button-doesn't-hide" symptom deferred in the 0.2.6
+  notes. Fix is a one-line constant change with a doc-comment
+  pinning the invariant to the capability scope so a future
+  config tweak surfaces this again.
+
 ## [0.2.6] — 2026-05-18
 
 Three UX-quality wins driven by feedback after 0.2.5 landed. Patch
