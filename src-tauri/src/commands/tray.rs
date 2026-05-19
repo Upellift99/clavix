@@ -19,7 +19,7 @@
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, State, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 use crate::error::Result;
 use crate::state::AppState;
@@ -28,6 +28,11 @@ const TRAY_ID: &str = "clavix-tray";
 const ITEM_OPEN: &str = "tray.open";
 const ITEM_LOCK: &str = "tray.lock";
 const ITEM_QUIT: &str = "tray.quit";
+/// Renderer-side listener (see `+page.svelte`) flips the auth phase
+/// to `unlock` and clears the vault when this fires, so the UI
+/// catches up with the session that the tray menu just dropped on
+/// the Rust side. Payload-less; the event itself is the signal.
+const EVENT_SESSION_LOCKED: &str = "clavix:session-locked";
 // Tauri 2 assigns label "main" to a window declared in tauri.conf.json
 // without an explicit `label` field — see tauri-utils
 // `default_window_label`. The capability in
@@ -297,6 +302,14 @@ fn lock_session(app: &AppHandle) {
         *guard = None;
     }
     crate::services::auth::clear_pending_two_factor(&state);
+
+    // Tell the renderer the session is gone. Without this the UI
+    // would happily keep showing the vault until the next IPC call
+    // forces a session check — confusing if the window was hidden
+    // (close-to-tray) at lock time and the user reopens it later.
+    if let Err(e) = app.emit(EVENT_SESSION_LOCKED, ()) {
+        eprintln!("[clavix] emit {EVENT_SESSION_LOCKED} failed (non-fatal): {e}");
+    }
 }
 
 /// Window-event hook. On `CloseRequested`: if `close_to_tray` is set,

@@ -29,6 +29,7 @@
   import { formatError } from "$lib/format";
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
   const prefs = new PrefsController();
   const drag = new DragController();
@@ -167,14 +168,23 @@
     });
   });
 
+  let unlistenSessionLocked: UnlistenFn | null = null;
+
   onMount(async () => {
     prefs.bootstrap();
     await auth.bootstrap({ onboarded: prefs.isOnboarded() });
+    // Tray menu "Verrouiller maintenant" clears the Rust session
+    // out-of-band — without this listener the UI would stay on the
+    // vault view until the next IPC call hits a session check.
+    unlistenSessionLocked = await listen("clavix:session-locked", () => {
+      lockAndReset();
+    });
   });
 
   onDestroy(() => {
     clipboard.dispose();
     vault.dispose();
+    unlistenSessionLocked?.();
   });
 
   function completeOnboarding() {
