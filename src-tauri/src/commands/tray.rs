@@ -203,26 +203,62 @@ pub fn set_tray_locale(app: AppHandle, locale: String) -> Result<()> {
     Ok(())
 }
 
-/// Raise the main window and give it focus. On X11/GNOME Mutter
-/// silently drops `set_focus()` requests coming from a tray click as
-/// focus-stealing prevention — the window does un-hide, but stays
-/// behind whatever was already on top, defeating the whole point of
-/// the tray menu. Briefly toggling always-on-top is the standard
-/// workaround: the WM is forced to put the window above its siblings,
-/// `set_focus()` then succeeds, and releasing the constraint lets the
-/// window participate in normal stacking again. No-op on Windows /
-/// macOS where `set_focus()` alone already raises.
+/// Raise the main window and give it focus. Two GNOME/X11 quirks
+/// stack here:
+///
+///   1. `tao`'s Linux backend forwards every window op
+///      (`show`, `unminimize`, `set_focus`, …) through a glib
+///      channel that's only drained once the current callback
+///      returns. Worse, `set_focus` short-circuits when
+///      `get_visible()` is false — and the visible flag stays
+///      false until `show`'s queued request actually runs.
+///      Called inline from a tray-menu handler, the Focus
+///      request is silently dropped and the window stays buried
+///      (or, on Mutter, doesn't appear at all because the
+///      always-on-top dance below also needs a Focus to land).
+///      `tauri::AppHandle::run_on_main_thread` does *not* fix
+///      this: when invoked from the main thread it dispatches
+///      synchronously, same problem.
+///
+///   2. Even with a Focus request queued, Mutter drops focus
+///      requests from tray clicks as focus-stealing prevention.
+///      Toggling always-on-top forces the WM to raise the
+///      window; `set_focus` (which maps to `present_with_time`
+///      under the hood) then succeeds.
+///
+/// Strategy: do the synchronous bring-back-into-visibility ops
+/// inline, then hand the focus dance off to the tokio runtime so
+/// it bounces back through `run_on_main_thread` from a *non*-main
+/// thread. That path uses the tao event proxy, which yields the
+/// main loop long enough for the queued show/unminimize to drain
+/// and `get_visible()` to return true. No-op on Windows/macOS
+/// where `set_focus()` alone already raises — the deferred dance
+/// is harmless there.
 fn raise_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-        let _ = window.show();
-        let _ = window.unminimize();
         // Clear any skip-taskbar hint set on the way down by the
         // hide_dock_on_tray path. Safe to call unconditionally: a
         // no-op when the hint was already false.
         let _ = window.set_skip_taskbar(false);
-        let _ = window.set_always_on_top(true);
-        let _ = window.set_focus();
-        let _ = window.set_always_on_top(false);
+        let _ = window.unminimize();
+        let _ = window.show();
+
+        // Hand off the focus dance to a tokio task so the
+        // subsequent `run_on_main_thread` call comes from a
+        // worker thread and goes through the tao event proxy
+        // rather than the synchronous main-thread fast path.
+        // Yielding once is enough on the WMs tested; the sleep
+        // is belt-and-braces for slow Mutter under load.
+        let win = window.clone();
+        let app_handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            let _ = app_handle.run_on_main_thread(move || {
+                let _ = win.set_always_on_top(true);
+                let _ = win.set_focus();
+                let _ = win.set_always_on_top(false);
+            });
+        });
     }
 }
 
