@@ -28,7 +28,12 @@ const TRAY_ID: &str = "clavix-tray";
 const ITEM_OPEN: &str = "tray.open";
 const ITEM_LOCK: &str = "tray.lock";
 const ITEM_QUIT: &str = "tray.quit";
-const MAIN_WINDOW: &str = "clavix";
+// Tauri 2 assigns label "main" to a window declared in tauri.conf.json
+// without an explicit `label` field — see tauri-utils
+// `default_window_label`. The capability in
+// `capabilities/default.json` is scoped to `["main"]` for the same
+// reason. Keep this in sync if a label is ever added to the config.
+const MAIN_WINDOW: &str = "main";
 
 /// Native tray menu labels per locale. Native menus don't go through
 /// Paraglide, so the renderer hands the locale code over IPC and we
