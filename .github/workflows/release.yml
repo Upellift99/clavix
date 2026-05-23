@@ -101,7 +101,7 @@ jobs:
             - `.AppImage` : portable Linux binary, double-click to run
             - `.deb` : Debian / Ubuntu package (`sudo dpkg -i`)
             - `.rpm` : Fedora / openSUSE package
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.tauri-target }}
 
