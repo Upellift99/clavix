@@ -219,10 +219,22 @@ export class VaultController {
   selectQuickFilter(f: QuickFilter) {
     this.quickFilter = f;
     this.selectedKey = null;
+    this.clearSearch();
   }
 
   selectNode(key: string) {
     this.selectedKey = this.selectedKey === key ? null : key;
+    this.clearSearch();
+  }
+
+  // Wipe both the raw input and the debounced mirror so the filter
+  // recomputes immediately. Leaving searchDebounced behind would keep
+  // the list narrowed for ~150ms after a folder click, which reads as
+  // "click did nothing" — the exact symptom this method fixes.
+  private clearSearch() {
+    if (this.search === "" && this.searchDebounced === "") return;
+    this.search = "";
+    this.searchDebounced = "";
   }
 
   toggleSort(key: SortKey) {
