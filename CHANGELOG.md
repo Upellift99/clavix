@@ -5,12 +5,14 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.8] — 2026-05-19
+## [0.2.8] — 2026-05-23
 
 Follow-up tray fixes — once 0.2.7 made the window label match and
 the tray hooks finally fired, two latent issues surfaced under
-real-session testing on GNOME/X11. Patch bump, no IPC or storage
-changes.
+real-session testing on GNOME/X11. Plus a vault-navigation
+papercut where the search filter persisted across folder clicks,
+making the sidebar appear unresponsive. Patch bump, no IPC or
+storage changes.
 
 ### Fixed
 - **Tray menu "Ouvrir Clavix" actually restores the window now.**
@@ -41,6 +43,26 @@ changes.
   renderer listens in `+page.svelte` and reuses the existing
   `lockAndReset` helper to flip the auth phase to `unlock` and
   drop the cached vault.
+
+- **Sidebar navigation no longer feels frozen after a search.**
+  Clicking a folder or quick-filter (Tous, Favoris, Corbeille,
+  Types…) now clears the search input. Previously
+  `selectQuickFilter` and `selectNode` only touched `selectedKey`
+  / `quickFilter`, leaving `searchDebounced` in place;
+  `applyVaultFilters` then ANDed the stale query against the
+  newly selected node and typically filtered the list to zero
+  results — symptom: the click "did nothing." Both methods now
+  also reset `search` and `searchDebounced` synchronously, so the
+  filter recomputes on the same tick instead of after the 150 ms
+  debounce window (which would have reproduced the same
+  dead-click feel).
+
+### Maintenance
+- Dependency refresh: `keepass` 0.12.5 → 0.12.9, `tokio` bump,
+  `ctap-hid-fido2` 3.5.9 → 3.5.10, `vite` 8.0.10 → 8.0.14,
+  `@inlang/paraglide-js` bump, `@types/node` 25.6.0 → 25.9.0.
+  Plus a pinned `kysely` 0.28.17 pnpm override to keep the
+  transitive resolution stable.
 
 ## [0.2.7] — 2026-05-19
 
