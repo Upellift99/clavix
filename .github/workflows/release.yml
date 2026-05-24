@@ -13,6 +13,16 @@ on:
 
 permissions:
   contents: write
+  # actions: write + id-token: write added after v0.2.8 release
+  # failed with "Resource not accessible by integration" on the
+  # POST /releases call across all three runners, despite contents:
+  # write being granted (token header confirmed `Contents: write`).
+  # No YAML or tauri-action change between v0.2.7 success and v0.2.8
+  # failure — widening the scope is the cheapest hedge for the next
+  # tag push. If a future audit shows these are still unused, drop
+  # them again.
+  actions: write
+  id-token: write
 
 jobs:
   build:
