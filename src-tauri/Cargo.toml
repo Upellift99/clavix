@@ -56,7 +56,7 @@ parking_lot = "0.12"
 # enough — no `save_kdbx4`, no TOTP helper. We do the entry walk and
 # field extraction ourselves and pass plaintext fields up to the
 # existing import flow.
-keepass = "0.12"
+keepass = "0.13"
 # Only used to decode the bundled tray PNG into 8-bit RGBA at startup.
 # `arboard` already pulls `image` transitively, so this declaration only
 # exposes the API to us — it doesn't add a new crate to the build.
