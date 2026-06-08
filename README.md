@@ -6,6 +6,9 @@
 [![License: GPL v3+](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows-lightgrey)](https://github.com/Upellift99/clavix/releases)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
+[![Website](https://img.shields.io/badge/website-clavix.org-175ddc)](https://clavix.org)
+
+🌐 **Website: [clavix.org](https://clavix.org)**
 
 > ⚠️ **Alpha software.** Do not use with a real Vaultwarden vault yet.
 > The cryptography has not been independently audited, no stable release
