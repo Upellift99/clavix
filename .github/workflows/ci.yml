@@ -30,7 +30,7 @@ jobs:
         working-directory: src-tauri
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Tauri system dependencies
         working-directory: .
@@ -91,7 +91,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
@@ -124,7 +124,7 @@ jobs:
     # `e2e-screenshots` artifact before reverting this line.
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Tauri + WebDriver system dependencies
         run: |
@@ -205,7 +205,7 @@ jobs:
     # time with a full suite.
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Tauri + WebDriver system dependencies
         run: |
