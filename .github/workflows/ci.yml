@@ -82,8 +82,17 @@ jobs:
       # Notre exposition est faible : déchiffrement d'org keys une fois par sync,
       # HTTPS vers Vaultwarden, pas d'oracle exposé à un attaquant. À retirer dès
       # que le crate `rsa` publie une version constant-time.
+      #
+      # RUSTSEC-2026-0194 / RUSTSEC-2026-0195 : DoS (run time quadratique et
+      # allocation non bornée) dans `quick-xml` < 0.41.0, tiré transitivement par
+      # `wayland-scanner` 0.31.10 (dernière version publiée, pas encore de fix
+      # upstream). `wayland-scanner` génère du code à la compilation à partir de
+      # fichiers XML de protocole *fiables* fournis par les crates wayland : le XML
+      # n'est jamais contrôlé par un attaquant, l'avis ne s'applique pas à notre
+      # usage. La copie vulnérable via `plist` a été corrigée par `plist` 1.10.0.
+      # À retirer dès que `wayland-scanner` passe à `quick-xml` >= 0.41.0.
       - name: cargo audit
-        run: cargo audit --ignore RUSTSEC-2023-0071
+        run: cargo audit --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195
 
   frontend:
     name: Frontend (svelte-check)
