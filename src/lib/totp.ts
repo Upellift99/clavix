@@ -27,6 +27,15 @@ function decodeBase32(input: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
+// Clamp an untrusted numeric parameter to a sane range, falling back when the
+// value is missing, non-finite, or non-positive. Prevents an aberrant `digits`
+// (e.g. from a hostile otpauth URI) from triggering a huge padStart allocation.
+function clampParam(raw: string | null, min: number, max: number, fallback: number): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(n)));
+}
+
 export function parseTotp(source: string): TotpConfig {
   const trimmed = source.trim();
   if (trimmed.toLowerCase().startsWith("otpauth://")) {
@@ -42,8 +51,8 @@ export function parseTotp(source: string): TotpConfig {
           : "SHA-1";
     return {
       secret: decodeBase32(secretRaw),
-      period: Number(url.searchParams.get("period") ?? 30) || 30,
-      digits: Number(url.searchParams.get("digits") ?? 6) || 6,
+      period: clampParam(url.searchParams.get("period"), 1, 3600, 30),
+      digits: clampParam(url.searchParams.get("digits"), 4, 10, 6),
       algorithm,
     };
   }
