@@ -1,47 +1,46 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
   import * as m from "$lib/paraglide/messages";
   import { generateTotp, parseTotp, secondsRemaining, type TotpConfig } from "$lib/totp";
 
   let { source, onCopy }: { source: string; onCopy: (code: string) => void } = $props();
 
-  let config = $state<TotpConfig | null>(null);
-  let parseError = $state<string | null>(null);
+  // Derive config/error purely from `source`. No $state is both written and
+  // read inside an effect, so there is no self-referential update loop.
+  const parsed = $derived.by((): { config: TotpConfig | null; error: string | null } => {
+    try {
+      return { config: parseTotp(source), error: null };
+    } catch (e) {
+      return { config: null, error: (e as Error).message };
+    }
+  });
+  const config = $derived(parsed.config);
+  const parseError = $derived(parsed.error);
+
   let code = $state<string>("");
   let remaining = $state<number>(30);
 
-  let timer: ReturnType<typeof setInterval> | null = null;
-
-  async function tick() {
-    if (!config) return;
-    const now = Math.floor(Date.now() / 1000);
-    remaining = secondsRemaining(config.period, now);
-    code = await generateTotp(config, now);
-  }
-
+  // Timer lives in its own effect that depends only on `config`. It writes
+  // `code`/`remaining` but never reads them, so it cannot re-trigger itself.
   $effect(() => {
-    parseError = null;
-    config = null;
+    const cfg = config;
     code = "";
-    try {
-      config = parseTotp(source);
-      void tick();
-      if (timer) clearInterval(timer);
-      timer = setInterval(tick, 1000);
-    } catch (e) {
-      parseError = (e as Error).message;
+    if (!cfg) return;
+
+    let cancelled = false;
+    async function tick(c: TotpConfig) {
+      const now = Math.floor(Date.now() / 1000);
+      remaining = secondsRemaining(c.period, now);
+      const next = await generateTotp(c, now);
+      if (!cancelled) code = next;
     }
 
-    return () => {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-    };
-  });
+    void tick(cfg);
+    const timer = setInterval(() => void tick(cfg), 1000);
 
-  onDestroy(() => {
-    if (timer) clearInterval(timer);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   });
 
   function formatCode(value: string): string {
