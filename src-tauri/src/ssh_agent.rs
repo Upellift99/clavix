@@ -467,5 +467,68 @@ mod unix {
             let out = rt.block_on(handle_sign(&keys, &payload));
             assert_eq!(out, vec![SSH_AGENT_FAILURE]);
         }
+
+        /// RFC 8032 §7.1 "TEST 2" Ed25519 vector. Pins the two things a
+        /// `ed25519-dalek` major bump could silently change under us: that
+        /// `SigningKey::from_bytes` reads its input as the 32-byte *seed*
+        /// (not an expanded secret scalar), and that the signature we put on
+        /// the wire is the standard 64-byte R‖S encoding. Both are wrong-but-
+        /// compiling failure modes — every SSH auth would break with no type
+        /// error to catch it.
+        #[test]
+        fn handle_sign_matches_rfc8032_ed25519_vector() {
+            use tokio::runtime::Runtime;
+
+            fn unhex(s: &str) -> Vec<u8> {
+                (0..s.len())
+                    .step_by(2)
+                    .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+                    .collect()
+            }
+
+            let seed: [u8; 32] =
+                unhex("4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb")
+                    .try_into()
+                    .unwrap();
+            let expected_public =
+                unhex("3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c");
+            let message = unhex("72");
+            let expected_sig = unhex(
+                "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da\
+                 085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00",
+            );
+
+            let signer = SigningKey::from_bytes(&seed);
+            assert_eq!(
+                signer.verifying_key().to_bytes().as_slice(),
+                expected_public,
+                "seed did not derive the RFC 8032 public key"
+            );
+
+            let pub_blob = b"rfc8032-test-2".to_vec();
+            let keys: KeyStore = Arc::new(Mutex::new(vec![AgentKey {
+                pub_blob: pub_blob.clone(),
+                comment: "rfc8032".into(),
+                algorithm: "ssh-ed25519".into(),
+                fingerprint: "SHA256:test".into(),
+                kind: SignerKind::Ed25519(signer),
+            }]));
+
+            let mut payload = Vec::new();
+            write_string(&mut payload, &pub_blob);
+            write_string(&mut payload, &message);
+            payload.extend_from_slice(&u32::to_be_bytes(0)); // flags
+
+            let rt = Runtime::new().unwrap();
+            let out = rt.block_on(handle_sign(&keys, &payload));
+
+            assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE);
+            let mut reader = SshReader::new(&out[1..]);
+            let sig_blob = reader.read_string().unwrap();
+
+            let mut inner = SshReader::new(sig_blob);
+            assert_eq!(inner.read_string().unwrap(), b"ssh-ed25519");
+            assert_eq!(inner.read_string().unwrap(), expected_sig.as_slice());
+        }
     }
 } // mod unix
