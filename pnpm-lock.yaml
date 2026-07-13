@@ -38,8 +38,8 @@ importers:
         specifier: ^5.2.8
         version: 5.2.8
       '@inlang/paraglide-js':
-        specifier: ^2.20.2
-        version: 2.20.2(typescript@5.6.3)
+        specifier: ^2.21.0
+        version: 2.21.0(typescript@5.6.3)
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
         version: 3.0.10(@sveltejs/kit@2.69.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.4)(vite@8.1.3(@types/node@26.1.0)))(svelte@5.56.4)(typescript@5.6.3)(vite@8.1.3(@types/node@26.1.0)))
@@ -185,8 +185,8 @@ packages:
   '@fontsource/inter@5.2.8':
     resolution: {integrity: sha512-P6r5WnJoKiNVV+zvW2xM13gNdFhAEpQ9dQJHt3naLvfg+LkF2ldgSLiF4T41lf1SQCM9QmkqPTn4TH568IRagg==}
 
-  '@inlang/paraglide-js@2.20.2':
-    resolution: {integrity: sha512-V8iY3uu/vQU94gEag1bdC3glMJSp4Dg3XMwfnabZLBh1Dv0F++DvDYlMeniqv2+nHbnS/twB75AM140OmpHDEg==}
+  '@inlang/paraglide-js@2.21.0':
+    resolution: {integrity: sha512-t+OOui1i5p73zQ2Dk28yFzu6rZhh7hsDOCHjkXDmSwFFsUsS5HyUD4CvPJ+wf02qgmlCMu2z1qffJ5aWwgx1CA==}
     hasBin: true
     peerDependencies:
       typescript: '>=5.6'
@@ -349,8 +349,8 @@ packages:
   '@sinclair/typebox@0.24.51':
     resolution: {integrity: sha512-1P1OROm/rdubP5aFDSZQILU0vrLCJ4fvHt6EoqHEM+2D/G5MK3bIaymUKLit8Js9gbns5UyJnkP/TZROLw4tUA==}
 
-  '@sinclair/typebox@0.31.28':
-    resolution: {integrity: sha512-/s55Jujywdw/Jpan+vsy6JZs1z2ZTGxTmbZTPiuSL2wz9mfzA2gN1zzaqmvfi4pq+uOt7Du85fkiwv5ymW84aQ==}
+  '@sinclair/typebox@0.31.30':
+    resolution: {integrity: sha512-MGsM7bVmHg3sUKCphlu3SGQ+T+5JTbygZWYArfKQCW5anJeACHeqLhcnf+R7XlCWZ+QR3C8JTBx3kCKJTN69ow==}
 
   '@sindresorhus/is@4.6.0':
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
@@ -2554,7 +2554,7 @@ snapshots:
 
   '@fontsource/inter@5.2.8': {}
 
-  '@inlang/paraglide-js@2.20.2(typescript@5.6.3)':
+  '@inlang/paraglide-js@2.21.0(typescript@5.6.3)':
     dependencies:
       '@inlang/recommend-sherlock': 0.2.1
       '@inlang/sdk': 2.10.2
@@ -2575,7 +2575,7 @@ snapshots:
   '@inlang/sdk@2.10.2':
     dependencies:
       '@lix-js/sdk': 0.4.10
-      '@sinclair/typebox': 0.31.28
+      '@sinclair/typebox': 0.31.30
       kysely: 0.28.17
       sqlite-wasm-kysely: 0.3.0(kysely@0.28.17)
       uuid: 14.0.1
@@ -2696,7 +2696,7 @@ snapshots:
 
   '@sinclair/typebox@0.24.51': {}
 
-  '@sinclair/typebox@0.31.28': {}
+  '@sinclair/typebox@0.31.30': {}
 
   '@sindresorhus/is@4.6.0': {}
 
@@ -4673,7 +4673,7 @@ snapshots:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       acorn: 8.17.0
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       webpack-virtual-modules: 0.6.2
 
   urlpattern-polyfill@10.1.0: {}
