@@ -425,7 +425,8 @@ mod tests {
             }]),
         });
 
-        let body = build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
         let c = &body["cipher"];
 
         // The wrapped key travels, rewrapped under the org key, and unwraps
@@ -435,7 +436,10 @@ mod tests {
         assert_eq!(unwrapped.to_bytes().as_slice(), item.to_bytes().as_slice());
 
         // ...and the fields are still readable with the item key, not the org key.
-        assert_eq!(decrypt_name(c["name"].as_str().unwrap(), &unwrapped).unwrap(), "My item");
+        assert_eq!(
+            decrypt_name(c["name"].as_str().unwrap(), &unwrapped).unwrap(),
+            "My item"
+        );
         assert_eq!(
             decrypt_name(c["login"]["password"].as_str().unwrap(), &unwrapped).unwrap(),
             "hunter2"
@@ -451,11 +455,15 @@ mod tests {
         let org = other_test_key();
         let cipher = base_cipher(CipherType::Login, &user);
 
-        let body = build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
         let c = &body["cipher"];
 
         assert!(c["key"].is_null());
-        assert_eq!(decrypt_name(c["name"].as_str().unwrap(), &org).unwrap(), "My item");
+        assert_eq!(
+            decrypt_name(c["name"].as_str().unwrap(), &org).unwrap(),
+            "My item"
+        );
     }
 
     #[test]

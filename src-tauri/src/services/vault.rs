@@ -365,7 +365,12 @@ mod tests {
             vec![],
             vec![],
             vec![make_item_keyed_cipher(
-                "c1", "Perso", "moi@example.com", &ik, &uk, None,
+                "c1",
+                "Perso",
+                "moi@example.com",
+                &ik,
+                &uk,
+                None,
             )],
             vec![],
         );
@@ -387,7 +392,12 @@ mod tests {
             vec![],
             vec![],
             vec![make_item_keyed_cipher(
-                "c1", "Secret", "x@example.com", &ik, &stranger, None,
+                "c1",
+                "Secret",
+                "x@example.com",
+                &ik,
+                &stranger,
+                None,
             )],
             vec![],
         );
