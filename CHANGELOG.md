@@ -5,6 +5,20 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/Upellift99/clavix/compare/v0.2.9...v0.3.0) (2026-07-14)
+
+
+### Features
+
+* **vault:** term-based search, gated startup view, idempotent re-import ([0669801](https://github.com/Upellift99/clavix/commit/066980186c8b4090b57b222726f99e5473da8ea2))
+
+
+### Bug Fixes
+
+* cipher key encryption, import losses, search, and release automation ([7e23c7d](https://github.com/Upellift99/clavix/commit/7e23c7d994bd0ca4c51f19dc638638c164eb353b))
+* **crypto:** support Bitwarden cipher key encryption ([361dd74](https://github.com/Upellift99/clavix/commit/361dd7417f1e828da402207eb5737b41bf615c3c))
+* **import:** surface the entries the server rejects instead of dropping them ([f2e0c0f](https://github.com/Upellift99/clavix/commit/f2e0c0ffc63bc3662232293df129bd868a99bedb))
+
 ## [0.2.9] — 2026-07-14
 
 Ships the TOTP freeze fix, which had been sitting on `master`
