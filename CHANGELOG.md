@@ -5,6 +5,15 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1](https://github.com/Upellift99/clavix/compare/v0.3.0...v0.3.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **auth:** send the WebAuthn challenge to the WebView under the name it reads ([a963ced](https://github.com/Upellift99/clavix/commit/a963ceda4217c9c056b082530452e339a06476af))
+* **ui:** reveal toggle on password entry, and drop the stray space in the item count ([e1f16d1](https://github.com/Upellift99/clavix/commit/e1f16d1febd748259857f65c5399b12d8a8c94cb))
+* WebAuthn 2FA never received its challenge, password reveal, stray space in item count ([6cdbabf](https://github.com/Upellift99/clavix/commit/6cdbabf34de308b1c7f7f75c86b90a20bfe7c43e))
+
 ## [0.3.0](https://github.com/Upellift99/clavix/compare/v0.2.9...v0.3.0) (2026-07-14)
 
 
