@@ -5,6 +5,31 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] — 2026-07-14
+
+Ships the TOTP freeze fix, which had been sitting on `master`
+unreleased since 0.2.8: every 0.2.x build in the wild still hangs
+the whole window as soon as a login with a TOTP secret is
+displayed. Also carries three dependency security fixes. Patch
+bump, no IPC or storage changes.
+
+### Fixed
+- **Displaying a TOTP code no longer freezes the entire app.**
+  `TotpField`'s `$effect` both wrote `config` and — through the
+  `tick()` call in its body — read it back, the textbook
+  "effect reads and writes the same piece of state" cycle that
+  sends Svelte 5 into an unbounded update loop. Symptom was a
+  fully wedged window: the code stayed on its `…` placeholder,
+  the item list stopped responding to clicks, and the process had
+  to be killed. Config and parse errors are now `$derived` from
+  `source`, so the timer effect only ever writes state it does
+  not read.
+- **Security: quick-xml DoS advisories** (RUSTSEC-2026-0194,
+  RUSTSEC-2026-0195).
+- **Security: quinn-proto** bumped to 0.11.15 (RUSTSEC-2026-0185).
+- **Security: pnpm overrides** migrated to `pnpm-workspace.yaml`
+  so they are actually applied to the dependency tree.
+
 ## [0.2.8] — 2026-05-23
 
 Follow-up tray fixes — once 0.2.7 made the window label match and
