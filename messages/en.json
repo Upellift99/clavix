@@ -192,7 +192,7 @@
   "two_factor_yubikey_help": "Touch your YubiKey to auto-fill the code (44 characters).",
   "two_factor_unsupported": "2FA provider \"{provider}\" is not supported by Clavix yet.",
   "two_factor_webauthn_help": "Plug in your FIDO2 security key (YubiKey, SoloKey, etc.) and tap it once it blinks.",
-  "two_factor_webauthn_no_challenge": "The server didn't return a WebAuthn challenge — this method is unavailable.",
+  "two_factor_webauthn_no_challenge": "The server sent no WebAuthn challenge. Vaultwarden only generates one when its DOMAIN setting is a hostname: with an IP address, WebAuthn is disabled (the spec forbids it). Check DOMAIN on the server, and re-register the key if you change it.",
   "two_factor_webauthn_sign": "Sign with the key",
   "two_factor_webauthn_waiting": "Waiting for your key…",
   "session_title": "Active session",

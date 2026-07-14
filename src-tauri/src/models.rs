@@ -102,7 +102,19 @@ pub struct LoginOk {
 /// IPC-facing variant of `LoginResult` — same shape as the old type, minus
 /// the `TokenSet` payload that has no business reaching the WebView.
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+// `rename_all` on an enum renames the *variants*, not the fields inside a
+// struct variant — `rename_all_fields` is what camel-cases those. Without
+// it `webauthn_challenge` crossed the IPC boundary in snake_case while the
+// frontend read `webauthnChallenge`, so the WebAuthn challenge always
+// arrived as `undefined` and 2FA with a security key reported "the server
+// sent no challenge". `providers` never showed the bug: one word, same
+// spelling in both conventions.
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum LoginOutcome {
     Success(LoginOk),
     TwoFactorRequired {
@@ -560,4 +572,45 @@ pub struct CipherSummary {
     pub username: Option<String>,
     pub revision_date: Option<String>,
     pub deleted_date: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The frontend reads `data.webauthnChallenge`. Serde's `rename_all` on
+    /// an enum only touches variant names, so without `rename_all_fields`
+    /// this field ships as `webauthn_challenge`, the WebView sees
+    /// `undefined`, and logging in with a security key dies on "the server
+    /// sent no WebAuthn challenge" — with the server having sent one.
+    #[test]
+    fn two_factor_outcome_is_camel_cased_for_the_webview() {
+        let json = serde_json::to_value(LoginOutcome::TwoFactorRequired {
+            providers: vec![
+                TwoFactorProvider::Authenticator,
+                TwoFactorProvider::WebAuthn,
+            ],
+            webauthn_challenge: Some("{\"publicKey\":{}}".into()),
+        })
+        .expect("serialise");
+
+        assert_eq!(json["type"], "twoFactorRequired");
+        assert_eq!(json["data"]["webauthnChallenge"], "{\"publicKey\":{}}");
+        assert!(
+            json["data"].get("webauthn_challenge").is_none(),
+            "snake_case field leaked to the IPC boundary: {json}"
+        );
+        assert_eq!(json["data"]["providers"][1], 7);
+    }
+
+    #[test]
+    fn two_factor_outcome_omits_an_absent_challenge() {
+        let json = serde_json::to_value(LoginOutcome::TwoFactorRequired {
+            providers: vec![TwoFactorProvider::Authenticator],
+            webauthn_challenge: None,
+        })
+        .expect("serialise");
+
+        assert!(json["data"].get("webauthnChallenge").is_none());
+    }
 }
