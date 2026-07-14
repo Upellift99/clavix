@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import PasswordInput from "./PasswordInput.svelte";
 
   type Props = {
     serverUrl: string;
@@ -35,7 +36,7 @@
   </label>
   <label>
     {m.form_master_password()}
-    <input type="password" bind:value={password} required {disabled} />
+    <PasswordInput bind:value={password} required {disabled} />
   </label>
   <button type="submit" {disabled}>
     {disabled ? m.action_signing_in() : m.action_sign_in()}
