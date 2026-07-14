@@ -44,6 +44,16 @@
   let importOpen = $state(false);
   let exportOpen = $state(false);
 
+  // "Show all items" is a per-session escape hatch from the gate: it lasts
+  // until the vault is locked, and does not touch the stored preference.
+  let showAllOnce = $state(false);
+  const listGated = $derived(
+    prefs.requireNarrowing &&
+      !showAllOnce &&
+      !vault.hasNarrowing &&
+      vault.quickFilter === "all",
+  );
+
   auth.on(async (event) => {
     if (event === "loggedIn") {
       // Paint the UI immediately from the encrypted local cache, then
@@ -71,6 +81,7 @@
   async function lockAndReset() {
     await auth.lock();
     vault.reset();
+    showAllOnce = false;
   }
 
   async function switchAccountAndReset() {
@@ -264,6 +275,8 @@
                 items={vault.filteredCiphers}
                 totalCount={vault.summary.ciphers.length}
                 hasNarrowing={vault.hasNarrowing}
+                gated={listGated}
+                onShowAll={() => (showAllOnce = true)}
                 selectedId={vault.detail?.id ?? null}
                 sortKey={vault.sortKey}
                 sortAsc={vault.sortAsc}
@@ -340,12 +353,14 @@
     closeToTray={prefs.closeToTray}
     minimizeToTray={prefs.minimizeToTray}
     hideDockOnTray={prefs.hideDockOnTray}
+    requireNarrowing={prefs.requireNarrowing}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
     onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
     onApplyCloseToTray={(v) => prefs.setCloseToTray(v)}
     onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
     onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
+    onApplyRequireNarrowing={(v) => prefs.setRequireNarrowing(v)}
     onCopySocketPath={copySshAgentSocket}
   />
 {/if}
@@ -370,6 +385,7 @@
   <ImportDialog
     open={importOpen}
     folders={vault.summary?.folders ?? []}
+    existing={vault.summary?.ciphers ?? []}
     onCancel={() => (importOpen = false)}
     onDone={async () => {
       importOpen = false;

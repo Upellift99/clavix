@@ -11,6 +11,13 @@ const MINIMIZE_TO_TRAY_STORAGE_KEY = "clavix.minimizeToTray";
 const HIDE_DOCK_ON_TRAY_STORAGE_KEY = "clavix.hideDockOnTray";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
+const REQUIRE_NARROWING_STORAGE_KEY = "clavix.requireNarrowing";
+
+// On by default: opening a 3000-item vault straight onto the full list
+// puts every entry on screen at once, which is noise at best and a
+// shoulder-surfing surface at worst. The list is virtualised, so this is
+// not a rendering cost — it is a "show me what I asked for" default.
+const REQUIRE_NARROWING_DEFAULT = true;
 
 /** Cipher-list columns the user can hide. The Type icon and the Name
  *  are not in here because hiding either makes the list unusable. */
@@ -54,6 +61,7 @@ export class PrefsController {
   hideDockOnTray = $state<boolean>(false);
   lastActivityAt = $state<number>(Date.now());
   visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
+  requireNarrowing = $state<boolean>(REQUIRE_NARROWING_DEFAULT);
 
   /** Loads persisted values from localStorage and applies side effects. */
   bootstrap() {
@@ -120,6 +128,12 @@ export class PrefsController {
       } else if (savedHideDock === "false") {
         this.hideDockOnTray = false;
       }
+      const savedNarrowing = localStorage.getItem(REQUIRE_NARROWING_STORAGE_KEY);
+      if (savedNarrowing === "true") {
+        this.requireNarrowing = true;
+      } else if (savedNarrowing === "false") {
+        this.requireNarrowing = false;
+      }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
         try {
@@ -140,6 +154,15 @@ export class PrefsController {
       }
     } catch {
       // ignore
+    }
+  }
+
+  setRequireNarrowing(value: boolean) {
+    this.requireNarrowing = value;
+    try {
+      localStorage.setItem(REQUIRE_NARROWING_STORAGE_KEY, String(value));
+    } catch {
+      // best-effort
     }
   }
 

@@ -12,12 +12,14 @@
     closeToTray: boolean;
     minimizeToTray: boolean;
     hideDockOnTray: boolean;
+    requireNarrowing: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
     onApplyCloseToTray: (value: boolean) => void;
     onApplyMinimizeToTray: (value: boolean) => void;
     onApplyHideDockOnTray: (value: boolean) => void;
+    onApplyRequireNarrowing: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -29,12 +31,14 @@
     closeToTray,
     minimizeToTray,
     hideDockOnTray,
+    requireNarrowing,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
     onApplyCloseToTray,
     onApplyMinimizeToTray,
     onApplyHideDockOnTray,
+    onApplyRequireNarrowing,
     onCopySocketPath,
   }: Props = $props();
 
@@ -211,6 +215,19 @@
           <option value={15}>{m.stats_auto_lock_minutes({ count: "15" })}</option>
           <option value={30}>{m.stats_auto_lock_minutes({ count: "30" })}</option>
           <option value={60}>{m.stats_auto_lock_hour()}</option>
+        </select>
+      </dd>
+      <dt>{m.settings_require_narrowing()}</dt>
+      <dd>
+        <select
+          value={requireNarrowing ? "narrow" : "all"}
+          onchange={(e) =>
+            onApplyRequireNarrowing(
+              (e.currentTarget as HTMLSelectElement).value === "narrow",
+            )}
+        >
+          <option value="narrow">{m.settings_require_narrowing_on()}</option>
+          <option value="all">{m.settings_require_narrowing_off()}</option>
         </select>
       </dd>
       <dt>{m.settings_close_to_tray()}</dt>

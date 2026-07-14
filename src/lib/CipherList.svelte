@@ -10,6 +10,9 @@
     items: CipherSummary[];
     totalCount: number;
     hasNarrowing: boolean;
+    /** Hold the list back until the user searches or picks a folder. */
+    gated: boolean;
+    onShowAll: () => void;
     selectedId: string | null;
     sortKey: SortKey;
     sortAsc: boolean;
@@ -27,6 +30,8 @@
     items,
     totalCount,
     hasNarrowing,
+    gated,
+    onShowAll,
     selectedId,
     sortKey,
     sortAsc,
@@ -139,7 +144,16 @@
       </button>
     {/if}
   </div>
-  {#if items.length === 0}
+  {#if gated}
+    <div class="empty-state" role="status">
+      <Icon name="search" size={40} class="empty-icon" />
+      <p class="empty-title">{m.items_gated_title()}</p>
+      <p class="empty-body">{m.items_gated_body({ count: String(totalCount) })}</p>
+      <button type="button" class="secondary small" onclick={onShowAll}>
+        {m.items_gated_show_all()}
+      </button>
+    </div>
+  {:else if items.length === 0}
     <div class="empty-state" role="status">
       {#if search.trim()}
         <Icon name="search" size={40} class="empty-icon" />
