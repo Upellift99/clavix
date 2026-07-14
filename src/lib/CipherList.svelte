@@ -125,10 +125,9 @@
 <section class="list-pane">
   <h3>
     Items
-    <small>
-      ({items.length.toLocaleString("fr-FR")}
-      {#if hasNarrowing}/{totalCount.toLocaleString("fr-FR")}{/if})
-    </small>
+    <!-- Kept on one line: a newline before `)` renders as a stray space,
+         which showed up as "(3 319 )" whenever nothing narrowed the list. -->
+    <small>({items.length.toLocaleString("fr-FR")}{#if hasNarrowing}/{totalCount.toLocaleString("fr-FR")}{/if})</small>
   </h3>
   <div class="search-row">
     <input

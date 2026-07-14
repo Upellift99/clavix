@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
+  import PasswordInput from "./PasswordInput.svelte";
   import type { StoredAccount } from "./types";
 
   type Props = {
@@ -35,7 +36,7 @@
   <form onsubmit={onSubmit}>
     <label>
       {m.form_master_password()}
-      <input type="password" bind:value={password} required {disabled} />
+      <PasswordInput bind:value={password} required {disabled} />
     </label>
     <div class="row">
       <button type="button" class="secondary" onclick={onSwitchAccount}>{m.action_logout()}</button>
