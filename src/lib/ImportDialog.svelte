@@ -3,6 +3,7 @@
   import { parseKeepassCsv, type KeepassEntry } from "$lib/csv";
   import { api } from "$lib/api";
   import { formatError } from "$lib/format";
+  import { exceedsEncryptedLimit } from "$lib/limits";
   import { EMPTY_EDITOR_INITIAL, type FolderSummary } from "$lib/types";
 
   let {
@@ -26,6 +27,10 @@
   let failedCount = $state(0);
   let lastError = $state<string | null>(null);
   let createFolders = $state(true);
+  // Which entries the server refused, and why. A bare failure *count*
+  // used to be the only feedback, so an entry rejected for an oversized
+  // note vanished with no way to tell which one it was.
+  let failures = $state<{ title: string; message: string }[]>([]);
   // KDBX path: we hold the picked file until the user types the
   // master password, then call `parse_kdbx` over IPC. The CSV path
   // ignores all of these.
@@ -43,6 +48,7 @@
       createdCount = 0;
       failedCount = 0;
       lastError = null;
+      failures = [];
       pendingKdbxFile = null;
       kdbxPassword = "";
       kdbxParsing = false;
@@ -106,6 +112,14 @@
     }
   }
 
+  // Entries the server will refuse outright: the encrypted note blows past
+  // the 10 000-character cap on any single encrypted value. Flagged before
+  // the import runs so the user knows what will not make it across — an
+  // armored PGP key in a note is the usual culprit, and it is well under
+  // any length the user can see, because the limit applies to the
+  // *encrypted* value.
+  const oversized = $derived(entries.filter((e) => exceedsEncryptedLimit(e.notes)));
+
   async function startImport() {
     if (entries.length === 0) return;
     importing = true;
@@ -113,6 +127,7 @@
     createdCount = 0;
     failedCount = 0;
     lastError = null;
+    failures = [];
 
     // Build a mutable folder name → id lookup so we only create each
     // missing KeePass group once per import.
@@ -150,6 +165,10 @@
       } catch (e) {
         failedCount += 1;
         lastError = (e as Error).message ?? String(e);
+        failures.push({
+          title: entry.title || "(sans nom)",
+          message: formatError(e),
+        });
       }
       progress += 1;
     }
@@ -239,6 +258,20 @@
           <span>{m.import_create_folders()}</span>
         </label>
 
+        {#if oversized.length > 0}
+          <div class="import-warning">
+            <p>{m.import_notes_too_long({ count: String(oversized.length) })}</p>
+            <ul>
+              {#each oversized.slice(0, 5) as e, i (i)}
+                <li>{e.title || "(sans nom)"}</li>
+              {/each}
+            </ul>
+            {#if oversized.length > 5}
+              <p class="hint">{m.import_more({ count: String(oversized.length - 5) })}</p>
+            {/if}
+          </div>
+        {/if}
+
         <div class="import-preview">
           <table>
             <thead>
@@ -282,7 +315,16 @@
             failed: String(failedCount),
           })}
         </p>
-        {#if lastError}
+        {#if failures.length > 0}
+          <div class="import-failures">
+            <p>{m.import_failures_heading()}</p>
+            <ul>
+              {#each failures as f, i (i)}
+                <li><strong>{f.title}</strong> — {f.message}</li>
+              {/each}
+            </ul>
+          </div>
+        {:else if lastError}
           <p class="import-error">{lastError}</p>
         {/if}
       {/if}
@@ -370,6 +412,37 @@
   .import-summary {
     margin: 0.4rem 0;
     font-size: 0.9rem;
+  }
+
+  .import-warning {
+    color: #7a4a0e;
+    background: #fdf3e3;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+  }
+
+  .import-failures {
+    color: #7a1d1d;
+    background: #fdecec;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+    max-height: 9rem;
+    overflow-y: auto;
+  }
+
+  .import-warning ul,
+  .import-failures ul {
+    margin: 0.3rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  .import-warning p,
+  .import-failures p {
+    margin: 0;
   }
 
   .import-preview {
