@@ -85,6 +85,42 @@ describe("matchesSearch", () => {
   it("returns true on empty query", () => {
     expect(matchesSearch(cipher({}), "")).toBe(true);
   });
+
+  it("requires every term, letting them land in different fields", () => {
+    const c = cipher({
+      name: "Clicface",
+      username: "claudeai9358@alias.clicface.fr",
+      primaryUri: "https://clicface.fr",
+    });
+    // The whole point: no single field contains "claude clicface".
+    expect(matchesSearch(c, "claude clicface")).toBe(true);
+    expect(matchesSearch(c, "clicface claude")).toBe(true);
+    // A term that matches nothing still rules the item out.
+    expect(matchesSearch(c, "claude github")).toBe(false);
+  });
+
+  it("spreads terms across name and username", () => {
+    const c = cipher({ name: "Omada - TP-Link Cloud", username: "omada@example.com" });
+    expect(matchesSearch(c, "omada cloud")).toBe(true);
+    expect(matchesSearch(c, "tp-link example.com")).toBe(true);
+  });
+
+  it("ignores accents in both the query and the item", () => {
+    const c = cipher({ name: "Téléphonie", username: "hé@x.fr" });
+    expect(matchesSearch(c, "telephonie")).toBe(true);
+    expect(matchesSearch(c, "Téléphonie")).toBe(true);
+  });
+
+  it("ignores surrounding and repeated whitespace", () => {
+    const c = cipher({ name: "GitHub", username: "alice@example.com" });
+    expect(matchesSearch(c, "  github   alice ")).toBe(true);
+    expect(matchesSearch(c, "   ")).toBe(true);
+  });
+
+  it("does not let a term straddle two fields", () => {
+    const c = cipher({ name: "alpha", username: "beta" });
+    expect(matchesSearch(c, "alphabeta")).toBe(false);
+  });
 });
 
 describe("sortCiphers", () => {

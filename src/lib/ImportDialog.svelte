@@ -3,16 +3,25 @@
   import { parseKeepassCsv, type KeepassEntry } from "$lib/csv";
   import { api } from "$lib/api";
   import { formatError } from "$lib/format";
-  import { EMPTY_EDITOR_INITIAL, type FolderSummary } from "$lib/types";
+  import { exceedsEncryptedLimit } from "$lib/limits";
+  import { importIdentity } from "$lib/import";
+  import {
+    EMPTY_EDITOR_INITIAL,
+    type CipherSummary,
+    type FolderSummary,
+  } from "$lib/types";
 
   let {
     open,
     folders,
+    existing,
     onCancel,
     onDone,
   }: {
     open: boolean;
     folders: FolderSummary[];
+    /** Items already in the vault, used to skip re-importing them. */
+    existing: CipherSummary[];
     onCancel: () => void;
     onDone: () => Promise<void> | void;
   } = $props();
@@ -26,12 +35,26 @@
   let failedCount = $state(0);
   let lastError = $state<string | null>(null);
   let createFolders = $state(true);
+  // Which entries the server refused, and why. A bare failure *count*
+  // used to be the only feedback, so an entry rejected for an oversized
+  // note vanished with no way to tell which one it was.
+  let failures = $state<{ title: string; message: string }[]>([]);
+  let skippedCount = $state(0);
   // KDBX path: we hold the picked file until the user types the
   // master password, then call `parse_kdbx` over IPC. The CSV path
   // ignores all of these.
   let pendingKdbxFile = $state<File | null>(null);
   let kdbxPassword = $state("");
   let kdbxParsing = $state(false);
+
+  const existingIds = $derived(
+    new Set(existing.map((c) => importIdentity(c.name, c.username ?? ""))),
+  );
+
+  /** Entries already present in the vault; they will be skipped. */
+  const duplicates = $derived(
+    entries.filter((e) => existingIds.has(importIdentity(e.title, e.username))),
+  );
 
   $effect(() => {
     if (open) {
@@ -43,6 +66,8 @@
       createdCount = 0;
       failedCount = 0;
       lastError = null;
+      failures = [];
+      skippedCount = 0;
       pendingKdbxFile = null;
       kdbxPassword = "";
       kdbxParsing = false;
@@ -106,6 +131,14 @@
     }
   }
 
+  // Entries the server will refuse outright: the encrypted note blows past
+  // the 10 000-character cap on any single encrypted value. Flagged before
+  // the import runs so the user knows what will not make it across — an
+  // armored PGP key in a note is the usual culprit, and it is well under
+  // any length the user can see, because the limit applies to the
+  // *encrypted* value.
+  const oversized = $derived(entries.filter((e) => exceedsEncryptedLimit(e.notes)));
+
   async function startImport() {
     if (entries.length === 0) return;
     importing = true;
@@ -113,26 +146,42 @@
     createdCount = 0;
     failedCount = 0;
     lastError = null;
+    failures = [];
+    skippedCount = 0;
 
     // Build a mutable folder name → id lookup so we only create each
     // missing KeePass group once per import.
     const folderByName = new Map<string, string>();
     for (const f of folders) folderByName.set(f.name, f.id);
 
+    // Re-importing the same file must not duplicate what is already there,
+    // nor overwrite an item the user has edited since. Entries matching a
+    // vault item on name + username are skipped outright; `seen` extends
+    // that to duplicates *within* the file itself.
+    const seen = new Set(existingIds);
+
     for (const entry of entries) {
+      const identity = importIdentity(entry.title, entry.username);
+      if (seen.has(identity)) {
+        skippedCount += 1;
+        progress += 1;
+        continue;
+      }
+      seen.add(identity);
+
       try {
         let folderId: string | null = null;
         if (entry.group && createFolders) {
-          let existing = folderByName.get(entry.group);
-          if (!existing) {
+          let known = folderByName.get(entry.group);
+          if (!known) {
             try {
-              existing = await api.createFolder(entry.group);
-              folderByName.set(entry.group, existing);
+              known = await api.createFolder(entry.group);
+              folderByName.set(entry.group, known);
             } catch (e) {
               console.warn("[clavix] import: folder create failed", e);
             }
           }
-          folderId = existing ?? null;
+          folderId = known ?? null;
         }
 
         await api.createCipher({
@@ -150,6 +199,10 @@
       } catch (e) {
         failedCount += 1;
         lastError = (e as Error).message ?? String(e);
+        failures.push({
+          title: entry.title || "(sans nom)",
+          message: formatError(e),
+        });
       }
       progress += 1;
     }
@@ -239,6 +292,26 @@
           <span>{m.import_create_folders()}</span>
         </label>
 
+        {#if duplicates.length > 0}
+          <p class="import-skip">
+            {m.import_already_present({ count: String(duplicates.length) })}
+          </p>
+        {/if}
+
+        {#if oversized.length > 0}
+          <div class="import-warning">
+            <p>{m.import_notes_too_long({ count: String(oversized.length) })}</p>
+            <ul>
+              {#each oversized.slice(0, 5) as e, i (i)}
+                <li>{e.title || "(sans nom)"}</li>
+              {/each}
+            </ul>
+            {#if oversized.length > 5}
+              <p class="hint">{m.import_more({ count: String(oversized.length - 5) })}</p>
+            {/if}
+          </div>
+        {/if}
+
         <div class="import-preview">
           <table>
             <thead>
@@ -281,8 +354,20 @@
             created: String(createdCount),
             failed: String(failedCount),
           })}
+          {#if skippedCount > 0}
+            {" "}{m.import_skipped({ count: String(skippedCount) })}
+          {/if}
         </p>
-        {#if lastError}
+        {#if failures.length > 0}
+          <div class="import-failures">
+            <p>{m.import_failures_heading()}</p>
+            <ul>
+              {#each failures as f, i (i)}
+                <li><strong>{f.title}</strong> — {f.message}</li>
+              {/each}
+            </ul>
+          </div>
+        {:else if lastError}
           <p class="import-error">{lastError}</p>
         {/if}
       {/if}
@@ -370,6 +455,46 @@
   .import-summary {
     margin: 0.4rem 0;
     font-size: 0.9rem;
+  }
+
+  .import-skip {
+    margin: 0.5rem 0;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    background: #eef3ff;
+    color: #163b8a;
+    font-size: 0.85rem;
+  }
+
+  .import-warning {
+    color: #7a4a0e;
+    background: #fdf3e3;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+  }
+
+  .import-failures {
+    color: #7a1d1d;
+    background: #fdecec;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+    max-height: 9rem;
+    overflow-y: auto;
+  }
+
+  .import-warning ul,
+  .import-failures ul {
+    margin: 0.3rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  .import-warning p,
+  .import-failures p {
+    margin: 0;
   }
 
   .import-preview {

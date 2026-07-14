@@ -69,11 +69,10 @@ pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatu
             .filter_map(|c| {
                 let ssh = c.ssh_key.as_ref()?;
                 let pk_enc = ssh.private_key.as_deref()?;
-                let key = c
-                    .organization_id
-                    .as_ref()
-                    .and_then(|oid| session.org_keys.get(oid))
-                    .unwrap_or(&session.user_key);
+                let owner =
+                    crate::services::cipher::owning_key(c, &session.user_key, &session.org_keys);
+                let item = crate::services::cipher::item_key(c, owner);
+                let key = item.as_ref().unwrap_or(owner);
                 let name = decrypt_name(&c.name, key).ok()?;
                 let pem = decrypt_name(pk_enc, key).ok()?;
                 Some((c.id.clone(), name, pem))

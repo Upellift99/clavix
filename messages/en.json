@@ -3,12 +3,10 @@
   "app_name": "Clavix",
   "loading": "Loading…",
   "error": "Error",
-
   "form_server": "Vaultwarden server",
   "form_email": "Email",
   "form_email_placeholder": "you@example.com",
   "form_master_password": "Master password",
-
   "action_sign_in": "Sign in",
   "action_signing_in": "Signing in…",
   "action_unlock": "Unlock",
@@ -39,7 +37,6 @@
   "action_soft_delete": "Delete",
   "action_delete_forever": "Delete permanently",
   "action_confirm_delete": "This item will be permanently deleted. Continue?",
-
   "onboarding_title": "Welcome to Clavix",
   "onboarding_intro": "Clavix is an open-source desktop client for Vaultwarden and Bitwarden. It reads your existing vault — no data is sent anywhere other than to your own server.",
   "onboarding_what_title": "What Clavix can do today",
@@ -50,11 +47,9 @@
   "onboarding_alpha_body": "The cryptography has not yet been audited by a third party and the API may change. Please read the disclaimer before using Clavix with a sensitive vault.",
   "onboarding_read_disclaimer": "Open the disclaimer (GitHub)",
   "onboarding_continue": "Got it, let's go",
-
   "action_save": "Save",
   "action_new_item": "New item",
   "action_edit": "Edit",
-
   "editor_create_title": "New login item",
   "editor_create_title_generic": "New item",
   "qr_title": "Scan a QR code",
@@ -90,7 +85,6 @@
   "editor_uris": "URLs (one per line)",
   "editor_uris_placeholder": "https://example.com",
   "editor_saving": "Saving…",
-
   "ssh_agent_title": "SSH agent",
   "ssh_agent_hint": "Expose the SSH keys (Ed25519 and RSA) from your vault over a Unix socket, like ssh-agent. Configure it in your shell with the SSH_AUTH_SOCK variable.",
   "ssh_agent_start": "Start",
@@ -110,7 +104,6 @@
   "ssh_generate_action": "Generate an Ed25519 key",
   "ssh_generate_running": "Generating…",
   "ssh_generate_hint": "Creates a fresh Ed25519 keypair on the fly. Or paste an existing key below.",
-
   "yubikey_unlock_section_title": "Unlock with Yubikey",
   "yubikey_unlock_section_hint": "Once enabled, the encrypted master key on disk is protected by your Yubikey instead of your master password. Touching the key unlocks the vault — the master password still works as a fallback.",
   "yubikey_unlock_warning": "Someone who steals both this computer and your Yubikey can unlock the vault — equivalent to stealing the master password. The computer alone is not enough.",
@@ -126,7 +119,6 @@
   "yubikey_unlock_touch": "Touch Yubikey to unlock",
   "yubikey_unlock_touching": "Touch the key…",
   "yubikey_unlock_stale": "The master password was changed on another client — unlock with the password, then re-enrol the Yubikey.",
-
   "import_label": "Import (KeePass / KeePassXC)",
   "import_title": "Import from KeePass / KeePassXC",
   "import_hint": "Pick a KeePassXC CSV export (Database → Export → CSV…) or a native .kdbx file. CSV columns are read positionally as Title / Username / Password / URL / Notes / TOTP / Group; for .kdbx you'll be prompted for the database master password.",
@@ -142,7 +134,10 @@
   "import_running": "Importing…",
   "import_progress": "{done} / {total} items created…",
   "import_done": "Done: {created} created, {failed} failed.",
-
+  "import_already_present": "{count} entry/entries are already in the vault (same name and username): they will be skipped, and your edits kept.",
+  "import_skipped": "{count} already present, skipped.",
+  "import_notes_too_long": "{count} entry/entries have notes too long for the server (limit: 10,000 characters once encrypted, i.e. about 7,400 typed characters — a PGP key exceeds it). They will be rejected on import. On Vaultwarden, INCREASE_NOTE_SIZE_LIMIT=true raises the limit to 100,000.",
+  "import_failures_heading": "Entries rejected by the server:",
   "export_label": "Export (Bitwarden CSV)",
   "export_title": "Export the vault",
   "export_warning": "⚠ The exported file contains your passwords in plaintext on disk. Store it somewhere safe and delete it as soon as you no longer need it.",
@@ -155,7 +150,6 @@
   "export_action": "Download CSV",
   "export_running": "Exporting…",
   "export_progress": "{done} / {total} items decrypted…",
-
   "audit_label": "Security audit",
   "audit_title": "Security audit",
   "audit_privacy_note": "Checks your passwords against HIBP using k-anonymity: only 5 hex characters of the SHA-1 hash ever leave your machine — never the password itself.",
@@ -173,15 +167,12 @@
   "audit_reused_shared": "{count} items share this password:",
   "audit_weak_count": "{count} weak password(s) (zxcvbn score ≤ 2):",
   "audit_weak_score": "score {score}/4",
-
   "action_retry": "Retry",
-
   "settings_title": "Preferences",
   "settings_language": "Language",
   "settings_theme": "Theme",
   "settings_theme_auto": "Auto (system)",
   "settings_theme_dark": "Dark (forced)",
-
   "generator_title": "Password generator",
   "generator_label": "Generator",
   "generator_length": "Length: {count}",
@@ -192,9 +183,7 @@
   "generator_avoid_ambiguous": "Avoid ambiguous characters (O/0, l/1…)",
   "generator_regenerate": "Regenerate",
   "generator_empty_charset": "Select at least one character type.",
-
   "unlock_title": "Unlock",
-
   "two_factor_title": "Two-factor authentication",
   "two_factor_providers": "Providers offered: {providers}",
   "two_factor_method_label": "Method",
@@ -206,9 +195,7 @@
   "two_factor_webauthn_no_challenge": "The server didn't return a WebAuthn challenge — this method is unavailable.",
   "two_factor_webauthn_sign": "Sign with the key",
   "two_factor_webauthn_waiting": "Waiting for your key…",
-
   "session_title": "Active session",
-
   "tree_all_items": "All items",
   "tree_favorites": "Favourites",
   "tree_trash": "Trash",
@@ -223,21 +210,21 @@
   "folder_action_delete": "Delete",
   "folder_delete_confirm": "Delete folder “{name}”? {count} item(s) will be detached (not deleted) and appear under “All items”.",
   "folder_delete_confirm_cascade": "Delete “{name}” and {subCount} sub-folder(s)? {itemCount} item(s) will be detached (not deleted) and appear under “All items”.",
-
   "items_title": "Items",
   "items_search_placeholder": "Search an item… (/ or Ctrl+F)",
+  "items_gated_title": "Search for an item",
+  "items_gated_body": "Type a search or pick a folder on the left. The vault's {count} items stay hidden until you narrow things down.",
+  "items_gated_show_all": "Show all items",
   "items_search_clear": "Clear",
   "items_empty_search": "No item matches \"{query}\".",
   "items_empty_folder": "No item in this folder.",
   "items_favorite": "Favourite",
   "items_and_more": "… and {count} more.",
-
   "col_name": "Name",
   "col_username": "Username",
   "col_url": "URL",
   "columns_label": "Columns",
   "columns_chooser_title": "Visible columns",
-
   "detail_item_id": "Item #{id}",
   "detail_organization": "Organization: {name}",
   "detail_decrypting": "Decrypting the item…",
@@ -248,8 +235,6 @@
   "detail_section_identity": "Identity",
   "detail_section_ssh": "SSH Key",
   "detail_section_notes": "Notes",
-  "action_copy": "Copy",
-  "action_show": "Show",
   "action_hide_value": "Hide",
   "detail_field_username": "Username",
   "detail_field_password": "Password",
@@ -267,7 +252,6 @@
   "detail_field_public_key": "Public key",
   "detail_field_private_key": "Private key",
   "detail_field_private_key_hidden": "••••••• (hidden)",
-
   "stats_title": "Synced vault",
   "stats_account": "Account",
   "stats_items": "Items",
@@ -284,8 +268,10 @@
   "stats_auto_lock_never": "Never",
   "stats_auto_lock_minutes": "{count} min",
   "stats_auto_lock_hour": "1 h",
-
   "settings_close_to_tray": "Close button",
+  "settings_require_narrowing": "Startup view",
+  "settings_require_narrowing_on": "Wait for a search or a folder",
+  "settings_require_narrowing_off": "Show all items",
   "settings_close_to_tray_tray": "Hide to tray",
   "settings_close_to_tray_quit": "Quit Clavix",
   "settings_minimize_to_tray": "Minimise button",
@@ -294,21 +280,17 @@
   "settings_hide_dock_on_tray": "Hide dock icon when in tray",
   "settings_hide_dock_on_tray_on": "Yes (tray icon only)",
   "settings_hide_dock_on_tray_off": "No (keep dock entry)",
-
   "clipboard_toast": "Clipboard ({label}) will be cleared in {seconds}s",
-
   "type_login": "Login",
   "type_note": "Note",
   "type_card": "Card",
   "type_identity": "Identity",
   "type_ssh_key": "SSH key",
-
   "provider_totp": "TOTP (Authenticator)",
   "provider_email": "Email",
   "provider_duo": "Duo",
   "provider_yubikey": "YubiKey OTP",
   "provider_webauthn": "WebAuthn / FIDO2",
-
   "err_invalid_url": "Invalid URL: {url}",
   "err_network": "Network error: {cause}",
   "err_invalid_response": "Invalid server response: {reason}",

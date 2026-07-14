@@ -8,7 +8,7 @@
 // users locked out of their own data on the next launch.
 
 import { e2ePassword } from "../wdio.conf.mjs";
-import { loginAsSeededUser } from "../helpers/auth.mjs";
+import { loginAsSeededUser, showAllItems } from "../helpers/auth.mjs";
 
 describe("Lock → unlock", () => {
   it("clears the vault on lock and restores it on unlock", async () => {
@@ -43,9 +43,13 @@ describe("Lock → unlock", () => {
     await submit.click();
 
     // Post-unlock, the auto-sync hook (same as post-login) brings the
-    // vault back. Assert on a seeded cipher to prove the chain went
-    // all the way through: refresh_token decrypt → access token →
-    // /api/sync → decode ciphers with user key.
+    // vault back. The list gate is back too — the "show all" override is
+    // deliberately per-session, so locking drops it — hence the second
+    // call here. Assert on a seeded cipher to prove the chain went all
+    // the way through: refresh_token decrypt → access token → /api/sync
+    // → decode ciphers with user key.
+    await showAllItems();
+
     const ghAfterUnlock = await $(".cipher-row*=GitHub");
     await ghAfterUnlock.waitForDisplayed({
       timeout: 20_000,

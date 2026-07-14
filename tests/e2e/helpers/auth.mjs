@@ -35,11 +35,41 @@ export async function loginAsSeededUser() {
   const submit = await $('button[type="submit"]');
   await submit.click();
 
-  // Post-login auto-sync paints the seeded ciphers without any manual
-  // action. Wait until the known "GitHub" seed row appears.
+  await showAllItems();
+
   const seededRow = await $(".cipher-row*=GitHub");
   await seededRow.waitForDisplayed({
     timeout: 20_000,
     timeoutMsg: "auto-sync never populated the vault with the seeded ciphers",
   });
+}
+
+/**
+ * Clear the item-list gate.
+ *
+ * The list holds itself back until the user searches or picks a folder
+ * (`prefs.requireNarrowing`, on by default), so a freshly synced vault
+ * lands on the gate rather than on the rows — and the gate comes back
+ * after every lock, since the "show all" override is per-session. Specs
+ * that assert on rows take the same escape hatch a user would.
+ *
+ * Resolves as soon as rows are present, so it is a no-op when the gate
+ * is off.
+ */
+export async function showAllItems() {
+  await browser.waitUntil(
+    async () => {
+      if (await (await $(".cipher-row")).isExisting()) return true;
+      const showAll = await $(".empty-state button");
+      if (await showAll.isExisting()) {
+        await showAll.click();
+        return true;
+      }
+      return false;
+    },
+    {
+      timeout: 20_000,
+      timeoutMsg: "auto-sync never populated the vault with the seeded ciphers",
+    },
+  );
 }

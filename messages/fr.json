@@ -3,12 +3,10 @@
   "app_name": "Clavix",
   "loading": "Chargement…",
   "error": "Erreur",
-
   "form_server": "Serveur Vaultwarden",
   "form_email": "Email",
   "form_email_placeholder": "toi@exemple.fr",
   "form_master_password": "Mot de passe maître",
-
   "action_sign_in": "Connexion",
   "action_signing_in": "Connexion…",
   "action_unlock": "Déverrouiller",
@@ -39,7 +37,6 @@
   "action_soft_delete": "Supprimer",
   "action_delete_forever": "Supprimer définitivement",
   "action_confirm_delete": "Cet item sera définitivement supprimé. Continuer ?",
-
   "onboarding_title": "Bienvenue dans Clavix",
   "onboarding_intro": "Clavix est un client desktop open-source pour Vaultwarden et Bitwarden. Il lit votre coffre existant — aucune donnée n'est envoyée ailleurs que sur votre serveur.",
   "onboarding_what_title": "Ce que Clavix sait faire aujourd'hui",
@@ -50,11 +47,9 @@
   "onboarding_alpha_body": "La crypto n'a pas encore été auditée par un tiers et l'API peut changer. Lisez le disclaimer avant de l'utiliser avec un coffre sensible.",
   "onboarding_read_disclaimer": "Ouvrir le disclaimer (GitHub)",
   "onboarding_continue": "J'ai compris, démarrer",
-
   "action_save": "Enregistrer",
   "action_new_item": "Nouvel item",
   "action_edit": "Éditer",
-
   "editor_create_title": "Nouvel item (login)",
   "editor_create_title_generic": "Nouvel item",
   "qr_title": "Scanner un QR code",
@@ -90,7 +85,6 @@
   "editor_uris": "URLs (une par ligne)",
   "editor_uris_placeholder": "https://exemple.com",
   "editor_saving": "Enregistrement…",
-
   "ssh_agent_title": "Agent SSH",
   "ssh_agent_hint": "Expose vos clés SSH (Ed25519 et RSA) du coffre via une socket Unix, comme ssh-agent. À configurer dans votre shell avec la variable SSH_AUTH_SOCK.",
   "ssh_agent_start": "Démarrer",
@@ -110,7 +104,6 @@
   "ssh_generate_action": "Générer une clé Ed25519",
   "ssh_generate_running": "Génération…",
   "ssh_generate_hint": "Génère une nouvelle paire Ed25519 à la volée. Sinon, collez une clé existante ci-dessous.",
-
   "yubikey_unlock_section_title": "Déverrouillage par Yubikey",
   "yubikey_unlock_section_hint": "Une fois activé, votre clé maître chiffrée sur disque est protégée par votre Yubikey plutôt que par votre mot de passe maître. Toucher la clé suffit à rouvrir le coffre — le mot de passe maître reste accepté en secours.",
   "yubikey_unlock_warning": "Quelqu'un qui vole à la fois cet ordinateur et votre Yubikey peut déverrouiller le coffre — c'est l'équivalent du vol du mot de passe maître. Sans la Yubikey, l'ordinateur seul ne donne rien.",
@@ -126,7 +119,6 @@
   "yubikey_unlock_touch": "Toucher la Yubikey pour déverrouiller",
   "yubikey_unlock_touching": "Touchez la clé…",
   "yubikey_unlock_stale": "Le mot de passe maître a changé sur un autre client — déverrouillez avec le mot de passe puis configurez à nouveau la Yubikey.",
-
   "import_label": "Importer (KeePass / KeePassXC)",
   "import_title": "Importer depuis KeePass / KeePassXC",
   "import_hint": "Sélectionnez un export CSV depuis KeePassXC (Base de données → Exporter → CSV…) ou un fichier natif .kdbx. Les colonnes CSV attendues sont Title / Username / Password / URL / Notes / TOTP / Group ; pour un .kdbx, le mot de passe maître de la base vous sera demandé.",
@@ -142,7 +134,10 @@
   "import_running": "Import en cours…",
   "import_progress": "{done} / {total} items créés…",
   "import_done": "Terminé : {created} créé(s), {failed} échec(s).",
-
+  "import_already_present": "{count} entrée(s) sont déjà dans le coffre (même nom et même identifiant) : elles seront ignorées, vos modifications sont préservées.",
+  "import_skipped": "{count} déjà présente(s), ignorée(s).",
+  "import_notes_too_long": "{count} entrée(s) ont des notes trop longues pour le serveur (limite : 10 000 caractères une fois chiffrés, soit environ 7 400 caractères saisis — une clé PGP dépasse ce seuil). Elles seront refusées à l'import. Sur Vaultwarden, INCREASE_NOTE_SIZE_LIMIT=true relève la limite à 100 000.",
+  "import_failures_heading": "Entrées refusées par le serveur :",
   "export_label": "Exporter (CSV Bitwarden)",
   "export_title": "Exporter le coffre",
   "export_warning": "⚠ Le fichier exporté contient vos mots de passe en clair sur le disque. Stockez-le dans un endroit sûr et supprimez-le dès que vous n'en avez plus besoin.",
@@ -155,7 +150,6 @@
   "export_action": "Télécharger le CSV",
   "export_running": "Export en cours…",
   "export_progress": "{done} / {total} items déchiffrés…",
-
   "audit_label": "Audit de sécurité",
   "audit_title": "Audit de sécurité",
   "audit_privacy_note": "Vérifie vos mots de passe contre HIBP via k-anonymity : seuls 5 caractères hex du SHA-1 quittent votre poste, jamais le mot de passe lui-même.",
@@ -173,15 +167,12 @@
   "audit_reused_shared": "{count} items partagent ce mot de passe :",
   "audit_weak_count": "{count} mot(s) de passe faible(s) (score zxcvbn ≤ 2) :",
   "audit_weak_score": "score {score}/4",
-
   "action_retry": "Réessayer",
-
   "settings_title": "Préférences",
   "settings_language": "Langue",
   "settings_theme": "Thème",
   "settings_theme_auto": "Auto (système)",
   "settings_theme_dark": "Sombre (forcé)",
-
   "generator_title": "Générateur de mots de passe",
   "generator_label": "Générateur",
   "generator_length": "Longueur : {count}",
@@ -192,9 +183,7 @@
   "generator_avoid_ambiguous": "Éviter les caractères ambigus (O/0, l/1…)",
   "generator_regenerate": "Régénérer",
   "generator_empty_charset": "Sélectionnez au moins un type de caractère.",
-
   "unlock_title": "Déverrouiller",
-
   "two_factor_title": "Double authentification",
   "two_factor_providers": "Providers annoncés : {providers}",
   "two_factor_method_label": "Méthode",
@@ -206,9 +195,7 @@
   "two_factor_webauthn_no_challenge": "Le serveur n'a pas renvoyé de challenge WebAuthn — impossible de continuer sur cette méthode.",
   "two_factor_webauthn_sign": "Valider avec la clé",
   "two_factor_webauthn_waiting": "En attente de votre clé…",
-
   "session_title": "Session active",
-
   "tree_all_items": "Tous les items",
   "tree_favorites": "Favoris",
   "tree_trash": "Corbeille",
@@ -223,21 +210,21 @@
   "folder_action_delete": "Supprimer",
   "folder_delete_confirm": "Supprimer le dossier « {name} » ? {count} item(s) seront détaché(s) (pas supprimé(s)) et apparaîtront dans « Tous les items ».",
   "folder_delete_confirm_cascade": "Supprimer « {name} » ainsi que {subCount} sous-dossier(s) ? {itemCount} item(s) seront détaché(s) (pas supprimé(s)) et apparaîtront dans « Tous les items ».",
-
   "items_title": "Items",
   "items_search_placeholder": "Rechercher un item… (/ ou Ctrl+F)",
+  "items_gated_title": "Cherchez un item",
+  "items_gated_body": "Tapez une recherche ou choisissez un dossier à gauche. Les {count} items du coffre ne sont pas affichés tant que vous n'avez pas filtré.",
+  "items_gated_show_all": "Afficher tous les items",
   "items_search_clear": "Effacer",
   "items_empty_search": "Aucun item ne correspond à « {query} ».",
   "items_empty_folder": "Aucun item dans ce dossier.",
   "items_favorite": "Favori",
   "items_and_more": "… et {count} autres.",
-
   "col_name": "Nom",
   "col_username": "Identifiant",
   "col_url": "URL",
   "columns_label": "Colonnes",
   "columns_chooser_title": "Colonnes affichées",
-
   "detail_item_id": "Item #{id}",
   "detail_organization": "Organisation : {name}",
   "detail_decrypting": "Déchiffrement de l'item…",
@@ -248,8 +235,6 @@
   "detail_section_identity": "Identité",
   "detail_section_ssh": "Clé SSH",
   "detail_section_notes": "Notes",
-  "action_copy": "Copier",
-  "action_show": "Afficher",
   "action_hide_value": "Masquer",
   "detail_field_username": "Identifiant",
   "detail_field_password": "Mot de passe",
@@ -267,7 +252,6 @@
   "detail_field_public_key": "Clé publique",
   "detail_field_private_key": "Clé privée",
   "detail_field_private_key_hidden": "••••••• (masquée)",
-
   "stats_title": "Coffre synchronisé",
   "stats_account": "Compte",
   "stats_items": "Items",
@@ -284,8 +268,10 @@
   "stats_auto_lock_never": "Jamais",
   "stats_auto_lock_minutes": "{count} min",
   "stats_auto_lock_hour": "1 h",
-
   "settings_close_to_tray": "Bouton Fermer",
+  "settings_require_narrowing": "Affichage au démarrage",
+  "settings_require_narrowing_on": "Attendre une recherche ou un dossier",
+  "settings_require_narrowing_off": "Afficher tous les items",
   "settings_close_to_tray_tray": "Réduire dans la zone de notification",
   "settings_close_to_tray_quit": "Quitter Clavix",
   "settings_minimize_to_tray": "Bouton Réduire",
@@ -294,21 +280,17 @@
   "settings_hide_dock_on_tray": "Cacher l'icône du dock quand dans le tray",
   "settings_hide_dock_on_tray_on": "Oui (icône tray uniquement)",
   "settings_hide_dock_on_tray_off": "Non (garder l'entrée du dock)",
-
   "clipboard_toast": "Presse-papier ({label}) effacé dans {seconds}s",
-
   "type_login": "Login",
   "type_note": "Note",
   "type_card": "Carte",
   "type_identity": "Identité",
   "type_ssh_key": "Clé SSH",
-
   "provider_totp": "TOTP (Authenticator)",
   "provider_email": "Email",
   "provider_duo": "Duo",
   "provider_yubikey": "YubiKey OTP",
   "provider_webauthn": "WebAuthn / FIDO2",
-
   "err_invalid_url": "URL invalide : {url}",
   "err_network": "Erreur réseau : {cause}",
   "err_invalid_response": "Réponse serveur invalide : {reason}",

@@ -18,6 +18,7 @@
 // Issue #23 — covers "first login with supported 2FA methods".
 
 import { totpCode } from "../helpers/totp.mjs";
+import { showAllItems } from "../helpers/auth.mjs";
 import { e2eServer } from "../wdio.conf.mjs";
 
 // Mirrors `TWO_FA_*` constants in `e2e_seed.rs`. Hard-coded here
@@ -80,10 +81,14 @@ describe("Login flow ▸ TOTP 2FA", () => {
     const submit = await $('button[type="submit"]');
     await submit.click();
 
-    // Post-2FA, the auto-sync hook brings the seeded fixture down.
+    // Post-2FA, the auto-sync hook brings the seeded fixture down —
+    // behind the item-list gate, which this spec has to clear itself
+    // since it drives the 2FA login instead of using loginAsSeededUser.
     // The 2FA account only has one cipher — "Behind 2FA" — so its
     // presence in the list is the sharpest possible "we're past
     // the 2FA gate and the vault decrypted".
+    await showAllItems();
+
     const seededRow = await $(".cipher-row*=Behind 2FA");
     await seededRow.waitForDisplayed({
       timeout: 20_000,

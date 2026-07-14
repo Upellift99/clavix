@@ -1,0 +1,41 @@
+name: Release Please
+
+# Version bumps and tagging used to be manual, and it showed: the TOTP
+# UI-freeze fix sat on master for five weeks behind an un-cut release,
+# so every user kept hitting a bug that was already fixed. This workflow
+# keeps a release PR up to date from the conventional-commit history;
+# merging it bumps the version everywhere, updates the CHANGELOG, and
+# tags — no step left to remember.
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Needed to hand the tag over to the build workflow below.
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update the release PR, tag on merge
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # A tag pushed by GITHUB_TOKEN does NOT fire release.yml's
+      # `push: tags` trigger — GitHub refuses to chain workflow runs off
+      # its own token, to avoid recursion. workflow_dispatch is the
+      # documented exception, and release.yml already accepts a `tag`
+      # input, so hand the new tag straight to it.
+      - name: Build and publish the artifacts for the new tag
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release.yml -f tag="${{ steps.release.outputs.tag_name }}" --repo "$GITHUB_REPOSITORY"

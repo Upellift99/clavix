@@ -24,11 +24,10 @@ pub async fn audit_vault_passwords(
             .filter_map(|c| {
                 let login = c.login.as_ref()?;
                 let pw_enc = login.password.as_deref()?;
-                let key = c
-                    .organization_id
-                    .as_ref()
-                    .and_then(|oid| session.org_keys.get(oid))
-                    .unwrap_or(&session.user_key);
+                let owner =
+                    crate::services::cipher::owning_key(c, &session.user_key, &session.org_keys);
+                let item = crate::services::cipher::item_key(c, owner);
+                let key = item.as_ref().unwrap_or(owner);
                 let pw = decrypt_name(pw_enc, key).ok()?;
                 if pw.is_empty() {
                     return None;

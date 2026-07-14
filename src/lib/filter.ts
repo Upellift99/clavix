@@ -21,13 +21,33 @@ export function compareBy(a: string | null | undefined, b: string | null | undef
   return av.localeCompare(bv, "fr");
 }
 
+/**
+ * Lowercase and strip diacritics, so "telephonie" finds "Téléphonie".
+ */
+export function normalizeForSearch(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+/**
+ * Every whitespace-separated term must appear somewhere in the item —
+ * name, username or URL — but not necessarily in the *same* field. That
+ * is what lets "claude clicface" find the login whose username is
+ * claudeai9358@alias.clicface.fr: matching the query as one substring
+ * finds nothing, since no single field contains "claude clicface".
+ *
+ * Fields are joined on a newline so a term cannot straddle two of them.
+ */
 export function matchesSearch(c: CipherSummary, q: string): boolean {
-  if (!q) return true;
-  return (
-    c.name.toLowerCase().includes(q) ||
-    (c.username?.toLowerCase().includes(q) ?? false) ||
-    (c.primaryUri?.toLowerCase().includes(q) ?? false)
+  const terms = normalizeForSearch(q).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return true;
+
+  const haystack = normalizeForSearch(
+    [c.name, c.username ?? "", c.primaryUri ?? ""].join("\n"),
   );
+  return terms.every((t) => haystack.includes(t));
 }
 
 export function filterByTreeNode(

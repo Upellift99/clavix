@@ -37,11 +37,9 @@ pub fn build_sync_summary(
         .ciphers
         .par_iter()
         .map(|c| {
-            let key = c
-                .organization_id
-                .as_ref()
-                .and_then(|id| org_keys.get(id))
-                .unwrap_or(user_key);
+            let owner = crate::services::cipher::owning_key(c, user_key, org_keys);
+            let item = crate::services::cipher::item_key(c, owner);
+            let key = item.as_ref().unwrap_or(owner);
             let primary_uri = c
                 .login
                 .as_ref()
@@ -236,6 +234,7 @@ mod tests {
         Cipher {
             id: id.into(),
             kind: CipherType::Login,
+            key: None,
             name: encrypt_string(name, key).unwrap(),
             notes: None,
             organization_id: organization_id.map(str::to_string),
@@ -269,6 +268,7 @@ mod tests {
         Cipher {
             id: id.into(),
             kind,
+            key: None,
             name: encrypt_string("n", key).unwrap(),
             notes: None,
             organization_id: organization_id.map(str::to_string),
@@ -301,6 +301,109 @@ mod tests {
             collections,
             ciphers,
         }
+    }
+
+    /// An org item using Bitwarden's "cipher key encryption": the fields
+    /// are encrypted under a per-item key, and only that item key is
+    /// wrapped under the org key. Decrypting the fields with the org key
+    /// fails MAC verification — which is exactly what the user saw as
+    /// `[decrypt failed: MAC verification failed]` in the item list.
+    fn make_item_keyed_cipher(
+        id: &str,
+        name: &str,
+        username: &str,
+        item: &SymmetricKey,
+        owner: &SymmetricKey,
+        organization_id: Option<&str>,
+    ) -> Cipher {
+        let mut c = make_login_cipher(id, name, Some(username), None, item, organization_id);
+        c.key = Some(crate::crypto::encrypt_cipher_key(item, owner).unwrap());
+        c
+    }
+
+    fn item_key_fixture() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(29).wrapping_add(3);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    #[test]
+    fn sync_summary_decrypts_an_org_item_that_carries_its_own_key() {
+        let uk = user_key();
+        let ok = org_key();
+        let ik = item_key_fixture();
+        let mut org_keys = HashMap::new();
+        org_keys.insert("org-1".to_string(), org_key());
+
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![make_item_keyed_cipher(
+                "c1",
+                "Omada - TP-Link Cloud",
+                "omada@example.com",
+                &ik,
+                &ok,
+                Some("org-1"),
+            )],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &org_keys);
+        assert_eq!(s.ciphers[0].name, "Omada - TP-Link Cloud");
+        assert_eq!(s.ciphers[0].username.as_deref(), Some("omada@example.com"));
+    }
+
+    #[test]
+    fn sync_summary_decrypts_a_personal_item_that_carries_its_own_key() {
+        let uk = user_key();
+        let ik = item_key_fixture();
+
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![make_item_keyed_cipher(
+                "c1",
+                "Perso",
+                "moi@example.com",
+                &ik,
+                &uk,
+                None,
+            )],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.ciphers[0].name, "Perso");
+        assert_eq!(s.ciphers[0].username.as_deref(), Some("moi@example.com"));
+    }
+
+    #[test]
+    fn sync_summary_placeholders_an_item_whose_key_cannot_be_unwrapped() {
+        // Item key wrapped under a key we do not hold: the item must
+        // degrade to the placeholder, not take the whole listing down.
+        let uk = user_key();
+        let ik = item_key_fixture();
+        let stranger = org_key();
+
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![make_item_keyed_cipher(
+                "c1",
+                "Secret",
+                "x@example.com",
+                &ik,
+                &stranger,
+                None,
+            )],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.ciphers[0].name, "[decrypt failed]");
     }
 
     #[test]
