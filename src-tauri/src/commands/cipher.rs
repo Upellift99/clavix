@@ -6,7 +6,7 @@ use crate::models::{
     CardDetail, CipherCreateInput, CipherDetail, IdentityDetail, LoginDetail, SshKeyDetail,
 };
 use crate::services::auth::ensure_fresh_tokens;
-use crate::services::cipher::{build_cipher_body, build_login_cipher_body};
+use crate::services::cipher::{build_cipher_body, build_login_cipher_body, item_key, owning_key};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -26,11 +26,9 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
             reason: format!("cipher not found: {id}"),
         })?;
 
-    let key = cipher
-        .organization_id
-        .as_ref()
-        .and_then(|oid| session.org_keys.get(oid))
-        .unwrap_or(&session.user_key);
+    let owner = owning_key(cipher, &session.user_key, &session.org_keys);
+    let item = item_key(cipher, owner);
+    let key = item.as_ref().unwrap_or(owner);
 
     let decrypt_opt = |s: &str| -> Option<String> { decrypt_name(s, key).ok() };
 
@@ -225,21 +223,39 @@ pub async fn update_cipher(
         // not what the editor is sending. Moves between personal and org
         // must go through the dedicated share / move command — attempting
         // them here would re-encrypt with the wrong key.
-        let existing_org_id = s.vault.as_ref().and_then(|v| {
-            v.ciphers
-                .iter()
-                .find(|c| c.id == cipher_id)
-                .and_then(|c| c.organization_id.clone())
-        });
-        let key: &crate::crypto::SymmetricKey = match existing_org_id.as_deref() {
+        let existing = s
+            .vault
+            .as_ref()
+            .and_then(|v| v.ciphers.iter().find(|c| c.id == cipher_id));
+        let existing_org_id = existing.and_then(|c| c.organization_id.clone());
+        let existing_item_key = existing.and_then(|c| c.key.clone());
+
+        let owner: &crate::crypto::SymmetricKey = match existing_org_id.as_deref() {
             Some(org_id) => s.org_keys.get(org_id).ok_or_else(|| Error::Crypto {
                 reason: format!("no key available for organization {org_id}"),
             })?,
             None => &s.user_key,
         };
+
+        // An item that carries its own key keeps it: re-encrypt the fields
+        // under the item key and echo the wrapped key back untouched. Writing
+        // the fields under the owning key instead would leave the server's
+        // `key` in place and make the item undecryptable for every client,
+        // this one included.
+        let unwrapped = existing_item_key
+            .as_deref()
+            .map(|k| crate::crypto::decrypt_cipher_key(owner, k))
+            .transpose()?;
+        let key = unwrapped.as_ref().unwrap_or(owner);
+
         let mut bound_input = input;
         bound_input.organization_id = existing_org_id;
-        let body = build_cipher_body(&bound_input, key)?;
+        let mut body = build_cipher_body(&bound_input, key)?;
+        if let Some(wrapped) = existing_item_key {
+            body.as_object_mut()
+                .expect("build_cipher_body returns a map")
+                .insert("key".into(), serde_json::Value::String(wrapped));
+        }
         (s.client.clone(), s.tokens.access_token.clone(), body)
     };
     let updated = client

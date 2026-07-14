@@ -306,6 +306,26 @@ pub fn decrypt_name(encrypted: &str, key: &SymmetricKey) -> Result<String> {
     EncString::parse(encrypted)?.decrypt_string_sym(key)
 }
 
+/// Unwrap a cipher's own encryption key ("cipher key encryption").
+///
+/// Bitwarden may give an individual cipher its own symmetric key, shipped
+/// in the cipher's `key` field and wrapped under the key that owns the
+/// item — the org key for an org item, the user key for a personal one.
+/// When that field is present, *every* field of the cipher (its name
+/// included) is encrypted under the item key rather than the owning key,
+/// so decrypting with the owning key fails MAC verification.
+pub fn decrypt_cipher_key(owning_key: &SymmetricKey, encrypted: &str) -> Result<SymmetricKey> {
+    let bytes = EncString::parse(encrypted)?.decrypt_sym(owning_key)?;
+    SymmetricKey::from_bytes(&bytes)
+}
+
+/// Re-wrap an item key under a different owning key. Used when sharing a
+/// cipher into an org: the fields stay encrypted under the item key, and
+/// only the wrapper changes from the user key to the org key.
+pub fn encrypt_cipher_key(item_key: &SymmetricKey, owning_key: &SymmetricKey) -> Result<String> {
+    encrypt_bytes(item_key.to_bytes().as_slice(), owning_key)
+}
+
 pub fn reencrypt_with_key(
     encrypted: &str,
     from_key: &SymmetricKey,

@@ -185,6 +185,13 @@ pub struct Cipher {
     pub id: String,
     #[serde(rename = "type")]
     pub kind: CipherType,
+    /// The cipher's own encryption key, wrapped under the owning key (org
+    /// key for an org item, user key otherwise). When present, every field
+    /// below is encrypted under *this* key instead of the owning one — see
+    /// `crypto::decrypt_cipher_key`. Absent on items last written by a
+    /// client that predates cipher key encryption.
+    #[serde(default)]
+    pub key: Option<String>,
     pub name: String,
     #[serde(default)]
     pub notes: Option<String>,

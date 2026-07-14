@@ -1,6 +1,43 @@
-use crate::crypto::{encrypt_string, reencrypt_with_key, SymmetricKey};
+use crate::crypto::{
+    decrypt_cipher_key, encrypt_cipher_key, encrypt_string, reencrypt_with_key, SymmetricKey,
+};
 use crate::error::{Error, Result};
 use crate::models::{CardInput, Cipher, CipherCreateInput, IdentityInput, LoginInput, SshKeyInput};
+use std::collections::HashMap;
+
+/// The key a cipher is *owned* by: the org key for an org item, the user
+/// key otherwise. Falls back to the user key when the org key is missing
+/// so callers still produce a `[decrypt failed]` placeholder instead of
+/// aborting the whole listing.
+pub fn owning_key<'a>(
+    cipher: &Cipher,
+    user_key: &'a SymmetricKey,
+    org_keys: &'a HashMap<String, SymmetricKey>,
+) -> &'a SymmetricKey {
+    cipher
+        .organization_id
+        .as_ref()
+        .and_then(|oid| org_keys.get(oid))
+        .unwrap_or(user_key)
+}
+
+/// The key a cipher's *fields* are encrypted under.
+///
+/// Same as the owning key, except for items that carry their own key
+/// (Bitwarden "cipher key encryption"), where the owning key only unwraps
+/// the item key and every field hangs off the latter. Returns `None` for
+/// the common no-item-key case so the caller can keep borrowing the
+/// owning key rather than cloning it.
+///
+/// An item key that fails to unwrap yields `None`, degrading to the same
+/// `[decrypt failed]` placeholder as any other undecryptable field — one
+/// broken item must not take the listing down with it.
+pub fn item_key(cipher: &Cipher, owning_key: &SymmetricKey) -> Option<SymmetricKey> {
+    cipher
+        .key
+        .as_deref()
+        .and_then(|k| decrypt_cipher_key(owning_key, k).ok())
+}
 
 fn enc_opt(s: Option<&str>, key: &SymmetricKey) -> Result<Option<String>> {
     s.map(str::trim)
@@ -181,7 +218,21 @@ pub fn build_share_cipher_body(
     target_org_id: &str,
     collection_ids: &[String],
 ) -> Result<serde_json::Value> {
-    let reenc = |s: &str| reencrypt_with_key(s, source_key, target_key);
+    // An item with its own key moves without touching its fields: they are
+    // encrypted under the item key, which travels with the item. Only the
+    // wrapper changes, from the source key to the target org key. Items
+    // without one have every field rewrapped, source → target, as before.
+    let unwrapped = item_key(cipher, source_key);
+    let (from_key, to_key) = match &unwrapped {
+        Some(ik) => (ik, ik),
+        None => (source_key, target_key),
+    };
+    let rewrapped_key = unwrapped
+        .as_ref()
+        .map(|ik| encrypt_cipher_key(ik, target_key))
+        .transpose()?;
+
+    let reenc = |s: &str| reencrypt_with_key(s, from_key, to_key);
     let reenc_opt = |s: Option<&str>| -> Result<Option<String>> { s.map(reenc).transpose() };
 
     let name = reenc(&cipher.name)?;
@@ -267,6 +318,7 @@ pub fn build_share_cipher_body(
     Ok(serde_json::json!({
         "cipher": {
             "type": cipher.kind as u8,
+            "key": rewrapped_key,
             "name": name,
             "notes": notes,
             "organizationId": target_org_id,
@@ -312,6 +364,7 @@ mod tests {
         Cipher {
             id: "cipher-id".into(),
             kind,
+            key: None,
             name: encrypt_string("My item", source_key).unwrap(),
             notes: None,
             organization_id: None,
@@ -341,6 +394,80 @@ mod tests {
             organization_id: None,
             collection_ids: vec![],
         }
+    }
+
+    fn item_test_key() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(29).wrapping_add(3);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    /// Sharing an item that owns its key must NOT rewrap its fields under
+    /// the org key — the fields stay under the item key, and only the item
+    /// key is rewrapped. Rewrapping the fields while the server keeps the
+    /// old `key` would leave the item undecryptable for every client.
+    #[test]
+    fn share_body_rewraps_the_item_key_and_leaves_fields_under_it() {
+        let user = test_key();
+        let org = other_test_key();
+        let item = item_test_key();
+
+        let mut cipher = base_cipher(CipherType::Login, &item);
+        cipher.key = Some(encrypt_cipher_key(&item, &user).unwrap());
+        cipher.login = Some(CipherLogin {
+            username: Some(encrypt_string("alice", &item).unwrap()),
+            password: Some(encrypt_string("hunter2", &item).unwrap()),
+            totp: None,
+            uris: Some(vec![CipherLoginUri {
+                uri: Some(encrypt_string("https://example.com", &item).unwrap()),
+            }]),
+        });
+
+        let body = build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let c = &body["cipher"];
+
+        // The wrapped key travels, rewrapped under the org key, and unwraps
+        // back to the very same item key.
+        let rewrapped = c["key"].as_str().expect("shared item keeps its key");
+        let unwrapped = decrypt_cipher_key(&org, rewrapped).unwrap();
+        assert_eq!(unwrapped.to_bytes().as_slice(), item.to_bytes().as_slice());
+
+        // ...and the fields are still readable with the item key, not the org key.
+        assert_eq!(decrypt_name(c["name"].as_str().unwrap(), &unwrapped).unwrap(), "My item");
+        assert_eq!(
+            decrypt_name(c["login"]["password"].as_str().unwrap(), &unwrapped).unwrap(),
+            "hunter2"
+        );
+        assert!(decrypt_name(c["name"].as_str().unwrap(), &org).is_err());
+    }
+
+    /// The pre-existing path: no item key, so every field is rewrapped
+    /// source → target and no `key` is sent.
+    #[test]
+    fn share_body_without_item_key_rewraps_fields_under_the_org_key() {
+        let user = test_key();
+        let org = other_test_key();
+        let cipher = base_cipher(CipherType::Login, &user);
+
+        let body = build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let c = &body["cipher"];
+
+        assert!(c["key"].is_null());
+        assert_eq!(decrypt_name(c["name"].as_str().unwrap(), &org).unwrap(), "My item");
+    }
+
+    #[test]
+    fn item_key_is_none_when_the_owning_key_is_wrong() {
+        let user = test_key();
+        let stranger = other_test_key();
+        let item = item_test_key();
+
+        let mut cipher = base_cipher(CipherType::Login, &item);
+        cipher.key = Some(encrypt_cipher_key(&item, &stranger).unwrap());
+
+        assert!(item_key(&cipher, &user).is_none());
     }
 
     #[test]
