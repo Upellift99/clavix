@@ -25,6 +25,11 @@ tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_repr = "0.1"
+# Generates the TypeScript types the WebView consumes, straight from the
+# Rust definitions, serde attributes included. Hand-written mirrors had
+# silently drifted: `webauthn_challenge` shipped in snake_case while the
+# frontend read `webauthnChallenge`, so WebAuthn 2FA could never work.
+ts-rs = "12"
 thiserror = "2"
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }

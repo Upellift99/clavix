@@ -20,129 +20,45 @@ export type TauriError = {
   data?: Record<string, unknown>;
 };
 
-export type LoginOk = { email: string };
+// ---------------------------------------------------------------------------
+// Types that cross the Tauri IPC boundary are GENERATED from the Rust
+// definitions (`src/lib/generated/`, produced by ts-rs) and re-exported here.
+//
+// They used to be hand-written mirrors, and the two sides drifted without a
+// sound: Rust sent `webauthn_challenge`, this file declared
+// `webauthnChallenge`, and logging in with a security key was impossible —
+// the challenge arrived as `undefined` every time, and nothing in the build
+// could see it. Renaming a field in Rust now breaks `svelte-check` instead of
+// breaking users. Do not re-declare these by hand.
+// ---------------------------------------------------------------------------
+import type { LoginDetail } from "./generated/LoginDetail";
+import type { CardDetail } from "./generated/CardDetail";
+import type { IdentityDetail } from "./generated/IdentityDetail";
+import type { SshKeyDetail } from "./generated/SshKeyDetail";
 
-export type LoginResult =
-  | { type: "success"; data: LoginOk }
-  | {
-      type: "twoFactorRequired";
-      data: { providers: number[]; webauthnChallenge?: string };
-    };
+export type { LoginOk } from "./generated/LoginOk";
+export type { TwoFactorProvider } from "./generated/TwoFactorProvider";
+export type { TypeCounts } from "./generated/TypeCounts";
+export type { FolderSummary } from "./generated/FolderSummary";
+export type { OrganizationSummary } from "./generated/OrganizationSummary";
+export type { CollectionSummary } from "./generated/CollectionSummary";
+export type { CipherSummary } from "./generated/CipherSummary";
+export type { SyncSummary } from "./generated/SyncSummary";
+export type { LoginDetail, CardDetail, IdentityDetail, SshKeyDetail };
+export type { CipherDetail } from "./generated/CipherDetail";
+export type { CipherCreateInput } from "./generated/CipherCreateInput";
 
-export type TypeCounts = {
-  login: number;
-  secureNote: number;
-  card: number;
-  identity: number;
-  sshKey: number;
-};
+// Rust calls it LoginOutcome; the frontend has always called it LoginResult.
+export type { LoginOutcome as LoginResult } from "./generated/LoginOutcome";
 
-export type FolderSummary = { id: string; name: string };
-export type OrganizationSummary = { id: string; name: string };
-export type CollectionSummary = { id: string; organizationId: string; name: string };
-
-export type CipherSummary = {
-  id: string;
-  kind: number;
-  name: string;
-  folderId: string | null;
-  organizationId: string | null;
-  collectionIds: string[];
-  favorite: boolean;
-  primaryUri: string | null;
-  username: string | null;
-  revisionDate: string | null;
-  deletedDate: string | null;
-};
-
-export type SyncSummary = {
-  email: string;
-  name: string | null;
-  itemCount: number;
-  folderCount: number;
-  collectionCount: number;
-  organizationCount: number;
-  typeCounts: TypeCounts;
-  folders: FolderSummary[];
-  organizations: OrganizationSummary[];
-  collections: CollectionSummary[];
-  ciphers: CipherSummary[];
-};
-
-export type LoginDetail = {
-  username: string | null;
-  /** Presence only — fetch with `api.revealField(id, "password")`. */
-  hasPassword: boolean;
-  uris: string[];
-  /** The TOTP secret never crosses to JS — only whether the item has one.
-      Use `api.totpCode(id)` for the current code, `api.revealLoginTotp(id)`
-      for the raw secret (editor/export only). */
-  hasTotp: boolean;
-};
-
-export type TotpCode = {
-  code: string;
-  secondsRemaining: number;
-};
-
-export type CardDetail = {
-  cardholderName: string | null;
-  brand: string | null;
-  hasNumber: boolean;
-  expMonth: string | null;
-  expYear: string | null;
-  hasCode: boolean;
-};
-
-export type IdentityDetail = {
-  title: string | null;
-  firstName: string | null;
-  middleName: string | null;
-  lastName: string | null;
-  address1: string | null;
-  address2: string | null;
-  address3: string | null;
-  city: string | null;
-  state: string | null;
-  postalCode: string | null;
-  country: string | null;
-  company: string | null;
-  email: string | null;
-  phone: string | null;
-  hasSsn: boolean;
-  username: string | null;
-  passportNumber: string | null;
-  licenseNumber: string | null;
-};
-
-export type SshKeyDetail = {
-  /** The private key stays in Rust; fetch on demand with
-      `api.revealField(id, "sshPrivateKey")`. */
-  hasPrivateKey: boolean;
-  publicKey: string | null;
-  keyFingerprint: string | null;
-};
+// Small IPC return types, also generated from Rust (totp.rs / update.rs).
+export type { TotpCode } from "./generated/TotpCode";
+export type { UpdateInfo } from "./generated/UpdateInfo";
 
 export type DecryptedSshKey = {
   privateKey: string;
   publicKey: string;
   keyFingerprint: string;
-};
-
-export type CipherDetail = {
-  id: string;
-  kind: number;
-  name: string;
-  notes: string | null;
-  organizationId: string | null;
-  folderId: string | null;
-  collectionIds: string[];
-  revisionDate: string | null;
-  favorite: boolean;
-  login: LoginDetail | null;
-  card: CardDetail | null;
-  identity: IdentityDetail | null;
-  sshKey: SshKeyDetail | null;
 };
 
 export type CipherKind = 1 | 2 | 3 | 4 | 5;
@@ -296,13 +212,6 @@ export type TreeNode = {
   collectionId: string | null;
   children: TreeNode[];
   itemCount: number;
-};
-
-export type UpdateInfo = {
-  current: string;
-  latest: string;
-  updateAvailable: boolean;
-  url: string;
 };
 
 export type SortKey = "name" | "username" | "uri";

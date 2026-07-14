@@ -16,7 +16,8 @@ const USER_AGENT: &str = concat!("Clavix/", env!("CARGO_PKG_VERSION"));
 
 /// Verdict handed to the WebView. `update_available` is the only thing the UI
 /// really acts on; the rest lets it render "vX.Y.Z is available" + a link.
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, ts_rs::TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     /// The version this build reports (`CARGO_PKG_VERSION`).
