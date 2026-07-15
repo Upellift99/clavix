@@ -243,6 +243,13 @@ impl EncString {
     pub fn decrypt_rsa(&self, private_key: &RsaPrivateKey) -> Result<Vec<u8>> {
         match self {
             Self::Rsa2048OaepSha1 { ciphertext } => {
+                // SHA-1 in OAEP is per the Bitwarden spec (fine). The residual
+                // risk is RUSTSEC-2023-0071: the `rsa` crate's decryption is not
+                // constant-time (Marvin timing side-channel), with no fixed 0.9.x
+                // release yet. We reach this only for server-supplied type-4
+                // EncStrings (org key unwrap), over HTTPS, with no attacker-facing
+                // oracle — exposure is low. Tracked/ignored in ci.yml's cargo-audit
+                // step; upgrade the crate as soon as a constant-time release lands.
                 let padding = Oaep::new::<Sha1>();
                 private_key
                     .decrypt(padding, ciphertext)

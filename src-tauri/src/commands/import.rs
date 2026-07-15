@@ -50,8 +50,22 @@ pub struct KdbxEntry {
 /// empty `password` rows are dropped: KeePassXC sometimes leaves
 /// empty placeholder entries under the root group and they're never
 /// useful in a Bitwarden vault.
+/// A real KDBX database is well under this. The cap stops a compromised
+/// renderer from forcing a huge native allocation by handing an oversized
+/// buffer to the parser (memory DoS).
+const MAX_KDBX_BYTES: usize = 64 * 1024 * 1024;
+
 #[tauri::command]
 pub fn parse_kdbx(bytes: Vec<u8>, password: String) -> Result<Vec<KdbxEntry>> {
+    if bytes.len() > MAX_KDBX_BYTES {
+        return Err(Error::Storage {
+            reason: format!(
+                "KDBX file too large: {} bytes (max {} MiB)",
+                bytes.len(),
+                MAX_KDBX_BYTES / (1024 * 1024)
+            ),
+        });
+    }
     let key = DatabaseKey::new().with_password(&password);
     let db = Database::parse(&bytes, key).map_err(|e| {
         // The keepass crate distinguishes "wrong password" from
