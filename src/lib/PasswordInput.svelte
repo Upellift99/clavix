@@ -54,15 +54,21 @@
 
   .password-input input {
     width: 100%;
+    /* border-box is the real fix for the "débordement": there is no global
+       box-sizing reset, so a bare input defaults to content-box. With
+       content-box, `width: 100%` sizes the *content* to the container and
+       `padding-right` is then added on top, pushing the field ~2.4rem past
+       its siblings (which the flex column stretches by border box). Pin it
+       to border-box so width includes the padding and the field lines up. */
+    box-sizing: border-box;
     /* Room for the button so a long password never slides under it. */
     padding-right: 2.4rem;
   }
 
   /* Fixed square, vertically centred, sitting comfortably inside the
-     field's right edge. The button used to inherit the tall auth-screen
-     `button` padding, which stretched its hover box past the input's
-     rounded corner — that overhang is the "débordement" reported on the
-     unlock screen. Explicit dimensions + padding:0 pin it inside. */
+     field's right edge. Explicit dimensions + padding:0 keep the reveal
+     button from inheriting the tall auth-screen `button` padding, whose
+     hover box would otherwise overhang the input's rounded corner. */
   .reveal {
     position: absolute;
     top: 50%;
