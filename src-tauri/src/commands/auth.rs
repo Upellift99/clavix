@@ -35,8 +35,35 @@ pub fn stored_account() -> Result<Option<StoredAccount>> {
     }))
 }
 
+/// Pin pre-auth entry points to the active session's server. `prelogin`/`login`
+/// build a fresh `VaultwardenClient` from a renderer-supplied `server_url` with
+/// no session context, so a compromised WebView could point them at an
+/// attacker host to smuggle data out over the native (reqwest) side or probe
+/// internal https services (SSRF). While a vault session is active the server
+/// is fixed, so any first-factor call to a *different* host is illegitimate —
+/// reject it. When logged out (no session) any server is allowed, which is the
+/// normal sign-in / account-switch path.
+fn ensure_server_matches_active_session(state: &AppState, server_url: &str) -> Result<()> {
+    let guard = state.session.lock();
+    if let Some(session) = guard.as_ref() {
+        let requested = VaultwardenClient::new(server_url)?;
+        if requested.base_url() != session.client.base_url() {
+            return Err(Error::AuthFailed {
+                message: "refusing to contact a different server while a vault session is active"
+                    .into(),
+            });
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
-pub async fn prelogin(server_url: String, email: String) -> Result<Prelogin> {
+pub async fn prelogin(
+    state: State<'_, AppState>,
+    server_url: String,
+    email: String,
+) -> Result<Prelogin> {
+    ensure_server_matches_active_session(&state, &server_url)?;
     let client = VaultwardenClient::new(&server_url)?;
     client.prelogin(&email).await
 }
@@ -48,6 +75,7 @@ pub async fn login(
     email: String,
     password: String,
 ) -> Result<LoginOutcome> {
+    ensure_server_matches_active_session(&state, &server_url)?;
     let password: SecretString = password.into();
     let (client, pre, master_key, hash) =
         prepare_credentials(&server_url, &email, &password).await?;
