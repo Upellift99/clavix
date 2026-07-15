@@ -42,7 +42,8 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
             .iter()
             .filter_map(|u| u.uri.as_deref().and_then(decrypt_opt))
             .collect(),
-        totp: l.totp.as_deref().and_then(decrypt_opt),
+        // Presence only — the seed stays in Rust (see `totp_code`).
+        has_totp: l.totp.as_deref().is_some_and(|t| !t.is_empty()),
     });
 
     let card = cipher.card.as_ref().map(|c| CardDetail {
@@ -145,6 +146,53 @@ pub fn reveal_field(
     Ok(enc
         .and_then(|e| decrypt_name(e, key).ok())
         .filter(|s| !s.is_empty()))
+}
+
+/// Decrypt a login item's TOTP secret (otpauth URI or bare base32) by id,
+/// under its item/owning key. Kept in Rust so the seed never reaches JS.
+fn decrypt_totp_secret(state: &AppState, id: &str) -> Result<Option<String>> {
+    let guard = state.session.lock();
+    let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+    let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+        reason: "no vault synced yet — synchronise first".into(),
+    })?;
+    let cipher = vault
+        .ciphers
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| Error::Storage {
+            reason: format!("cipher not found: {id}"),
+        })?;
+    let owner = owning_key(cipher, &session.user_key, &session.org_keys);
+    let item = item_key(cipher, owner);
+    let key = item.as_ref().unwrap_or(owner);
+    Ok(cipher
+        .login
+        .as_ref()
+        .and_then(|l| l.totp.as_deref())
+        .and_then(|t| decrypt_name(t, key).ok())
+        .filter(|s| !s.is_empty()))
+}
+
+/// Current TOTP code + seconds remaining for a login item. Computed in Rust so
+/// the shared secret stays out of the WebView (a leaked seed = permanent 2FA
+/// bypass). The renderer polls this once a second for the live field.
+#[tauri::command]
+pub fn totp_code(state: State<'_, AppState>, id: String) -> Result<crate::totp::TotpCode> {
+    crate::state::mark_activity(&state);
+    let secret = decrypt_totp_secret(&state, &id)?.ok_or_else(|| Error::Storage {
+        reason: "item has no TOTP secret".into(),
+    })?;
+    crate::totp::code_now(&secret)
+}
+
+/// The raw TOTP secret, only for the editor (to edit it) and export (to write
+/// it out) — the two legitimate places that need the seed itself rather than a
+/// code. Everything else uses `totp_code`.
+#[tauri::command]
+pub fn reveal_login_totp(state: State<'_, AppState>, id: String) -> Result<Option<String>> {
+    crate::state::mark_activity(&state);
+    decrypt_totp_secret(&state, &id)
 }
 
 #[tauri::command]

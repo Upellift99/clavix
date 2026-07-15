@@ -342,7 +342,13 @@ pub struct LoginDetail {
     pub username: Option<String>,
     pub password: Option<String>,
     pub uris: Vec<String>,
-    pub totp: Option<String>,
+    /// Whether the item carries a TOTP secret. The secret itself is NOT sent to
+    /// the WebView (it would let a compromised renderer mint valid codes
+    /// forever — a permanent 2FA bypass). The renderer asks
+    /// `commands::cipher::totp_code` for the current code, and
+    /// `reveal_login_totp` for the raw secret only when the editor/export needs
+    /// it.
+    pub has_totp: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

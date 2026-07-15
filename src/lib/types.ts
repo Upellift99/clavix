@@ -73,7 +73,15 @@ export type LoginDetail = {
   username: string | null;
   password: string | null;
   uris: string[];
-  totp: string | null;
+  /** The TOTP secret never crosses to JS — only whether the item has one.
+      Use `api.totpCode(id)` for the current code, `api.revealLoginTotp(id)`
+      for the raw secret (editor/export only). */
+  hasTotp: boolean;
+};
+
+export type TotpCode = {
+  code: string;
+  secondsRemaining: number;
 };
 
 export type CardDetail = {

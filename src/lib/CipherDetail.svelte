@@ -262,14 +262,14 @@
     </section>
   {/if}
 
-  {#if detail.login?.totp}
+  {#if detail.login?.hasTotp}
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_security()}</h3>
       <div class="detail-field" role="group">
         <dt>{m.detail_field_totp()}</dt>
         <dd>
           <TotpField
-            source={detail.login.totp}
+            id={detail.id}
             onCopy={(code) => onCopy(code, m.detail_field_totp())}
           />
         </dd>

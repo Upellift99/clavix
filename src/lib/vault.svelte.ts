@@ -359,15 +359,19 @@ export class VaultController {
 
   async openEditEditor() {
     if (!this.detail) return;
-    // The SSH private key is no longer in `detail`; fetch it so the editor can
-    // keep it (otherwise saving would wipe the key).
+    // Secrets are no longer in `detail`; fetch the ones the editor edits so
+    // saving them back doesn't wipe them.
     let sshPrivateKey = "";
-    if (this.detail.sshKey?.hasPrivateKey) {
-      try {
+    let totpSecret = "";
+    try {
+      if (this.detail.sshKey?.hasPrivateKey) {
         sshPrivateKey = (await api.revealField(this.detail.id, "sshPrivateKey")) ?? "";
-      } catch (e) {
-        this.error = formatError(e);
       }
+      if (this.detail.login?.hasTotp) {
+        totpSecret = (await api.revealLoginTotp(this.detail.id)) ?? "";
+      }
+    } catch (e) {
+      this.error = formatError(e);
     }
     if (!this.detail) return;
     const currentCipher = this.summary?.ciphers.find((c) => c.id === this.detail!.id);
@@ -383,7 +387,7 @@ export class VaultController {
       username: this.detail.login?.username ?? "",
       password: this.detail.login?.password ?? "",
       uris: this.detail.login?.uris ?? [],
-      totp: this.detail.login?.totp ?? "",
+      totp: totpSecret,
       card: {
         cardholderName: this.detail.card?.cardholderName ?? "",
         brand: this.detail.card?.brand ?? "",
