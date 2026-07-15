@@ -544,6 +544,8 @@
   <ImportDialog
     open={importOpen}
     folders={vault.summary?.folders ?? []}
+    organizations={vault.summary?.organizations ?? []}
+    collections={vault.summary?.collections ?? []}
     existing={vault.summary?.ciphers ?? []}
     onCancel={() => (importOpen = false)}
     onDone={async () => {

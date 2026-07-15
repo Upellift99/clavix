@@ -8,23 +8,38 @@
   import {
     EMPTY_EDITOR_INITIAL,
     type CipherSummary,
+    type CollectionSummary,
     type FolderSummary,
+    type OrganizationSummary,
   } from "$lib/types";
 
   let {
     open,
     folders,
+    organizations,
+    collections,
     existing,
     onCancel,
     onDone,
   }: {
     open: boolean;
     folders: FolderSummary[];
+    organizations: OrganizationSummary[];
+    collections: CollectionSummary[];
     /** Items already in the vault, used to skip re-importing them. */
     existing: CipherSummary[];
     onCancel: () => void;
     onDone: () => Promise<void> | void;
   } = $props();
+
+  // Import destination: null = personal vault (KeePass groups become folders),
+  // or an organization id (all items land in the chosen collection; groups are
+  // ignored, since folders are a personal-vault concept in Bitwarden).
+  let destOrgId = $state<string | null>(null);
+  let destCollectionId = $state<string | null>(null);
+  const orgCollections = $derived(
+    destOrgId ? collections.filter((c) => c.organizationId === destOrgId) : [],
+  );
 
   let entries = $state<KeepassEntry[]>([]);
   let parseError = $state<string | null>(null);
@@ -71,8 +86,20 @@
       pendingKdbxFile = null;
       kdbxPassword = "";
       kdbxParsing = false;
+      destOrgId = null;
+      destCollectionId = null;
     }
   });
+
+  // Default to the org's first collection when a destination org is picked, so
+  // the import is never left targeting an org with no collection selected.
+  function onDestOrgChange() {
+    destCollectionId = orgCollections[0]?.id ?? null;
+  }
+
+  // Block the import when an org is chosen but no collection can receive the
+  // items (org items must belong to at least one collection).
+  const destInvalid = $derived(destOrgId !== null && destCollectionId === null);
 
   function isKdbx(file: File): boolean {
     return file.name.toLowerCase().endsWith(".kdbx");
@@ -170,8 +197,10 @@
       seen.add(identity);
 
       try {
+        // Folders are a personal-vault concept; when importing into an
+        // organization every item goes to the chosen collection instead.
         let folderId: string | null = null;
-        if (entry.group && createFolders) {
+        if (!destOrgId && entry.group && createFolders) {
           let known = folderByName.get(entry.group);
           if (!known) {
             try {
@@ -189,6 +218,8 @@
           cipherType: 1,
           name: entry.title || "(sans nom)",
           folderId,
+          organizationId: destOrgId,
+          collectionIds: destOrgId && destCollectionId ? [destCollectionId] : [],
           notes: entry.notes,
           username: entry.username,
           password: entry.password,
@@ -287,10 +318,39 @@
         <p class="import-summary">
           {m.import_summary({ count: String(entries.length), file: fileName ?? "?" })}
         </p>
-        <label class="checkbox-row">
-          <input type="checkbox" bind:checked={createFolders} disabled={importing} />
-          <span>{m.import_create_folders()}</span>
-        </label>
+
+        {#if organizations.length > 0}
+          <label class="import-dest">
+            {m.import_destination()}
+            <select bind:value={destOrgId} onchange={onDestOrgChange} disabled={importing}>
+              <option value={null}>{m.editor_owner_personal()}</option>
+              {#each organizations as org (org.id)}
+                <option value={org.id}>{org.name}</option>
+              {/each}
+            </select>
+          </label>
+          {#if destOrgId}
+            <label class="import-dest">
+              {m.editor_collection()}
+              <select bind:value={destCollectionId} disabled={importing}>
+                {#if orgCollections.length === 0}
+                  <option value={null} disabled>{m.editor_no_collection()}</option>
+                {:else}
+                  {#each orgCollections as c (c.id)}
+                    <option value={c.id}>{c.name}</option>
+                  {/each}
+                {/if}
+              </select>
+            </label>
+          {/if}
+        {/if}
+
+        {#if !destOrgId}
+          <label class="checkbox-row">
+            <input type="checkbox" bind:checked={createFolders} disabled={importing} />
+            <span>{m.import_create_folders()}</span>
+          </label>
+        {/if}
 
         {#if duplicates.length > 0}
           <p class="import-skip">
@@ -384,7 +444,7 @@
         <button
           type="button"
           onclick={startImport}
-          disabled={importing || entries.length === 0 || progress > 0}
+          disabled={importing || entries.length === 0 || progress > 0 || destInvalid}
         >
           {importing ? m.import_running() : m.import_start()}
         </button>
@@ -441,6 +501,12 @@
     gap: 0.5rem;
     margin: 0.4rem 0;
     font-size: 0.9rem;
+  }
+
+  .import-dest {
+    margin: 0.4rem 0;
+    font-size: 0.9rem;
+    gap: 0.25rem;
   }
 
   .import-error {

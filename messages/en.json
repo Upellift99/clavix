@@ -121,6 +121,7 @@
   "yubikey_unlock_stale": "The master password was changed on another client — unlock with the password, then re-enrol the Yubikey.",
   "import_label": "Import (KeePass / KeePassXC)",
   "import_title": "Import from KeePass / KeePassXC",
+  "import_destination": "Destination",
   "import_hint": "Pick a KeePassXC CSV export (Database → Export → CSV…) or a native .kdbx file. CSV columns are read positionally as Title / Username / Password / URL / Notes / TOTP / Group; for .kdbx you'll be prompted for the database master password.",
   "import_kdbx_password_label": "KDBX master password",
   "import_kdbx_password_hint": "The password is consumed once to decrypt the .kdbx file. Clavix never stores it.",
