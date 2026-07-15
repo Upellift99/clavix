@@ -29,6 +29,9 @@
   import { formatError } from "$lib/format";
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
+  import { currentTotpCode } from "$lib/totp";
+  import { openUrl } from "@tauri-apps/plugin-opener";
+  import type { CipherDetail as CipherDetailData, CipherSummary } from "$lib/types";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
   const prefs = new PrefsController();
@@ -74,6 +77,100 @@
     }
   }
 
+  // Right-click context menu over a list row. Mirrors the KeePassXC entry
+  // menu: open, copy username (Ctrl+B), copy password (Ctrl+C), copy the
+  // current TOTP (Ctrl+T), open the URL (Ctrl+U). Username/URL come straight
+  // from the summary so the menu paints instantly; password/TOTP need the
+  // decrypted detail, which we fetch in the background — those two rows only
+  // appear once we actually know the item carries them.
+  let menuCipher = $state<CipherSummary | null>(null);
+  let menuDetail = $state<CipherDetailData | null>(null);
+  let menuX = $state(0);
+  let menuY = $state(0);
+  let menuEl = $state<HTMLDivElement | null>(null);
+
+  function openRowMenu(event: MouseEvent, cipher: CipherSummary) {
+    event.preventDefault();
+    menuCipher = cipher;
+    menuDetail = vault.detail?.id === cipher.id ? vault.detail : null;
+    menuX = event.clientX;
+    menuY = event.clientY;
+    // Only login items can carry a password/TOTP worth decrypting for.
+    if (!menuDetail && cipher.kind === 1) {
+      void loadMenuDetail(cipher.id);
+    }
+  }
+
+  async function loadMenuDetail(id: string) {
+    try {
+      const detail = await api.getCipher(id);
+      // Guard against a stale response: the menu may have closed or moved
+      // to another row while the decrypt was in flight.
+      if (menuCipher?.id === id) menuDetail = detail;
+    } catch {
+      // The menu simply won't gain the decrypt-only actions; opening the
+      // item surfaces the real error through the normal path.
+    }
+  }
+
+  function closeRowMenu() {
+    menuCipher = null;
+    menuDetail = null;
+  }
+
+  // Tug the menu back inside the viewport once laid out, so a right-click
+  // near the right/bottom edge doesn't clip its actions.
+  $effect(() => {
+    if (menuCipher === null || menuEl === null) return;
+    const rect = menuEl.getBoundingClientRect();
+    const overflowX = rect.right - window.innerWidth;
+    const overflowY = rect.bottom - window.innerHeight;
+    if (overflowX > 0) menuX = Math.max(8, menuX - overflowX - 8);
+    if (overflowY > 0) menuY = Math.max(8, menuY - overflowY - 8);
+  });
+
+  function openMenuCipher() {
+    const id = menuCipher?.id;
+    closeRowMenu();
+    // openCipher toggles, so calling it on the already-open item would
+    // close the panel — guard so "Ouvrir" never hides what it opens.
+    if (id && vault.detail?.id !== id) vault.openCipher(id);
+  }
+
+  async function copyMenuUsername() {
+    const username = menuDetail?.login?.username ?? menuCipher?.username;
+    closeRowMenu();
+    if (username) await copyToClipboard(username, "identifiant");
+  }
+
+  async function copyMenuPassword() {
+    const password = menuDetail?.login?.password;
+    closeRowMenu();
+    if (password) await copyToClipboard(password, "mot de passe");
+  }
+
+  async function copyMenuTotp() {
+    const source = menuDetail?.login?.totp;
+    closeRowMenu();
+    if (!source) return;
+    try {
+      await copyToClipboard(await currentTotpCode(source), "code TOTP");
+    } catch (e) {
+      vault.error = formatError(e);
+    }
+  }
+
+  async function openMenuUri() {
+    const uri = menuCipher?.primaryUri;
+    closeRowMenu();
+    if (!uri) return;
+    try {
+      await openUrl(uri);
+    } catch (e) {
+      vault.error = formatError(e);
+    }
+  }
+
   async function copySshAgentSocket(socketPath: string) {
     await copyToClipboard(`export SSH_AUTH_SOCK=${socketPath}`, "SSH_AUTH_SOCK");
   }
@@ -82,6 +179,7 @@
     await auth.lock();
     vault.reset();
     showAllOnce = false;
+    closeRowMenu();
   }
 
   async function switchAccountAndReset() {
@@ -207,7 +305,17 @@
   const wide = $derived(auth.phase === "loggedIn" && vault.summary !== null);
 </script>
 
-<svelte:window onkeydown={handleGlobalKeydown} oncontextmenu={suppressNativeContextMenu} />
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === "Escape" && menuCipher) {
+      e.preventDefault();
+      closeRowMenu();
+      return;
+    }
+    handleGlobalKeydown(e);
+  }}
+  oncontextmenu={suppressNativeContextMenu}
+/>
 
 <main class="container" class:wide>
   {#key prefs.currentLocale}
@@ -284,6 +392,7 @@
                 visibleColumns={prefs.visibleColumns}
                 {drag}
                 onOpenCipher={(id) => vault.openCipher(id)}
+                onRowContextMenu={openRowMenu}
                 onToggleSort={(k) => vault.toggleSort(k)}
                 onToggleColumn={(k, v) => prefs.setVisibleColumn(k, v)}
                 onSearchInputRef={(el) => (searchInput = el)}
@@ -336,6 +445,52 @@
 </main>
 
 <ClipboardToast {clipboard} />
+
+{#if menuCipher}
+  <!-- Click-anywhere-else dismisses; right-clicking elsewhere is swallowed so
+       the native WebKit menu never leaks through. Keyboard reaches the items
+       via tab order, Escape closes it (handled on the window). -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div
+    class="ctx-menu-backdrop"
+    onclick={closeRowMenu}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      closeRowMenu();
+    }}
+  ></div>
+  <div
+    bind:this={menuEl}
+    class="ctx-menu"
+    role="menu"
+    style="left: {menuX}px; top: {menuY}px;"
+  >
+    <button type="button" role="menuitem" onclick={openMenuCipher}>
+      {m.ctx_open()}
+    </button>
+    {#if menuCipher.username}
+      <button type="button" role="menuitem" onclick={copyMenuUsername}>
+        {m.ctx_copy_username()}
+      </button>
+    {/if}
+    {#if menuDetail?.login?.password}
+      <button type="button" role="menuitem" onclick={copyMenuPassword}>
+        {m.ctx_copy_password()}
+      </button>
+    {/if}
+    {#if menuDetail?.login?.totp}
+      <button type="button" role="menuitem" onclick={copyMenuTotp}>
+        {m.ctx_copy_totp()}
+      </button>
+    {/if}
+    {#if menuCipher.primaryUri}
+      <button type="button" role="menuitem" onclick={openMenuUri}>
+        {m.ctx_open_url()}
+      </button>
+    {/if}
+  </div>
+{/if}
 
 <GeneratorDialog
   bind:this={generatorDialog}
