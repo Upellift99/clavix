@@ -219,7 +219,15 @@ fn ctap_assertion(rp_id: &str, hash: &[u8; 32], ids: Vec<Vec<u8>>) -> Result<Ass
         reason: format!("no FIDO2 device available: {e}"),
     })?;
 
-    let mut builder = GetAssertionArgsBuilder::new(rp_id, hash);
+    // `GetAssertionArgs::default()` ships `uv: Some(true)`, so the builder
+    // would put `{ up: true, uv: true }` in the CTAP2 options map. A standard
+    // YubiKey (5-series, no on-device biometric) does not implement the `uv`
+    // option and answers CTAP2_ERR_UNSUPPORTED_OPTION (0x2B) — which is exactly
+    // the failure users hit logging in with their key. WebAuthn used as a
+    // *second factor* only needs user presence (a touch); Vaultwarden requests
+    // `userVerification: "discouraged"` and never inspects the UV flag. So drop
+    // the `uv` option entirely and let the key assert on touch alone.
+    let mut builder = GetAssertionArgsBuilder::new(rp_id, hash).without_pin_and_uv();
     for id in ids {
         builder = builder.credential_id(&id);
     }
