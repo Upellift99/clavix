@@ -757,6 +757,15 @@
     flex: 1;
   }
 
+  /* Monospace so a revealed password / TOTP secret reads cleanly (1 vs l,
+     0 vs O). Per-character colouring isn't possible inside an editable
+     <input>; the read-only detail view handles that. */
+  .password-row input,
+  .totp-row input {
+    font-family: "Atkinson Hyperlegible", ui-monospace, monospace;
+    letter-spacing: 0.04em;
+  }
+
   .two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;

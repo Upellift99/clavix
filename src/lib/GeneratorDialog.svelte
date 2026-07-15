@@ -39,6 +39,15 @@
   function close() {
     dialog?.close();
   }
+
+  // Same character-class colouring as the item detail view (global
+  // `.password .ch-*` styles): digits blue, symbols red, letters default,
+  // in a monospace face so `1`/`l` and `0`/`O` are distinguishable.
+  function charClass(ch: string): string {
+    if (/\d/.test(ch)) return "ch-digit";
+    if (/[a-zA-Z]/.test(ch)) return "ch-letter";
+    return "ch-symbol";
+  }
 </script>
 
 <dialog bind:this={dialog} class="stats-dialog">
@@ -51,7 +60,11 @@
     </header>
 
     <div class="generator-output">
-      <code>{output || "—"}</code>
+      {#if output}
+        <code class="password">{#each [...output] as ch, i (i)}<span class={charClass(ch)}>{ch}</span>{/each}</code>
+      {:else}
+        <code>—</code>
+      {/if}
     </div>
     {#if error}
       <p class="hint error-text">{error}</p>
