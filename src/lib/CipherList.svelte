@@ -20,6 +20,7 @@
     visibleColumns: CipherListColumns;
     drag: DragController;
     onOpenCipher: (id: string) => void;
+    onRowContextMenu: (event: MouseEvent, cipher: CipherSummary) => void;
     onToggleSort: (key: SortKey) => void;
     onToggleColumn: (key: keyof CipherListColumns, value: boolean) => void;
     onSearchInputRef: (el: HTMLInputElement | null) => void;
@@ -39,6 +40,7 @@
     visibleColumns,
     drag,
     onOpenCipher,
+    onRowContextMenu,
     onToggleSort,
     onToggleColumn,
     onSearchInputRef,
@@ -262,6 +264,7 @@
                 class:hide-username={!visibleColumns.username}
                 class:hide-uri={!visibleColumns.uri}
                 onclick={() => onOpenCipher(c.id)}
+                oncontextmenu={(e) => onRowContextMenu(e, c)}
                 draggable="true"
                 ondragstart={(e) => onCipherDragStart(e, c.id)}
                 ondragend={onCipherDragEnd}

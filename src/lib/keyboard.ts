@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { currentTotpCode } from "./totp";
 import type { CipherDetail } from "./types";
 
 function isTypingContext(): boolean {
@@ -18,7 +19,7 @@ export type VaultKeyDeps = {
   onError: (e: unknown) => void;
 };
 
-/** Builds the global keydown handler for the vault view (Esc, /, Ctrl+F/L/C/B/U). */
+/** Builds the global keydown handler for the vault view (Esc, /, Ctrl+F/L/C/B/T/U). */
 export function makeVaultKeyHandler(deps: VaultKeyDeps) {
   return async function handle(event: KeyboardEvent) {
     if (!deps.isLoggedIn()) return;
@@ -63,6 +64,16 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
     if (key === "b" && detail.login?.username) {
       event.preventDefault();
       await deps.copy(detail.login.username, "identifiant");
+      return;
+    }
+    if (key === "t" && detail.login?.totp) {
+      event.preventDefault();
+      try {
+        const code = await currentTotpCode(detail.login.totp);
+        await deps.copy(code, "code TOTP");
+      } catch (e) {
+        deps.onError(e);
+      }
       return;
     }
     if (key === "u" && detail.login?.uris?.[0]) {

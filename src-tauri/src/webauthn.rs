@@ -316,19 +316,9 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
         },
     };
 
-    let json = serde_json::to_string(&body).map_err(|e| Error::Crypto {
+    serde_json::to_string(&body).map_err(|e| Error::Crypto {
         reason: format!("assertion serialize: {e}"),
-    })?;
-    // Diagnostic (no secrets — everything here is sent to the server anyway):
-    // makes the exact shape visible from a terminal launch when a login is
-    // rejected, so the credential-id / appid path can be confirmed.
-    eprintln!(
-        "[clavix] webauthn assertion: id_len={} appid_used={} omitted_credential={}",
-        credential_id.len(),
-        appid_used,
-        assertion.credential_id.is_empty(),
-    );
-    Ok(json)
+    })
 }
 
 struct Assertion {
