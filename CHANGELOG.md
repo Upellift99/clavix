@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2](https://github.com/Upellift99/clavix/compare/v0.3.1...v0.3.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* YubiKey 2FA login (CTAP2 uv option) + notify UI on backend auto-lock ([#131](https://github.com/Upellift99/clavix/issues/131)) ([a5efa61](https://github.com/Upellift99/clavix/commit/a5efa617e5931492e507c2acca2c2b3694c3397f))
+
 ## [0.3.1](https://github.com/Upellift99/clavix/compare/v0.3.0...v0.3.1) (2026-07-14)
 
 
