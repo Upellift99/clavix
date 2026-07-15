@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3](https://github.com/Upellift99/clavix/compare/v0.3.2...v0.3.3) (2026-07-15)
+
+
+### Bug Fixes
+
+* **auth:** honour the WebAuthn AppID extension for U2F-enrolled keys ([#134](https://github.com/Upellift99/clavix/issues/134)) ([a98a22a](https://github.com/Upellift99/clavix/commit/a98a22aa836fdd855227cc76afe2b4bc726649dc))
+
 ## [0.3.2](https://github.com/Upellift99/clavix/compare/v0.3.1...v0.3.2) (2026-07-15)
 
 
