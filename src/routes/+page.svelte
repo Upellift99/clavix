@@ -143,9 +143,16 @@
   }
 
   async function copyMenuPassword() {
-    const password = menuDetail?.login?.password;
+    const id = menuCipher?.id;
+    const hasPassword = menuDetail?.login?.hasPassword;
     closeRowMenu();
-    if (password) await copyToClipboard(password, "mot de passe");
+    if (!id || !hasPassword) return;
+    try {
+      const password = await api.revealField(id, "password");
+      if (password) await copyToClipboard(password, "mot de passe");
+    } catch (e) {
+      vault.error = formatError(e);
+    }
   }
 
   async function copyMenuTotp() {
@@ -218,6 +225,7 @@
     closeDetail: () => vault.closeDetail(),
     lock: () => lockAndReset(),
     copy: copyToClipboard,
+    getPassword: async (id) => (await api.revealField(id, "password")) ?? "",
     getTotpCode: async (id) => (await api.totpCode(id)).code,
     onError: (e) => (vault.error = formatError(e)),
   });
@@ -477,7 +485,7 @@
         <kbd class="ctx-shortcut">Ctrl+B</kbd>
       </button>
     {/if}
-    {#if menuDetail?.login?.password}
+    {#if menuDetail?.login?.hasPassword}
       <button type="button" role="menuitem" onclick={copyMenuPassword}>
         <span class="ctx-label">{m.ctx_copy_password()}</span>
         <kbd class="ctx-shortcut">Ctrl+C</kbd>

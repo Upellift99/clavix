@@ -3,7 +3,7 @@
   import Icon from "./Icon.svelte";
   import TotpField from "./TotpField.svelte";
   import { api } from "./api";
-  import { cipherTypeLabel, mask } from "./format";
+  import { cipherTypeLabel } from "./format";
   import type { CipherDetail, CipherSummary, OrganizationSummary } from "./types";
 
   type Props = {
@@ -53,6 +53,12 @@
   async function copyField(field: string, label: string) {
     const value = await revealValue(field);
     if (value) await onCopy(value, label);
+  }
+
+  /** Reveal-toggle a secret field: fetch it before showing. */
+  async function toggleSecret(field: string, shown: boolean, set: (v: boolean) => void) {
+    if (!shown) await revealValue(field);
+    set(!shown);
   }
 
   $effect(() => {
@@ -141,12 +147,13 @@
 
 {#snippet secretField(
   label: string,
-  value: string,
+  field: string,
   shown: boolean,
   toggle: () => void,
   copyAs: string,
   options?: { masked?: string; renderShown?: "default" | "password" | "ssh" }
 )}
+  {@const value = revealed[field] ?? ""}
   <div class="detail-field" role="group">
     <dt>{label}</dt>
     <dd>
@@ -159,7 +166,7 @@
       {:else if shown}
         <code class="value">{value}</code>
       {:else}
-        <code class="value">{options?.masked ?? "•".repeat(Math.min(value.length, 16))}</code>
+        <code class="value">{options?.masked ?? "••••••••"}</code>
       {/if}
       <button
         type="button"
@@ -175,7 +182,7 @@
         class="icon-btn primary"
         title={m.action_copy()}
         aria-label={m.action_copy()}
-        onclick={() => onCopy(value, copyAs)}
+        onclick={() => copyField(field, copyAs)}
       >
         <Icon name="copy" size={14} />
       </button>
@@ -219,18 +226,18 @@
     </div>
   </header>
 
-  {#if detail.login && (detail.login.username || detail.login.password)}
+  {#if detail.login && (detail.login.username || detail.login.hasPassword)}
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_credentials()}</h3>
       {#if detail.login.username}
         {@render plainField(m.detail_field_username(), detail.login.username, "identifiant")}
       {/if}
-      {#if detail.login.password}
+      {#if detail.login.hasPassword}
         {@render secretField(
           m.detail_field_password(),
-          detail.login.password,
+          "password",
           showPassword,
-          () => (showPassword = !showPassword),
+          () => toggleSecret("password", showPassword, (v) => (showPassword = v)),
           "mot de passe",
           { renderShown: "password" }
         )}
@@ -289,14 +296,14 @@
           <dd><span class="value">{detail.card.brand}</span></dd>
         </div>
       {/if}
-      {#if detail.card.number}
+      {#if detail.card.hasNumber}
         {@render secretField(
           m.detail_field_number(),
-          detail.card.number,
+          "cardNumber",
           showCardNumber,
-          () => (showCardNumber = !showCardNumber),
+          () => toggleSecret("cardNumber", showCardNumber, (v) => (showCardNumber = v)),
           "numéro de carte",
-          { masked: mask(detail.card.number, 16) }
+          { masked: "•••• •••• •••• ••••" }
         )}
       {/if}
       {#if detail.card.expMonth || detail.card.expYear}
@@ -309,14 +316,14 @@
           </dd>
         </div>
       {/if}
-      {#if detail.card.code}
+      {#if detail.card.hasCode}
         {@render secretField(
           m.detail_field_cvv(),
-          detail.card.code,
+          "cardCode",
           showCardCode,
-          () => (showCardCode = !showCardCode),
+          () => toggleSecret("cardCode", showCardCode, (v) => (showCardCode = v)),
           "CVV",
-          { masked: mask(detail.card.code, 3) }
+          { masked: "•••" }
         )}
       {/if}
     </section>
@@ -330,14 +337,14 @@
           {@render plainField(label, value)}
         {/if}
       {/each}
-      {#if detail.identity.ssn}
+      {#if detail.identity.hasSsn}
         {@render secretField(
           m.detail_field_ssn(),
-          detail.identity.ssn,
+          "ssn",
           showSsn,
-          () => (showSsn = !showSsn),
+          () => toggleSecret("ssn", showSsn, (v) => (showSsn = v)),
           "NIR",
-          { masked: mask(detail.identity.ssn, 11) }
+          { masked: "•••••••••" }
         )}
       {/if}
     </section>
@@ -367,37 +374,14 @@
         </div>
       {/if}
       {#if detail.sshKey.hasPrivateKey}
-        <div class="detail-field" role="group">
-          <dt>{m.detail_field_private_key()}</dt>
-          <dd>
-            {#if showSshPrivate}
-              <code class="value ssh-key">{revealed["sshPrivateKey"] ?? ""}</code>
-            {:else}
-              <code class="value">{m.detail_field_private_key_hidden()}</code>
-            {/if}
-            <button
-              type="button"
-              class="icon-btn"
-              title={showSshPrivate ? m.action_hide_value() : m.action_show()}
-              aria-label={showSshPrivate ? m.action_hide_value() : m.action_show()}
-              onclick={async () => {
-                if (!showSshPrivate) await revealValue("sshPrivateKey");
-                showSshPrivate = !showSshPrivate;
-              }}
-            >
-              <Icon name={showSshPrivate ? "eye-off" : "eye"} size={14} />
-            </button>
-            <button
-              type="button"
-              class="icon-btn primary"
-              title={m.action_copy()}
-              aria-label={m.action_copy()}
-              onclick={() => copyField("sshPrivateKey", "clé privée")}
-            >
-              <Icon name="copy" size={14} />
-            </button>
-          </dd>
-        </div>
+        {@render secretField(
+          m.detail_field_private_key(),
+          "sshPrivateKey",
+          showSshPrivate,
+          () => toggleSecret("sshPrivateKey", showSshPrivate, (v) => (showSshPrivate = v)),
+          "clé privée",
+          { masked: m.detail_field_private_key_hidden(), renderShown: "ssh" }
+        )}
       {/if}
     </section>
   {/if}

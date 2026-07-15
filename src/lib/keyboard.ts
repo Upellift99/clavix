@@ -15,6 +15,8 @@ export type VaultKeyDeps = {
   closeDetail: () => void;
   lock: () => Promise<void> | void;
   copy: (value: string, label: string) => Promise<void> | void;
+  /** Reveal the password for a cipher id on demand (kept out of `detail`). */
+  getPassword: (cipherId: string) => Promise<string>;
   /** Current TOTP code for a cipher id (computed in Rust). */
   getTotpCode: (cipherId: string) => Promise<string>;
   onError: (e: unknown) => void;
@@ -57,9 +59,14 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
     if (isTypingContext()) return;
     const selectionLength = window.getSelection()?.toString().length ?? 0;
     if (!detail || selectionLength > 0) return;
-    if (key === "c" && detail.login?.password) {
+    if (key === "c" && detail.login?.hasPassword) {
       event.preventDefault();
-      await deps.copy(detail.login.password, "mot de passe");
+      try {
+        const password = await deps.getPassword(detail.id);
+        if (password) await deps.copy(password, "mot de passe");
+      } catch (e) {
+        deps.onError(e);
+      }
       return;
     }
     if (key === "b" && detail.login?.username) {

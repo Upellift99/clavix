@@ -71,7 +71,8 @@ export type SyncSummary = {
 
 export type LoginDetail = {
   username: string | null;
-  password: string | null;
+  /** Presence only — fetch with `api.revealField(id, "password")`. */
+  hasPassword: boolean;
   uris: string[];
   /** The TOTP secret never crosses to JS — only whether the item has one.
       Use `api.totpCode(id)` for the current code, `api.revealLoginTotp(id)`
@@ -87,10 +88,10 @@ export type TotpCode = {
 export type CardDetail = {
   cardholderName: string | null;
   brand: string | null;
-  number: string | null;
+  hasNumber: boolean;
   expMonth: string | null;
   expYear: string | null;
-  code: string | null;
+  hasCode: boolean;
 };
 
 export type IdentityDetail = {
@@ -108,7 +109,7 @@ export type IdentityDetail = {
   company: string | null;
   email: string | null;
   phone: string | null;
-  ssn: string | null;
+  hasSsn: boolean;
   username: string | null;
   passportNumber: string | null;
   licenseNumber: string | null;

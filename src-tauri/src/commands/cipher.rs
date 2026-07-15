@@ -32,9 +32,14 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
 
     let decrypt_opt = |s: &str| -> Option<String> { decrypt_name(s, key).ok() };
 
+    // A field is "present" when it decrypts to a non-empty value; secrets are
+    // reported as booleans only and fetched on demand via `reveal_field`.
+    let present =
+        |s: Option<&str>| -> bool { s.and_then(decrypt_opt).is_some_and(|v| !v.is_empty()) };
+
     let login = cipher.login.as_ref().map(|l| LoginDetail {
         username: l.username.as_deref().and_then(decrypt_opt),
-        password: l.password.as_deref().and_then(decrypt_opt),
+        has_password: present(l.password.as_deref()),
         uris: l
             .uris
             .as_deref()
@@ -49,10 +54,10 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
     let card = cipher.card.as_ref().map(|c| CardDetail {
         cardholder_name: c.cardholder_name.as_deref().and_then(decrypt_opt),
         brand: c.brand.as_deref().and_then(decrypt_opt),
-        number: c.number.as_deref().and_then(decrypt_opt),
+        has_number: present(c.number.as_deref()),
         exp_month: c.exp_month.as_deref().and_then(decrypt_opt),
         exp_year: c.exp_year.as_deref().and_then(decrypt_opt),
-        code: c.code.as_deref().and_then(decrypt_opt),
+        has_code: present(c.code.as_deref()),
     });
 
     let identity = cipher.identity.as_ref().map(|i| IdentityDetail {
@@ -70,7 +75,7 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
         company: i.company.as_deref().and_then(decrypt_opt),
         email: i.email.as_deref().and_then(decrypt_opt),
         phone: i.phone.as_deref().and_then(decrypt_opt),
-        ssn: i.ssn.as_deref().and_then(decrypt_opt),
+        has_ssn: present(i.ssn.as_deref()),
         username: i.username.as_deref().and_then(decrypt_opt),
         passport_number: i.passport_number.as_deref().and_then(decrypt_opt),
         license_number: i.license_number.as_deref().and_then(decrypt_opt),
