@@ -175,6 +175,19 @@ fn validate_app_id(app_id: &str, server_url: &str) -> Result<()> {
     }
 }
 
+/// Pick the credential id to echo back to the server. Prefer the one the
+/// authenticator returned, but fall back to the single requested id when the
+/// authenticator omitted it — CTAP2 permits omitting the credential when the
+/// allowList held exactly one entry, and an empty `id`/`rawId` makes the
+/// server unable to find the credential (bare "Webauthn" rejection).
+fn effective_credential_id(from_assertion: &[u8], requested: &[Vec<u8>]) -> Vec<u8> {
+    if !from_assertion.is_empty() {
+        from_assertion.to_vec()
+    } else {
+        requested.first().cloned().unwrap_or_default()
+    }
+}
+
 /// True when the authenticator reported that none of the allowed credentials
 /// exist under the requested rpId — CTAP2_ERR_NO_CREDENTIALS (0x2E). A key
 /// answers this without asking for a touch, which is what lets us probe the
@@ -220,16 +233,14 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
     // 3. Ask the connected authenticator for an assertion.  Runs CTAP2
     //    over HID; user must touch the key.  60 s server timeout.
     //
-    //    FIDO AppID extension: Vaultwarden ships `extensions.appid` so a key
-    //    enrolled back in the U2F days still works. Such a key's handle is
-    //    bound to `SHA256(appId)`, and the server only accepts the assertion
-    //    if we (a) sign under the appId and (b) report `appid: true`. A
-    //    natively-registered WebAuthn key, by contrast, is bound to the rpId
-    //    and its handle simply does not exist under the appId — so we try the
-    //    appId first (a non-match answers CTAP2_ERR_NO_CREDENTIALS with no
-    //    touch) and fall back to the rpId. Without this the U2F case fails on
-    //    the server with a bare "Webauthn" error, which is what a browser
-    //    silently handles for the user.
+    //    Try the rpId first: a natively-registered WebAuthn key (the common
+    //    case) is bound to the rpId and asserts here in a single touch. Only
+    //    if the key has no credential under the rpId
+    //    (CTAP2_ERR_NO_CREDENTIALS) do we fall back to the FIDO AppID
+    //    extension: Vaultwarden ships `extensions.appid` so a key enrolled
+    //    back in the U2F era — whose handle is bound to `SHA256(appId)`, not
+    //    `SHA256(rpId)` — still works, provided we sign under the appId and
+    //    echo `appid: true`.
     let app_id = raw
         .extensions
         .as_ref()
@@ -237,28 +248,33 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
         .map(str::trim)
         .filter(|s| !s.is_empty());
 
-    let (assertion, appid_used) = match app_id {
-        Some(app_id) => {
-            validate_app_id(app_id, server_url)?;
-            match ctap_assertion(app_id, &client_data_hash, cred_ids.clone()) {
-                Ok(a) => (a, true),
-                Err(e) if is_no_credentials(&e) => (
-                    ctap_assertion(&raw.rp_id, &client_data_hash, cred_ids)?,
-                    false,
-                ),
-                Err(e) => return Err(e),
-            }
-        }
-        None => (
-            ctap_assertion(&raw.rp_id, &client_data_hash, cred_ids)?,
-            false,
-        ),
-    };
+    let (assertion, appid_used) =
+        match ctap_assertion(&raw.rp_id, &client_data_hash, cred_ids.clone()) {
+            Ok(a) => (a, false),
+            Err(e) if is_no_credentials(&e) => match app_id {
+                Some(app_id) => {
+                    validate_app_id(app_id, server_url)?;
+                    (
+                        ctap_assertion(app_id, &client_data_hash, cred_ids.clone())?,
+                        true,
+                    )
+                }
+                None => return Err(e),
+            },
+            Err(e) => return Err(e),
+        };
 
     // 4. Shape the response the way Bitwarden/Vaultwarden expects. When the
     //    assertion was produced under the appId, echo `appid: true` so the
     //    server verifies the rpIdHash against the appId instead of the rpId.
-    let cred_id_b64 = b64url_encode(&assertion.credential_id);
+    //
+    //    CTAP2 lets the authenticator OMIT the credential from the response
+    //    when the allowList held exactly one entry (YubiKeys do exactly this).
+    //    That left `id`/`rawId` empty, so Vaultwarden could not identify which
+    //    credential signed and rejected the login with a bare "Webauthn". Fall
+    //    back to the single requested credential id in that case.
+    let credential_id = effective_credential_id(&assertion.credential_id, &cred_ids);
+    let cred_id_b64 = b64url_encode(&credential_id);
     let body = CredentialResponse {
         id: cred_id_b64.clone(),
         raw_id: cred_id_b64,
@@ -280,9 +296,19 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
         },
     };
 
-    serde_json::to_string(&body).map_err(|e| Error::Crypto {
+    let json = serde_json::to_string(&body).map_err(|e| Error::Crypto {
         reason: format!("assertion serialize: {e}"),
-    })
+    })?;
+    // Diagnostic (no secrets — everything here is sent to the server anyway):
+    // makes the exact shape visible from a terminal launch when a login is
+    // rejected, so the credential-id / appid path can be confirmed.
+    eprintln!(
+        "[clavix] webauthn assertion: id_len={} appid_used={} omitted_credential={}",
+        credential_id.len(),
+        appid_used,
+        assertion.credential_id.is_empty(),
+    );
+    Ok(json)
 }
 
 struct Assertion {
@@ -442,6 +468,28 @@ mod tests {
             "https://pass.clicface.fr",
         )
         .is_err());
+    }
+
+    #[test]
+    fn effective_credential_id_prefers_the_asserted_id() {
+        let asserted = vec![1u8, 2, 3];
+        let requested = vec![vec![9u8, 9, 9]];
+        assert_eq!(
+            effective_credential_id(&asserted, &requested),
+            vec![1u8, 2, 3]
+        );
+    }
+
+    #[test]
+    fn effective_credential_id_falls_back_when_the_authenticator_omits_it() {
+        // Single-entry allowList: a YubiKey may omit the credential, leaving
+        // the asserted id empty. We must echo the requested id instead.
+        let asserted: Vec<u8> = Vec::new();
+        let requested = vec![vec![9u8, 9, 9]];
+        assert_eq!(
+            effective_credential_id(&asserted, &requested),
+            vec![9u8, 9, 9]
+        );
     }
 
     #[test]
