@@ -98,14 +98,17 @@ pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatu
                 // Surface the underlying message verbatim so the user
                 // understands what to do (re-open the cipher to decrypt it,
                 // or fix a malformed PEM).
-                eprintln!("[clavix agent] skipping '{name}': {reason}");
+                // Don't log the decrypted item name — it's vault-content
+                // metadata that would land in stderr/journald. The name still
+                // reaches the user via the returned `SkippedKey` list.
+                eprintln!("[clavix agent] skipping a key: {reason}");
                 skipped.push(SkippedKey {
                     name: name.clone(),
                     reason,
                 });
             }
             Err(e) => {
-                eprintln!("[clavix agent] skipping '{name}': {e}");
+                eprintln!("[clavix agent] skipping a key: {e}");
                 skipped.push(SkippedKey {
                     name: name.clone(),
                     reason: e.to_string(),

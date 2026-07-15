@@ -13,6 +13,22 @@ fn data_dir() -> Result<PathBuf> {
     fs::create_dir_all(&dir).map_err(|e| Error::Storage {
         reason: format!("create data dir {}: {e}", dir.display()),
     })?;
+
+    // Restrict the whole data directory to the owner. This is the strongest
+    // and simplest at-rest control: it blocks a second local user/process from
+    // reading *anything* inside — the encrypted vault DB, its transient
+    // journal/WAL sidecars, and session.json — regardless of each file's own
+    // mode.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).map_err(|e| {
+            Error::Storage {
+                reason: format!("restrict data dir {} to 0700: {e}", dir.display()),
+            }
+        })?;
+    }
+
     Ok(dir)
 }
 
@@ -22,15 +38,37 @@ fn db_path() -> Result<PathBuf> {
 
 fn open() -> Result<Connection> {
     let path = db_path()?;
+
+    // Create the DB file 0600 atomically when it is absent, so it never briefly
+    // exists at the umask default (0644) in the window before the chmod below —
+    // the race the old `Connection::open` + best-effort chmod left open.
+    #[cfg(unix)]
+    if !path.exists() {
+        use std::os::unix::fs::OpenOptionsExt;
+        fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(&path)
+            .map_err(|e| Error::Storage {
+                reason: format!("create vault cache db at {}: {e}", path.display()),
+            })?;
+    }
+
     let conn = Connection::open(&path).map_err(|e| Error::Storage {
         reason: format!("open vault cache db at {}: {e}", path.display()),
     })?;
 
+    // Fix up the mode for a DB created by an older build (0644). Best-effort,
+    // but log rather than silently swallow — the 0700 data dir is the real
+    // guarantee.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let perms = fs::Permissions::from_mode(0o600);
-        let _ = fs::set_permissions(&path, perms);
+        if let Err(e) = fs::set_permissions(&path, fs::Permissions::from_mode(0o600)) {
+            eprintln!("[clavix] could not chmod vault cache db to 0600: {e}");
+        }
     }
 
     conn.execute(
