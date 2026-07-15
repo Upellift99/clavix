@@ -93,3 +93,16 @@ export async function generateTotp(config: TotpConfig, nowSeconds: number): Prom
 export function secondsRemaining(period: number, nowSeconds: number): number {
   return period - (nowSeconds % period);
 }
+
+/**
+ * One-shot helper for callers that just want "the code right now" — the
+ * Ctrl+T shortcut and the list context menu — without wiring up the live
+ * `TotpField` timer. Parses `source` (bare secret or otpauth URI) and
+ * returns the code valid at `nowSeconds` (defaults to the current instant).
+ */
+export async function currentTotpCode(
+  source: string,
+  nowSeconds: number = Math.floor(Date.now() / 1000),
+): Promise<string> {
+  return generateTotp(parseTotp(source), nowSeconds);
+}

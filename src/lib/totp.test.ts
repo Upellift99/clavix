@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { generateTotp, parseTotp, secondsRemaining, type TotpConfig } from "./totp";
+import {
+  currentTotpCode,
+  generateTotp,
+  parseTotp,
+  secondsRemaining,
+  type TotpConfig,
+} from "./totp";
 
 const ascii = (s: string) => new TextEncoder().encode(s);
 
@@ -93,6 +99,31 @@ describe("parseTotp — bounds aberrant parameters", () => {
     const c = parseTotp(`otpauth://totp/A?${secret}&digits=100000`);
     const code = await generateTotp(c, 59);
     expect(code).toHaveLength(10);
+  });
+});
+
+describe("currentTotpCode — one-shot helper (Ctrl+T / context menu)", () => {
+  // Same RFC 6238 SHA-1 seed @ t=59 that yields 8-digit "94287082";
+  // parsed as a bare secret it defaults to 6 digits, i.e. the low 6
+  // digits "287082". Proves the helper parses + generates in one call.
+  it("parses a bare secret and returns the code at the given instant", async () => {
+    const code = await currentTotpCode("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 59);
+    expect(code).toBe("287082");
+  });
+
+  it("honours an otpauth URI's digits/algorithm", async () => {
+    const uri =
+      "otpauth://totp/Acme:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=8";
+    expect(await currentTotpCode(uri, 59)).toBe("94287082");
+  });
+
+  it("defaults to the current time when no instant is passed", async () => {
+    const code = await currentTotpCode("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+    expect(code).toMatch(/^\d{6}$/);
+  });
+
+  it("throws on an unparseable source", async () => {
+    await expect(currentTotpCode("not base32!!!")).rejects.toThrow(/base32/);
   });
 });
 
