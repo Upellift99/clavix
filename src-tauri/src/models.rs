@@ -227,6 +227,36 @@ pub struct Cipher {
     pub identity: Option<CipherIdentity>,
     #[serde(default)]
     pub ssh_key: Option<CipherSshKey>,
+    /// Custom fields. `name`/`value` are EncStrings; `type`/`linked_id` are
+    /// plaintext metadata. Modelled so sharing to an org can rewrap them
+    /// instead of silently dropping them (the share PUT has replace semantics).
+    #[serde(default)]
+    pub fields: Option<Vec<CipherField>>,
+    /// Password history entries; `password` is an EncString.
+    #[serde(default)]
+    pub password_history: Option<Vec<CipherPasswordHistory>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherField {
+    #[serde(rename = "type", default)]
+    pub kind: Option<u8>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub linked_id: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherPasswordHistory {
+    #[serde(default)]
+    pub last_used_date: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
