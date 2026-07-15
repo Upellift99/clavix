@@ -1,6 +1,6 @@
 [package]
 name = "clavix"
-version = "0.3.5"
+version = "0.3.6"
 description = "Client desktop moderne pour Vaultwarden/Bitwarden"
 authors = ["Clavix Labs"]
 license = "GPL-3.0-or-later"
