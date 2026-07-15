@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0](https://github.com/Upellift99/clavix/compare/v0.3.6...v0.4.0) (2026-07-15)
+
+
+### Features
+
+* KeePassXC shortcuts (Ctrl+T) + right-click context menu; fix reveal-eye overflow ([#132](https://github.com/Upellift99/clavix/issues/132)) ([8b2a6c5](https://github.com/Upellift99/clavix/commit/8b2a6c56cc48fb227209ce74562b282ac62fee9c))
+
 ## [0.3.6](https://github.com/Upellift99/clavix/compare/v0.3.5...v0.3.6) (2026-07-15)
 
 
