@@ -28,7 +28,7 @@ mod yubikey_unlock;
 
 use std::time::Duration;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use state::AppState;
 
@@ -76,10 +76,31 @@ pub fn run() {
                     if let Some(h) = agent {
                         h.stop().await;
                     }
-                    let mut session_guard = state.session.lock();
-                    if session_guard.is_some() {
-                        *session_guard = None;
-                        eprintln!("[clavix] session auto-locked after {minutes} min idle");
+                    let locked = {
+                        let mut session_guard = state.session.lock();
+                        if session_guard.is_some() {
+                            *session_guard = None;
+                            eprintln!("[clavix] session auto-locked after {minutes} min idle");
+                            true
+                        } else {
+                            false
+                        }
+                    };
+                    // Mirror the tray "Verrouiller maintenant" path: tell the
+                    // WebView the session is gone so it leaves the vault view
+                    // at once. Without this the backend drops the session
+                    // silently and the UI keeps showing a stale list until the
+                    // next IPC call fails with `not_authenticated` — which is
+                    // exactly the "connexion perdue, plus rien ne marche"
+                    // dead-end users hit after a 10-min idle window.
+                    if locked {
+                        if let Err(e) =
+                            handle.emit(crate::commands::tray::EVENT_SESSION_LOCKED, ())
+                        {
+                            eprintln!(
+                                "[clavix] emit session-locked after auto-lock failed (non-fatal): {e}"
+                            );
+                        }
                     }
                 }
             });
