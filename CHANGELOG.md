@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6](https://github.com/Upellift99/clavix/compare/v0.3.5...v0.3.6) (2026-07-15)
+
+
+### Bug Fixes
+
+* **auth:** stop double-hashing clientDataJSON for the FIDO2 assertion ([#140](https://github.com/Upellift99/clavix/issues/140)) ([57c7e21](https://github.com/Upellift99/clavix/commit/57c7e2135e9e2b64ced8f9f90248f8ad5907d1d5))
+
 ## [0.3.5](https://github.com/Upellift99/clavix/compare/v0.3.4...v0.3.5) (2026-07-15)
 
 
