@@ -5,6 +5,41 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6](https://github.com/Upellift99/clavix/compare/v0.3.5...v0.3.6) (2026-07-15)
+
+
+### Bug Fixes
+
+* **auth:** stop double-hashing clientDataJSON for the FIDO2 assertion ([#140](https://github.com/Upellift99/clavix/issues/140)) ([57c7e21](https://github.com/Upellift99/clavix/commit/57c7e2135e9e2b64ced8f9f90248f8ad5907d1d5))
+
+## [0.3.5](https://github.com/Upellift99/clavix/compare/v0.3.4...v0.3.5) (2026-07-15)
+
+
+### Bug Fixes
+
+* **auth:** match the browser's WebAuthn assertion shape (omit userHandle, echo appid) ([#138](https://github.com/Upellift99/clavix/issues/138)) ([f81a98b](https://github.com/Upellift99/clavix/commit/f81a98b6934290d53c9e18ebb57d151f4f2535b2))
+
+## [0.3.4](https://github.com/Upellift99/clavix/compare/v0.3.3...v0.3.4) (2026-07-15)
+
+
+### Bug Fixes
+
+* **auth:** echo the requested credential id when the key omits it ([#136](https://github.com/Upellift99/clavix/issues/136)) ([2647816](https://github.com/Upellift99/clavix/commit/26478163ee206491f655dc3bb452b99259b36416))
+
+## [0.3.3](https://github.com/Upellift99/clavix/compare/v0.3.2...v0.3.3) (2026-07-15)
+
+
+### Bug Fixes
+
+* **auth:** honour the WebAuthn AppID extension for U2F-enrolled keys ([#134](https://github.com/Upellift99/clavix/issues/134)) ([a98a22a](https://github.com/Upellift99/clavix/commit/a98a22aa836fdd855227cc76afe2b4bc726649dc))
+
+## [0.3.2](https://github.com/Upellift99/clavix/compare/v0.3.1...v0.3.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* YubiKey 2FA login (CTAP2 uv option) + notify UI on backend auto-lock ([#131](https://github.com/Upellift99/clavix/issues/131)) ([a5efa61](https://github.com/Upellift99/clavix/commit/a5efa617e5931492e507c2acca2c2b3694c3397f))
+
 ## [0.3.1](https://github.com/Upellift99/clavix/compare/v0.3.0...v0.3.1) (2026-07-14)
 
 

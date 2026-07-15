@@ -32,7 +32,7 @@ const ITEM_QUIT: &str = "tray.quit";
 /// to `unlock` and clears the vault when this fires, so the UI
 /// catches up with the session that the tray menu just dropped on
 /// the Rust side. Payload-less; the event itself is the signal.
-const EVENT_SESSION_LOCKED: &str = "clavix:session-locked";
+pub(crate) const EVENT_SESSION_LOCKED: &str = "clavix:session-locked";
 // Tauri 2 assigns label "main" to a window declared in tauri.conf.json
 // without an explicit `label` field — see tauri-utils
 // `default_window_label`. The capability in
