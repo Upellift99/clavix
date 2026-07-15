@@ -397,6 +397,10 @@
 }
 
 .ctx-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.75rem;
   background: transparent;
   border: none;
   padding: 0.4rem 0.6rem;
@@ -411,10 +415,30 @@
   background: #eef2fa;
 }
 
+.ctx-label {
+  white-space: nowrap;
+}
+
+/* Right-aligned keyboard hint. Muted, tabular monospace so the modifier
+   keys read cleanly and line up down the menu. */
+.ctx-shortcut {
+  margin-left: auto;
+  font-family: var(--font-data, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: #8a8f98;
+  background: #f1f3f7;
+  border: 1px solid #e2e5eb;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+}
+
 @media (prefers-color-scheme: dark) {
   .ctx-menu { background: #2a2a2a; border-color: #444; }
   .ctx-menu button:hover { background: #2c3a55; }
+  .ctx-shortcut { color: #9aa0aa; background: #33383f; border-color: #454b54; }
 }
 
 :root.force-dark .ctx-menu { background: #2a2a2a; border-color: #444; }
 :root.force-dark .ctx-menu button:hover { background: #2c3a55; }
+:root.force-dark .ctx-shortcut { color: #9aa0aa; background: #33383f; border-color: #454b54; }
