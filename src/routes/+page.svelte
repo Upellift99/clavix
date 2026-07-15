@@ -467,26 +467,30 @@
     style="left: {menuX}px; top: {menuY}px;"
   >
     <button type="button" role="menuitem" onclick={openMenuCipher}>
-      {m.ctx_open()}
+      <span class="ctx-label">{m.ctx_open()}</span>
     </button>
     {#if menuCipher.username}
       <button type="button" role="menuitem" onclick={copyMenuUsername}>
-        {m.ctx_copy_username()}
+        <span class="ctx-label">{m.ctx_copy_username()}</span>
+        <kbd class="ctx-shortcut">Ctrl+B</kbd>
       </button>
     {/if}
     {#if menuDetail?.login?.password}
       <button type="button" role="menuitem" onclick={copyMenuPassword}>
-        {m.ctx_copy_password()}
+        <span class="ctx-label">{m.ctx_copy_password()}</span>
+        <kbd class="ctx-shortcut">Ctrl+C</kbd>
       </button>
     {/if}
     {#if menuDetail?.login?.totp}
       <button type="button" role="menuitem" onclick={copyMenuTotp}>
-        {m.ctx_copy_totp()}
+        <span class="ctx-label">{m.ctx_copy_totp()}</span>
+        <kbd class="ctx-shortcut">Ctrl+T</kbd>
       </button>
     {/if}
     {#if menuCipher.primaryUri}
       <button type="button" role="menuitem" onclick={openMenuUri}>
-        {m.ctx_open_url()}
+        <span class="ctx-label">{m.ctx_open_url()}</span>
+        <kbd class="ctx-shortcut">Ctrl+U</kbd>
       </button>
     {/if}
   </div>
