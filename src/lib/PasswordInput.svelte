@@ -55,18 +55,25 @@
   .password-input input {
     width: 100%;
     /* Room for the button so a long password never slides under it. */
-    padding-right: 2.2rem;
+    padding-right: 2.4rem;
   }
 
+  /* Fixed square, vertically centred, sitting comfortably inside the
+     field's right edge. The button used to inherit the tall auth-screen
+     `button` padding, which stretched its hover box past the input's
+     rounded corner — that overhang is the "débordement" reported on the
+     unlock screen. Explicit dimensions + padding:0 pin it inside. */
   .reveal {
     position: absolute;
     top: 50%;
-    right: 0.35rem;
+    right: 0.5rem;
     transform: translateY(-50%);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.25rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
     border: none;
     background: none;
     color: #666;
