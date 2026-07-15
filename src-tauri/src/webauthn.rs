@@ -71,8 +71,13 @@ struct ResponseBody {
     #[serde(rename = "clientDataJSON")]
     client_data_json: String,
     signature: String,
-    #[serde(rename = "userHandle")]
-    user_handle: String,
+    // Omit `userHandle` entirely when the authenticator returns none, exactly
+    // as a browser does. Sending `"userHandle": ""` deserializes server-side to
+    // `Some(empty)` rather than `None`, and webauthn-rs then rejects the
+    // assertion with a bare "Webauthn" — a non-resident 2FA key has no user
+    // handle to send.
+    #[serde(rename = "userHandle", skip_serializing_if = "Option::is_none")]
+    user_handle: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -283,14 +288,22 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
             authenticator_data: b64url_encode(&assertion.auth_data),
             client_data_json: b64url_encode(client_data.as_bytes()),
             signature: b64url_encode(&assertion.signature),
+            // Only include a user handle when the authenticator actually
+            // returned a non-empty one (resident keys); otherwise omit it,
+            // like a browser does.
             user_handle: assertion
                 .user_handle
                 .as_deref()
-                .map(b64url_encode)
-                .unwrap_or_default(),
+                .filter(|h| !h.is_empty())
+                .map(b64url_encode),
         },
-        extensions: if appid_used {
-            serde_json::json!({ "appid": true })
+        // Echo the `appid` result whenever the server offered the extension —
+        // `true` if we asserted under the appId, `false` if under the rpId.
+        // A browser sends exactly `{"appid": false}` in the rpId case; sending
+        // `{}` instead is one of the shapes webauthn-rs rejects. When the
+        // challenge carried no appid extension, send `{}`.
+        extensions: if app_id.is_some() {
+            serde_json::json!({ "appid": appid_used })
         } else {
             serde_json::json!({})
         },
@@ -490,6 +503,32 @@ mod tests {
             effective_credential_id(&asserted, &requested),
             vec![9u8, 9, 9]
         );
+    }
+
+    #[test]
+    fn response_body_omits_an_absent_user_handle() {
+        // A browser omits `userHandle` for a non-resident 2FA key; sending
+        // `"userHandle":""` instead makes webauthn-rs reject the assertion.
+        let body = ResponseBody {
+            authenticator_data: "ad".into(),
+            client_data_json: "cdj".into(),
+            signature: "sig".into(),
+            user_handle: None,
+        };
+        let json = serde_json::to_string(&body).unwrap();
+        assert!(!json.contains("userHandle"), "must be omitted: {json}");
+    }
+
+    #[test]
+    fn response_body_keeps_a_present_user_handle() {
+        let body = ResponseBody {
+            authenticator_data: "ad".into(),
+            client_data_json: "cdj".into(),
+            signature: "sig".into(),
+            user_handle: Some("dWg".into()),
+        };
+        let json = serde_json::to_string(&body).unwrap();
+        assert!(json.contains(r#""userHandle":"dWg""#), "{json}");
     }
 
     #[test]
