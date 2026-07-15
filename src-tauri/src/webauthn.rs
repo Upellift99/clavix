@@ -17,7 +17,6 @@
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::error::{Error, Result};
 
@@ -217,6 +216,14 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
     //    stringification has to be byte-stable because the authenticator
     //    signs its SHA-256 hash — any field reordering and the server
     //    rejects the assertion.
+    //
+    //    IMPORTANT: pass these *raw* bytes to `ctap_assertion`, NOT their
+    //    hash. `ctap-hid-fido2` SHA-256s whatever it is given
+    //    (`create_clientdata_hash`) to form the clientDataHash the key signs.
+    //    Feeding it a pre-computed hash makes the key sign over
+    //    SHA256(SHA256(clientDataJSON)); the server verifies against
+    //    SHA256(clientDataJSON), so every assertion was silently rejected
+    //    with a bare "Webauthn".
     let client_data = serde_json::to_string(&ClientData {
         kind: "webauthn.get",
         challenge: &raw.challenge, // already base64url, pass through
@@ -226,7 +233,6 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
     .map_err(|e| Error::Crypto {
         reason: format!("clientDataJSON serialize: {e}"),
     })?;
-    let client_data_hash: [u8; 32] = Sha256::digest(client_data.as_bytes()).into();
 
     // 2. Decode allowed credential IDs.
     let cred_ids: Vec<Vec<u8>> = raw
@@ -253,14 +259,15 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
         .map(str::trim)
         .filter(|s| !s.is_empty());
 
+    let client_data_bytes = client_data.as_bytes();
     let (assertion, appid_used) =
-        match ctap_assertion(&raw.rp_id, &client_data_hash, cred_ids.clone()) {
+        match ctap_assertion(&raw.rp_id, client_data_bytes, cred_ids.clone()) {
             Ok(a) => (a, false),
             Err(e) if is_no_credentials(&e) => match app_id {
                 Some(app_id) => {
                     validate_app_id(app_id, server_url)?;
                     (
-                        ctap_assertion(app_id, &client_data_hash, cred_ids.clone())?,
+                        ctap_assertion(app_id, client_data_bytes, cred_ids.clone())?,
                         true,
                     )
                 }
@@ -332,14 +339,18 @@ struct Assertion {
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-fn ctap_assertion(_rp_id: &str, _hash: &[u8; 32], _ids: Vec<Vec<u8>>) -> Result<Assertion> {
+fn ctap_assertion(_rp_id: &str, _client_data: &[u8], _ids: Vec<Vec<u8>>) -> Result<Assertion> {
     Err(Error::Crypto {
         reason: "FIDO2 not supported on this platform".into(),
     })
 }
 
+/// `client_data` is the *raw* clientDataJSON bytes. The crate hashes them once
+/// (`create_clientdata_hash`) to form the clientDataHash the authenticator
+/// signs — do NOT pass a pre-computed SHA-256 here (that double-hashes and the
+/// server rejects every assertion).
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-fn ctap_assertion(rp_id: &str, hash: &[u8; 32], ids: Vec<Vec<u8>>) -> Result<Assertion> {
+fn ctap_assertion(rp_id: &str, client_data: &[u8], ids: Vec<Vec<u8>>) -> Result<Assertion> {
     use ctap_hid_fido2::fidokey::GetAssertionArgsBuilder;
     use ctap_hid_fido2::{Cfg, FidoKeyHidFactory};
 
@@ -355,7 +366,7 @@ fn ctap_assertion(rp_id: &str, hash: &[u8; 32], ids: Vec<Vec<u8>>) -> Result<Ass
     // *second factor* only needs user presence (a touch); Vaultwarden requests
     // `userVerification: "discouraged"` and never inspects the UV flag. So drop
     // the `uv` option entirely and let the key assert on touch alone.
-    let mut builder = GetAssertionArgsBuilder::new(rp_id, hash).without_pin_and_uv();
+    let mut builder = GetAssertionArgsBuilder::new(rp_id, client_data).without_pin_and_uv();
     for id in ids {
         builder = builder.credential_id(&id);
     }
