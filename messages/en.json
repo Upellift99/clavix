@@ -153,6 +153,7 @@
   "audit_label": "Security audit",
   "audit_title": "Security audit",
   "audit_privacy_note": "Checks your passwords against HIBP using k-anonymity: only 5 hex characters of the SHA-1 hash ever leave your machine — never the password itself.",
+  "audit_start": "Run audit",
   "audit_running": "Running… (querying HIBP API)",
   "audit_checked": "{count} password(s) checked.",
   "audit_no_pwned": "No compromised passwords detected.",

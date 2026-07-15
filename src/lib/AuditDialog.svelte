@@ -29,9 +29,14 @@
     }
   }
 
-  export async function open() {
+  export function open() {
+    // Don't auto-run: the audit sends every password's hash prefix to
+    // HaveIBeenPwned, so let the user read the privacy note and start it
+    // deliberately.
+    error = null;
+    result = null;
+    loading = false;
     dialog?.showModal();
-    await run();
   }
 
   function close() {
@@ -57,7 +62,10 @@
     <p class="hint audit-privacy">{m.audit_privacy_note()}</p>
 
     {#if loading}
-      <p>{m.audit_running()}</p>
+      <div class="audit-running">
+        <span class="audit-spinner" aria-hidden="true"></span>
+        <span>{m.audit_running()}</span>
+      </div>
     {:else if error}
       <p class="audit-error">{error}</p>
       <div class="row">
@@ -124,6 +132,39 @@
           {/each}
         </ul>
       {/if}
+    {:else}
+      <div class="row audit-start-row">
+        <button type="button" onclick={run}>{m.audit_start()}</button>
+      </div>
     {/if}
   {/key}
 </dialog>
+
+<style>
+  .audit-running {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.6rem 0;
+  }
+
+  .audit-spinner {
+    width: 1.05rem;
+    height: 1.05rem;
+    border: 2px solid #c7d2fe;
+    border-top-color: #396cd8;
+    border-radius: 50%;
+    animation: audit-spin 0.7s linear infinite;
+    flex: none;
+  }
+
+  @keyframes audit-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .audit-start-row {
+    margin-top: 0.4rem;
+  }
+</style>

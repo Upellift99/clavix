@@ -42,7 +42,7 @@
 
   let searchInput: HTMLInputElement | null = null;
   let statsDialog = $state<{ open: () => Promise<void> } | null>(null);
-  let auditDialog = $state<{ open: () => Promise<void> } | null>(null);
+  let auditDialog = $state<{ open: () => void } | null>(null);
   let generatorDialog = $state<{ open: () => void } | null>(null);
   let importOpen = $state(false);
   let exportOpen = $state(false);

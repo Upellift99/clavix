@@ -153,6 +153,7 @@
   "audit_label": "Audit de sécurité",
   "audit_title": "Audit de sécurité",
   "audit_privacy_note": "Vérifie vos mots de passe contre HIBP via k-anonymity : seuls 5 caractères hex du SHA-1 quittent votre poste, jamais le mot de passe lui-même.",
+  "audit_start": "Lancer l'audit",
   "audit_running": "Analyse en cours… (interrogation de l'API HIBP)",
   "audit_checked": "{count} mot(s) de passe vérifié(s).",
   "audit_no_pwned": "Aucun mot de passe compromis détecté.",
