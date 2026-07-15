@@ -357,7 +357,18 @@ export class VaultController {
     this.editorOpen = true;
   }
 
-  openEditEditor() {
+  async openEditEditor() {
+    if (!this.detail) return;
+    // The SSH private key is no longer in `detail`; fetch it so the editor can
+    // keep it (otherwise saving would wipe the key).
+    let sshPrivateKey = "";
+    if (this.detail.sshKey?.hasPrivateKey) {
+      try {
+        sshPrivateKey = (await api.revealField(this.detail.id, "sshPrivateKey")) ?? "";
+      } catch (e) {
+        this.error = formatError(e);
+      }
+    }
     if (!this.detail) return;
     const currentCipher = this.summary?.ciphers.find((c) => c.id === this.detail!.id);
     const kind = (this.detail.kind as 1 | 2 | 3 | 4 | 5) ?? 1;
@@ -402,7 +413,7 @@ export class VaultController {
         licenseNumber: this.detail.identity?.licenseNumber ?? "",
       },
       sshKey: {
-        privateKey: this.detail.sshKey?.privateKey ?? "",
+        privateKey: sshPrivateKey,
         publicKey: this.detail.sshKey?.publicKey ?? "",
         keyFingerprint: this.detail.sshKey?.keyFingerprint ?? "",
       },

@@ -2,6 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import Icon from "./Icon.svelte";
   import TotpField from "./TotpField.svelte";
+  import { api } from "./api";
   import { cipherTypeLabel, mask } from "./format";
   import type { CipherDetail, CipherSummary, OrganizationSummary } from "./types";
 
@@ -35,6 +36,25 @@
   let showSsn = $state(false);
   let showSshPrivate = $state(false);
 
+  // Secret fields are no longer in `detail`; they're fetched on demand and held
+  // only while revealed. `revealed[field]` caches the fetched value for the
+  // currently open item; wiped whenever the item changes.
+  let revealed = $state<Record<string, string>>({});
+
+  async function revealValue(field: string): Promise<string> {
+    if (revealed[field] === undefined) {
+      revealed = { ...revealed, [field]: (await api.revealField(detail.id, field)) ?? "" };
+    }
+    return revealed[field];
+  }
+
+  /** Copy a secret field, fetching it first if needed (kept out of long-lived
+      state — only touched transiently for the copy). */
+  async function copyField(field: string, label: string) {
+    const value = await revealValue(field);
+    if (value) await onCopy(value, label);
+  }
+
   $effect(() => {
     void detail.id;
     showPassword = false;
@@ -42,6 +62,7 @@
     showCardCode = false;
     showSsn = false;
     showSshPrivate = false;
+    revealed = {};
   });
 
   const isDeleted = $derived(summaryEntry?.deletedDate ?? null);
@@ -345,15 +366,38 @@
           </dd>
         </div>
       {/if}
-      {#if detail.sshKey.privateKey}
-        {@render secretField(
-          m.detail_field_private_key(),
-          detail.sshKey.privateKey,
-          showSshPrivate,
-          () => (showSshPrivate = !showSshPrivate),
-          "clé privée",
-          { masked: m.detail_field_private_key_hidden(), renderShown: "ssh" }
-        )}
+      {#if detail.sshKey.hasPrivateKey}
+        <div class="detail-field" role="group">
+          <dt>{m.detail_field_private_key()}</dt>
+          <dd>
+            {#if showSshPrivate}
+              <code class="value ssh-key">{revealed["sshPrivateKey"] ?? ""}</code>
+            {:else}
+              <code class="value">{m.detail_field_private_key_hidden()}</code>
+            {/if}
+            <button
+              type="button"
+              class="icon-btn"
+              title={showSshPrivate ? m.action_hide_value() : m.action_show()}
+              aria-label={showSshPrivate ? m.action_hide_value() : m.action_show()}
+              onclick={async () => {
+                if (!showSshPrivate) await revealValue("sshPrivateKey");
+                showSshPrivate = !showSshPrivate;
+              }}
+            >
+              <Icon name={showSshPrivate ? "eye-off" : "eye"} size={14} />
+            </button>
+            <button
+              type="button"
+              class="icon-btn primary"
+              title={m.action_copy()}
+              aria-label={m.action_copy()}
+              onclick={() => copyField("sshPrivateKey", "clé privée")}
+            >
+              <Icon name="copy" size={14} />
+            </button>
+          </dd>
+        </div>
       {/if}
     </section>
   {/if}

@@ -107,7 +107,9 @@ export type IdentityDetail = {
 };
 
 export type SshKeyDetail = {
-  privateKey: string | null;
+  /** The private key stays in Rust; fetch on demand with
+      `api.revealField(id, "sshPrivateKey")`. */
+  hasPrivateKey: boolean;
   publicKey: string | null;
   keyFingerprint: string | null;
 };

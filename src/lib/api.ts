@@ -133,6 +133,12 @@ export const api = {
 
   getCipher: (id: string) => invoke<CipherDetail>("get_cipher", { id }),
 
+  /** Decrypt a single secret field on demand (kept out of get_cipher / JS
+      reactive state). field: password | cardNumber | cardCode | ssn |
+      sshPrivateKey. */
+  revealField: (id: string, field: string) =>
+    invoke<string | null>("reveal_field", { id, field }),
+
   createCipher: (input: EditorPayload) =>
     invoke<string>("create_cipher", { input: payloadToRust(input) }),
 

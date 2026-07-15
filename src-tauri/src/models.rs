@@ -382,7 +382,9 @@ pub struct IdentityDetail {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyDetail {
-    pub private_key: Option<String>,
+    /// The private key never crosses to JS (it's the worst leak — reused across
+    /// servers). Fetch it on demand with `reveal_field(id, "sshPrivateKey")`.
+    pub has_private_key: bool,
     pub public_key: Option<String>,
     pub key_fingerprint: Option<String>,
 }

@@ -76,7 +76,8 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
     });
 
     let ssh_key = cipher.ssh_key.as_ref().map(|s| SshKeyDetail {
-        private_key: s.private_key.as_deref().and_then(decrypt_opt),
+        // Presence only — the private key stays in Rust (see `reveal_field`).
+        has_private_key: s.private_key.as_deref().is_some_and(|k| !k.is_empty()),
         public_key: s.public_key.as_deref().and_then(decrypt_opt),
         key_fingerprint: s.key_fingerprint.as_deref().and_then(decrypt_opt),
     });
@@ -96,6 +97,54 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
         identity,
         ssh_key,
     })
+}
+
+/// Decrypt a single secret field of a cipher on demand, by id + field name, so
+/// full plaintext secrets are not eagerly returned by `get_cipher` and left in
+/// long-lived JS reactive state. `field` is one of: "password", "cardNumber",
+/// "cardCode", "ssn", "sshPrivateKey". Returns None when the field is
+/// absent/empty.
+#[tauri::command]
+pub fn reveal_field(
+    state: State<'_, AppState>,
+    id: String,
+    field: String,
+) -> Result<Option<String>> {
+    crate::state::mark_activity(&state);
+    let guard = state.session.lock();
+    let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+    let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+        reason: "no vault synced yet — synchronise first".into(),
+    })?;
+    let cipher = vault
+        .ciphers
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| Error::Storage {
+            reason: format!("cipher not found: {id}"),
+        })?;
+    let owner = owning_key(cipher, &session.user_key, &session.org_keys);
+    let item = item_key(cipher, owner);
+    let key = item.as_ref().unwrap_or(owner);
+
+    let enc: Option<&str> = match field.as_str() {
+        "password" => cipher.login.as_ref().and_then(|l| l.password.as_deref()),
+        "cardNumber" => cipher.card.as_ref().and_then(|c| c.number.as_deref()),
+        "cardCode" => cipher.card.as_ref().and_then(|c| c.code.as_deref()),
+        "ssn" => cipher.identity.as_ref().and_then(|i| i.ssn.as_deref()),
+        "sshPrivateKey" => cipher
+            .ssh_key
+            .as_ref()
+            .and_then(|s| s.private_key.as_deref()),
+        other => {
+            return Err(Error::Storage {
+                reason: format!("unknown reveal field: {other}"),
+            })
+        }
+    };
+    Ok(enc
+        .and_then(|e| decrypt_name(e, key).ok())
+        .filter(|s| !s.is_empty()))
 }
 
 #[tauri::command]
