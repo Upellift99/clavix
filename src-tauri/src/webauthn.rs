@@ -40,6 +40,18 @@ struct RawChallenge {
     _user_verification: Option<String>,
     #[serde(default)]
     _timeout: Option<u64>,
+    #[serde(default)]
+    extensions: Option<RawExtensions>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawExtensions {
+    /// FIDO AppID extension. Present when the account has a security key that
+    /// was originally enrolled over U2F: the key handle is bound to
+    /// `SHA256(appid)` rather than `SHA256(rpId)`, so the assertion has to be
+    /// produced under the appId and echoed back with `appid: true`.
+    #[serde(default)]
+    appid: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -135,6 +147,43 @@ fn validate_rp_id(rp_id: &str, server_url: &str) -> Result<()> {
     }
 }
 
+/// Validate a FIDO AppID before signing under it. The appId is a full URL
+/// (e.g. `https://pass.example.com/app-id.json`); accept it only when it is
+/// https and its host matches the server's host. `validate_rp_id` already
+/// pins the rpId to that same host, so this keeps the appId path from being
+/// abused by a hostile server to make the key sign for an unrelated origin.
+fn validate_app_id(app_id: &str, server_url: &str) -> Result<()> {
+    let app = url::Url::parse(app_id.trim()).map_err(|_| Error::Crypto {
+        reason: format!("malformed WebAuthn appId from server: {app_id:?}"),
+    })?;
+    if app.scheme() != "https" {
+        return Err(Error::Crypto {
+            reason: format!("WebAuthn appId is not https: {app_id:?} — refusing to sign"),
+        });
+    }
+    let app_host = app.host_str().map(str::to_ascii_lowercase);
+    let server_host = url::Url::parse(server_url)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_ascii_lowercase));
+    match (app_host, server_host) {
+        (Some(a), Some(s)) if a == s => Ok(()),
+        (app_host, _) => Err(Error::Crypto {
+            reason: format!(
+                "WebAuthn appId host {app_host:?} does not match server host — refusing to sign"
+            ),
+        }),
+    }
+}
+
+/// True when the authenticator reported that none of the allowed credentials
+/// exist under the requested rpId — CTAP2_ERR_NO_CREDENTIALS (0x2E). A key
+/// answers this without asking for a touch, which is what lets us probe the
+/// appId first and cheaply fall back to the rpId.
+fn is_no_credentials(e: &Error) -> bool {
+    matches!(e, Error::Crypto { reason }
+        if reason.contains("0x2E") || reason.to_ascii_uppercase().contains("NO_CREDENTIALS"))
+}
+
 /// Blocking call that talks to the first attached FIDO2 device.  Meant to
 /// be invoked from a Tauri async command via
 /// `tauri::async_runtime::spawn_blocking`.
@@ -170,9 +219,45 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
 
     // 3. Ask the connected authenticator for an assertion.  Runs CTAP2
     //    over HID; user must touch the key.  60 s server timeout.
-    let assertion = ctap_assertion(&raw.rp_id, &client_data_hash, cred_ids)?;
+    //
+    //    FIDO AppID extension: Vaultwarden ships `extensions.appid` so a key
+    //    enrolled back in the U2F days still works. Such a key's handle is
+    //    bound to `SHA256(appId)`, and the server only accepts the assertion
+    //    if we (a) sign under the appId and (b) report `appid: true`. A
+    //    natively-registered WebAuthn key, by contrast, is bound to the rpId
+    //    and its handle simply does not exist under the appId — so we try the
+    //    appId first (a non-match answers CTAP2_ERR_NO_CREDENTIALS with no
+    //    touch) and fall back to the rpId. Without this the U2F case fails on
+    //    the server with a bare "Webauthn" error, which is what a browser
+    //    silently handles for the user.
+    let app_id = raw
+        .extensions
+        .as_ref()
+        .and_then(|e| e.appid.as_deref())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
 
-    // 4. Shape the response the way Bitwarden/Vaultwarden expects.
+    let (assertion, appid_used) = match app_id {
+        Some(app_id) => {
+            validate_app_id(app_id, server_url)?;
+            match ctap_assertion(app_id, &client_data_hash, cred_ids.clone()) {
+                Ok(a) => (a, true),
+                Err(e) if is_no_credentials(&e) => (
+                    ctap_assertion(&raw.rp_id, &client_data_hash, cred_ids)?,
+                    false,
+                ),
+                Err(e) => return Err(e),
+            }
+        }
+        None => (
+            ctap_assertion(&raw.rp_id, &client_data_hash, cred_ids)?,
+            false,
+        ),
+    };
+
+    // 4. Shape the response the way Bitwarden/Vaultwarden expects. When the
+    //    assertion was produced under the appId, echo `appid: true` so the
+    //    server verifies the rpIdHash against the appId instead of the rpId.
     let cred_id_b64 = b64url_encode(&assertion.credential_id);
     let body = CredentialResponse {
         id: cred_id_b64.clone(),
@@ -188,7 +273,11 @@ pub fn sign_bitwarden_challenge(challenge_json: &str, server_url: &str) -> Resul
                 .map(b64url_encode)
                 .unwrap_or_default(),
         },
-        extensions: serde_json::json!({}),
+        extensions: if appid_used {
+            serde_json::json!({ "appid": true })
+        } else {
+            serde_json::json!({})
+        },
     };
 
     serde_json::to_string(&body).map_err(|e| Error::Crypto {
@@ -301,6 +390,77 @@ mod tests {
         let json = r#"{"challenge":"x","rpId":"y"}"#;
         let parsed: RawChallenge = serde_json::from_str(json).unwrap();
         assert!(parsed.allow_credentials.is_empty());
+    }
+
+    #[test]
+    fn challenge_json_reads_the_appid_extension() {
+        // The exact shape Vaultwarden sends for a U2F-enrolled key.
+        let json = r#"{
+            "challenge":"8woBZU0K",
+            "rpId":"pass.clicface.fr",
+            "allowCredentials":[{"id":"Y3JlZA","type":"public-key"}],
+            "extensions":{"appid":"https://pass.clicface.fr/app-id.json"},
+            "userVerification":"discouraged"
+        }"#;
+        let parsed: RawChallenge = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            parsed.extensions.and_then(|e| e.appid).as_deref(),
+            Some("https://pass.clicface.fr/app-id.json"),
+        );
+    }
+
+    #[test]
+    fn challenge_json_without_extensions_has_no_appid() {
+        let json = r#"{"challenge":"x","rpId":"y"}"#;
+        let parsed: RawChallenge = serde_json::from_str(json).unwrap();
+        assert!(parsed.extensions.is_none());
+    }
+
+    #[test]
+    fn validate_app_id_accepts_same_host_https() {
+        assert!(validate_app_id(
+            "https://pass.clicface.fr/app-id.json",
+            "https://pass.clicface.fr",
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn validate_app_id_rejects_a_foreign_host() {
+        // A hostile server must not point the appId at another origin.
+        assert!(validate_app_id(
+            "https://attacker.example/app-id.json",
+            "https://pass.clicface.fr",
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn validate_app_id_rejects_non_https() {
+        assert!(validate_app_id(
+            "http://pass.clicface.fr/app-id.json",
+            "https://pass.clicface.fr",
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn is_no_credentials_matches_only_the_no_credentials_status() {
+        let no_cred = Error::Crypto {
+            reason: "FIDO2 get_assertion failed: response_status err = 0x2E \
+                     CTAP2_ERR_NO_CREDENTIALS No Credentials."
+                .into(),
+        };
+        assert!(is_no_credentials(&no_cred));
+
+        // The unsupported-option status (0x2B) must NOT be treated as a
+        // no-credentials fallback trigger.
+        let unsupported = Error::Crypto {
+            reason: "FIDO2 get_assertion failed: response_status err = 0x2B \
+                     CTAP2_ERR_UNSUPPORTED_OPTION"
+                .into(),
+        };
+        assert!(!is_no_credentials(&unsupported));
     }
 
     #[test]
