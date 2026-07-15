@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup, waitFor } from "@testing-library/svelte";
+
+// The TOTP secret stays in Rust; TotpField asks `api.totpCode(id)` for the
+// current code. Mock that so the component test doesn't need a Tauri backend.
+vi.mock("./api", () => ({
+  api: {
+    totpCode: vi.fn().mockResolvedValue({ code: "287082", secondsRemaining: 12 }),
+  },
+}));
+
 import TotpField from "./TotpField.svelte";
 
 afterEach(() => {
@@ -30,7 +39,7 @@ describe("TotpField reactivity", () => {
     try {
       render(TotpField, {
         // RFC 6238 test secret ("12345678901234567890" base32-encoded)
-        props: { source: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", onCopy: () => {} },
+        props: { id: "cipher-1", onCopy: () => {} },
       });
     } catch (e) {
       threw = e;

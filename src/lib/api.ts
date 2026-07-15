@@ -9,6 +9,7 @@ import type {
   SshAgentStatus,
   StoredAccount,
   SyncSummary,
+  TotpCode,
 } from "./types";
 
 function nullIfEmpty(s: string): string | null {
@@ -132,6 +133,13 @@ export const api = {
     invoke<void>("rename_folder_path", { sourcePath, newPath }),
 
   getCipher: (id: string) => invoke<CipherDetail>("get_cipher", { id }),
+
+  /** Current TOTP code + seconds remaining, computed in Rust (the seed never
+      reaches JS). */
+  totpCode: (id: string) => invoke<TotpCode>("totp_code", { id }),
+
+  /** Raw TOTP secret — only for the editor and export. */
+  revealLoginTotp: (id: string) => invoke<string | null>("reveal_login_totp", { id }),
 
   createCipher: (input: EditorPayload) =>
     invoke<string>("create_cipher", { input: payloadToRust(input) }),

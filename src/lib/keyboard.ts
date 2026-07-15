@@ -1,5 +1,4 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { currentTotpCode } from "./totp";
 import type { CipherDetail } from "./types";
 
 function isTypingContext(): boolean {
@@ -16,6 +15,8 @@ export type VaultKeyDeps = {
   closeDetail: () => void;
   lock: () => Promise<void> | void;
   copy: (value: string, label: string) => Promise<void> | void;
+  /** Current TOTP code for a cipher id (computed in Rust). */
+  getTotpCode: (cipherId: string) => Promise<string>;
   onError: (e: unknown) => void;
 };
 
@@ -66,10 +67,10 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
       await deps.copy(detail.login.username, "identifiant");
       return;
     }
-    if (key === "t" && detail.login?.totp) {
+    if (key === "t" && detail.login?.hasTotp) {
       event.preventDefault();
       try {
-        const code = await currentTotpCode(detail.login.totp);
+        const code = await deps.getTotpCode(detail.id);
         await deps.copy(code, "code TOTP");
       } catch (e) {
         deps.onError(e);

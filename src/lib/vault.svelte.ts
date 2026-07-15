@@ -357,7 +357,18 @@ export class VaultController {
     this.editorOpen = true;
   }
 
-  openEditEditor() {
+  async openEditEditor() {
+    if (!this.detail) return;
+    // The TOTP secret is no longer in `detail` (it stays in Rust); fetch the
+    // raw seed so the editor can show/keep it — otherwise saving would wipe it.
+    let totpSecret = "";
+    if (this.detail.login?.hasTotp) {
+      try {
+        totpSecret = (await api.revealLoginTotp(this.detail.id)) ?? "";
+      } catch (e) {
+        this.error = formatError(e);
+      }
+    }
     if (!this.detail) return;
     const currentCipher = this.summary?.ciphers.find((c) => c.id === this.detail!.id);
     const kind = (this.detail.kind as 1 | 2 | 3 | 4 | 5) ?? 1;
@@ -372,7 +383,7 @@ export class VaultController {
       username: this.detail.login?.username ?? "",
       password: this.detail.login?.password ?? "",
       uris: this.detail.login?.uris ?? [],
-      totp: this.detail.login?.totp ?? "",
+      totp: totpSecret,
       card: {
         cardholderName: this.detail.card?.cardholderName ?? "",
         brand: this.detail.card?.brand ?? "",

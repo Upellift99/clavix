@@ -29,7 +29,6 @@
   import { formatError } from "$lib/format";
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
-  import { currentTotpCode } from "$lib/totp";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type { CipherDetail as CipherDetailData, CipherSummary } from "$lib/types";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -150,11 +149,13 @@
   }
 
   async function copyMenuTotp() {
-    const source = menuDetail?.login?.totp;
+    const id = menuCipher?.id;
+    const hasTotp = menuDetail?.login?.hasTotp;
     closeRowMenu();
-    if (!source) return;
+    if (!id || !hasTotp) return;
     try {
-      await copyToClipboard(await currentTotpCode(source), "code TOTP");
+      const { code } = await api.totpCode(id);
+      await copyToClipboard(code, "code TOTP");
     } catch (e) {
       vault.error = formatError(e);
     }
@@ -217,6 +218,7 @@
     closeDetail: () => vault.closeDetail(),
     lock: () => lockAndReset(),
     copy: copyToClipboard,
+    getTotpCode: async (id) => (await api.totpCode(id)).code,
     onError: (e) => (vault.error = formatError(e)),
   });
 
@@ -481,7 +483,7 @@
         <kbd class="ctx-shortcut">Ctrl+C</kbd>
       </button>
     {/if}
-    {#if menuDetail?.login?.totp}
+    {#if menuDetail?.login?.hasTotp}
       <button type="button" role="menuitem" onclick={copyMenuTotp}>
         <span class="ctx-label">{m.ctx_copy_totp()}</span>
         <kbd class="ctx-shortcut">Ctrl+T</kbd>

@@ -74,6 +74,11 @@
         const detail = await api.getCipher(c.id);
         const folder = c.folderId ? (folderById.get(c.folderId) ?? "") : "";
         if (detail.kind === 1) {
+          // The TOTP secret isn't in `detail` anymore; fetch the raw seed for
+          // export (a legitimate "get my secrets out" path).
+          const loginTotp = detail.login?.hasTotp
+            ? ((await api.revealLoginTotp(c.id)) ?? "")
+            : "";
           rows.push({
             folder,
             favorite: detail.favorite,
@@ -83,7 +88,7 @@
             loginUris: detail.login?.uris ?? [],
             loginUsername: detail.login?.username ?? "",
             loginPassword: detail.login?.password ?? "",
-            loginTotp: detail.login?.totp ?? "",
+            loginTotp,
           });
         } else if (detail.kind === 2) {
           rows.push({
