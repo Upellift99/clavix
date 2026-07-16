@@ -46,6 +46,9 @@
   let fileName = $state<string | null>(null);
   let importing = $state(false);
   let progress = $state(0);
+  // How many items this run set out to create (the selected count captured at
+  // start), so the progress line's denominator is the batch, not the file.
+  let plannedCount = $state(0);
   let createdCount = $state(0);
   let failedCount = $state(0);
   let lastError = $state<string | null>(null);
@@ -53,7 +56,7 @@
   // Which entries the server refused, and why. A bare failure *count*
   // used to be the only feedback, so an entry rejected for an oversized
   // note vanished with no way to tell which one it was.
-  let failures = $state<{ title: string; message: string }[]>([]);
+  let failures = $state<{ title: string; username: string; message: string }[]>([]);
   let skippedCount = $state(0);
   // KDBX path: we hold the picked file until the user types the
   // master password, then call `parse_kdbx` over IPC. The CSV path
@@ -66,10 +69,48 @@
     new Set(existing.map((c) => importIdentity(c.name, c.username ?? ""))),
   );
 
-  /** Entries already present in the vault; they will be skipped. */
-  const duplicates = $derived(
-    entries.filter((e) => existingIds.has(importIdentity(e.title, e.username))),
+  // The entries that will actually be created, in order. Vault duplicates and
+  // within-file duplicates are dropped here exactly as `startImport` drops
+  // them, so the preview shows precisely what the import will add — nothing it
+  // will silently skip.
+  const newEntries = $derived.by(() => {
+    const seen = new Set(existingIds);
+    const result: KeepassEntry[] = [];
+    for (const e of entries) {
+      const id = importIdentity(e.title, e.username);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      result.push(e);
+    }
+    return result;
+  });
+
+  /** How many parsed entries are skipped as duplicates (vault or in-file). */
+  const skippedPreview = $derived(entries.length - newEntries.length);
+
+  // Rows the user has unchecked, keyed by import identity. Empty = everything
+  // selected (the default). Only ever holds identities drawn from newEntries,
+  // whose identities are unique, so `newEntries.length - excluded.size` is the
+  // exact selected count. Reset whenever a new file is parsed.
+  let excluded = $state<Set<string>>(new Set());
+
+  const selectedEntries = $derived(
+    newEntries.filter((e) => !excluded.has(importIdentity(e.title, e.username))),
   );
+  const allSelected = $derived(newEntries.length > 0 && excluded.size === 0);
+
+  function toggleEntry(id: string) {
+    const next = new Set(excluded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    excluded = next;
+  }
+
+  function toggleAll() {
+    excluded = allSelected
+      ? new Set(newEntries.map((e) => importIdentity(e.title, e.username)))
+      : new Set();
+  }
 
   $effect(() => {
     if (open) {
@@ -83,6 +124,8 @@
       lastError = null;
       failures = [];
       skippedCount = 0;
+      plannedCount = 0;
+      excluded = new Set();
       pendingKdbxFile = null;
       kdbxPassword = "";
       kdbxParsing = false;
@@ -112,6 +155,7 @@
     fileName = file.name;
     parseError = null;
     entries = [];
+    excluded = new Set();
     pendingKdbxFile = null;
     kdbxPassword = "";
 
@@ -146,6 +190,7 @@
       // Same shape as the CSV result, by design: same `entries`
       // state feeds the rest of the dialog (preview + loop).
       entries = await api.parseKdbx(bytes, kdbxPassword);
+      excluded = new Set();
       if (entries.length === 0) {
         parseError = m.import_empty();
       }
@@ -164,38 +209,30 @@
   // armored PGP key in a note is the usual culprit, and it is well under
   // any length the user can see, because the limit applies to the
   // *encrypted* value.
-  const oversized = $derived(entries.filter((e) => exceedsEncryptedLimit(e.notes)));
+  const oversized = $derived(newEntries.filter((e) => exceedsEncryptedLimit(e.notes)));
 
   async function startImport() {
-    if (entries.length === 0) return;
+    // Snapshot the checked rows up front: `selectedEntries` already has vault
+    // duplicates, in-file duplicates, and user-unchecked rows removed, so the
+    // loop below just creates each one — no per-item skip logic needed.
+    const toImport = selectedEntries;
+    if (toImport.length === 0) return;
     importing = true;
     progress = 0;
     createdCount = 0;
     failedCount = 0;
     lastError = null;
     failures = [];
-    skippedCount = 0;
+    plannedCount = toImport.length;
+    // Everything parsed but left out of this run: duplicates plus unchecked rows.
+    skippedCount = entries.length - toImport.length;
 
     // Build a mutable folder name → id lookup so we only create each
     // missing KeePass group once per import.
     const folderByName = new Map<string, string>();
     for (const f of folders) folderByName.set(f.name, f.id);
 
-    // Re-importing the same file must not duplicate what is already there,
-    // nor overwrite an item the user has edited since. Entries matching a
-    // vault item on name + username are skipped outright; `seen` extends
-    // that to duplicates *within* the file itself.
-    const seen = new Set(existingIds);
-
-    for (const entry of entries) {
-      const identity = importIdentity(entry.title, entry.username);
-      if (seen.has(identity)) {
-        skippedCount += 1;
-        progress += 1;
-        continue;
-      }
-      seen.add(identity);
-
+    for (const entry of toImport) {
       try {
         // Folders are a personal-vault concept; when importing into an
         // organization every item goes to the chosen collection instead.
@@ -232,6 +269,7 @@
         lastError = (e as Error).message ?? String(e);
         failures.push({
           title: entry.title || "(sans nom)",
+          username: entry.username,
           message: formatError(e),
         });
       }
@@ -316,7 +354,7 @@
 
       {#if entries.length > 0}
         <p class="import-summary">
-          {m.import_summary({ count: String(entries.length), file: fileName ?? "?" })}
+          {m.import_summary({ count: String(newEntries.length), file: fileName ?? "?" })}
         </p>
 
         {#if organizations.length > 0}
@@ -352,9 +390,9 @@
           </label>
         {/if}
 
-        {#if duplicates.length > 0}
+        {#if skippedPreview > 0}
           <p class="import-skip">
-            {m.import_already_present({ count: String(duplicates.length) })}
+            {m.import_already_present({ count: String(skippedPreview) })}
           </p>
         {/if}
 
@@ -363,7 +401,7 @@
             <p>{m.import_notes_too_long({ count: String(oversized.length) })}</p>
             <ul>
               {#each oversized.slice(0, 5) as e, i (i)}
-                <li>{e.title || "(sans nom)"}</li>
+                <li>{e.title || "(sans nom)"}{e.username ? ` — ${e.username}` : ""}</li>
               {/each}
             </ul>
             {#if oversized.length > 5}
@@ -372,10 +410,30 @@
           </div>
         {/if}
 
+        <div class="preview-toolbar">
+          <label class="checkbox-row compact">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              indeterminate={selectedEntries.length > 0 && !allSelected}
+              onchange={toggleAll}
+              disabled={importing}
+            />
+            <span>{m.import_select_all()}</span>
+          </label>
+          <span class="preview-count">
+            {m.import_selected({
+              selected: String(selectedEntries.length),
+              total: String(newEntries.length),
+            })}
+          </span>
+        </div>
+
         <div class="import-preview">
           <table>
             <thead>
               <tr>
+                <th class="check-col"></th>
                 <th>{m.editor_name()}</th>
                 <th>{m.detail_field_username()}</th>
                 <th>{m.detail_field_url_one()}</th>
@@ -383,8 +441,18 @@
               </tr>
             </thead>
             <tbody>
-              {#each entries.slice(0, 15) as e, i (i)}
-                <tr>
+              {#each newEntries as e (importIdentity(e.title, e.username))}
+                {@const id = importIdentity(e.title, e.username)}
+                <tr class:deselected={excluded.has(id)}>
+                  <td class="check-col">
+                    <input
+                      type="checkbox"
+                      checked={!excluded.has(id)}
+                      onchange={() => toggleEntry(id)}
+                      disabled={importing}
+                      aria-label={e.title || "(sans nom)"}
+                    />
+                  </td>
                   <td>{e.title}</td>
                   <td>{e.username}</td>
                   <td class="url-cell">{e.url}</td>
@@ -393,9 +461,6 @@
               {/each}
             </tbody>
           </table>
-          {#if entries.length > 15}
-            <p class="hint">{m.import_more({ count: String(entries.length - 15) })}</p>
-          {/if}
         </div>
       {/if}
 
@@ -403,7 +468,7 @@
         <p class="import-progress">
           {m.import_progress({
             done: String(progress),
-            total: String(entries.length),
+            total: String(plannedCount),
           })}
         </p>
       {/if}
@@ -423,7 +488,9 @@
             <p>{m.import_failures_heading()}</p>
             <ul>
               {#each failures as f, i (i)}
-                <li><strong>{f.title}</strong> — {f.message}</li>
+                <li>
+                  <strong>{f.title}</strong>{f.username ? ` — ${f.username}` : ""} — {f.message}
+                </li>
               {/each}
             </ul>
           </div>
@@ -444,7 +511,7 @@
         <button
           type="button"
           onclick={startImport}
-          disabled={importing || entries.length === 0 || progress > 0 || destInvalid}
+          disabled={importing || selectedEntries.length === 0 || progress > 0 || destInvalid}
         >
           {importing ? m.import_running() : m.import_start()}
         </button>
@@ -563,12 +630,42 @@
     margin: 0;
   }
 
+  .preview-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0.25rem;
+  }
+
+  .checkbox-row.compact {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .preview-count {
+    color: #555;
+    font-size: 0.82rem;
+  }
+
   .import-preview {
     max-height: 280px;
     overflow-y: auto;
     border: 1px solid #e6e6e6;
     border-radius: 6px;
-    margin: 0.4rem 0;
+    margin: 0 0 0.4rem;
+  }
+
+  .check-col {
+    width: 1.75rem;
+    text-align: center;
+    padding-left: 0.4rem;
+    padding-right: 0.2rem;
+  }
+
+  tr.deselected td:not(.check-col) {
+    opacity: 0.45;
+    text-decoration: line-through;
   }
 
   table {
