@@ -315,6 +315,44 @@ pub fn build_share_cipher_body(
         })
         .transpose()?;
 
+    // Custom fields and password history must be rewrapped and carried across,
+    // or the replace-semantics share PUT silently deletes them for everyone.
+    let fields_json = cipher
+        .fields
+        .as_ref()
+        .map(|fields| -> Result<serde_json::Value> {
+            let arr = fields
+                .iter()
+                .map(|f| -> Result<serde_json::Value> {
+                    Ok(serde_json::json!({
+                        "type": f.kind,
+                        "name": reenc_opt(f.name.as_deref())?,
+                        "value": reenc_opt(f.value.as_deref())?,
+                        "linkedId": f.linked_id,
+                    }))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Ok(serde_json::Value::Array(arr))
+        })
+        .transpose()?;
+
+    let password_history_json = cipher
+        .password_history
+        .as_ref()
+        .map(|hist| -> Result<serde_json::Value> {
+            let arr = hist
+                .iter()
+                .map(|h| -> Result<serde_json::Value> {
+                    Ok(serde_json::json!({
+                        "lastUsedDate": h.last_used_date,
+                        "password": reenc_opt(h.password.as_deref())?,
+                    }))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Ok(serde_json::Value::Array(arr))
+        })
+        .transpose()?;
+
     Ok(serde_json::json!({
         "cipher": {
             "type": cipher.kind as u8,
@@ -328,6 +366,8 @@ pub fn build_share_cipher_body(
             "card": card_json,
             "identity": identity_json,
             "sshKey": ssh_key_json,
+            "fields": fields_json,
+            "passwordHistory": password_history_json,
         },
         "collectionIds": collection_ids,
     }))
@@ -338,8 +378,8 @@ mod tests {
     use super::*;
     use crate::crypto::{decrypt_name, SymmetricKey};
     use crate::models::{
-        CardInput, CipherCreateInput, CipherLogin, CipherLoginUri, CipherType, IdentityInput,
-        LoginInput, SshKeyInput,
+        CardInput, CipherCreateInput, CipherField, CipherLogin, CipherLoginUri,
+        CipherPasswordHistory, CipherType, IdentityInput, LoginInput, SshKeyInput,
     };
 
     fn test_key() -> SymmetricKey {
@@ -377,6 +417,8 @@ mod tests {
             card: None,
             identity: None,
             ssh_key: None,
+            fields: None,
+            password_history: None,
         }
     }
 
@@ -476,6 +518,48 @@ mod tests {
         cipher.key = Some(encrypt_cipher_key(&item, &stranger).unwrap());
 
         assert!(item_key(&cipher, &user).is_none());
+    }
+
+    #[test]
+    fn share_body_rewraps_custom_fields_and_password_history() {
+        // Regression for the silent data loss on share (L7): custom fields and
+        // password history must be rewrapped source -> org key and carried in
+        // the body, not dropped.
+        let user = test_key();
+        let org = other_test_key();
+        let mut cipher = base_cipher(CipherType::Login, &user);
+        cipher.fields = Some(vec![CipherField {
+            kind: Some(1),
+            name: Some(encrypt_string("recovery", &user).unwrap()),
+            value: Some(encrypt_string("code-123", &user).unwrap()),
+            linked_id: None,
+        }]);
+        cipher.password_history = Some(vec![CipherPasswordHistory {
+            last_used_date: Some("2024-01-01T00:00:00Z".into()),
+            password: Some(encrypt_string("old-pass", &user).unwrap()),
+        }]);
+
+        let body =
+            build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let c = &body["cipher"];
+
+        let f = &c["fields"][0];
+        assert_eq!(f["type"], 1);
+        assert_eq!(
+            decrypt_name(f["name"].as_str().unwrap(), &org).unwrap(),
+            "recovery"
+        );
+        assert_eq!(
+            decrypt_name(f["value"].as_str().unwrap(), &org).unwrap(),
+            "code-123"
+        );
+
+        let h = &c["passwordHistory"][0];
+        assert_eq!(h["lastUsedDate"], "2024-01-01T00:00:00Z");
+        assert_eq!(
+            decrypt_name(h["password"].as_str().unwrap(), &org).unwrap(),
+            "old-pass"
+        );
     }
 
     #[test]

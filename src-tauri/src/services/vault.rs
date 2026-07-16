@@ -256,6 +256,8 @@ mod tests {
             card: None,
             identity: None,
             ssh_key: None,
+            fields: None,
+            password_history: None,
         }
     }
 
@@ -281,6 +283,8 @@ mod tests {
             card: None,
             identity: None,
             ssh_key: None,
+            fields: None,
+            password_history: None,
         }
     }
 
