@@ -22,6 +22,7 @@
     onOpenGenerator: () => void;
     onOpenAudit: () => void;
     onOpenStats: () => void;
+    onOpenAbout: () => void;
   };
 
   let {
@@ -38,6 +39,7 @@
     onOpenGenerator,
     onOpenAudit,
     onOpenStats,
+    onOpenAbout,
   }: Props = $props();
 
   // `now` ticks once a minute so the "il y a N min" text and the
@@ -172,6 +174,15 @@
       aria-label={m.tree_infos_label()}
     >
       <Icon name="info" size={18} />
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      onclick={onOpenAbout}
+      title={m.about_label()}
+      aria-label={m.about_label()}
+    >
+      <Icon name="arrow-up-circle" size={18} />
     </button>
   </div>
 

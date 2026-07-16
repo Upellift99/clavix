@@ -315,5 +315,12 @@
   "update_available_title": "Nouvelle version disponible",
   "update_available_body": "Clavix {version} est disponible (vous utilisez la {current}).",
   "update_action_view": "Voir la version",
-  "update_action_dismiss": "Ignorer"
+  "update_action_dismiss": "Ignorer",
+  "about_label": "À propos",
+  "about_title": "À propos de Clavix",
+  "about_version": "Version {version}",
+  "about_check_updates": "Vérifier les mises à jour",
+  "about_checking": "Vérification…",
+  "about_up_to_date": "Vous utilisez la dernière version.",
+  "about_check_failed": "Vérification impossible — êtes-vous hors ligne ?"
 }

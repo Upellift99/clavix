@@ -164,6 +164,7 @@ pub fn run() {
             commands::tray::set_tray_locale,
             commands::import::parse_kdbx,
             commands::update::check_for_update,
+            commands::update::app_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
