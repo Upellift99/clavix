@@ -71,18 +71,27 @@ export type SyncSummary = {
 
 export type LoginDetail = {
   username: string | null;
-  password: string | null;
+  /** Presence only — fetch with `api.revealField(id, "password")`. */
+  hasPassword: boolean;
   uris: string[];
-  totp: string | null;
+  /** The TOTP secret never crosses to JS — only whether the item has one.
+      Use `api.totpCode(id)` for the current code, `api.revealLoginTotp(id)`
+      for the raw secret (editor/export only). */
+  hasTotp: boolean;
+};
+
+export type TotpCode = {
+  code: string;
+  secondsRemaining: number;
 };
 
 export type CardDetail = {
   cardholderName: string | null;
   brand: string | null;
-  number: string | null;
+  hasNumber: boolean;
   expMonth: string | null;
   expYear: string | null;
-  code: string | null;
+  hasCode: boolean;
 };
 
 export type IdentityDetail = {
@@ -100,14 +109,16 @@ export type IdentityDetail = {
   company: string | null;
   email: string | null;
   phone: string | null;
-  ssn: string | null;
+  hasSsn: boolean;
   username: string | null;
   passportNumber: string | null;
   licenseNumber: string | null;
 };
 
 export type SshKeyDetail = {
-  privateKey: string | null;
+  /** The private key stays in Rust; fetch on demand with
+      `api.revealField(id, "sshPrivateKey")`. */
+  hasPrivateKey: boolean;
   publicKey: string | null;
   keyFingerprint: string | null;
 };

@@ -32,9 +32,14 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
 
     let decrypt_opt = |s: &str| -> Option<String> { decrypt_name(s, key).ok() };
 
+    // A field is "present" when it decrypts to a non-empty value; secrets are
+    // reported as booleans only and fetched on demand via `reveal_field`.
+    let present =
+        |s: Option<&str>| -> bool { s.and_then(decrypt_opt).is_some_and(|v| !v.is_empty()) };
+
     let login = cipher.login.as_ref().map(|l| LoginDetail {
         username: l.username.as_deref().and_then(decrypt_opt),
-        password: l.password.as_deref().and_then(decrypt_opt),
+        has_password: present(l.password.as_deref()),
         uris: l
             .uris
             .as_deref()
@@ -42,16 +47,17 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
             .iter()
             .filter_map(|u| u.uri.as_deref().and_then(decrypt_opt))
             .collect(),
-        totp: l.totp.as_deref().and_then(decrypt_opt),
+        // Presence only — the seed stays in Rust (see `totp_code`).
+        has_totp: l.totp.as_deref().is_some_and(|t| !t.is_empty()),
     });
 
     let card = cipher.card.as_ref().map(|c| CardDetail {
         cardholder_name: c.cardholder_name.as_deref().and_then(decrypt_opt),
         brand: c.brand.as_deref().and_then(decrypt_opt),
-        number: c.number.as_deref().and_then(decrypt_opt),
+        has_number: present(c.number.as_deref()),
         exp_month: c.exp_month.as_deref().and_then(decrypt_opt),
         exp_year: c.exp_year.as_deref().and_then(decrypt_opt),
-        code: c.code.as_deref().and_then(decrypt_opt),
+        has_code: present(c.code.as_deref()),
     });
 
     let identity = cipher.identity.as_ref().map(|i| IdentityDetail {
@@ -69,14 +75,15 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
         company: i.company.as_deref().and_then(decrypt_opt),
         email: i.email.as_deref().and_then(decrypt_opt),
         phone: i.phone.as_deref().and_then(decrypt_opt),
-        ssn: i.ssn.as_deref().and_then(decrypt_opt),
+        has_ssn: present(i.ssn.as_deref()),
         username: i.username.as_deref().and_then(decrypt_opt),
         passport_number: i.passport_number.as_deref().and_then(decrypt_opt),
         license_number: i.license_number.as_deref().and_then(decrypt_opt),
     });
 
     let ssh_key = cipher.ssh_key.as_ref().map(|s| SshKeyDetail {
-        private_key: s.private_key.as_deref().and_then(decrypt_opt),
+        // Presence only — the private key stays in Rust (see `reveal_field`).
+        has_private_key: s.private_key.as_deref().is_some_and(|k| !k.is_empty()),
         public_key: s.public_key.as_deref().and_then(decrypt_opt),
         key_fingerprint: s.key_fingerprint.as_deref().and_then(decrypt_opt),
     });
@@ -96,6 +103,101 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
         identity,
         ssh_key,
     })
+}
+
+/// Decrypt a single secret field of a cipher on demand, by id + field name, so
+/// full plaintext secrets are not eagerly returned by `get_cipher` and left in
+/// long-lived JS reactive state. `field` is one of: "password", "cardNumber",
+/// "cardCode", "ssn", "sshPrivateKey". Returns None when the field is
+/// absent/empty.
+#[tauri::command]
+pub fn reveal_field(
+    state: State<'_, AppState>,
+    id: String,
+    field: String,
+) -> Result<Option<String>> {
+    crate::state::mark_activity(&state);
+    let guard = state.session.lock();
+    let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+    let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+        reason: "no vault synced yet — synchronise first".into(),
+    })?;
+    let cipher = vault
+        .ciphers
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| Error::Storage {
+            reason: format!("cipher not found: {id}"),
+        })?;
+    let owner = owning_key(cipher, &session.user_key, &session.org_keys);
+    let item = item_key(cipher, owner);
+    let key = item.as_ref().unwrap_or(owner);
+
+    let enc: Option<&str> = match field.as_str() {
+        "password" => cipher.login.as_ref().and_then(|l| l.password.as_deref()),
+        "cardNumber" => cipher.card.as_ref().and_then(|c| c.number.as_deref()),
+        "cardCode" => cipher.card.as_ref().and_then(|c| c.code.as_deref()),
+        "ssn" => cipher.identity.as_ref().and_then(|i| i.ssn.as_deref()),
+        "sshPrivateKey" => cipher
+            .ssh_key
+            .as_ref()
+            .and_then(|s| s.private_key.as_deref()),
+        other => {
+            return Err(Error::Storage {
+                reason: format!("unknown reveal field: {other}"),
+            })
+        }
+    };
+    Ok(enc
+        .and_then(|e| decrypt_name(e, key).ok())
+        .filter(|s| !s.is_empty()))
+}
+
+/// Decrypt a login item's TOTP secret (otpauth URI or bare base32) by id,
+/// under its item/owning key. Kept in Rust so the seed never reaches JS.
+fn decrypt_totp_secret(state: &AppState, id: &str) -> Result<Option<String>> {
+    let guard = state.session.lock();
+    let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+    let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+        reason: "no vault synced yet — synchronise first".into(),
+    })?;
+    let cipher = vault
+        .ciphers
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| Error::Storage {
+            reason: format!("cipher not found: {id}"),
+        })?;
+    let owner = owning_key(cipher, &session.user_key, &session.org_keys);
+    let item = item_key(cipher, owner);
+    let key = item.as_ref().unwrap_or(owner);
+    Ok(cipher
+        .login
+        .as_ref()
+        .and_then(|l| l.totp.as_deref())
+        .and_then(|t| decrypt_name(t, key).ok())
+        .filter(|s| !s.is_empty()))
+}
+
+/// Current TOTP code + seconds remaining for a login item. Computed in Rust so
+/// the shared secret stays out of the WebView (a leaked seed = permanent 2FA
+/// bypass). The renderer polls this once a second for the live field.
+#[tauri::command]
+pub fn totp_code(state: State<'_, AppState>, id: String) -> Result<crate::totp::TotpCode> {
+    crate::state::mark_activity(&state);
+    let secret = decrypt_totp_secret(&state, &id)?.ok_or_else(|| Error::Storage {
+        reason: "item has no TOTP secret".into(),
+    })?;
+    crate::totp::code_now(&secret)
+}
+
+/// The raw TOTP secret, only for the editor (to edit it) and export (to write
+/// it out) — the two legitimate places that need the seed itself rather than a
+/// code. Everything else uses `totp_code`.
+#[tauri::command]
+pub fn reveal_login_totp(state: State<'_, AppState>, id: String) -> Result<Option<String>> {
+    crate::state::mark_activity(&state);
+    decrypt_totp_secret(&state, &id)
 }
 
 #[tauri::command]

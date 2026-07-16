@@ -2,7 +2,8 @@
   import * as m from "$lib/paraglide/messages";
   import Icon from "./Icon.svelte";
   import TotpField from "./TotpField.svelte";
-  import { cipherTypeLabel, mask } from "./format";
+  import { api } from "./api";
+  import { cipherTypeLabel } from "./format";
   import type { CipherDetail, CipherSummary, OrganizationSummary } from "./types";
 
   type Props = {
@@ -35,6 +36,31 @@
   let showSsn = $state(false);
   let showSshPrivate = $state(false);
 
+  // Secret fields are no longer in `detail`; they're fetched on demand and held
+  // only while revealed. `revealed[field]` caches the fetched value for the
+  // currently open item; wiped whenever the item changes.
+  let revealed = $state<Record<string, string>>({});
+
+  async function revealValue(field: string): Promise<string> {
+    if (revealed[field] === undefined) {
+      revealed = { ...revealed, [field]: (await api.revealField(detail.id, field)) ?? "" };
+    }
+    return revealed[field];
+  }
+
+  /** Copy a secret field, fetching it first if needed (kept out of long-lived
+      state — only touched transiently for the copy). */
+  async function copyField(field: string, label: string) {
+    const value = await revealValue(field);
+    if (value) await onCopy(value, label);
+  }
+
+  /** Reveal-toggle a secret field: fetch it before showing. */
+  async function toggleSecret(field: string, shown: boolean, set: (v: boolean) => void) {
+    if (!shown) await revealValue(field);
+    set(!shown);
+  }
+
   $effect(() => {
     void detail.id;
     showPassword = false;
@@ -42,6 +68,7 @@
     showCardCode = false;
     showSsn = false;
     showSshPrivate = false;
+    revealed = {};
   });
 
   const isDeleted = $derived(summaryEntry?.deletedDate ?? null);
@@ -120,12 +147,13 @@
 
 {#snippet secretField(
   label: string,
-  value: string,
+  field: string,
   shown: boolean,
   toggle: () => void,
   copyAs: string,
   options?: { masked?: string; renderShown?: "default" | "password" | "ssh" }
 )}
+  {@const value = revealed[field] ?? ""}
   <div class="detail-field" role="group">
     <dt>{label}</dt>
     <dd>
@@ -138,7 +166,7 @@
       {:else if shown}
         <code class="value">{value}</code>
       {:else}
-        <code class="value">{options?.masked ?? "•".repeat(Math.min(value.length, 16))}</code>
+        <code class="value">{options?.masked ?? "••••••••"}</code>
       {/if}
       <button
         type="button"
@@ -154,7 +182,7 @@
         class="icon-btn primary"
         title={m.action_copy()}
         aria-label={m.action_copy()}
-        onclick={() => onCopy(value, copyAs)}
+        onclick={() => copyField(field, copyAs)}
       >
         <Icon name="copy" size={14} />
       </button>
@@ -198,18 +226,18 @@
     </div>
   </header>
 
-  {#if detail.login && (detail.login.username || detail.login.password)}
+  {#if detail.login && (detail.login.username || detail.login.hasPassword)}
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_credentials()}</h3>
       {#if detail.login.username}
         {@render plainField(m.detail_field_username(), detail.login.username, "identifiant")}
       {/if}
-      {#if detail.login.password}
+      {#if detail.login.hasPassword}
         {@render secretField(
           m.detail_field_password(),
-          detail.login.password,
+          "password",
           showPassword,
-          () => (showPassword = !showPassword),
+          () => toggleSecret("password", showPassword, (v) => (showPassword = v)),
           "mot de passe",
           { renderShown: "password" }
         )}
@@ -241,14 +269,14 @@
     </section>
   {/if}
 
-  {#if detail.login?.totp}
+  {#if detail.login?.hasTotp}
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_security()}</h3>
       <div class="detail-field" role="group">
         <dt>{m.detail_field_totp()}</dt>
         <dd>
           <TotpField
-            source={detail.login.totp}
+            id={detail.id}
             onCopy={(code) => onCopy(code, m.detail_field_totp())}
           />
         </dd>
@@ -268,14 +296,14 @@
           <dd><span class="value">{detail.card.brand}</span></dd>
         </div>
       {/if}
-      {#if detail.card.number}
+      {#if detail.card.hasNumber}
         {@render secretField(
           m.detail_field_number(),
-          detail.card.number,
+          "cardNumber",
           showCardNumber,
-          () => (showCardNumber = !showCardNumber),
+          () => toggleSecret("cardNumber", showCardNumber, (v) => (showCardNumber = v)),
           "numéro de carte",
-          { masked: mask(detail.card.number, 16) }
+          { masked: "•••• •••• •••• ••••" }
         )}
       {/if}
       {#if detail.card.expMonth || detail.card.expYear}
@@ -288,14 +316,14 @@
           </dd>
         </div>
       {/if}
-      {#if detail.card.code}
+      {#if detail.card.hasCode}
         {@render secretField(
           m.detail_field_cvv(),
-          detail.card.code,
+          "cardCode",
           showCardCode,
-          () => (showCardCode = !showCardCode),
+          () => toggleSecret("cardCode", showCardCode, (v) => (showCardCode = v)),
           "CVV",
-          { masked: mask(detail.card.code, 3) }
+          { masked: "•••" }
         )}
       {/if}
     </section>
@@ -309,14 +337,14 @@
           {@render plainField(label, value)}
         {/if}
       {/each}
-      {#if detail.identity.ssn}
+      {#if detail.identity.hasSsn}
         {@render secretField(
           m.detail_field_ssn(),
-          detail.identity.ssn,
+          "ssn",
           showSsn,
-          () => (showSsn = !showSsn),
+          () => toggleSecret("ssn", showSsn, (v) => (showSsn = v)),
           "NIR",
-          { masked: mask(detail.identity.ssn, 11) }
+          { masked: "•••••••••" }
         )}
       {/if}
     </section>
@@ -345,12 +373,12 @@
           </dd>
         </div>
       {/if}
-      {#if detail.sshKey.privateKey}
+      {#if detail.sshKey.hasPrivateKey}
         {@render secretField(
           m.detail_field_private_key(),
-          detail.sshKey.privateKey,
+          "sshPrivateKey",
           showSshPrivate,
-          () => (showSshPrivate = !showSshPrivate),
+          () => toggleSecret("sshPrivateKey", showSshPrivate, (v) => (showSshPrivate = v)),
           "clé privée",
           { masked: m.detail_field_private_key_hidden(), renderShown: "ssh" }
         )}

@@ -357,7 +357,39 @@ export class VaultController {
     this.editorOpen = true;
   }
 
-  openEditEditor() {
+  async openEditEditor() {
+    if (!this.detail) return;
+    // Secrets are no longer in `detail`; fetch the ones the editor edits so
+    // saving them back doesn't wipe them.
+    let sshPrivateKey = "";
+    let totpSecret = "";
+    let password = "";
+    let cardNumber = "";
+    let cardCode = "";
+    let ssn = "";
+    try {
+      const id = this.detail.id;
+      if (this.detail.login?.hasPassword) {
+        password = (await api.revealField(id, "password")) ?? "";
+      }
+      if (this.detail.card?.hasNumber) {
+        cardNumber = (await api.revealField(id, "cardNumber")) ?? "";
+      }
+      if (this.detail.card?.hasCode) {
+        cardCode = (await api.revealField(id, "cardCode")) ?? "";
+      }
+      if (this.detail.identity?.hasSsn) {
+        ssn = (await api.revealField(id, "ssn")) ?? "";
+      }
+      if (this.detail.sshKey?.hasPrivateKey) {
+        sshPrivateKey = (await api.revealField(id, "sshPrivateKey")) ?? "";
+      }
+      if (this.detail.login?.hasTotp) {
+        totpSecret = (await api.revealLoginTotp(id)) ?? "";
+      }
+    } catch (e) {
+      this.error = formatError(e);
+    }
     if (!this.detail) return;
     const currentCipher = this.summary?.ciphers.find((c) => c.id === this.detail!.id);
     const kind = (this.detail.kind as 1 | 2 | 3 | 4 | 5) ?? 1;
@@ -370,16 +402,16 @@ export class VaultController {
       favorite: currentCipher?.favorite ?? false,
       notes: this.detail.notes ?? "",
       username: this.detail.login?.username ?? "",
-      password: this.detail.login?.password ?? "",
+      password,
       uris: this.detail.login?.uris ?? [],
-      totp: this.detail.login?.totp ?? "",
+      totp: totpSecret,
       card: {
         cardholderName: this.detail.card?.cardholderName ?? "",
         brand: this.detail.card?.brand ?? "",
-        number: this.detail.card?.number ?? "",
+        number: cardNumber,
         expMonth: this.detail.card?.expMonth ?? "",
         expYear: this.detail.card?.expYear ?? "",
-        code: this.detail.card?.code ?? "",
+        code: cardCode,
       },
       identity: {
         title: this.detail.identity?.title ?? "",
@@ -396,13 +428,13 @@ export class VaultController {
         company: this.detail.identity?.company ?? "",
         email: this.detail.identity?.email ?? "",
         phone: this.detail.identity?.phone ?? "",
-        ssn: this.detail.identity?.ssn ?? "",
+        ssn,
         username: this.detail.identity?.username ?? "",
         passportNumber: this.detail.identity?.passportNumber ?? "",
         licenseNumber: this.detail.identity?.licenseNumber ?? "",
       },
       sshKey: {
-        privateKey: this.detail.sshKey?.privateKey ?? "",
+        privateKey: sshPrivateKey,
         publicKey: this.detail.sshKey?.publicKey ?? "",
         keyFingerprint: this.detail.sshKey?.keyFingerprint ?? "",
       },

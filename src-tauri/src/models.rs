@@ -383,9 +383,17 @@ pub struct CipherDetail {
 #[serde(rename_all = "camelCase")]
 pub struct LoginDetail {
     pub username: Option<String>,
-    pub password: Option<String>,
+    /// Presence only — the password is fetched on demand via
+    /// `reveal_field(id, "password")` so it doesn't sit in long-lived JS state.
+    pub has_password: bool,
     pub uris: Vec<String>,
-    pub totp: Option<String>,
+    /// Whether the item carries a TOTP secret. The secret itself is NOT sent to
+    /// the WebView (it would let a compromised renderer mint valid codes
+    /// forever — a permanent 2FA bypass). The renderer asks
+    /// `commands::cipher::totp_code` for the current code, and
+    /// `reveal_login_totp` for the raw secret only when the editor/export needs
+    /// it.
+    pub has_totp: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -393,10 +401,12 @@ pub struct LoginDetail {
 pub struct CardDetail {
     pub cardholder_name: Option<String>,
     pub brand: Option<String>,
-    pub number: Option<String>,
+    /// Card number + CVV are fetched on demand (`reveal_field(id, "cardNumber"
+    /// | "cardCode")`); only their presence is sent eagerly.
+    pub has_number: bool,
     pub exp_month: Option<String>,
     pub exp_year: Option<String>,
-    pub code: Option<String>,
+    pub has_code: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -416,7 +426,8 @@ pub struct IdentityDetail {
     pub company: Option<String>,
     pub email: Option<String>,
     pub phone: Option<String>,
-    pub ssn: Option<String>,
+    /// SSN is fetched on demand via `reveal_field(id, "ssn")`.
+    pub has_ssn: bool,
     pub username: Option<String>,
     pub passport_number: Option<String>,
     pub license_number: Option<String>,
@@ -425,7 +436,9 @@ pub struct IdentityDetail {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyDetail {
-    pub private_key: Option<String>,
+    /// The private key never crosses to JS (it's the worst leak — reused across
+    /// servers). Fetch it on demand with `reveal_field(id, "sshPrivateKey")`.
+    pub has_private_key: bool,
     pub public_key: Option<String>,
     pub key_fingerprint: Option<String>,
 }

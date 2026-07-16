@@ -23,6 +23,7 @@ pub mod state;
 // spec — disk-artifact assertions, restart-simulation — need direct
 // access to load_session / save_session / clear_session.
 pub mod store;
+mod totp;
 mod webauthn;
 mod yubikey_unlock;
 
@@ -134,6 +135,9 @@ pub fn run() {
             commands::vault::delete_folder,
             commands::vault::rename_folder,
             commands::cipher::get_cipher,
+            commands::cipher::reveal_field,
+            commands::cipher::totp_code,
+            commands::cipher::reveal_login_totp,
             commands::cipher::create_login_cipher,
             commands::cipher::update_login_cipher,
             commands::cipher::create_cipher,

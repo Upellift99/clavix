@@ -1,41 +1,37 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
-  import { generateTotp, parseTotp, secondsRemaining, type TotpConfig } from "$lib/totp";
+  import { api } from "$lib/api";
 
-  let { source, onCopy }: { source: string; onCopy: (code: string) => void } = $props();
-
-  // Derive config/error purely from `source`. No $state is both written and
-  // read inside an effect, so there is no self-referential update loop.
-  const parsed = $derived.by((): { config: TotpConfig | null; error: string | null } => {
-    try {
-      return { config: parseTotp(source), error: null };
-    } catch (e) {
-      return { config: null, error: (e as Error).message };
-    }
-  });
-  const config = $derived(parsed.config);
-  const parseError = $derived(parsed.error);
+  // The TOTP secret stays in Rust; we ask the backend for the current code
+  // once a second. `id` is the cipher id.
+  let { id, onCopy }: { id: string; onCopy: (code: string) => void } = $props();
 
   let code = $state<string>("");
   let remaining = $state<number>(30);
+  let parseError = $state<string | null>(null);
 
-  // Timer lives in its own effect that depends only on `config`. It writes
-  // `code`/`remaining` but never reads them, so it cannot re-trigger itself.
+  // Poll `totp_code` for the given item. Writes code/remaining but never reads
+  // them, so it can't re-trigger itself; re-runs only when `id` changes.
   $effect(() => {
-    const cfg = config;
+    const cipherId = id;
     code = "";
-    if (!cfg) return;
+    parseError = null;
 
     let cancelled = false;
-    async function tick(c: TotpConfig) {
-      const now = Math.floor(Date.now() / 1000);
-      remaining = secondsRemaining(c.period, now);
-      const next = await generateTotp(c, now);
-      if (!cancelled) code = next;
+    async function tick() {
+      try {
+        const res = await api.totpCode(cipherId);
+        if (!cancelled) {
+          code = res.code;
+          remaining = res.secondsRemaining;
+        }
+      } catch (e) {
+        if (!cancelled) parseError = (e as Error).message ?? String(e);
+      }
     }
 
-    void tick(cfg);
-    const timer = setInterval(() => void tick(cfg), 1000);
+    void tick();
+    const timer = setInterval(() => void tick(), 1000);
 
     return () => {
       cancelled = true;
@@ -51,7 +47,7 @@
 
 {#if parseError}
   <span class="totp-error">{parseError}</span>
-{:else if config && code}
+{:else if code}
   <span class="totp-code">{formatCode(code)}</span>
   <span class="totp-remaining" class:soon={remaining <= 5}>{remaining}s</span>
   <button type="button" class="secondary small" onclick={() => onCopy(code)}>
