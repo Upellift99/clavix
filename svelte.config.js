@@ -33,8 +33,20 @@ const config = {
         "default-src": ["self", "ipc:", "http://ipc.localhost"],
         "script-src": ["self"],
         "style-src": ["self", "unsafe-inline"],
-        "img-src": ["self", "data:", "blob:", "https:", "http:"],
-        "connect-src": ["self", "ipc:", "http://ipc.localhost", "https:", "http:"],
+        // The WebView never issues an outbound fetch/WebSocket: every
+        // Vaultwarden request is proxied by the Rust `reqwest` client over
+        // IPC. Dropping `https:`/`http:` from connect-src closes the trivial
+        // exfiltration channel a compromised WebView (XSS or a bad npm dep)
+        // would otherwise use to POST the decrypted vault, tokens and SSH
+        // private keys to any host. This is the highest-leverage containment
+        // fix from the security review (M1).
+        "connect-src": ["self", "ipc:", "http://ipc.localhost"],
+        // `https:` stays here on purpose: favicons load as <img> from the
+        // user's own Vaultwarden server (`${serverUrl}/icons/<domain>/icon.png`,
+        // an arbitrary user-configured HTTPS host we can't hardcode). `http:`
+        // is dropped — favicons are https-only. An <img> beacon is a much
+        // weaker, GET-only, no-response-read channel than connect-src.
+        "img-src": ["self", "data:", "blob:", "https:"],
         "font-src": ["self", "data:"],
         "object-src": ["none"],
         "frame-ancestors": ["none"],
