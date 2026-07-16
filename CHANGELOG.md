@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0](https://github.com/Upellift99/clavix/compare/v0.5.0...v0.6.0) (2026-07-16)
+
+
+### Features
+
+* **ui:** About dialog — show version + check for updates manually ([#158](https://github.com/Upellift99/clavix/issues/158)) ([12b76f8](https://github.com/Upellift99/clavix/commit/12b76f8a30eec1f23fccd9fa4b423e2b68d2954a))
+
 ## [0.5.0](https://github.com/Upellift99/clavix/compare/v0.4.0...v0.5.0) (2026-07-16)
 
 
