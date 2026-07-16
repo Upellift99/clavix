@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use ts_rs::TS;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // ============ Prelogin ============
@@ -22,7 +23,13 @@ pub struct Prelogin {
 
 // ============ Login / 2FA / tokens ============
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, TS)]
+#[ts(export)]
+// serde_repr puts these on the wire as bare numbers (0, 3, 7…), but ts-rs
+// cannot see that and would happily generate a union of *variant names* —
+// a generated type that lies is worse than none. Pin it to the number it
+// actually is.
+#[ts(as = "u8")]
 #[repr(u8)]
 pub enum TwoFactorProvider {
     Authenticator = 0,
@@ -106,7 +113,8 @@ pub enum LoginResult {
 /// Public payload returned to the frontend on a successful login/unlock.
 /// Intentionally token-free: the access/refresh tokens and the user key
 /// stay inside the Rust `AppState` and never cross the IPC boundary.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginOk {
     pub email: String,
@@ -114,7 +122,8 @@ pub struct LoginOk {
 
 /// IPC-facing variant of `LoginResult` — same shape as the old type, minus
 /// the `TokenSet` payload that has no business reaching the WebView.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 // `rename_all` on an enum renames the *variants*, not the fields inside a
 // struct variant — `rename_all_fields` is what camel-cases those. Without
 // it `webauthn_challenge` crossed the IPC boundary in snake_case while the
@@ -132,7 +141,10 @@ pub enum LoginOutcome {
     Success(LoginOk),
     TwoFactorRequired {
         providers: Vec<TwoFactorProvider>,
+        // `skip_serializing_if` omits the key entirely rather than sending
+        // null, so the generated type has to say `?:`, not `| null`.
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
         webauthn_challenge: Option<String>,
     },
 }
@@ -361,7 +373,8 @@ pub struct CipherLoginUri {
     pub uri: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CipherDetail {
     pub id: String,
@@ -379,7 +392,8 @@ pub struct CipherDetail {
     pub ssh_key: Option<SshKeyDetail>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginDetail {
     pub username: Option<String>,
@@ -396,7 +410,8 @@ pub struct LoginDetail {
     pub has_totp: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetail {
     pub cardholder_name: Option<String>,
@@ -409,7 +424,8 @@ pub struct CardDetail {
     pub has_code: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityDetail {
     pub title: Option<String>,
@@ -433,7 +449,8 @@ pub struct IdentityDetail {
     pub license_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyDetail {
     /// The private key never crosses to JS (it's the worst leak — reused across
@@ -445,7 +462,8 @@ pub struct SshKeyDetail {
 
 // ============ Inputs for create/update ============
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginInput {
     #[serde(default)]
@@ -458,7 +476,8 @@ pub struct LoginInput {
     pub totp: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CardInput {
     #[serde(default)]
@@ -475,7 +494,8 @@ pub struct CardInput {
     pub code: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityInput {
     #[serde(default)]
@@ -516,7 +536,8 @@ pub struct IdentityInput {
     pub license_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyInput {
     #[serde(default)]
@@ -527,7 +548,8 @@ pub struct SshKeyInput {
     pub key_fingerprint: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CipherCreateInput {
     pub name: String,
@@ -566,7 +588,8 @@ fn default_cipher_type() -> u8 {
 
 // ============ Sync summary (vers Svelte) ============
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncSummary {
     pub email: String,
@@ -582,7 +605,8 @@ pub struct SyncSummary {
     pub ciphers: Vec<CipherSummary>,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeCounts {
     pub login: usize,
@@ -592,21 +616,24 @@ pub struct TypeCounts {
     pub ssh_key: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct FolderSummary {
     pub id: String,
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizationSummary {
     pub id: String,
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectionSummary {
     pub id: String,
@@ -614,7 +641,8 @@ pub struct CollectionSummary {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CipherSummary {
     pub id: String,

@@ -72,6 +72,20 @@ jobs:
       - name: cargo test (lib + integration)
         run: cargo test --tests --locked
 
+      # The TypeScript types the WebView consumes are generated from the Rust
+      # ones (ts-rs). If a Rust field is renamed and the checked-in bindings
+      # are not regenerated, the frontend keeps compiling against a stale
+      # shape and the mismatch only surfaces as `undefined` at runtime — that
+      # is exactly how WebAuthn 2FA stayed broken. Regenerate and fail on any
+      # diff, so the bindings cannot drift from their source.
+      - name: TypeScript bindings match the Rust types
+        run: |
+          TS_RS_EXPORT_DIR=../src/lib/generated cargo test --tests --locked export_bindings
+          if ! git diff --exit-code --stat -- ../src/lib/generated; then
+            echo "::error::src/lib/generated is stale. Run 'pnpm run bindings' and commit the result."
+            exit 1
+          fi
+
       - name: Install cargo-audit
         uses: taiki-e/install-action@v2
         with:

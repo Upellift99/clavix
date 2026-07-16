@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
+    "bindings": "TS_RS_EXPORT_DIR=../src/lib/generated cargo test --manifest-path src-tauri/Cargo.toml export_bindings",
     "check": "pnpm run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "pnpm run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "pnpm run paraglide && vitest run",

@@ -29,10 +29,16 @@ struct TotpConfig {
 
 /// The current code plus how many seconds until it rolls over. Serialised to
 /// the renderer for the live-updating TOTP field.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TotpCode {
     pub code: String,
+    // ts-rs maps u64 -> `bigint`, but serde sends this as a plain JSON number
+    // and the value is bounded by the TOTP period (~30 s), so `number` is the
+    // honest wire type. Same "don't let the generated type lie" fix as the
+    // TwoFactorProvider repr override.
+    #[ts(type = "number")]
     pub seconds_remaining: u64,
 }
 
