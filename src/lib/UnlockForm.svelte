@@ -57,6 +57,12 @@
           autocomplete="off"
           disabled={yubikeyBusy || disabled}
           placeholder={m.yubikey_unlock_pin_placeholder()}
+          onkeydown={(event) => {
+            if (event.key === "Enter" && !yubikeyBusy && !disabled) {
+              event.preventDefault();
+              onYubikey();
+            }
+          }}
         />
       </label>
       <button
