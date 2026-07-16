@@ -24,9 +24,17 @@ pnpm install
 Build the app in debug mode, then run the suite:
 
 ```bash
-pnpm tauri build --debug
+pnpm build:e2e
 pnpm test:e2e
 ```
+
+`build:e2e` is `tauri build --debug --no-bundle` plus
+`--config src-tauri/tauri.e2e.conf.json`, which re-enables
+`withGlobalTauri` for the test binary only. Production keeps it off (#147);
+the specs need the global bridge because they drive
+`window.__TAURI__.core.invoke` directly (see below). A plain
+`pnpm tauri build --debug` produces a binary where `window.__TAURI__` is
+`undefined` and every spec fails.
 
 Headless (CI-style):
 
@@ -84,10 +92,12 @@ Two env vars to iterate locally without recycling Docker each run:
   export `WEBKIT_DISABLE_COMPOSITING_MODE=1` to force the CPU path.
 - WebdriverIO v8+ has reported regressions with `tauri-driver` — we pin
   to v7. If you update, re-run the smoke before touching anything else.
-- Tauri `withGlobalTauri=true` is intentional: the share-cipher spec
-  drives `window.__TAURI__.core.invoke` directly to bypass the flaky
-  drag-drop UI. The drag logic itself is covered by `drag.test.ts` on
-  the vitest side.
+- Tauri `withGlobalTauri` is off in production (#147, smaller attack
+  surface) but re-enabled for the E2E binary via `build:e2e`
+  (`tauri.e2e.conf.json`): several specs drive
+  `window.__TAURI__.core.invoke` directly to seed the vault and to bypass
+  the flaky drag-drop UI. The drag logic itself is covered by
+  `drag.test.ts` on the vitest side.
 - The Tauri app's data dir is sandboxed to `tests/e2e/sandbox/` via
   `XDG_DATA_HOME` so runs never touch the real `~/.local/share/clavix/`.
 

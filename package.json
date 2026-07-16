@@ -14,6 +14,7 @@
     "test": "pnpm run paraglide && vitest run",
     "test:watch": "pnpm run paraglide && vitest",
     "test:e2e": "wdio run tests/e2e/wdio.conf.mjs",
+    "build:e2e": "tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json",
     "tauri": "tauri"
   },
   "license": "GPL-3.0-or-later",
