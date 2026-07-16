@@ -24,6 +24,7 @@ pub mod state;
 // access to load_session / save_session / clear_session.
 pub mod store;
 mod totp;
+mod update;
 mod webauthn;
 mod yubikey_unlock;
 
@@ -162,6 +163,7 @@ pub fn run() {
             commands::tray::set_hide_dock_on_tray,
             commands::tray::set_tray_locale,
             commands::import::parse_kdbx,
+            commands::update::check_for_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

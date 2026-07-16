@@ -10,6 +10,7 @@ import type {
   StoredAccount,
   SyncSummary,
   TotpCode,
+  UpdateInfo,
 } from "./types";
 
 function nullIfEmpty(s: string): string | null {
@@ -189,6 +190,10 @@ export const api = {
 
   parseKdbx: (bytes: Uint8Array, password: string) =>
     invoke<KdbxEntry[]>("parse_kdbx", { bytes: Array.from(bytes), password }),
+
+  /** Ask GitHub (from Rust — the CSP blocks the WebView from reaching it)
+      whether a newer Clavix has been published. */
+  checkForUpdate: () => invoke<UpdateInfo>("check_for_update"),
 };
 
 /// Flat entry shape returned by `parse_kdbx` — mirrors the CSV

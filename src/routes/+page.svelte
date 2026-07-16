@@ -13,6 +13,7 @@
   import GeneratorDialog from "$lib/GeneratorDialog.svelte";
   import StatsDialog from "$lib/StatsDialog.svelte";
   import AuditDialog from "$lib/AuditDialog.svelte";
+  import UpdateBanner from "$lib/UpdateBanner.svelte";
   import { ClipboardController, type ClipboardVariant } from "$lib/clipboard.svelte";
   import { DragController } from "$lib/drag.svelte";
   import { AuthController } from "$lib/auth.svelte";
@@ -30,7 +31,7 @@
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
-  import type { CipherDetail as CipherDetailData, CipherSummary } from "$lib/types";
+  import type { CipherDetail as CipherDetailData, CipherSummary, UpdateInfo } from "$lib/types";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
   const prefs = new PrefsController();
@@ -45,6 +46,24 @@
   let generatorDialog = $state<{ open: () => void } | null>(null);
   let importOpen = $state(false);
   let exportOpen = $state(false);
+
+  // Update check: populated once at startup by the Rust check (see api.checkForUpdate).
+  // The banner shows only while a newer version exists and the user hasn't
+  // dismissed it this session.
+  let updateInfo = $state<UpdateInfo | null>(null);
+  let updateDismissed = $state(false);
+  const showUpdateBanner = $derived(
+    updateInfo?.updateAvailable === true && !updateDismissed,
+  );
+
+  async function openReleasePage() {
+    if (!updateInfo) return;
+    try {
+      await openUrl(updateInfo.url);
+    } catch (e) {
+      vault.error = formatError(e);
+    }
+  }
 
   // "Show all items" is a per-session escape hatch from the gate: it lasts
   // until the vault is locked, and does not touch the stored preference.
@@ -309,6 +328,15 @@
     unlistenSessionLocked = await listen("clavix:session-locked", () => {
       lockAndReset();
     });
+    // Fire-and-forget: a failed update check must never disrupt startup, so we
+    // swallow errors (offline, rate-limited, GitHub down) and simply show no
+    // banner.
+    api
+      .checkForUpdate()
+      .then((info) => {
+        updateInfo = info;
+      })
+      .catch(() => {});
   });
 
   onDestroy(() => {
@@ -349,6 +377,13 @@
     {/if}
 
     {#if auth.phase === "loggedIn"}
+      {#if showUpdateBanner && updateInfo}
+        <UpdateBanner
+          info={updateInfo}
+          onView={openReleasePage}
+          onDismiss={() => (updateDismissed = true)}
+        />
+      {/if}
       <Toolbar
         syncing={vault.syncing}
         hasSync={vault.summary !== null}

@@ -311,5 +311,9 @@
   "err_crypto": "Crypto error: {reason}",
   "err_two_factor_provider_unsupported": "Unsupported 2FA provider: {provider}",
   "err_not_authenticated": "No active session — please sign in.",
-  "err_storage": "Local storage error: {reason}"
+  "err_storage": "Local storage error: {reason}",
+  "update_available_title": "New version available",
+  "update_available_body": "Clavix {version} is available (you're on {current}).",
+  "update_action_view": "View release",
+  "update_action_dismiss": "Dismiss"
 }
