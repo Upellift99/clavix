@@ -179,6 +179,23 @@ pub fn clear_pending_two_factor(state: &AppState) {
     *slot = None;
 }
 
+/// Drop the pending 2FA slot if it has outlived its TTL. The slot holds the
+/// master key + password hash; `with_pending_two_factor` only enforces the TTL
+/// lazily on the next IPC read, so a user who triggers a 2FA prompt and walks
+/// away would otherwise leave that material in memory indefinitely. The
+/// auto-lock watchdog calls this every tick so an abandoned prompt is wiped
+/// even when auto-lock is disabled or the idle window hasn't elapsed.
+pub fn clear_pending_two_factor_if_stale(state: &AppState) {
+    let mut slot = state.pending_2fa.lock();
+    let stale = slot
+        .as_ref()
+        .map(|p| p.created_at.elapsed() > Duration::from_secs(PENDING_2FA_TTL_SECS))
+        .unwrap_or(false);
+    if stale {
+        *slot = None;
+    }
+}
+
 /// Borrow the pending 2FA slot for a single async section. Returns an
 /// error when nothing is pending or when the slot has gone stale past
 /// the TTL — the stale path zeroizes the slot on the way out.

@@ -62,6 +62,10 @@ pub fn run() {
                 loop {
                     tokio::time::sleep(Duration::from_secs(30)).await;
                     let state = handle.state::<AppState>();
+                    // Wipe an abandoned 2FA prompt's master-key material once it
+                    // outlives its TTL — runs every tick, independent of the
+                    // auto-lock config below.
+                    crate::services::auth::clear_pending_two_factor_if_stale(&state);
                     let Some(minutes) = *state.auto_lock_minutes.lock() else {
                         continue;
                     };
@@ -76,6 +80,9 @@ pub fn run() {
                     if let Some(h) = agent {
                         h.stop().await;
                     }
+                    // Idle threshold reached: also drop any pending 2FA slot so
+                    // the master key never survives the lock.
+                    crate::services::auth::clear_pending_two_factor(&state);
                     let locked = {
                         let mut session_guard = state.session.lock();
                         if session_guard.is_some() {

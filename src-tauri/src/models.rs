@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // ============ Prelogin ============
 
@@ -52,16 +53,26 @@ impl TryFrom<u8> for TwoFactorProvider {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// ZeroizeOnDrop wipes the access + refresh tokens (and the wrapped key
+// material) from memory when a Session is torn down (lock / logout /
+// auto-lock), instead of leaving them readable in freed heap for a
+// core-dump/swap attacker. Mirrors the ZeroizeOnDrop the key types already
+// carry. (String zeroization without mlock is best-effort, so this is
+// defense-in-depth.)
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenSet {
+    // The four secret fields are zeroized on drop; the rest are non-secret
+    // metadata (and `KdfType` doesn't implement Zeroize), so they're skipped.
     #[serde(rename = "access_token")]
     pub access_token: String,
     #[serde(rename = "refresh_token")]
     pub refresh_token: String,
     #[serde(rename = "expires_in")]
+    #[zeroize(skip)]
     pub expires_in: u64,
     #[serde(rename = "token_type")]
+    #[zeroize(skip)]
     pub token_type: String,
 
     #[serde(default, alias = "Key")]
@@ -69,8 +80,10 @@ pub struct TokenSet {
     #[serde(default, alias = "PrivateKey")]
     pub private_key: Option<String>,
     #[serde(default, alias = "Kdf")]
+    #[zeroize(skip)]
     pub kdf: Option<KdfType>,
     #[serde(default, alias = "KdfIterations")]
+    #[zeroize(skip)]
     pub kdf_iterations: Option<u32>,
 }
 

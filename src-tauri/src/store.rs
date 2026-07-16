@@ -97,10 +97,21 @@ pub fn load_session() -> Result<Option<PersistedSession>> {
     let path = session_path()?;
     match fs::read_to_string(&path) {
         Ok(json) => {
-            let session: PersistedSession =
+            let mut session: PersistedSession =
                 serde_json::from_str(&json).map_err(|e| Error::Storage {
                     reason: format!("decode {}: {e}", path.display()),
                 })?;
+            // Proactively strip a *redundant* clear-text refresh token: once the
+            // encrypted variant exists, the plaintext is dead weight that only
+            // adds disk-read/session-replay risk (a `session.json` synced to a
+            // backup folder). Drop it in memory and re-persist without it. When
+            // only the plaintext exists (a pre-encryption session not yet
+            // unlocked) it can't be re-encrypted without the master key, so it
+            // stays until the first unlock migrates it (see `commands::auth::unlock`).
+            if session.refresh_token.is_some() && session.encrypted_refresh_token.is_some() {
+                session.refresh_token = None;
+                let _ = save_session(&session);
+            }
             Ok(Some(session))
         }
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
