@@ -651,6 +651,10 @@
   .import-preview {
     max-height: 280px;
     overflow-y: auto;
+    /* No horizontal scrollbar: cells already truncate with an ellipsis,
+       and a bottom scrollbar overlapped the last row's checkbox, making
+       it a fight to tick. */
+    overflow-x: hidden;
     border: 1px solid #e6e6e6;
     border-radius: 6px;
     margin: 0 0 0.4rem;
@@ -670,6 +674,10 @@
 
   table {
     width: 100%;
+    /* Fixed layout so columns share the container width and long values
+       ellipsis-truncate instead of widening the table past its box (which
+       forced a horizontal scrollbar over the last checkbox). */
+    table-layout: fixed;
     /* `separate` (not `collapse`) so the sticky header keeps its own
        border while rows scroll under it — with `collapse` the shared
        border belongs to the cells and scrolls away, letting row text
@@ -698,7 +706,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 240px;
   }
 
   .url-cell {
