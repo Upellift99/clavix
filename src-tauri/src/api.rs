@@ -28,6 +28,12 @@ impl VaultwardenClient {
         Ok(Self { http, base_url })
     }
 
+    /// The normalized server base URL this client talks to. Used to pin
+    /// pre-auth `prelogin`/`login` to the active session's server.
+    pub fn base_url(&self) -> &Url {
+        &self.base_url
+    }
+
     fn api_endpoint(&self, path: &str) -> Result<Url> {
         self.base_url
             .join("api/")

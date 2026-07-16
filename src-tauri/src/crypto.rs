@@ -74,6 +74,16 @@ impl SymmetricKey {
     }
 }
 
+/// Absolute client-side floors on server-supplied KDF parameters. The prelogin
+/// KDF settings come from the (untrusted, possibly MITM'd) server; without a
+/// floor a hostile server could return `iterations = 1` and make offline
+/// brute-force of the master password essentially free. These mirror the
+/// minimums the official Bitwarden clients enforce.
+const PBKDF2_MIN_ITERATIONS: u32 = 5_000;
+const ARGON2_MIN_ITERATIONS: u32 = 2;
+const ARGON2_MIN_MEMORY_MIB: u32 = 15;
+const ARGON2_MIN_PARALLELISM: u32 = 1;
+
 pub fn derive_master_key(
     password: &SecretString,
     email: &str,
@@ -87,6 +97,13 @@ pub fn derive_master_key(
 
     let bytes = match kdf {
         KdfType::Pbkdf2 => {
+            if iterations < PBKDF2_MIN_ITERATIONS {
+                return Err(Error::Crypto {
+                    reason: format!(
+                        "server-supplied PBKDF2 iterations {iterations} below the minimum {PBKDF2_MIN_ITERATIONS} — refusing to derive a weak master key"
+                    ),
+                });
+            }
             pbkdf2_hmac_array::<Sha256, 32>(password_bytes, email_lower.as_bytes(), iterations)
         }
         KdfType::Argon2id => {
@@ -96,6 +113,17 @@ pub fn derive_master_key(
             let parallelism = parallelism.ok_or_else(|| Error::Crypto {
                 reason: "kdfParallelism required for Argon2id".into(),
             })?;
+
+            if iterations < ARGON2_MIN_ITERATIONS
+                || memory_mib < ARGON2_MIN_MEMORY_MIB
+                || parallelism < ARGON2_MIN_PARALLELISM
+            {
+                return Err(Error::Crypto {
+                    reason: format!(
+                        "server-supplied Argon2id parameters (iterations={iterations}, memory={memory_mib} MiB, parallelism={parallelism}) below the minimums (iterations>={ARGON2_MIN_ITERATIONS}, memory>={ARGON2_MIN_MEMORY_MIB} MiB, parallelism>={ARGON2_MIN_PARALLELISM}) — refusing to derive a weak master key"
+                    ),
+                });
+            }
 
             let salt: [u8; 32] = Sha256::digest(email_lower.as_bytes()).into();
             let params = Params::new(
@@ -508,12 +536,12 @@ mod tests {
     fn pbkdf2_normalizes_email_case_and_whitespace() {
         let pwd: SecretString = "password".to_string().into();
         let key_a =
-            derive_master_key(&pwd, "User@Example.COM", KdfType::Pbkdf2, 1000, None, None).unwrap();
+            derive_master_key(&pwd, "User@Example.COM", KdfType::Pbkdf2, 5000, None, None).unwrap();
         let key_b = derive_master_key(
             &pwd,
             "  user@example.com  ",
             KdfType::Pbkdf2,
-            1000,
+            5000,
             None,
             None,
         )
@@ -526,19 +554,68 @@ mod tests {
     #[test]
     fn pbkdf2_iterations_change_output() {
         let pwd: SecretString = "password".to_string().into();
-        let k1 = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
-        let k2 = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 2000, None, None).unwrap();
+        let k1 = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 5000, None, None).unwrap();
+        let k2 = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 6000, None, None).unwrap();
         let h1 = derive_master_password_hash(&k1, &pwd);
         let h2 = derive_master_password_hash(&k2, &pwd);
         assert_ne!(h1.as_str(), h2.as_str());
+    }
+
+    // Known-answer vector computed with an INDEPENDENT implementation
+    // (Python `hashlib.pbkdf2_hmac`), so a divergence from the Bitwarden
+    // scheme — wrong salt (must be lower-cased email), wrong hash (SHA-256),
+    // wrong output length (32), or wrong master-password-hash construction —
+    // fails here even though the self-consistency tests above would still pass.
+    #[test]
+    fn derive_master_key_matches_independent_pbkdf2_known_answer() {
+        let pwd: SecretString = "correct horse battery staple".to_string().into();
+        // email is intentionally mixed-case + not trimmed to exercise the
+        // trim + lower-case normalisation that feeds the PBKDF2 salt.
+        let mk =
+            derive_master_key(&pwd, "User@Example.COM", KdfType::Pbkdf2, 5000, None, None).unwrap();
+        let got_hex: String = mk.0.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(
+            got_hex,
+            "52ce2d33e007a7c15b3e3083c551fcff97da83045fa80cc6bbbd2cbc52c6f084"
+        );
+        // masterPasswordHash = base64(PBKDF2-HMAC-SHA256(masterKey, password, 1)).
+        let mph = derive_master_password_hash(&mk, &pwd);
+        assert_eq!(mph.as_str(), "0FMeontUyfpu9Ga/DvERL9LMAXg9KB82VK6UqHdnKko=");
+    }
+
+    #[test]
+    fn derive_master_key_rejects_pbkdf2_below_the_floor() {
+        // A hostile/MITM server returning a tiny iteration count must be
+        // refused rather than deriving a brute-forceable master key.
+        let pwd: SecretString = "password".to_string().into();
+        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1, None, None).is_err());
+        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 4999, None, None).is_err());
+        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 5000, None, None).is_ok());
+    }
+
+    #[test]
+    fn derive_master_key_rejects_weak_argon2id_params() {
+        let pwd: SecretString = "password".to_string().into();
+        // Below memory floor (15 MiB).
+        assert!(
+            derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 3, Some(8), Some(4)).is_err()
+        );
+        // Below iteration floor.
+        assert!(
+            derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 1, Some(64), Some(4)).is_err()
+        );
+        // At the minimums it is accepted.
+        assert!(
+            derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, Some(15), Some(1)).is_ok()
+        );
     }
 
     #[test]
     fn pbkdf2_different_passwords_diverge() {
         let p1: SecretString = "password-one".to_string().into();
         let p2: SecretString = "password-two".to_string().into();
-        let k1 = derive_master_key(&p1, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
-        let k2 = derive_master_key(&p2, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let k1 = derive_master_key(&p1, "u@e.com", KdfType::Pbkdf2, 5000, None, None).unwrap();
+        let k2 = derive_master_key(&p2, "u@e.com", KdfType::Pbkdf2, 5000, None, None).unwrap();
         let h1 = derive_master_password_hash(&k1, &p1);
         let h2 = derive_master_password_hash(&k2, &p2);
         assert_ne!(h1.as_str(), h2.as_str());
@@ -548,14 +625,16 @@ mod tests {
     fn argon2id_requires_memory_and_parallelism() {
         let pwd: SecretString = "password".to_string().into();
         assert!(derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, None, Some(2)).is_err());
-        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, Some(8), None).is_err());
-        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, Some(8), Some(2)).is_ok());
+        assert!(derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, Some(15), None).is_err());
+        assert!(
+            derive_master_key(&pwd, "u@e.com", KdfType::Argon2id, 2, Some(15), Some(2)).is_ok()
+        );
     }
 
     #[test]
     fn master_password_hash_is_b64_32_bytes() {
         let pwd: SecretString = "password".to_string().into();
-        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 5000, None, None).unwrap();
         let hash = derive_master_password_hash(&mk, &pwd);
         let raw = STANDARD
             .decode(hash.as_str())
@@ -566,7 +645,7 @@ mod tests {
     #[test]
     fn stretch_master_key_is_deterministic() {
         let pwd: SecretString = "password".to_string().into();
-        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 5000, None, None).unwrap();
         let s1 = stretch_master_key(&mk).unwrap();
         let s2 = stretch_master_key(&mk).unwrap();
         let payload = "deterministic check";
@@ -581,7 +660,7 @@ mod tests {
     #[test]
     fn decrypt_user_key_roundtrip() {
         let pwd: SecretString = "password".to_string().into();
-        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 1000, None, None).unwrap();
+        let mk = derive_master_key(&pwd, "u@e.com", KdfType::Pbkdf2, 5000, None, None).unwrap();
         let stretched = stretch_master_key(&mk).unwrap();
         let user_key_bytes = [42u8; 64];
         let encoded = encrypt_bytes(&user_key_bytes, &stretched).unwrap();
