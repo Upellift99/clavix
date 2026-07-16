@@ -5,6 +5,29 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/Upellift99/clavix/compare/v0.4.0...v0.5.0) (2026-07-16)
+
+
+### Features
+
+* **import:** choose an organization + collection as the import destination ([#146](https://github.com/Upellift99/clavix/issues/146)) ([5f9bedf](https://github.com/Upellift99/clavix/commit/5f9bedf705d11e76982fef85212f77f75d3a266e))
+* **ipc:** generate the WebView's types from the Rust ones ([#130](https://github.com/Upellift99/clavix/issues/130)) ([5b8b642](https://github.com/Upellift99/clavix/commit/5b8b64240b9932a47e56374bb3a8d84b5ca7eae3))
+* **list:** show the keyboard shortcut on each context-menu action ([#143](https://github.com/Upellift99/clavix/issues/143)) ([8325a8f](https://github.com/Upellift99/clavix/commit/8325a8f1666c4152f89d0594ec2f8a444f045295))
+* **update:** notify when a newer version is available, with a link ([#156](https://github.com/Upellift99/clavix/issues/156)) ([f83ea9b](https://github.com/Upellift99/clavix/commit/f83ea9b892f7bc343ab5ff1b42e4ae8083d45c07))
+
+
+### Bug Fixes
+
+* **ci:** restore withGlobalTauri for the E2E build only ([#157](https://github.com/Upellift99/clavix/issues/157)) ([2263db4](https://github.com/Upellift99/clavix/commit/2263db4acb9924ad34e8ade44e56638099f58258))
+* **security:** compute TOTP in Rust, keep the seed out of the WebView (M4) ([726c938](https://github.com/Upellift99/clavix/commit/726c9386c6b62d01234a73bad5f4c1cef975b4ef))
+* **security:** floor server KDF params, pin login to the active server, add KAT vectors ([#149](https://github.com/Upellift99/clavix/issues/149)) ([b4a4346](https://github.com/Upellift99/clavix/commit/b4a43469fc46a513c6057615ae4ed9edf70693ce))
+* **security:** keep password/card/CVV/SSN out of the WebView, reveal on demand (L1b) ([98655eb](https://github.com/Upellift99/clavix/commit/98655eb70921a429fe50d83f22fd14611cba89cf))
+* **security:** keep the SSH private key out of the WebView, reveal on demand (L1a) ([10b652d](https://github.com/Upellift99/clavix/commit/10b652d4378d3615ae2f0051cf89071f956071bd))
+* **security:** password/card/CVV/SSN out of the WebView, reveal-on-demand (L1b) ([3957918](https://github.com/Upellift99/clavix/commit/3957918acb987e55cd00b64d53a2bd6c9aa29f56))
+* **security:** session/at-rest hygiene batch (M5, L4, L5, L6, L8) ([#150](https://github.com/Upellift99/clavix/issues/150)) ([014ad92](https://github.com/Upellift99/clavix/commit/014ad9212c08406ca7445c844b9444121ecc61d6))
+* **security:** share-body fields (L7) + parse_kdbx cap (L2) + RSA advisory (L3) ([#151](https://github.com/Upellift99/clavix/issues/151)) ([ffbdd6e](https://github.com/Upellift99/clavix/commit/ffbdd6e958463dd67468df801fb14e2c6fe23089))
+* **security:** tighten CSP connect-src to close the WebView exfil channel ([#148](https://github.com/Upellift99/clavix/issues/148)) ([035e801](https://github.com/Upellift99/clavix/commit/035e8017ecfe5552684fd0c336771f539aa1aa4f))
+
 ## [0.4.0](https://github.com/Upellift99/clavix/compare/v0.3.6...v0.4.0) (2026-07-15)
 
 
