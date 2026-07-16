@@ -535,7 +535,7 @@
     background: #fff;
     border-radius: 10px;
     padding: 1.1rem 1.4rem;
-    width: min(640px, 96vw);
+    width: min(880px, 96vw);
     max-height: 92vh;
     overflow-y: auto;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
@@ -670,17 +670,26 @@
 
   table {
     width: 100%;
-    border-collapse: collapse;
+    /* `separate` (not `collapse`) so the sticky header keeps its own
+       border while rows scroll under it — with `collapse` the shared
+       border belongs to the cells and scrolls away, letting row text
+       bleed over the header. */
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.82rem;
   }
 
   th {
     position: sticky;
     top: 0;
+    /* Sit above the scrolling body so rows never paint over the header. */
+    z-index: 2;
     background: #f3f4f6;
     padding: 0.35rem 0.5rem;
     text-align: left;
-    border-bottom: 1px solid #d0d0d0;
+    /* box-shadow, not border-bottom: a sticky element's own border can
+       still be overpainted by scrolling cells; an inset shadow can't. */
+    box-shadow: inset 0 -1px 0 #d0d0d0;
   }
 
   td {
@@ -689,7 +698,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 180px;
+    max-width: 240px;
   }
 
   .url-cell {

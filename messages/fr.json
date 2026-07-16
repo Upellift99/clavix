@@ -139,7 +139,7 @@
   "import_skipped": "{count} non importée(s) (doublons ou décochées).",
   "import_select_all": "Tout sélectionner",
   "import_selected": "{selected} / {total} sélectionnée(s)",
-  "import_notes_too_long": "{count} entrée(s) ont des notes trop longues pour le serveur (limite : 10 000 caractères une fois chiffrés, soit environ 7 400 caractères saisis — une clé PGP dépasse ce seuil). Elles seront refusées à l'import. Sur Vaultwarden, INCREASE_NOTE_SIZE_LIMIT=true relève la limite à 100 000.",
+  "import_notes_too_long": "{count} entrée(s) ont des notes très longues. Elles restent cochées et seront tentées à l'import : un serveur avec la limite par défaut (10 000 caractères une fois chiffrés, soit environ 7 400 saisis — une clé PGP dépasse ce seuil) les refusera, mais sur Vaultwarden avec INCREASE_NOTE_SIZE_LIMIT=true (limite portée à 100 000) elles passeront.",
   "import_failures_heading": "Entrées refusées par le serveur :",
   "export_label": "Exporter (CSV Bitwarden)",
   "export_title": "Exporter le coffre",
