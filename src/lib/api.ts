@@ -194,6 +194,9 @@ export const api = {
   /** Ask GitHub (from Rust — the CSP blocks the WebView from reaching it)
       whether a newer Clavix has been published. */
   checkForUpdate: () => invoke<UpdateInfo>("check_for_update"),
+
+  /** This build's version, straight from Rust (offline, no network). */
+  appVersion: () => invoke<string>("app_version"),
 };
 
 /// Flat entry shape returned by `parse_kdbx` — mirrors the CSV

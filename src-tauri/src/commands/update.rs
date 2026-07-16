@@ -9,3 +9,10 @@ use crate::update::{self, UpdateInfo};
 pub async fn check_for_update() -> Result<UpdateInfo> {
     update::check_for_update().await
 }
+
+/// This build's version (`CARGO_PKG_VERSION`). Offline, no session — lets the
+/// About dialog show the running version instantly without a network round-trip.
+#[tauri::command]
+pub fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}

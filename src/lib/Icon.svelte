@@ -29,6 +29,7 @@
     | "dice" // generator
     | "shield" // audit
     | "info" // stats / infos
+    | "arrow-up-circle" // about / check for updates
     | "edit" // edit cipher
     | "eye" // reveal field
     | "eye-off" // hide field
@@ -147,6 +148,10 @@
     <circle cx="12" cy="12" r="10" />
     <line x1="12" y1="16" x2="12" y2="12" />
     <line x1="12" y1="8" x2="12.01" y2="8" />
+  {:else if name === "arrow-up-circle"}
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 12l4-4 4 4" />
+    <line x1="12" y1="16" x2="12" y2="8" />
   {:else if name === "edit"}
     <path d="M12 20h9" />
     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />

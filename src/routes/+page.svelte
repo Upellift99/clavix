@@ -13,6 +13,7 @@
   import GeneratorDialog from "$lib/GeneratorDialog.svelte";
   import StatsDialog from "$lib/StatsDialog.svelte";
   import AuditDialog from "$lib/AuditDialog.svelte";
+  import AboutDialog from "$lib/AboutDialog.svelte";
   import UpdateBanner from "$lib/UpdateBanner.svelte";
   import { ClipboardController, type ClipboardVariant } from "$lib/clipboard.svelte";
   import { DragController } from "$lib/drag.svelte";
@@ -43,6 +44,7 @@
   let searchInput: HTMLInputElement | null = null;
   let statsDialog = $state<{ open: () => Promise<void> } | null>(null);
   let auditDialog = $state<{ open: () => void } | null>(null);
+  let aboutDialog = $state<{ open: () => Promise<void> } | null>(null);
   let generatorDialog = $state<{ open: () => void } | null>(null);
   let importOpen = $state(false);
   let exportOpen = $state(false);
@@ -398,6 +400,7 @@
         onOpenGenerator={() => generatorDialog?.open()}
         onOpenAudit={() => auditDialog?.open()}
         onOpenStats={() => statsDialog?.open()}
+        onOpenAbout={() => aboutDialog?.open()}
       />
 
       {#if vault.summary}
@@ -585,6 +588,8 @@
   currentLocale={prefs.currentLocale}
   onJumpToCipher={(id) => vault.jumpToCipher(id)}
 />
+
+<AboutDialog bind:this={aboutDialog} currentLocale={prefs.currentLocale} />
 
 {#key prefs.currentLocale}
   <CipherEditor
