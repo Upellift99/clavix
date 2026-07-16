@@ -322,5 +322,6 @@
   "about_check_updates": "Check for updates",
   "about_checking": "Checking…",
   "about_up_to_date": "You're on the latest version.",
-  "about_check_failed": "Couldn't check — are you offline?"
+  "about_check_failed": "Couldn't check — are you offline?",
+  "about_website": "Clavix website"
 }

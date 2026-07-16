@@ -52,6 +52,10 @@
   async function openReleasePage() {
     if (result) await openUrl(result.url);
   }
+
+  async function openWebsite() {
+    await openUrl("https://clavix.org");
+  }
 </script>
 
 <dialog bind:this={dialog} class="stats-dialog about-dialog">
@@ -65,6 +69,18 @@
 
     <div class="about-body">
       <p class="about-version">{m.about_version({ version: version || "…" })}</p>
+
+      <p class="about-website-row">
+        <button
+          type="button"
+          class="about-link"
+          onclick={openWebsite}
+          title={m.about_website()}
+          aria-label={m.about_website()}
+        >
+          clavix.org
+        </button>
+      </p>
 
       <div class="about-actions">
         <button type="button" onclick={check} disabled={checking}>
@@ -108,6 +124,41 @@
     font-size: 0.95rem;
     font-weight: 500;
     margin: 0;
+  }
+
+  .about-website-row {
+    margin: -0.4rem 0 0;
+  }
+
+  .about-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    font-size: 0.85rem;
+    color: #2563eb;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .about-link:hover {
+    color: #1d4ed8;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .about-link {
+      color: #60a5fa;
+    }
+    .about-link:hover {
+      color: #93c5fd;
+    }
+  }
+
+  :global(:root.force-dark) .about-link {
+    color: #60a5fa;
+  }
+  :global(:root.force-dark) .about-link:hover {
+    color: #93c5fd;
   }
 
   .about-actions {

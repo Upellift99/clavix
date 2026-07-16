@@ -322,5 +322,6 @@
   "about_check_updates": "Vérifier les mises à jour",
   "about_checking": "Vérification…",
   "about_up_to_date": "Vous utilisez la dernière version.",
-  "about_check_failed": "Vérification impossible — êtes-vous hors ligne ?"
+  "about_check_failed": "Vérification impossible — êtes-vous hors ligne ?",
+  "about_website": "Site web de Clavix"
 }
