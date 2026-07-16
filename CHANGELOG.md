@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2](https://github.com/Upellift99/clavix/compare/v0.8.1...v0.8.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* **import:** stop the preview's horizontal scrollbar overlapping the last checkbox ([#166](https://github.com/Upellift99/clavix/issues/166)) ([8db6a77](https://github.com/Upellift99/clavix/commit/8db6a77499cd69112cd48ae9bfc4d10e3ba84cd7))
+
 ## [0.8.1](https://github.com/Upellift99/clavix/compare/v0.8.0...v0.8.1) (2026-07-16)
 
 
