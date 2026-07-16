@@ -175,8 +175,12 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Clavix (debug)
-        run: pnpm tauri build --debug --no-bundle
+      - name: Build Clavix (debug, E2E config)
+        # build:e2e merges tauri.e2e.conf.json, which re-enables
+        # withGlobalTauri for the test binary only (production keeps it off,
+        # #147). The specs drive window.__TAURI__.core.invoke to seed the
+        # vault, so the global bridge must exist in the E2E build.
+        run: pnpm build:e2e
 
       - name: Run E2E suite
         # E2E_PER_SPEC_RESET=1 makes the suite wipe + reseed Vaultwarden
