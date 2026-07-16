@@ -306,3 +306,54 @@
 :root.force-dark .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
 :root.force-dark .generator-output { background: #1e1e1e; }
 :root.force-dark .error-text { color: #ff8a8a; }
+
+/* Shared modal-dialog shell for ImportDialog and ExportDialog. These used
+   to live only in ImportDialog's scoped <style>, so ExportDialog referenced
+   `.import-backdrop`/`.import-panel` with no styles behind them and rendered
+   invisibly (no backdrop, no positioning) — the "export shows nothing" bug.
+   Hoisted here so both dialogs share one definition. */
+.import-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+}
+
+.import-panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.1rem 1.4rem;
+  width: min(640px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.import-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.import-progress {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.import-error {
+  color: #7a1d1d;
+  background: #fdecec;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+}

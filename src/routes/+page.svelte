@@ -13,7 +13,7 @@
   import GeneratorDialog from "$lib/GeneratorDialog.svelte";
   import StatsDialog from "$lib/StatsDialog.svelte";
   import AuditDialog from "$lib/AuditDialog.svelte";
-  import { ClipboardController } from "$lib/clipboard.svelte";
+  import { ClipboardController, type ClipboardVariant } from "$lib/clipboard.svelte";
   import { DragController } from "$lib/drag.svelte";
   import { AuthController } from "$lib/auth.svelte";
   import { VaultController } from "$lib/vault.svelte";
@@ -42,7 +42,7 @@
 
   let searchInput: HTMLInputElement | null = null;
   let statsDialog = $state<{ open: () => Promise<void> } | null>(null);
-  let auditDialog = $state<{ open: () => Promise<void> } | null>(null);
+  let auditDialog = $state<{ open: () => void } | null>(null);
   let generatorDialog = $state<{ open: () => void } | null>(null);
   let importOpen = $state(false);
   let exportOpen = $state(false);
@@ -69,9 +69,20 @@
     }
   });
 
+  // Tint the clipboard toast by what was copied. Nearly every copy funnels
+  // through here, so deriving the kind from the label keeps the call sites
+  // untouched; anything unrecognised (URLs, SSH socket, …) stays the default.
+  function clipboardVariant(label: string): ClipboardVariant {
+    const l = label.toLowerCase();
+    if (l.includes("passe") || l.includes("password")) return "password";
+    if (l.includes("totp") || l.includes("otp")) return "totp";
+    if (l.includes("identifiant") || l.includes("username")) return "username";
+    return "default";
+  }
+
   async function copyToClipboard(value: string, label: string) {
     try {
-      await clipboard.copy(value, label);
+      await clipboard.copy(value, label, clipboardVariant(label));
     } catch (e) {
       vault.error = formatError(e);
     }
