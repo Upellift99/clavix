@@ -298,5 +298,12 @@ export type TreeNode = {
   itemCount: number;
 };
 
+export type UpdateInfo = {
+  current: string;
+  latest: string;
+  updateAvailable: boolean;
+  url: string;
+};
+
 export type SortKey = "name" | "username" | "uri";
 export type QuickFilter = "all" | "favorites" | "trash" | `type:${number}`;

@@ -311,5 +311,9 @@
   "err_crypto": "Erreur cryptographique : {reason}",
   "err_two_factor_provider_unsupported": "Provider 2FA non supporté : {provider}",
   "err_not_authenticated": "Aucune session active — veuillez vous connecter.",
-  "err_storage": "Erreur de stockage local : {reason}"
+  "err_storage": "Erreur de stockage local : {reason}",
+  "update_available_title": "Nouvelle version disponible",
+  "update_available_body": "Clavix {version} est disponible (vous utilisez la {current}).",
+  "update_action_view": "Voir la version",
+  "update_action_dismiss": "Ignorer"
 }
