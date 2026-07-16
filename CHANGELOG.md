@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0](https://github.com/Upellift99/clavix/compare/v0.7.0...v0.8.0) (2026-07-16)
+
+
+### Features
+
+* **import:** selectable preview of new entries + Enter to unlock with Yubikey ([#162](https://github.com/Upellift99/clavix/issues/162)) ([865517b](https://github.com/Upellift99/clavix/commit/865517b1646a6d3cf01cd00a906f328823e1c03e))
+
 ## [0.7.0](https://github.com/Upellift99/clavix/compare/v0.6.0...v0.7.0) (2026-07-16)
 
 
