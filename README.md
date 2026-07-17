@@ -345,11 +345,13 @@ clavix/
   token is itself encrypted under the user key. Clavix still assumes
   your user disk is under your control; full-disk encryption such as
   LUKS is recommended.
-- Clavix is primarily tested against **Vaultwarden**, and should work
+- Clavix is primarily tested against **Vaultwarden**, and also works
   with **self-hosted Bitwarden** (same single-domain `/api` + `/identity`
-  layout). Bitwarden's **cloud** (bitwarden.com) splits its API across
-  separate `api.` / `identity.` sub-domains that Clavix does not target
-  yet, so treat the hosted service as **unsupported and untested** for now.
+  layout) and **Bitwarden's cloud** (bitwarden.com / bitwarden.eu) — pick
+  the region from the **Server** dropdown on the login screen and Clavix
+  targets the cloud's split `api.` / `identity.` endpoints. Cloud login,
+  sync and item creation are verified, but it remains alpha: Vaultwarden
+  is the primary target and gets the most testing.
 - Security review notes live in [SECURITY.md](SECURITY.md),
   [THREAT_MODEL.md](THREAT_MODEL.md), [CRYPTO.md](CRYPTO.md), and
   [AUDIT_SCOPE.md](AUDIT_SCOPE.md).
