@@ -47,6 +47,18 @@ export function formatError(e: unknown): string {
       return m.err_not_authenticated();
     case "storage_error":
       return m.err_storage({ reason: str(data.reason) });
+    case "yubikey_no_device":
+      return m.err_yubikey_no_device();
+    case "yubikey_pin_required":
+      return m.err_yubikey_pin_required();
+    case "yubikey_wrong_pin":
+      return m.err_yubikey_wrong_pin();
+    case "yubikey_user_cancelled":
+      return m.err_yubikey_user_cancelled();
+    case "yubikey_stale_wrap":
+      return m.yubikey_unlock_stale();
+    case "yubikey_unwrap_failed":
+      return m.err_yubikey_unwrap_failed();
     default:
       return err.message ?? String(e);
   }

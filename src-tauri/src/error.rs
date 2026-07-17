@@ -56,6 +56,15 @@ pub enum Error {
     /// should prompt for re-enrolment after a master-password unlock.
     #[error("Yubikey wrap is stale — re-enrol after signing in with your master password")]
     YubikeyStaleWrap,
+
+    /// The wrapped user key could not be decrypted with the key derived
+    /// from the Yubikey's hmac-secret output. The derived key is wrong,
+    /// which in practice means a PIN / user-verification mismatch (the
+    /// token was enrolled with a PIN but used without one, or vice versa)
+    /// or a different token. Distinct from `YubikeyStaleWrap`, which is a
+    /// *successful* decrypt whose fingerprint no longer matches.
+    #[error("Could not unlock with this Yubikey — check the PIN, or re-enrol the Yubikey")]
+    YubikeyUnwrapFailed,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -260,6 +269,7 @@ impl Serialize for Error {
             Error::YubikeyWrongPin => ("yubikey_wrong_pin", serde_json::json!({})),
             Error::YubikeyUserCancelled => ("yubikey_user_cancelled", serde_json::json!({})),
             Error::YubikeyStaleWrap => ("yubikey_stale_wrap", serde_json::json!({})),
+            Error::YubikeyUnwrapFailed => ("yubikey_unwrap_failed", serde_json::json!({})),
         };
 
         ErrorPayload {
