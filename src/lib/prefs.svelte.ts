@@ -12,6 +12,13 @@ const HIDE_DOCK_ON_TRAY_STORAGE_KEY = "clavix.hideDockOnTray";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 const REQUIRE_NARROWING_STORAGE_KEY = "clavix.requireNarrowing";
+const ASK_YUBIKEY_PIN_STORAGE_KEY = "clavix.askYubikeyPin";
+
+// On by default: a freshly-enrolled Yubikey may or may not carry a PIN,
+// so we show the (optional) PIN field until the user tells us their key
+// has none. Turning it off hides the field on the unlock screen and
+// attempts the touch without a PIN.
+const ASK_YUBIKEY_PIN_DEFAULT = true;
 
 // On by default: opening a 3000-item vault straight onto the full list
 // puts every entry on screen at once, which is noise at best and a
@@ -62,6 +69,7 @@ export class PrefsController {
   lastActivityAt = $state<number>(Date.now());
   visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
   requireNarrowing = $state<boolean>(REQUIRE_NARROWING_DEFAULT);
+  askYubikeyPin = $state<boolean>(ASK_YUBIKEY_PIN_DEFAULT);
 
   /** Loads persisted values from localStorage and applies side effects. */
   bootstrap() {
@@ -134,6 +142,12 @@ export class PrefsController {
       } else if (savedNarrowing === "false") {
         this.requireNarrowing = false;
       }
+      const savedAskPin = localStorage.getItem(ASK_YUBIKEY_PIN_STORAGE_KEY);
+      if (savedAskPin === "true") {
+        this.askYubikeyPin = true;
+      } else if (savedAskPin === "false") {
+        this.askYubikeyPin = false;
+      }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
         try {
@@ -161,6 +175,15 @@ export class PrefsController {
     this.requireNarrowing = value;
     try {
       localStorage.setItem(REQUIRE_NARROWING_STORAGE_KEY, String(value));
+    } catch {
+      // best-effort
+    }
+  }
+
+  setAskYubikeyPin(value: boolean) {
+    this.askYubikeyPin = value;
+    try {
+      localStorage.setItem(ASK_YUBIKEY_PIN_STORAGE_KEY, String(value));
     } catch {
       // best-effort
     }
