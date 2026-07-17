@@ -372,18 +372,10 @@
   {#key prefs.currentLocale}
     {#if auth.phase !== "loggedIn"}
       <div class="auth-screen">
-        <AuthGate
-          {auth}
-          askYubikeyPin={prefs.askYubikeyPin}
-          onOnboardingComplete={completeOnboarding}
-        />
+        <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
       </div>
     {:else}
-      <AuthGate
-        {auth}
-        askYubikeyPin={prefs.askYubikeyPin}
-        onOnboardingComplete={completeOnboarding}
-      />
+      <AuthGate {auth} onOnboardingComplete={completeOnboarding} />
     {/if}
 
     {#if auth.phase === "loggedIn"}
@@ -580,7 +572,6 @@
     minimizeToTray={prefs.minimizeToTray}
     hideDockOnTray={prefs.hideDockOnTray}
     requireNarrowing={prefs.requireNarrowing}
-    askYubikeyPin={prefs.askYubikeyPin}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
     onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
@@ -588,7 +579,6 @@
     onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
     onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
     onApplyRequireNarrowing={(v) => prefs.setRequireNarrowing(v)}
-    onApplyAskYubikeyPin={(v) => prefs.setAskYubikeyPin(v)}
     onCopySocketPath={copySshAgentSocket}
   />
 {/if}

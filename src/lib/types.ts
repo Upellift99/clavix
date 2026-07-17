@@ -193,6 +193,16 @@ export type SshAgentStatus = {
   skipped: SkippedKey[];
 };
 
+/** State of the persisted Yubikey unlock wrap. Mirrors the Rust
+ *  `YubikeyUnlockInfo` returned by `yubikey_unlock_state`. */
+export type YubikeyUnlockInfo = {
+  /** A wrap exists on disk → offer the Yubikey unlock button. */
+  enrolled: boolean;
+  /** The wrap was enrolled with a PIN → the unlock view must show the
+   *  PIN field (hmac-secret is bound to the enrolment's UV mode). */
+  requiresPin: boolean;
+};
+
 export type AuditEntry = { cipherId: string; name: string; count: number };
 export type ReusedGroup = { cipherIds: string[]; names: string[] };
 export type WeakEntry = { cipherId: string; name: string; score: number };

@@ -10,7 +10,7 @@
     yubikeyAvailable: boolean;
     yubikeyBusy: boolean;
     yubikeyPin: string;
-    askYubikeyPin: boolean;
+    requiresPin: boolean;
     onSubmit: (event: Event) => void;
     onYubikey: () => void;
     onSwitchAccount: () => void;
@@ -23,7 +23,7 @@
     yubikeyAvailable,
     yubikeyBusy,
     yubikeyPin = $bindable(),
-    askYubikeyPin,
+    requiresPin,
     onSubmit,
     onYubikey,
     onSwitchAccount,
@@ -51,7 +51,7 @@
   {#if yubikeyAvailable}
     <div class="yubikey-unlock">
       <p class="hint">{m.yubikey_unlock_or()}</p>
-      {#if askYubikeyPin}
+      {#if requiresPin}
         <label class="yubikey-pin-label">
           {m.yubikey_unlock_pin_label()}
           <PasswordInput
