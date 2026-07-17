@@ -12,6 +12,13 @@ const HIDE_DOCK_ON_TRAY_STORAGE_KEY = "clavix.hideDockOnTray";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 const REQUIRE_NARROWING_STORAGE_KEY = "clavix.requireNarrowing";
+const SSH_AGENT_CONFIRM_STORAGE_KEY = "clavix.sshAgentConfirm";
+
+/** When the embedded SSH agent asks before signing. Mirrors the Rust
+ *  `SignPolicy`: "never" signs silently (default), "session" asks once
+ *  per key per agent run, "always" asks every time. */
+export type SshAgentConfirm = "never" | "session" | "always";
+const SSH_AGENT_CONFIRM_DEFAULT: SshAgentConfirm = "never";
 
 // On by default: opening a 3000-item vault straight onto the full list
 // puts every entry on screen at once, which is noise at best and a
@@ -62,6 +69,7 @@ export class PrefsController {
   lastActivityAt = $state<number>(Date.now());
   visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
   requireNarrowing = $state<boolean>(REQUIRE_NARROWING_DEFAULT);
+  sshAgentConfirm = $state<SshAgentConfirm>(SSH_AGENT_CONFIRM_DEFAULT);
 
   /** Loads persisted values from localStorage and applies side effects. */
   bootstrap() {
@@ -134,6 +142,14 @@ export class PrefsController {
       } else if (savedNarrowing === "false") {
         this.requireNarrowing = false;
       }
+      const savedSshConfirm = localStorage.getItem(SSH_AGENT_CONFIRM_STORAGE_KEY);
+      if (
+        savedSshConfirm === "never" ||
+        savedSshConfirm === "session" ||
+        savedSshConfirm === "always"
+      ) {
+        this.sshAgentConfirm = savedSshConfirm;
+      }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
         try {
@@ -161,6 +177,15 @@ export class PrefsController {
     this.requireNarrowing = value;
     try {
       localStorage.setItem(REQUIRE_NARROWING_STORAGE_KEY, String(value));
+    } catch {
+      // best-effort
+    }
+  }
+
+  setSshAgentConfirm(value: SshAgentConfirm) {
+    this.sshAgentConfirm = value;
+    try {
+      localStorage.setItem(SSH_AGENT_CONFIRM_STORAGE_KEY, value);
     } catch {
       // best-effort
     }

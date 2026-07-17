@@ -14,6 +14,7 @@
   import StatsDialog from "$lib/StatsDialog.svelte";
   import AuditDialog from "$lib/AuditDialog.svelte";
   import AboutDialog from "$lib/AboutDialog.svelte";
+  import SshConfirmDialog from "$lib/SshConfirmDialog.svelte";
   import UpdateBanner from "$lib/UpdateBanner.svelte";
   import { ClipboardController, type ClipboardVariant } from "$lib/clipboard.svelte";
   import { DragController } from "$lib/drag.svelte";
@@ -572,6 +573,7 @@
     minimizeToTray={prefs.minimizeToTray}
     hideDockOnTray={prefs.hideDockOnTray}
     requireNarrowing={prefs.requireNarrowing}
+    sshAgentConfirm={prefs.sshAgentConfirm}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
     onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
@@ -579,6 +581,7 @@
     onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
     onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
     onApplyRequireNarrowing={(v) => prefs.setRequireNarrowing(v)}
+    onApplySshAgentConfirm={(v) => prefs.setSshAgentConfirm(v)}
     onCopySocketPath={copySshAgentSocket}
   />
 {/if}
@@ -590,6 +593,10 @@
 />
 
 <AboutDialog bind:this={aboutDialog} currentLocale={prefs.currentLocale} />
+
+<!-- Always mounted: the SSH agent can request a signature confirmation
+     at any time, including while the vault view is up or hidden. -->
+<SshConfirmDialog />
 
 {#key prefs.currentLocale}
   <CipherEditor

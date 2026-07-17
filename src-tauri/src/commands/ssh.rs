@@ -1,11 +1,92 @@
+use std::sync::Arc;
+use std::time::Duration;
+
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, Emitter, Manager, State};
+use tokio::sync::oneshot;
 
 use crate::crypto::decrypt_name;
 use crate::error::{Error, Result};
 use crate::models::CipherType;
-use crate::ssh_agent;
+use crate::ssh_agent::{self, KeyInfo, SignGuard, SignPolicy};
 use crate::state::AppState;
+
+/// Payload emitted to the frontend when a signature needs approval.
+/// The dialog shows the key and answers via `respond_ssh_agent_confirm`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmRequest {
+    pub id: u64,
+    pub comment: String,
+    pub algorithm: String,
+    pub fingerprint: String,
+}
+
+fn parse_sign_policy(policy: &str) -> SignPolicy {
+    match policy {
+        "always" => SignPolicy::Always,
+        "session" => SignPolicy::PerSession,
+        // Unknown / "never" → sign silently (historical default).
+        _ => SignPolicy::Never,
+    }
+}
+
+/// Ask the user (via the confirmation dialog) to approve one signature.
+/// Runs inside the agent task; parks a `oneshot` in `AppState`, surfaces
+/// the window, emits the request, and waits — denying on timeout so a
+/// missed prompt can't hang an `ssh`/`git` invocation forever.
+async fn request_confirmation(app: &AppHandle, info: KeyInfo) -> bool {
+    let state = app.state::<AppState>();
+    let id = {
+        let mut seq = state.ssh_confirm_seq.lock();
+        *seq = seq.wrapping_add(1);
+        *seq
+    };
+    let (tx, rx) = oneshot::channel();
+    state.ssh_confirms.lock().insert(id, tx);
+
+    // Signing usually happens while Clavix sits in the tray, so bring the
+    // window forward or the prompt would never be seen.
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+
+    let payload = ConfirmRequest {
+        id,
+        comment: info.comment,
+        algorithm: info.algorithm,
+        fingerprint: info.fingerprint,
+    };
+    if app.emit("ssh-agent-confirm", &payload).is_err() {
+        state.ssh_confirms.lock().remove(&id);
+        return false;
+    }
+
+    match tokio::time::timeout(Duration::from_secs(30), rx).await {
+        Ok(Ok(approved)) => approved,
+        // Timed out, or the sender was dropped — deny and clean up.
+        _ => {
+            state.ssh_confirms.lock().remove(&id);
+            false
+        }
+    }
+}
+
+/// Resolve a pending signature confirmation. Called by the dialog with
+/// the user's decision; a no-op if the request already timed out.
+#[tauri::command]
+pub fn respond_ssh_agent_confirm(
+    state: State<'_, AppState>,
+    id: u64,
+    approved: bool,
+) -> Result<()> {
+    if let Some(tx) = state.ssh_confirms.lock().remove(&id) {
+        let _ = tx.send(approved);
+    }
+    Ok(())
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,7 +125,11 @@ pub struct SshAgentStatus {
 }
 
 #[tauri::command]
-pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatus> {
+pub async fn start_ssh_agent(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    policy: String,
+) -> Result<SshAgentStatus> {
     // Stop any previous instance first — simpler than reconciling state.
     let previous = {
         let mut slot = state.ssh_agent.lock();
@@ -117,7 +202,23 @@ pub async fn start_ssh_agent(state: State<'_, AppState>) -> Result<SshAgentStatu
         }
     }
 
-    let handle = ssh_agent::start_agent(socket_path.clone(), agent_keys).await?;
+    // Wire the signature-approval policy. `Never` needs no callback and
+    // keeps the fast silent path; the confirming policies get a callback
+    // that drives the front-end dialog through `AppState`.
+    let sign_policy = parse_sign_policy(&policy);
+    let confirm: Option<ssh_agent::ConfirmFn> = if matches!(sign_policy, SignPolicy::Never) {
+        None
+    } else {
+        let app = app.clone();
+        Some(Arc::new(move |info: KeyInfo| {
+            let app = app.clone();
+            Box::pin(async move { request_confirmation(&app, info).await })
+                as std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
+        }))
+    };
+    let guard = SignGuard::new(sign_policy, confirm);
+
+    let handle = ssh_agent::start_agent(socket_path.clone(), agent_keys, guard).await?;
     let exposed: Vec<ExposedKey> = handle
         .keys
         .iter()

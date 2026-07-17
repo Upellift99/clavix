@@ -33,6 +33,27 @@ mod stub {
 
     pub struct AgentKey;
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum SignPolicy {
+        Never,
+        PerSession,
+        Always,
+    }
+
+    pub type ConfirmFn = std::sync::Arc<
+        dyn Fn(KeyInfo) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
+            + Send
+            + Sync,
+    >;
+
+    pub struct SignGuard;
+
+    impl SignGuard {
+        pub fn new(_policy: SignPolicy, _confirm: Option<ConfirmFn>) -> Self {
+            Self
+        }
+    }
+
     pub fn default_socket_path() -> Result<PathBuf> {
         Err(Error::Storage {
             reason: "SSH agent is only supported on Unix systems for now".into(),
@@ -43,7 +64,11 @@ mod stub {
         Ok(None)
     }
 
-    pub async fn start_agent(_path: PathBuf, _keys: Vec<AgentKey>) -> Result<SshAgentHandle> {
+    pub async fn start_agent(
+        _path: PathBuf,
+        _keys: Vec<AgentKey>,
+        _guard: SignGuard,
+    ) -> Result<SshAgentHandle> {
         Err(Error::Storage {
             reason: "SSH agent is only supported on Unix systems for now".into(),
         })
@@ -55,7 +80,10 @@ pub use stub::*;
 
 #[cfg(unix)]
 mod unix {
+    use std::collections::HashSet;
+    use std::future::Future;
     use std::path::PathBuf;
+    use std::pin::Pin;
     use std::sync::Arc;
 
     use ed25519_dalek::{Signer as _, SigningKey};
@@ -123,6 +151,73 @@ mod unix {
     }
 
     type KeyStore = Arc<Mutex<Vec<AgentKey>>>;
+
+    /// When the agent asks the user to approve a signature.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum SignPolicy {
+        /// Sign silently (historical behaviour).
+        Never,
+        /// Ask once per key per agent run, then remember that key.
+        PerSession,
+        /// Ask before every signature.
+        Always,
+    }
+
+    /// Async "ask the user to approve this signature" callback. Returns
+    /// `true` to allow. Kept as a boxed future so `ssh_agent` stays free
+    /// of any Tauri dependency — `commands::ssh` supplies the real
+    /// implementation that drives the confirmation dialog.
+    pub type ConfirmFn =
+        Arc<dyn Fn(KeyInfo) -> Pin<Box<dyn Future<Output = bool> + Send>> + Send + Sync>;
+
+    /// Signature-authorization policy for a running agent, plus the
+    /// per-run set of keys already approved under `PerSession`.
+    #[derive(Clone)]
+    pub struct SignGuard {
+        policy: SignPolicy,
+        confirm: Option<ConfirmFn>,
+        /// Fingerprints approved during this agent run (PerSession only).
+        approved: Arc<Mutex<HashSet<String>>>,
+    }
+
+    impl SignGuard {
+        pub fn new(policy: SignPolicy, confirm: Option<ConfirmFn>) -> Self {
+            Self {
+                policy,
+                confirm,
+                approved: Arc::new(Mutex::new(HashSet::new())),
+            }
+        }
+
+        /// Decide whether a signature with `key` may proceed. Awaits the
+        /// user only when the policy requires it; the caller must NOT hold
+        /// the key-store lock across this call (it can block on a human).
+        async fn authorize(&self, key: &KeyInfo) -> bool {
+            match self.policy {
+                SignPolicy::Never => true,
+                SignPolicy::Always => self.ask(key).await,
+                SignPolicy::PerSession => {
+                    if self.approved.lock().await.contains(&key.fingerprint) {
+                        return true;
+                    }
+                    let ok = self.ask(key).await;
+                    if ok {
+                        self.approved.lock().await.insert(key.fingerprint.clone());
+                    }
+                    ok
+                }
+            }
+        }
+
+        async fn ask(&self, key: &KeyInfo) -> bool {
+            // A confirming policy with no callback wired can't be
+            // satisfied — deny rather than silently sign.
+            match &self.confirm {
+                Some(confirm) => confirm(key.clone()).await,
+                None => false,
+            }
+        }
+    }
 
     pub struct SshAgentHandle {
         pub socket_path: PathBuf,
@@ -231,7 +326,11 @@ mod unix {
         }))
     }
 
-    pub async fn start_agent(socket_path: PathBuf, keys: Vec<AgentKey>) -> Result<SshAgentHandle> {
+    pub async fn start_agent(
+        socket_path: PathBuf,
+        keys: Vec<AgentKey>,
+        guard: SignGuard,
+    ) -> Result<SshAgentHandle> {
         // Remove any stale socket file.
         let _ = tokio::fs::remove_file(&socket_path).await;
         let listener = UnixListener::bind(&socket_path).map_err(|e| Error::Storage {
@@ -253,8 +352,9 @@ mod unix {
                 match listener.accept().await {
                     Ok((stream, _)) => {
                         let store = store_task.clone();
+                        let guard = guard.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = serve(stream, store).await {
+                            if let Err(e) = serve(stream, store, guard).await {
                                 eprintln!("[clavix agent] connection error: {e}");
                             }
                         });
@@ -278,7 +378,11 @@ mod unix {
         })
     }
 
-    async fn serve(mut stream: UnixStream, keys: KeyStore) -> std::io::Result<()> {
+    async fn serve(
+        mut stream: UnixStream,
+        keys: KeyStore,
+        guard: SignGuard,
+    ) -> std::io::Result<()> {
         loop {
             let len = match stream.read_u32().await {
                 Ok(n) => n as usize,
@@ -295,7 +399,7 @@ mod unix {
 
             let response = match msg_type {
                 SSH_AGENTC_REQUEST_IDENTITIES => handle_list(&keys).await,
-                SSH_AGENTC_SIGN_REQUEST => handle_sign(&keys, payload).await,
+                SSH_AGENTC_SIGN_REQUEST => handle_sign(&keys, &guard, payload).await,
                 _ => vec![SSH_AGENT_FAILURE],
             };
 
@@ -318,7 +422,7 @@ mod unix {
         out
     }
 
-    async fn handle_sign(keys: &KeyStore, payload: &[u8]) -> Vec<u8> {
+    async fn handle_sign(keys: &KeyStore, guard: &SignGuard, payload: &[u8]) -> Vec<u8> {
         let mut reader = SshReader::new(payload);
         let Ok(key_blob) = reader.read_string() else {
             return vec![SSH_AGENT_FAILURE];
@@ -328,8 +432,26 @@ mod unix {
         };
         let flags = reader.read_u32().unwrap_or(0);
 
-        let guard = keys.lock().await;
-        let Some(key) = guard.iter().find(|k| k.pub_blob == key_blob) else {
+        // Identify the key (and grab its public summary for the prompt)
+        // under the lock, then release it: `authorize` can block on a
+        // human for up to the confirmation timeout, and holding the store
+        // lock across that would freeze every other agent request.
+        let key_info = {
+            let store = keys.lock().await;
+            let Some(k) = store.iter().find(|k| k.pub_blob == key_blob) else {
+                return vec![SSH_AGENT_FAILURE];
+            };
+            KeyInfo::from(k)
+        };
+
+        if !guard.authorize(&key_info).await {
+            return vec![SSH_AGENT_FAILURE];
+        }
+
+        let store = keys.lock().await;
+        // The key set can't change while the agent runs, but re-find
+        // defensively rather than carrying a reference across the await.
+        let Some(key) = store.iter().find(|k| k.pub_blob == key_blob) else {
             return vec![SSH_AGENT_FAILURE];
         };
 
@@ -464,8 +586,98 @@ mod unix {
             write_string(&mut payload, b"data-to-sign");
             payload.extend_from_slice(&u32::to_be_bytes(0)); // flags
 
-            let out = rt.block_on(handle_sign(&keys, &payload));
+            let guard = SignGuard::new(SignPolicy::Never, None);
+            let out = rt.block_on(handle_sign(&keys, &guard, &payload));
             assert_eq!(out, vec![SSH_AGENT_FAILURE]);
+        }
+
+        fn dummy_key(fp: &str) -> KeyInfo {
+            KeyInfo {
+                comment: "k".into(),
+                algorithm: "ssh-ed25519".into(),
+                fingerprint: fp.into(),
+            }
+        }
+
+        fn counting_confirm(answer: bool, calls: Arc<Mutex<u32>>) -> ConfirmFn {
+            Arc::new(move |_info: KeyInfo| {
+                let calls = calls.clone();
+                Box::pin(async move {
+                    *calls.lock().await += 1;
+                    answer
+                })
+            })
+        }
+
+        #[test]
+        fn authorize_never_signs_without_asking() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let calls = Arc::new(Mutex::new(0u32));
+            let g = SignGuard::new(
+                SignPolicy::Never,
+                Some(counting_confirm(false, calls.clone())),
+            );
+            assert!(rt.block_on(g.authorize(&dummy_key("SHA256:a"))));
+            assert_eq!(rt.block_on(async { *calls.lock().await }), 0);
+        }
+
+        #[test]
+        fn authorize_always_asks_every_time() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let calls = Arc::new(Mutex::new(0u32));
+            let g = SignGuard::new(
+                SignPolicy::Always,
+                Some(counting_confirm(true, calls.clone())),
+            );
+            let k = dummy_key("SHA256:a");
+            assert!(rt.block_on(g.authorize(&k)));
+            assert!(rt.block_on(g.authorize(&k)));
+            assert_eq!(rt.block_on(async { *calls.lock().await }), 2);
+        }
+
+        #[test]
+        fn authorize_always_denies_on_reject() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let calls = Arc::new(Mutex::new(0u32));
+            let g = SignGuard::new(SignPolicy::Always, Some(counting_confirm(false, calls)));
+            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"))));
+        }
+
+        #[test]
+        fn authorize_per_session_asks_once_per_key() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let calls = Arc::new(Mutex::new(0u32));
+            let g = SignGuard::new(
+                SignPolicy::PerSession,
+                Some(counting_confirm(true, calls.clone())),
+            );
+            let a = dummy_key("SHA256:a");
+            let b = dummy_key("SHA256:b");
+            assert!(rt.block_on(g.authorize(&a)));
+            assert!(rt.block_on(g.authorize(&a))); // remembered — no second ask
+            assert!(rt.block_on(g.authorize(&b))); // different key — asks again
+            assert_eq!(rt.block_on(async { *calls.lock().await }), 2);
+        }
+
+        #[test]
+        fn authorize_per_session_reject_is_not_remembered() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let calls = Arc::new(Mutex::new(0u32));
+            let g = SignGuard::new(
+                SignPolicy::PerSession,
+                Some(counting_confirm(false, calls.clone())),
+            );
+            let a = dummy_key("SHA256:a");
+            assert!(!rt.block_on(g.authorize(&a)));
+            assert!(!rt.block_on(g.authorize(&a)));
+            assert_eq!(rt.block_on(async { *calls.lock().await }), 2); // re-asked
+        }
+
+        #[test]
+        fn authorize_confirming_policy_without_callback_denies() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let g = SignGuard::new(SignPolicy::Always, None);
+            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"))));
         }
 
         /// RFC 8032 §7.1 "TEST 2" Ed25519 vector. Pins the two things a
@@ -520,7 +732,8 @@ mod unix {
             payload.extend_from_slice(&u32::to_be_bytes(0)); // flags
 
             let rt = Runtime::new().unwrap();
-            let out = rt.block_on(handle_sign(&keys, &payload));
+            let guard = SignGuard::new(SignPolicy::Never, None);
+            let out = rt.block_on(handle_sign(&keys, &guard, &payload));
 
             assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE);
             let mut reader = SshReader::new(&out[1..]);
