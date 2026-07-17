@@ -1,3 +1,4 @@
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Client;
 use serde_json::json;
 use url::Url;
@@ -22,8 +23,25 @@ pub struct DeviceInfo {
 impl VaultwardenClient {
     pub fn new(base_url: &str) -> Result<Self> {
         let base_url = normalize_base_url(base_url)?;
+
+        // Vaultwarden strips SSH-key ciphers (type 5) from the /sync
+        // response unless the client advertises a version >= 2024.12.0
+        // through this header — see vaultwarden `src/api/core/ciphers.rs`
+        // (`show_ssh_keys`) and `ClientVersion` in `src/auth.rs`. Absent
+        // the header the server treats us as a pre-SSH client and the keys
+        // silently never reach us. The value only has to parse as semver
+        // and clear the >=2024.12.0 gate; we pin the minimum rather than a
+        // higher one to avoid opting into any newer version-gated wire
+        // behaviour we don't yet handle.
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("bitwarden-client-version"),
+            HeaderValue::from_static("2024.12.0"),
+        );
+
         let http = Client::builder()
             .user_agent(concat!("Clavix/", env!("CARGO_PKG_VERSION")))
+            .default_headers(headers)
             .build()?;
         Ok(Self { http, base_url })
     }
