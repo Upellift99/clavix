@@ -414,6 +414,9 @@
           </select>
         </dd>
       </dl>
+      {#if !askYubikeyPin}
+        <p class="yubikey-warning">{m.settings_yubikey_ask_pin_hint()}</p>
+      {/if}
     {/if}
 
     <h3>{m.stats_breakdown()}</h3>

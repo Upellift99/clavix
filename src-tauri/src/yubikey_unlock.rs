@@ -223,8 +223,20 @@ pub fn unwrap_user_key<F: FidoDevice>(
     // Wrap the decrypted Vec in `Zeroizing` so its allocation is wiped
     // when this function returns, including on the early-return paths
     // below. `decrypt_sym` itself returns a plain `Vec<u8>`.
-    let plaintext =
-        Zeroizing::new(EncString::parse(&block.wrapped_user_key)?.decrypt_sym(&wrap_key)?);
+    //
+    // A MAC failure at this step means the wrap key we just derived is
+    // wrong: the Yubikey's hmac-secret output differs from enrolment.
+    // Overwhelmingly that is a PIN / user-verification mismatch (enrolled
+    // with a PIN, unlocking without one, or the reverse — CTAP2 keeps
+    // separate `CredRandomWithUV` / `CredRandomWithoutUV` secrets), or a
+    // different token. Surface `YubikeyUnwrapFailed` so the UI can point
+    // the user at the PIN instead of a raw "MAC verification failed".
+    let wrapped = EncString::parse(&block.wrapped_user_key)?;
+    let plaintext = Zeroizing::new(
+        wrapped
+            .decrypt_sym(&wrap_key)
+            .map_err(|_| Error::YubikeyUnwrapFailed)?,
+    );
     if plaintext.len() != 64 {
         return Err(Error::Crypto {
             reason: format!("wrapped user key must be 64 bytes, got {}", plaintext.len()),
@@ -633,7 +645,10 @@ mod tests {
         );
 
         let err = unwrap_user_key(&device, &block, None).unwrap_err();
-        assert!(matches!(err, Error::Crypto { .. }));
+        // A bit-flipped wrap fails the HMAC before AES; the unlock path
+        // maps that decrypt failure to `YubikeyUnwrapFailed` so the UI
+        // can prompt for the PIN rather than surfacing a raw crypto error.
+        assert!(matches!(err, Error::YubikeyUnwrapFailed));
     }
 
     #[test]
