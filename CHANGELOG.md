@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0](https://github.com/Upellift99/clavix/compare/v0.8.2...v0.9.0) (2026-07-17)
+
+
+### Features
+
+* **unlock:** reveal toggle + optional PIN prompt for Yubikey, version/link on auth screen ([#168](https://github.com/Upellift99/clavix/issues/168)) ([6aecc3a](https://github.com/Upellift99/clavix/commit/6aecc3a6893fba01a5e21b6f035b4af010b9a7c9))
+
 ## [0.8.2](https://github.com/Upellift99/clavix/compare/v0.8.1...v0.8.2) (2026-07-16)
 
 
