@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3](https://github.com/Upellift99/clavix/compare/v0.9.2...v0.9.3) (2026-07-17)
+
+
+### Bug Fixes
+
+* **yubikey:** auto-detect PIN mode at unlock; clearer enrol/disenrol errors ([#174](https://github.com/Upellift99/clavix/issues/174)) ([9f72406](https://github.com/Upellift99/clavix/commit/9f724063b16bb4ce6096b3875917490bebebe622))
+
 ## [0.9.2](https://github.com/Upellift99/clavix/compare/v0.9.1...v0.9.2) (2026-07-17)
 
 
