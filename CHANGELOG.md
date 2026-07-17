@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0](https://github.com/Upellift99/clavix/compare/v0.9.3...v0.10.0) (2026-07-17)
+
+
+### Features
+
+* **login:** Bitwarden cloud region selector (US / EU) ([#177](https://github.com/Upellift99/clavix/issues/177)) ([1ce6d83](https://github.com/Upellift99/clavix/commit/1ce6d83b16405852acf9f774d031f16ea6d3648b))
+
 ## [0.9.3](https://github.com/Upellift99/clavix/compare/v0.9.2...v0.9.3) (2026-07-17)
 
 
