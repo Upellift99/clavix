@@ -256,15 +256,38 @@ pub async fn webauthn_sign_challenge(
     })?
 }
 
-/// Whether the persisted session has a Yubikey wrap on disk. Lets the
-/// unlock view decide whether to render the "Toucher la Yubikey"
-/// button. Returns `false` (rather than an error) when no session is
-/// stored yet, so the caller can ignore the value during onboarding.
+/// Shape returned by [`yubikey_unlock_state`]. Hand-mirrored in
+/// `src/lib/types.ts` (like `SshAgentStatus`) — not a ts-rs type.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YubikeyUnlockInfo {
+    /// A Yubikey wrap is present on disk → show the "Toucher la Yubikey"
+    /// button on the unlock view.
+    pub enrolled: bool,
+    /// The wrap was created with the token's PIN → the unlock view must
+    /// show the PIN field (hmac-secret is UV-mode-bound). `true` for
+    /// pre-`requires_pin` blocks as the safe default; meaningless when
+    /// not enrolled (reported `false`).
+    pub requires_pin: bool,
+}
+
+/// State of the persisted Yubikey wrap: whether one exists, and whether
+/// unlocking it needs the PIN. Drives the unlock view without asking the
+/// user to configure anything. Returns `enrolled: false` (rather than an
+/// error) when no session is stored yet, so the caller can ignore it
+/// during onboarding.
 #[tauri::command]
-pub fn yubikey_unlock_state() -> Result<bool> {
-    Ok(store::load_session()?
-        .map(|s| s.yubikey_unlock.is_some())
-        .unwrap_or(false))
+pub fn yubikey_unlock_state() -> Result<YubikeyUnlockInfo> {
+    let block = store::load_session()?.and_then(|s| s.yubikey_unlock);
+    Ok(YubikeyUnlockInfo {
+        enrolled: block.is_some(),
+        // Unknown (old block) → assume a PIN is needed: showing the field
+        // is harmless for a PIN-less wrap (leave it empty) but hiding it
+        // for a PIN-bound wrap breaks unlock.
+        requires_pin: block
+            .map(|b| b.requires_pin.unwrap_or(true))
+            .unwrap_or(false),
+    })
 }
 
 /// Wrap the in-memory user key under a freshly-enrolled FIDO2
@@ -331,8 +354,12 @@ pub async fn disenroll_yubikey_unlock(state: State<'_, AppState>, password: Stri
     )?;
     // Probe: if the password is wrong this errors out before we touch
     // the on-disk block, so a wrong-password call is a no-op rather
-    // than a silent disenrolment.
-    let _ = decrypt_user_key(&master_key, &persisted.encrypted_user_key)?;
+    // than a silent disenrolment. A decrypt failure here means the
+    // master password was wrong — surface that plainly rather than a
+    // raw "MAC verification failed", since this field is easy to
+    // confuse with the Yubikey PIN.
+    let _ = decrypt_user_key(&master_key, &persisted.encrypted_user_key)
+        .map_err(|_| Error::InvalidMasterPassword)?;
 
     persisted.yubikey_unlock = None;
     store::save_session(&persisted)?;

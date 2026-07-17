@@ -67,6 +67,16 @@ pub struct YubikeyUnlockBlock {
     /// rotated on another client (which rotates the user key) so we
     /// can drop the stale wrap rather than producing wrong decrypts.
     pub user_key_fingerprint: String,
+    /// Whether enrolment used the token's PIN (user verification).
+    /// hmac-secret yields a *different* secret with vs without UV, so
+    /// the unlock path must replay in the same mode it enrolled in;
+    /// this lets the unlock view show the PIN field only when it's
+    /// actually needed, instead of asking the user to configure it.
+    /// `None` on blocks written before this field existed — the reader
+    /// treats that as "show the PIN field" (the safe default, matching
+    /// the pre-auto-detection behaviour).
+    #[serde(default)]
+    pub requires_pin: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]

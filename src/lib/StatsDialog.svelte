@@ -2,6 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import { api } from "./api";
   import { formatError } from "./format";
+  import PasswordInput from "./PasswordInput.svelte";
   import type { Locale, SshAgentStatus, SyncSummary, ThemePref } from "./types";
 
   type Props = {
@@ -13,7 +14,6 @@
     minimizeToTray: boolean;
     hideDockOnTray: boolean;
     requireNarrowing: boolean;
-    askYubikeyPin: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
@@ -21,7 +21,6 @@
     onApplyMinimizeToTray: (value: boolean) => void;
     onApplyHideDockOnTray: (value: boolean) => void;
     onApplyRequireNarrowing: (value: boolean) => void;
-    onApplyAskYubikeyPin: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -34,7 +33,6 @@
     minimizeToTray,
     hideDockOnTray,
     requireNarrowing,
-    askYubikeyPin,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
@@ -42,7 +40,6 @@
     onApplyMinimizeToTray,
     onApplyHideDockOnTray,
     onApplyRequireNarrowing,
-    onApplyAskYubikeyPin,
     onCopySocketPath,
   }: Props = $props();
 
@@ -84,7 +81,7 @@
 
   async function refreshYubikey() {
     try {
-      yubikeyEnrolled = await api.yubikeyUnlockState();
+      yubikeyEnrolled = (await api.yubikeyUnlockState()).enrolled;
     } catch (e) {
       console.warn("[clavix] yubikey_unlock_state failed:", e);
       yubikeyEnrolled = false;
@@ -353,13 +350,13 @@
       >
         <label>
           {m.yubikey_unlock_disenroll_password()}
-          <input
-            type="password"
+          <PasswordInput
             bind:value={yubikeyDisenrollPassword}
             autocomplete="off"
             disabled={yubikeyBusy}
             required
           />
+          <small class="yubikey-master-note">⚠️ {m.yubikey_unlock_master_not_pin()}</small>
         </label>
         <button
           type="submit"
@@ -379,8 +376,7 @@
       >
         <label>
           {m.yubikey_unlock_pin_label()}
-          <input
-            type="password"
+          <PasswordInput
             bind:value={yubikeyEnrollPin}
             autocomplete="off"
             disabled={yubikeyBusy}
@@ -397,26 +393,6 @@
     {/if}
     {#if yubikeyError}
       <p class="audit-error">{yubikeyError}</p>
-    {/if}
-    {#if yubikeyEnrolled}
-      <dl class="yubikey-ask-pin">
-        <dt>{m.settings_yubikey_ask_pin()}</dt>
-        <dd>
-          <select
-            value={askYubikeyPin ? "ask" : "skip"}
-            onchange={(e) =>
-              onApplyAskYubikeyPin(
-                (e.currentTarget as HTMLSelectElement).value === "ask",
-              )}
-          >
-            <option value="ask">{m.settings_yubikey_ask_pin_on()}</option>
-            <option value="skip">{m.settings_yubikey_ask_pin_off()}</option>
-          </select>
-        </dd>
-      </dl>
-      {#if !askYubikeyPin}
-        <p class="yubikey-warning">{m.settings_yubikey_ask_pin_hint()}</p>
-      {/if}
     {/if}
 
     <h3>{m.stats_breakdown()}</h3>

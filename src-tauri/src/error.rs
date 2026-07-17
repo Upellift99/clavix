@@ -65,6 +65,13 @@ pub enum Error {
     /// *successful* decrypt whose fingerprint no longer matches.
     #[error("Could not unlock with this Yubikey — check the PIN, or re-enrol the Yubikey")]
     YubikeyUnwrapFailed,
+
+    /// A local master-password confirmation (e.g. Yubikey disenrolment)
+    /// failed to decrypt the stored user key — the password was wrong.
+    /// Surfaced instead of a raw crypto/MAC error so the UI can say
+    /// "wrong master password" plainly.
+    #[error("Incorrect master password")]
+    InvalidMasterPassword,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -270,6 +277,7 @@ impl Serialize for Error {
             Error::YubikeyUserCancelled => ("yubikey_user_cancelled", serde_json::json!({})),
             Error::YubikeyStaleWrap => ("yubikey_stale_wrap", serde_json::json!({})),
             Error::YubikeyUnwrapFailed => ("yubikey_unwrap_failed", serde_json::json!({})),
+            Error::InvalidMasterPassword => ("invalid_master_password", serde_json::json!({})),
         };
 
         ErrorPayload {

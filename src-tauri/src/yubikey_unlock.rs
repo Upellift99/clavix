@@ -178,6 +178,11 @@ pub fn enroll<F: FidoDevice>(
         salt: STANDARD.encode(salt),
         wrapped_user_key: wrapped,
         user_key_fingerprint: STANDARD.encode(fingerprint),
+        // Record the mode we enrolled in so the unlock view can present
+        // (or omit) the PIN field automatically. `pin.is_some()` is the
+        // ground truth: hmac-secret binds the wrap to the UV state used
+        // here, so unlock must match it.
+        requires_pin: Some(pin.is_some()),
     })
 }
 
@@ -432,7 +437,11 @@ fn map_ctap_error(err: impl std::fmt::Display) -> Error {
     let lc = msg.to_ascii_lowercase();
     if lc.contains("pininvalid") || lc.contains("pin invalid") {
         Error::YubikeyWrongPin
-    } else if lc.contains("pinrequired") || lc.contains("pin required") {
+    } else if lc.contains("pinrequired")
+        || lc.contains("pin required")
+        || lc.contains("pin_required")
+        || lc.contains("pin is required")
+    {
         Error::YubikeyPinRequired
     } else if lc.contains("user action timeout")
         || lc.contains("operationdenied")

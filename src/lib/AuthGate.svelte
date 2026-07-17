@@ -10,11 +10,10 @@
 
   type Props = {
     auth: AuthController;
-    askYubikeyPin: boolean;
     onOnboardingComplete: () => void;
   };
 
-  let { auth, askYubikeyPin, onOnboardingComplete }: Props = $props();
+  let { auth, onOnboardingComplete }: Props = $props();
 
   // Build version for the startup footer. Offline, straight from Rust.
   // A failure just leaves the version off — the link still works.
@@ -57,7 +56,7 @@
     yubikeyAvailable={auth.yubikeyAvailable}
     yubikeyBusy={auth.yubikeyBusy}
     bind:yubikeyPin={auth.yubikeyPin}
-    {askYubikeyPin}
+    requiresPin={auth.yubikeyRequiresPin}
     onSubmit={(e) => auth.submitUnlock(e)}
     onYubikey={() => auth.submitYubikey()}
     onSwitchAccount={() => auth.switchAccount()}

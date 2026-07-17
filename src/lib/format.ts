@@ -59,6 +59,8 @@ export function formatError(e: unknown): string {
       return m.yubikey_unlock_stale();
     case "yubikey_unwrap_failed":
       return m.err_yubikey_unwrap_failed();
+    case "invalid_master_password":
+      return m.err_invalid_master_password();
     default:
       return err.message ?? String(e);
   }

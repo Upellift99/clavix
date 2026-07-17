@@ -23,6 +23,11 @@ export class AuthController {
   /** True when the persisted session has a Yubikey wrap on disk;
    * drives the "Toucher la Yubikey" button on the unlock view. */
   yubikeyAvailable = $state(false);
+  /** True when that wrap was enrolled with a PIN, so the unlock view
+   * must show the PIN field. Auto-detected from the stored block —
+   * hmac-secret binds the wrap to the enrolment's UV mode, so there is
+   * nothing for the user to configure. */
+  yubikeyRequiresPin = $state(false);
   /** True while a CTAP call is in flight (key-tap window).
    * Lets the UI disable the button to prevent re-tap loops. */
   yubikeyBusy = $state(false);
@@ -60,10 +65,13 @@ export class AuthController {
         // Yubikey button. A failure here just hides it — the master
         // password path always works.
         try {
-          this.yubikeyAvailable = await api.yubikeyUnlockState();
+          const yk = await api.yubikeyUnlockState();
+          this.yubikeyAvailable = yk.enrolled;
+          this.yubikeyRequiresPin = yk.requiresPin;
         } catch (e) {
           console.warn("[clavix] yubikey_unlock_state failed:", e);
           this.yubikeyAvailable = false;
+          this.yubikeyRequiresPin = false;
         }
       } else {
         this.phase = opts.onboarded ? "idle" : "onboarding";

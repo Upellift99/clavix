@@ -194,6 +194,16 @@
   margin-top: 0.5rem;
 }
 
+/* Clarifies that the disenrolment field wants the Clavix master
+   password, not the Yubikey PIN — the two are easy to confuse since
+   they sit in the same section. */
+.yubikey-master-note {
+  display: block;
+  color: #7a3b00;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
 .audit-success {
   color: #18683a;
   font-weight: 500;

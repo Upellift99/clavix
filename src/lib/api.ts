@@ -11,6 +11,7 @@ import type {
   SyncSummary,
   TotpCode,
   UpdateInfo,
+  YubikeyUnlockInfo,
 } from "./types";
 
 function nullIfEmpty(s: string): string | null {
@@ -108,7 +109,7 @@ export const api = {
   webauthnSignChallenge: (challengeJson: string) =>
     invoke<string>("webauthn_sign_challenge", { challengeJson }),
 
-  yubikeyUnlockState: () => invoke<boolean>("yubikey_unlock_state"),
+  yubikeyUnlockState: () => invoke<YubikeyUnlockInfo>("yubikey_unlock_state"),
 
   enrollYubikeyUnlock: (pin: string | null) =>
     invoke<void>("enroll_yubikey_unlock", { pin }),
