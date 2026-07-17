@@ -10,7 +10,20 @@ use crate::models::{LoginResult, Prelogin, SyncResponse, TokenSet, TwoFactorProv
 #[derive(Debug, Clone)]
 pub struct VaultwardenClient {
     http: Client,
+    /// Canonical server identity, used to pin pre-auth calls and to
+    /// persist which server a session belongs to. Not necessarily the
+    /// host we hit for a given call — see `api_base` / `identity_base`.
     base_url: Url,
+    /// Where the REST API lives. Self-hosted: `<base>/api/`. Bitwarden
+    /// cloud: `https://api.bitwarden.<tld>/` (a separate sub-domain).
+    api_base: Url,
+    /// Where the identity/token service lives. Self-hosted:
+    /// `<base>/identity/`. Bitwarden cloud: `https://identity.bitwarden.<tld>/`.
+    identity_base: Url,
+    /// Where `accounts/prelogin` lives. Vaultwarden serves it under the
+    /// API host (kept as-is to avoid regressing the primary target);
+    /// Bitwarden cloud moved it to the identity host.
+    prelogin_base: Url,
 }
 
 #[derive(Debug, Clone)]
@@ -23,6 +36,7 @@ pub struct DeviceInfo {
 impl VaultwardenClient {
     pub fn new(base_url: &str) -> Result<Self> {
         let base_url = normalize_base_url(base_url)?;
+        let (api_base, identity_base, prelogin_base) = resolve_endpoints(&base_url)?;
 
         // Vaultwarden strips SSH-key ciphers (type 5) from the /sync
         // response unless the client advertises a version >= 2024.12.0
@@ -43,7 +57,13 @@ impl VaultwardenClient {
             .user_agent(concat!("Clavix/", env!("CARGO_PKG_VERSION")))
             .default_headers(headers)
             .build()?;
-        Ok(Self { http, base_url })
+        Ok(Self {
+            http,
+            base_url,
+            api_base,
+            identity_base,
+            prelogin_base,
+        })
     }
 
     /// The normalized server base URL this client talks to. Used to pin
@@ -53,25 +73,26 @@ impl VaultwardenClient {
     }
 
     fn api_endpoint(&self, path: &str) -> Result<Url> {
-        self.base_url
-            .join("api/")
-            .and_then(|u| u.join(path))
-            .map_err(|_| Error::InvalidUrl {
-                url: path.to_string(),
-            })
+        self.api_base.join(path).map_err(|_| Error::InvalidUrl {
+            url: path.to_string(),
+        })
     }
 
     fn identity_endpoint(&self, path: &str) -> Result<Url> {
-        self.base_url
-            .join("identity/")
-            .and_then(|u| u.join(path))
+        self.identity_base
+            .join(path)
             .map_err(|_| Error::InvalidUrl {
                 url: path.to_string(),
             })
     }
 
     pub async fn prelogin(&self, email: &str) -> Result<Prelogin> {
-        let url = self.api_endpoint("accounts/prelogin")?;
+        let url = self
+            .prelogin_base
+            .join("accounts/prelogin")
+            .map_err(|_| Error::InvalidUrl {
+                url: "accounts/prelogin".to_string(),
+            })?;
         let response = self
             .http
             .post(url)
@@ -690,6 +711,51 @@ fn normalize_base_url(input: &str) -> Result<Url> {
     Ok(url)
 }
 
+/// Resolve the `(api, identity, prelogin)` base URLs for a server.
+///
+/// Vaultwarden and self-hosted Bitwarden serve everything under one host
+/// with `/api` and `/identity` path prefixes, and Clavix has always
+/// posted `accounts/prelogin` to the API host — kept as-is so the primary
+/// (Vaultwarden) target can't regress.
+///
+/// Bitwarden's hosted service instead splits these across dedicated
+/// sub-domains (`api.bitwarden.<tld>`, `identity.bitwarden.<tld>`) and,
+/// unlike Vaultwarden, serves `prelogin` from the identity host. We
+/// recognise the two regions by host and map them to the right split
+/// endpoints; anything else falls through to the single-domain layout.
+fn resolve_endpoints(base: &Url) -> Result<(Url, Url, Url)> {
+    let cloud_tld = match base.host_str().unwrap_or("") {
+        "bitwarden.com" | "vault.bitwarden.com" | "api.bitwarden.com" => Some("com"),
+        "bitwarden.eu" | "vault.bitwarden.eu" | "api.bitwarden.eu" => Some("eu"),
+        _ => None,
+    };
+
+    if let Some(tld) = cloud_tld {
+        let api = Url::parse(&format!("https://api.bitwarden.{tld}/")).map_err(|_| {
+            Error::InvalidUrl {
+                url: format!("api.bitwarden.{tld}"),
+            }
+        })?;
+        let identity = Url::parse(&format!("https://identity.bitwarden.{tld}/")).map_err(|_| {
+            Error::InvalidUrl {
+                url: format!("identity.bitwarden.{tld}"),
+            }
+        })?;
+        // Cloud serves prelogin from the identity host, not the API host.
+        return Ok((api, identity.clone(), identity));
+    }
+
+    // Self-hosted single-domain layout. `base` already ends in `/`.
+    let api = base.join("api/").map_err(|_| Error::InvalidUrl {
+        url: "api/".to_string(),
+    })?;
+    let identity = base.join("identity/").map_err(|_| Error::InvalidUrl {
+        url: "identity/".to_string(),
+    })?;
+    // Vaultwarden serves prelogin under the API host; unchanged.
+    Ok((api.clone(), identity, api))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -707,6 +773,59 @@ mod tests {
     fn normalize_base_url_trims_whitespace() {
         let u = normalize_base_url("  https://vault.example.com/  ").unwrap();
         assert_eq!(u.as_str(), "https://vault.example.com/");
+    }
+
+    #[test]
+    fn resolve_endpoints_self_hosted_uses_path_prefixes() {
+        let base = normalize_base_url("https://pass.example.com").unwrap();
+        let (api, identity, prelogin) = resolve_endpoints(&base).unwrap();
+        assert_eq!(api.as_str(), "https://pass.example.com/api/");
+        assert_eq!(identity.as_str(), "https://pass.example.com/identity/");
+        // Vaultwarden prelogin lives on the API host — unchanged.
+        assert_eq!(prelogin.as_str(), "https://pass.example.com/api/");
+        // Concrete endpoints resolve as before.
+        assert_eq!(
+            api.join("sync").unwrap().as_str(),
+            "https://pass.example.com/api/sync"
+        );
+        assert_eq!(
+            identity.join("connect/token").unwrap().as_str(),
+            "https://pass.example.com/identity/connect/token"
+        );
+        assert_eq!(
+            prelogin.join("accounts/prelogin").unwrap().as_str(),
+            "https://pass.example.com/api/accounts/prelogin"
+        );
+    }
+
+    #[test]
+    fn resolve_endpoints_bitwarden_cloud_splits_hosts() {
+        // Both the vault URL and the bare apex resolve to the same region.
+        for input in ["https://vault.bitwarden.com", "https://bitwarden.com"] {
+            let base = normalize_base_url(input).unwrap();
+            let (api, identity, prelogin) = resolve_endpoints(&base).unwrap();
+            assert_eq!(api.as_str(), "https://api.bitwarden.com/");
+            assert_eq!(identity.as_str(), "https://identity.bitwarden.com/");
+            // Cloud serves prelogin from the identity host, not the API host.
+            assert_eq!(prelogin.as_str(), "https://identity.bitwarden.com/");
+            assert_eq!(
+                api.join("sync").unwrap().as_str(),
+                "https://api.bitwarden.com/sync"
+            );
+            assert_eq!(
+                prelogin.join("accounts/prelogin").unwrap().as_str(),
+                "https://identity.bitwarden.com/accounts/prelogin"
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_endpoints_bitwarden_eu_region() {
+        let base = normalize_base_url("https://vault.bitwarden.eu").unwrap();
+        let (api, identity, prelogin) = resolve_endpoints(&base).unwrap();
+        assert_eq!(api.as_str(), "https://api.bitwarden.eu/");
+        assert_eq!(identity.as_str(), "https://identity.bitwarden.eu/");
+        assert_eq!(prelogin.as_str(), "https://identity.bitwarden.eu/");
     }
 
     #[test]
