@@ -13,6 +13,7 @@
     minimizeToTray: boolean;
     hideDockOnTray: boolean;
     requireNarrowing: boolean;
+    askYubikeyPin: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
@@ -20,6 +21,7 @@
     onApplyMinimizeToTray: (value: boolean) => void;
     onApplyHideDockOnTray: (value: boolean) => void;
     onApplyRequireNarrowing: (value: boolean) => void;
+    onApplyAskYubikeyPin: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -32,6 +34,7 @@
     minimizeToTray,
     hideDockOnTray,
     requireNarrowing,
+    askYubikeyPin,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
@@ -39,6 +42,7 @@
     onApplyMinimizeToTray,
     onApplyHideDockOnTray,
     onApplyRequireNarrowing,
+    onApplyAskYubikeyPin,
     onCopySocketPath,
   }: Props = $props();
 
@@ -393,6 +397,23 @@
     {/if}
     {#if yubikeyError}
       <p class="audit-error">{yubikeyError}</p>
+    {/if}
+    {#if yubikeyEnrolled}
+      <dl class="yubikey-ask-pin">
+        <dt>{m.settings_yubikey_ask_pin()}</dt>
+        <dd>
+          <select
+            value={askYubikeyPin ? "ask" : "skip"}
+            onchange={(e) =>
+              onApplyAskYubikeyPin(
+                (e.currentTarget as HTMLSelectElement).value === "ask",
+              )}
+          >
+            <option value="ask">{m.settings_yubikey_ask_pin_on()}</option>
+            <option value="skip">{m.settings_yubikey_ask_pin_off()}</option>
+          </select>
+        </dd>
+      </dl>
     {/if}
 
     <h3>{m.stats_breakdown()}</h3>

@@ -10,6 +10,7 @@
     yubikeyAvailable: boolean;
     yubikeyBusy: boolean;
     yubikeyPin: string;
+    askYubikeyPin: boolean;
     onSubmit: (event: Event) => void;
     onYubikey: () => void;
     onSwitchAccount: () => void;
@@ -22,6 +23,7 @@
     yubikeyAvailable,
     yubikeyBusy,
     yubikeyPin = $bindable(),
+    askYubikeyPin,
     onSubmit,
     onYubikey,
     onSwitchAccount,
@@ -49,22 +51,20 @@
   {#if yubikeyAvailable}
     <div class="yubikey-unlock">
       <p class="hint">{m.yubikey_unlock_or()}</p>
-      <label class="yubikey-pin-label">
-        {m.yubikey_unlock_pin_label()}
-        <input
-          type="password"
-          bind:value={yubikeyPin}
-          autocomplete="off"
-          disabled={yubikeyBusy || disabled}
-          placeholder={m.yubikey_unlock_pin_placeholder()}
-          onkeydown={(event) => {
-            if (event.key === "Enter" && !yubikeyBusy && !disabled) {
-              event.preventDefault();
-              onYubikey();
-            }
-          }}
-        />
-      </label>
+      {#if askYubikeyPin}
+        <label class="yubikey-pin-label">
+          {m.yubikey_unlock_pin_label()}
+          <PasswordInput
+            bind:value={yubikeyPin}
+            autocomplete="off"
+            disabled={yubikeyBusy || disabled}
+            placeholder={m.yubikey_unlock_pin_placeholder()}
+            onEnter={() => {
+              if (!yubikeyBusy && !disabled) onYubikey();
+            }}
+          />
+        </label>
+      {/if}
       <button
         type="button"
         class="yubikey-unlock-button"

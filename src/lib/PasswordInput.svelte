@@ -12,12 +12,19 @@
     disabled = false,
     autocomplete = "current-password",
     id = undefined,
+    placeholder = undefined,
+    onEnter = undefined,
   }: {
     value: string;
     required?: boolean;
     disabled?: boolean;
-    autocomplete?: AutoFill;
+    autocomplete?: AutoFill | "off";
     id?: string;
+    placeholder?: string;
+    /** Called when Enter is pressed in the field. Lets a field that is
+     *  not inside a <form> (e.g. the Yubikey PIN) trigger its action on
+     *  Enter without giving up the reveal toggle. */
+    onEnter?: () => void;
   } = $props();
 
   let revealed = $state(false);
@@ -31,6 +38,13 @@
     {required}
     {disabled}
     {autocomplete}
+    {placeholder}
+    onkeydown={(event) => {
+      if (event.key === "Enter" && onEnter && !disabled) {
+        event.preventDefault();
+        onEnter();
+      }
+    }}
   />
   <button
     type="button"
