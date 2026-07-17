@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1](https://github.com/Upellift99/clavix/compare/v0.9.0...v0.9.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **sync:** send Bitwarden-Client-Version header so SSH keys sync ([#170](https://github.com/Upellift99/clavix/issues/170)) ([d982315](https://github.com/Upellift99/clavix/commit/d982315448ed89eb8c08bdf97c16780f17744c06))
+
 ## [0.9.0](https://github.com/Upellift99/clavix/compare/v0.8.2...v0.9.0) (2026-07-17)
 
 
