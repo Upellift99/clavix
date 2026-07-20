@@ -5,6 +5,21 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0](https://github.com/Upellift99/clavix/compare/v0.10.0...v0.11.0) (2026-07-20)
+
+
+### Features
+
+* **ssh-agent:** confirm-before-signing policy + clearer SSH_AUTH_SOCK setup ([#180](https://github.com/Upellift99/clavix/issues/180)) ([75348f7](https://github.com/Upellift99/clavix/commit/75348f772a97d71ad2e76b53eca4e90a824c8a2b))
+* **ssh-agent:** optionally restart the agent after an unlock ([#196](https://github.com/Upellift99/clavix/issues/196)) ([3ed5a14](https://github.com/Upellift99/clavix/commit/3ed5a147ab432a9d3ea1daceed946511e0ef301f))
+* **ssh-agent:** show the requesting process in the signing prompt ([#194](https://github.com/Upellift99/clavix/issues/194)) ([a0d9627](https://github.com/Upellift99/clavix/commit/a0d9627e163b932d200676c1188d452535a976ec))
+
+
+### Bug Fixes
+
+* **ssh-agent:** never drop an SSH key without saying why ([#195](https://github.com/Upellift99/clavix/issues/195)) ([8f54c76](https://github.com/Upellift99/clavix/commit/8f54c7684f3bb0b2c4648bbda46390f4f58f0175))
+* **ssh-agent:** stop claiming SSH_AUTH_SOCK is misconfigured ([#197](https://github.com/Upellift99/clavix/issues/197)) ([8f0c2d8](https://github.com/Upellift99/clavix/commit/8f0c2d8df22b44a514d03b703725f7afb4b79c6b))
+
 ## [0.10.0](https://github.com/Upellift99/clavix/compare/v0.9.3...v0.10.0) (2026-07-17)
 
 
