@@ -132,14 +132,6 @@
     }
   }
 
-  // Truncate a SHA256:abcdef… fingerprint for compact display while
-  // keeping enough characters to spot the right key at a glance.
-  // Full fingerprint is still shown via the title attribute on hover.
-  function shortFingerprint(fp: string): string {
-    if (fp.length <= 24) return fp;
-    return fp.slice(0, 17) + "…" + fp.slice(-4);
-  }
-
   async function toggleSshAgent() {
     sshAgentBusy = true;
     sshAgentError = null;
@@ -393,9 +385,11 @@
           <li class="ssh-agent-key">
             <span class="ssh-agent-key-comment">{key.comment || "—"}</span>
             <span class="ssh-agent-key-algo">{key.algorithm}</span>
-            <code class="ssh-agent-key-fp" title={key.fingerprint}>
-              {shortFingerprint(key.fingerprint)}
-            </code>
+            <!-- Shown in full: the columns now hug their content, which
+                 leaves room for the whole fingerprint. CSS ellipsises it
+                 if the dialog is ever too narrow, and `title` keeps the
+                 full value reachable either way. -->
+            <code class="ssh-agent-key-fp" title={key.fingerprint}>{key.fingerprint}</code>
           </li>
         {/each}
       </ul>
