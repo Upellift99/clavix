@@ -13,6 +13,13 @@ const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
 const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 const REQUIRE_NARROWING_STORAGE_KEY = "clavix.requireNarrowing";
 const SSH_AGENT_CONFIRM_STORAGE_KEY = "clavix.sshAgentConfirm";
+const SSH_AGENT_AUTOSTART_STORAGE_KEY = "clavix.sshAgentAutoStart";
+
+// Off by default, deliberately: starting the agent exposes the vault's
+// SSH keys on a socket, and that should follow from someone asking for
+// it, not from unlocking. Users who want it can opt in once and have it
+// survive every later lock/unlock.
+const SSH_AGENT_AUTOSTART_DEFAULT = false;
 
 /** When the embedded SSH agent asks before signing. Mirrors the Rust
  *  `SignPolicy`: "never" signs silently (default), "session" asks once
@@ -70,6 +77,7 @@ export class PrefsController {
   visibleColumns = $state<CipherListColumns>({ ...VISIBLE_COLUMNS_DEFAULT });
   requireNarrowing = $state<boolean>(REQUIRE_NARROWING_DEFAULT);
   sshAgentConfirm = $state<SshAgentConfirm>(SSH_AGENT_CONFIRM_DEFAULT);
+  sshAgentAutoStart = $state<boolean>(SSH_AGENT_AUTOSTART_DEFAULT);
 
   /** Loads persisted values from localStorage and applies side effects. */
   bootstrap() {
@@ -150,6 +158,10 @@ export class PrefsController {
       ) {
         this.sshAgentConfirm = savedSshConfirm;
       }
+      // Only an explicit "true" enables it — a malformed or absent value
+      // must never turn key exposure on by itself.
+      this.sshAgentAutoStart =
+        localStorage.getItem(SSH_AGENT_AUTOSTART_STORAGE_KEY) === "true";
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
         try {
@@ -186,6 +198,15 @@ export class PrefsController {
     this.sshAgentConfirm = value;
     try {
       localStorage.setItem(SSH_AGENT_CONFIRM_STORAGE_KEY, value);
+    } catch {
+      // best-effort
+    }
+  }
+
+  setSshAgentAutoStart(value: boolean) {
+    this.sshAgentAutoStart = value;
+    try {
+      localStorage.setItem(SSH_AGENT_AUTOSTART_STORAGE_KEY, String(value));
     } catch {
       // best-effort
     }

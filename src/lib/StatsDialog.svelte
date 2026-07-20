@@ -16,6 +16,7 @@
     hideDockOnTray: boolean;
     requireNarrowing: boolean;
     sshAgentConfirm: SshAgentConfirm;
+    sshAgentAutoStart: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
@@ -24,6 +25,7 @@
     onApplyHideDockOnTray: (value: boolean) => void;
     onApplyRequireNarrowing: (value: boolean) => void;
     onApplySshAgentConfirm: (value: SshAgentConfirm) => void;
+    onApplySshAgentAutoStart: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -37,6 +39,7 @@
     hideDockOnTray,
     requireNarrowing,
     sshAgentConfirm,
+    sshAgentAutoStart,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
@@ -45,6 +48,7 @@
     onApplyHideDockOnTray,
     onApplyRequireNarrowing,
     onApplySshAgentConfirm,
+    onApplySshAgentAutoStart,
     onCopySocketPath,
   }: Props = $props();
 
@@ -309,6 +313,18 @@
           <option value="session">{m.settings_ssh_confirm_session()}</option>
           <option value="always">{m.settings_ssh_confirm_always()}</option>
         </select>
+      </dd>
+      <dt>{m.settings_ssh_autostart()}</dt>
+      <dd>
+        <label class="ssh-agent-autostart">
+          <input
+            type="checkbox"
+            checked={sshAgentAutoStart}
+            onchange={(e) => onApplySshAgentAutoStart((e.currentTarget as HTMLInputElement).checked)}
+          />
+          {m.settings_ssh_autostart_label()}
+        </label>
+        <p class="hint">{m.settings_ssh_autostart_hint()}</p>
       </dd>
     </dl>
     <div class="ssh-agent-row">
