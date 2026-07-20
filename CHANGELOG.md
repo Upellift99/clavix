@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1](https://github.com/Upellift99/clavix/compare/v0.13.0...v0.13.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **import:** learn the server's rate limit instead of guessing it ([#207](https://github.com/Upellift99/clavix/issues/207)) ([036f723](https://github.com/Upellift99/clavix/commit/036f7238c08ff69f4f27f6ea2fad4811a7f9b000))
+
 ## [0.13.0](https://github.com/Upellift99/clavix/compare/v0.12.0...v0.13.0) (2026-07-20)
 
 
