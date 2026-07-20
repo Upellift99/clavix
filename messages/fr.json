@@ -98,6 +98,7 @@
   "ssh_agent_stopped": "Arrêté",
   "ssh_agent_copy_export": "Copier export SSH_AUTH_SOCK",
   "ssh_agent_skipped": "{count} clé(s) non chargée(s) — détails",
+  "ssh_agent_skipped_badge": "{count} non chargée(s)",
   "ssh_agent_env_ok": "SSH_AUTH_SOCK pointe sur Clavix.",
   "ssh_agent_env_mismatch": "SSH_AUTH_SOCK pointe ailleurs ({current}). Collez la ligne ci-dessus dans ~/.profile et reconnectez-vous pour utiliser les clés de Clavix (ou exportez-la dans le shell courant pour un essai immédiat).",
   "ssh_agent_env_unset": "SSH_AUTH_SOCK n'est pas définie. Collez la ligne ci-dessus dans ~/.profile puis reconnectez-vous pour qu'ssh utilise les clés de Clavix (ou exportez-la dans le shell courant pour un essai immédiat).",
