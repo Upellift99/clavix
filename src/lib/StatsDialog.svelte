@@ -27,6 +27,7 @@
     onApplySshAgentConfirm: (value: SshAgentConfirm) => void;
     onApplySshAgentAutoStart: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
+    onCopyShellCommand: (command: string) => void;
   };
 
   let {
@@ -50,6 +51,7 @@
     onApplySshAgentConfirm,
     onApplySshAgentAutoStart,
     onCopySocketPath,
+    onCopyShellCommand,
   }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
@@ -355,14 +357,34 @@
           {m.ssh_agent_copy_export()}
         </button>
       </div>
+      <!-- What follows describes CLAVIX'S OWN launch environment, which is
+           frozen at process start. It says nothing about the shell where
+           the user actually runs `ssh` — a correctly configured session
+           still reads as a mismatch here whenever Clavix was started
+           before the variable was in place. So the non-matching cases are
+           worded as "can't tell from here" and point at the one check
+           that is authoritative, rather than asserting a problem. -->
       {#if sshAuthSockEnv === sshAgent.socketPath}
         <p class="ssh-agent-env-ok">✓ {m.ssh_agent_env_ok()}</p>
-      {:else if sshAuthSockEnv}
-        <p class="ssh-agent-env-mismatch">
-          {m.ssh_agent_env_mismatch({ current: sshAuthSockEnv })}
-        </p>
       {:else}
-        <p class="ssh-agent-env-unset">{m.ssh_agent_env_unset()}</p>
+        <p class="ssh-agent-env-unknown">
+          {sshAuthSockEnv
+            ? m.ssh_agent_env_other({ current: sshAuthSockEnv })
+            : m.ssh_agent_env_unset()}
+        </p>
+        <div class="ssh-agent-env-check">
+          <p class="hint">{m.ssh_agent_env_verify_hint()}</p>
+          <div class="ssh-agent-sock">
+            <code>ssh-add -l</code>
+            <button
+              type="button"
+              class="secondary small"
+              onclick={() => onCopyShellCommand("ssh-add -l")}
+            >
+              {m.action_copy()}
+            </button>
+          </div>
+        </div>
       {/if}
     {/if}
     {#if sshAgent.running && sshAgent.keys.length > 0}

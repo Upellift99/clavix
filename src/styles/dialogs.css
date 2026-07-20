@@ -90,11 +90,22 @@
   margin: 0.1rem 0 0.4rem;
 }
 
-.ssh-agent-env-mismatch,
-.ssh-agent-env-unset {
-  color: #7a3b00;
+/* Informational, not a warning: Clavix cannot see the shell's
+   environment, so a non-matching value here is "unknown", not "broken".
+   Neutral grey rather than the old amber, which read as an error on a
+   perfectly working setup. */
+.ssh-agent-env-unknown {
+  color: #666;
   font-size: 0.78rem;
   margin: 0.1rem 0 0.4rem;
+}
+
+.ssh-agent-env-check {
+  margin: 0 0 0.5rem;
+}
+
+.ssh-agent-env-check .hint {
+  margin: 0 0 0.3rem;
 }
 
 .ssh-agent-keys {
@@ -323,12 +334,14 @@
   .generator-output { background: #1e1e1e; }
   .error-text { color: #ff8a8a; }
   .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
+  .ssh-agent-env-unknown { color: #aaa; }
 }
 
 :root.force-dark .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
 :root.force-dark .generator-output { background: #1e1e1e; }
 :root.force-dark .error-text { color: #ff8a8a; }
 :root.force-dark .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
+:root.force-dark .ssh-agent-env-unknown { color: #aaa; }
 
 /* Shared modal-dialog shell for ImportDialog and ExportDialog. These used
    to live only in ImportDialog's scoped <style>, so ExportDialog referenced
