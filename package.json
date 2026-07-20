@@ -25,7 +25,7 @@
     "@tauri-apps/plugin-opener": "^2"
   },
   "devDependencies": {
-    "@fontsource/atkinson-hyperlegible": "^5.2.8",
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
     "@fontsource/inter": "^5.2.8",
     "@inlang/paraglide-js": "^2.21.0",
     "@sveltejs/adapter-static": "^3.0.6",
