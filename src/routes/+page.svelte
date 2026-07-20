@@ -87,8 +87,29 @@
       // until the user hits "Sync" manually.
       await vault.loadCached();
       vault.syncInBackground();
+      void autoStartSshAgent();
     }
   });
+
+  // Bring the SSH agent back after an unlock, when the user opted in.
+  //
+  // Deliberately placed after `loadCached()`: starting the agent needs a
+  // decrypted vault, and the cache supplies one without waiting for the
+  // network — so this works offline too. A profile with no cache yet has
+  // no keys to load, and the attempt simply fails; the settings dialog
+  // still offers Start, so nothing is lost but the automatic step.
+  //
+  // Failures stay quiet on purpose. This is a convenience the user did
+  // not trigger by hand, and an error toast on every unlock (say, on a
+  // machine where the socket path is unavailable) would be noise.
+  async function autoStartSshAgent() {
+    if (!prefs.sshAgentAutoStart) return;
+    try {
+      await api.startSshAgent(prefs.sshAgentConfirm);
+    } catch (e) {
+      console.warn("[clavix] ssh agent auto-start failed:", e);
+    }
+  }
 
   // Tint the clipboard toast by what was copied. Nearly every copy funnels
   // through here, so deriving the kind from the label keeps the call sites
@@ -574,6 +595,7 @@
     hideDockOnTray={prefs.hideDockOnTray}
     requireNarrowing={prefs.requireNarrowing}
     sshAgentConfirm={prefs.sshAgentConfirm}
+    sshAgentAutoStart={prefs.sshAgentAutoStart}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
     onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
@@ -582,6 +604,7 @@
     onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
     onApplyRequireNarrowing={(v) => prefs.setRequireNarrowing(v)}
     onApplySshAgentConfirm={(v) => prefs.setSshAgentConfirm(v)}
+    onApplySshAgentAutoStart={(v) => prefs.setSshAgentAutoStart(v)}
     onCopySocketPath={copySshAgentSocket}
   />
 {/if}
