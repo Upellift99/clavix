@@ -176,7 +176,12 @@ export const api = {
 
   auditVaultPasswords: () => invoke<AuditResult>("audit_vault_passwords"),
 
-  startSshAgent: () => invoke<SshAgentStatus>("start_ssh_agent"),
+  startSshAgent: (policy: string) =>
+    invoke<SshAgentStatus>("start_ssh_agent", { policy }),
+
+  /** Answer a pending agent signature-confirmation prompt. */
+  respondSshAgentConfirm: (id: number, approved: boolean) =>
+    invoke<void>("respond_ssh_agent_confirm", { id, approved }),
 
   stopSshAgent: () => invoke<void>("stop_ssh_agent"),
 

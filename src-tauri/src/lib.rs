@@ -155,6 +155,7 @@ pub fn run() {
             commands::ssh::start_ssh_agent,
             commands::ssh::stop_ssh_agent,
             commands::ssh::ssh_agent_status,
+            commands::ssh::respond_ssh_agent_confirm,
             commands::ssh::decrypt_ssh_private_key,
             commands::ssh::generate_ssh_key,
             commands::ssh::ssh_auth_sock,

@@ -3,6 +3,7 @@
   import { api } from "./api";
   import { formatError } from "./format";
   import PasswordInput from "./PasswordInput.svelte";
+  import type { SshAgentConfirm } from "./prefs.svelte";
   import type { Locale, SshAgentStatus, SyncSummary, ThemePref } from "./types";
 
   type Props = {
@@ -14,6 +15,7 @@
     minimizeToTray: boolean;
     hideDockOnTray: boolean;
     requireNarrowing: boolean;
+    sshAgentConfirm: SshAgentConfirm;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (minutes: number) => void;
@@ -21,6 +23,7 @@
     onApplyMinimizeToTray: (value: boolean) => void;
     onApplyHideDockOnTray: (value: boolean) => void;
     onApplyRequireNarrowing: (value: boolean) => void;
+    onApplySshAgentConfirm: (value: SshAgentConfirm) => void;
     onCopySocketPath: (socketPath: string) => void;
   };
 
@@ -33,6 +36,7 @@
     minimizeToTray,
     hideDockOnTray,
     requireNarrowing,
+    sshAgentConfirm,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
@@ -40,6 +44,7 @@
     onApplyMinimizeToTray,
     onApplyHideDockOnTray,
     onApplyRequireNarrowing,
+    onApplySshAgentConfirm,
     onCopySocketPath,
   }: Props = $props();
 
@@ -136,11 +141,28 @@
       if (sshAgent.running) {
         await api.stopSshAgent();
       } else {
-        sshAgent = await api.startSshAgent();
+        sshAgent = await api.startSshAgent(sshAgentConfirm);
         sshAgentBusy = false;
         return;
       }
       await refreshSshAgent();
+    } catch (e) {
+      sshAgentError = formatError(e);
+    } finally {
+      sshAgentBusy = false;
+    }
+  }
+
+  // Persist the confirmation policy and, if the agent is already running,
+  // relaunch it so the change takes effect immediately (the socket path
+  // is stable, so SSH_AUTH_SOCK stays valid across the restart).
+  async function applyConfirmPolicy(value: SshAgentConfirm) {
+    onApplySshAgentConfirm(value);
+    if (!sshAgent.running) return;
+    sshAgentBusy = true;
+    sshAgentError = null;
+    try {
+      sshAgent = await api.startSshAgent(value);
     } catch (e) {
       sshAgentError = formatError(e);
     } finally {
@@ -274,6 +296,21 @@
 
     <h3>{m.ssh_agent_title()}</h3>
     <p class="hint ssh-agent-hint">{m.ssh_agent_hint()}</p>
+    <dl class="ssh-agent-confirm-setting">
+      <dt>{m.settings_ssh_confirm()}</dt>
+      <dd>
+        <select
+          value={sshAgentConfirm}
+          disabled={sshAgentBusy}
+          onchange={(e) =>
+            applyConfirmPolicy((e.currentTarget as HTMLSelectElement).value as SshAgentConfirm)}
+        >
+          <option value="never">{m.settings_ssh_confirm_never()}</option>
+          <option value="session">{m.settings_ssh_confirm_session()}</option>
+          <option value="always">{m.settings_ssh_confirm_always()}</option>
+        </select>
+      </dd>
+    </dl>
     <div class="ssh-agent-row">
       <button type="button" onclick={toggleSshAgent} disabled={sshAgentBusy}>
         {sshAgent.running ? m.ssh_agent_stop() : m.ssh_agent_start()}

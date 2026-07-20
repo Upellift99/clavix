@@ -14,6 +14,14 @@ use crate::ssh_agent::SshAgentHandle;
 pub struct AppState {
     pub session: Mutex<Option<Session>>,
     pub ssh_agent: Mutex<Option<SshAgentHandle>>,
+    /// In-flight SSH-agent signature confirmations, keyed by request id.
+    /// The agent task parks a `oneshot::Sender` here and awaits the
+    /// answer; `respond_ssh_agent_confirm` (driven by the confirmation
+    /// dialog) removes and fulfils it. Entries are also dropped on
+    /// timeout inside the agent's confirm callback.
+    pub ssh_confirms: Mutex<HashMap<u64, tokio::sync::oneshot::Sender<bool>>>,
+    /// Monotonic id source for `ssh_confirms` requests.
+    pub ssh_confirm_seq: Mutex<u64>,
     /// Last user-driven activity (command invocation that touches the
     /// session). Updated by `mark_activity`. Backs the auto-lock watchdog
     /// spawned in `run()` — backend safety net so a frozen WebView or a
@@ -65,6 +73,8 @@ impl Default for AppState {
         Self {
             session: Mutex::new(None),
             ssh_agent: Mutex::new(None),
+            ssh_confirms: Mutex::new(HashMap::new()),
+            ssh_confirm_seq: Mutex::new(0),
             last_activity: Mutex::new(Instant::now()),
             auto_lock_minutes: Mutex::new(None),
             pending_2fa: Mutex::new(None),
