@@ -115,6 +115,42 @@ destruction.
 
 ---
 
+## Using the SSH agent persistently
+
+The agent listens on `$XDG_RUNTIME_DIR/clavix/agent.sock` — usually
+`/run/user/<uid>/clavix/agent.sock`. The *Infos* dialog shows the exact
+path. Nothing points to it by default, so set it up once:
+
+**For `ssh`, `git`, and GUI apps** — add a drop-in to your SSH config
+(`~/.ssh/config`, or a file included from it):
+
+```
+Host *
+    IdentityAgent /run/user/%i/clavix/agent.sock
+```
+
+`%i` expands to your UID. This is the more robust of the two: it also
+covers GUI apps launched from the desktop menu, which don't read your
+shell startup files.
+
+**For everything else** — export the variable in `~/.bashrc` (or
+`~/.zshrc`):
+
+```sh
+export SSH_AUTH_SOCK="/run/user/$(id -u)/clavix/agent.sock"
+```
+
+Doing both is a good idea. `ssh-add` in particular ignores
+`~/.ssh/config` entirely and only reads `$SSH_AUTH_SOCK`, so without the
+export `ssh-add -l` reports "The agent has no identities" even when
+`ssh` is happily using Clavix.
+
+The socket lives under `/run`, so it disappears on reboot and is
+recreated when Clavix starts. A `Connection refused` on that path means
+Clavix isn't running, not that your config is wrong.
+
+---
+
 ## Why this project
 
 The official Bitwarden client (Electron) has a dated UX and does not
