@@ -237,6 +237,12 @@
     await copyToClipboard(`export SSH_AUTH_SOCK=${socketPath}`, "SSH_AUTH_SOCK");
   }
 
+  // Copies a shell command verbatim — unlike copySshAgentSocket, which
+  // wraps its argument in an `export` assignment.
+  async function copyShellCommand(command: string) {
+    await copyToClipboard(command, "commande");
+  }
+
   async function lockAndReset() {
     await auth.lock();
     vault.reset();
@@ -606,6 +612,7 @@
     onApplySshAgentConfirm={(v) => prefs.setSshAgentConfirm(v)}
     onApplySshAgentAutoStart={(v) => prefs.setSshAgentAutoStart(v)}
     onCopySocketPath={copySshAgentSocket}
+    onCopyShellCommand={copyShellCommand}
   />
 {/if}
 
