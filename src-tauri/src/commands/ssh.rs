@@ -22,6 +22,42 @@ pub struct ConfirmRequest {
     pub fingerprint: String,
 }
 
+/// Turn one SSH-key cipher into either agent-loadable material
+/// (`(id, name, pem)`) or a `SkippedKey` explaining the refusal.
+///
+/// Total by construction: there is no third outcome, which is what keeps
+/// the agent's key count reconcilable with the vault's SSH-key count.
+fn classify_ssh_cipher(
+    c: &crate::models::Cipher,
+    key: &crate::crypto::SymmetricKey,
+) -> std::result::Result<(String, String, String), SkippedKey> {
+    // The name is itself vault ciphertext and can fail to decrypt. Fall
+    // back to the cipher id so the row stays identifiable — an unnamed
+    // entry the user can't locate is barely better than no entry at all.
+    let name =
+        decrypt_name(&c.name, key).unwrap_or_else(|_| format!("(unreadable name — item {})", c.id));
+
+    let Some(ssh) = c.ssh_key.as_ref() else {
+        return Err(SkippedKey {
+            name,
+            reason: "item is typed as an SSH key but carries no SSH key data".into(),
+        });
+    };
+    let Some(pk_enc) = ssh.private_key.as_deref() else {
+        return Err(SkippedKey {
+            name,
+            reason: "no private key stored on this item — only a public key".into(),
+        });
+    };
+    let Ok(pem) = decrypt_name(pk_enc, key) else {
+        return Err(SkippedKey {
+            name,
+            reason: "could not decrypt the private key with this vault's keys".into(),
+        });
+    };
+    Ok((c.id.clone(), name, pem))
+}
+
 fn parse_sign_policy(policy: &str) -> SignPolicy {
     match policy {
         "always" => SignPolicy::Always,
@@ -100,7 +136,7 @@ pub struct ExposedKey {
     pub fingerprint: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkippedKey {
     /// Cipher name (or key comment if cipher decryption failed).
@@ -118,9 +154,9 @@ pub struct SshAgentStatus {
     pub running: bool,
     pub socket_path: Option<String>,
     pub keys: Vec<ExposedKey>,
-    /// Populated only by the `start_ssh_agent` response — the
-    /// `ssh_agent_status` command keeps it empty since it doesn't
-    /// re-attempt the load from the vault.
+    /// Keys the last start could not load. Carried by `ssh_agent_status`
+    /// too (replayed from `AppState`, not recomputed), so reopening the
+    /// settings dialog still explains a key count that looks short.
     pub skipped: Vec<SkippedKey>,
 }
 
@@ -140,35 +176,40 @@ pub async fn start_ssh_agent(
     }
 
     // Decrypt every SSH key item from the current vault, inside the lock.
+    //
+    // Every SSH-key cipher must come out of this loop as either a decrypted
+    // entry or a `SkippedKey`. Dropping one silently (as an earlier
+    // `filter_map` did) makes the agent's key count disagree with the
+    // vault's SSH-key count with nothing anywhere to explain the gap.
+    let mut skipped: Vec<SkippedKey> = Vec::new();
     let decrypted: Vec<(String, String, String)> = {
         let guard = state.session.lock();
         let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
             reason: "no vault synced yet — synchronise first".into(),
         })?;
-        vault
+        let mut out = Vec::new();
+        for c in vault
             .ciphers
             .iter()
             .filter(|c| c.deleted_date.is_none())
             .filter(|c| matches!(c.kind, CipherType::SshKey))
-            .filter_map(|c| {
-                let ssh = c.ssh_key.as_ref()?;
-                let pk_enc = ssh.private_key.as_deref()?;
-                let owner =
-                    crate::services::cipher::owning_key(c, &session.user_key, &session.org_keys);
-                let item = crate::services::cipher::item_key(c, owner);
-                let key = item.as_ref().unwrap_or(owner);
-                let name = decrypt_name(&c.name, key).ok()?;
-                let pem = decrypt_name(pk_enc, key).ok()?;
-                Some((c.id.clone(), name, pem))
-            })
-            .collect()
+        {
+            let owner =
+                crate::services::cipher::owning_key(c, &session.user_key, &session.org_keys);
+            let item = crate::services::cipher::item_key(c, owner);
+            let key = item.as_ref().unwrap_or(owner);
+            match classify_ssh_cipher(c, key) {
+                Ok(entry) => out.push(entry),
+                Err(s) => skipped.push(s),
+            }
+        }
+        out
     };
 
     let socket_path = ssh_agent::default_socket_path()?;
 
     let mut agent_keys = Vec::new();
-    let mut skipped: Vec<SkippedKey> = Vec::new();
     for (_id, name, pem) in &decrypted {
         match ssh_agent::try_load_agent_key(pem, name) {
             Ok(Some(k)) => agent_keys.push(k),
@@ -232,8 +273,13 @@ pub async fn start_ssh_agent(
         running: true,
         socket_path: Some(handle.socket_path.to_string_lossy().into_owned()),
         keys: exposed,
-        skipped,
+        skipped: skipped.clone(),
     };
+
+    // Remember why keys were left out so `ssh_agent_status` can answer the
+    // "why does it say 8 when I have 9?" question on any later poll, not
+    // just in this reply.
+    *state.ssh_skipped.lock() = skipped;
 
     {
         let mut slot = state.ssh_agent.lock();
@@ -251,6 +297,10 @@ pub async fn stop_ssh_agent(state: State<'_, AppState>) -> Result<()> {
     if let Some(h) = handle {
         h.stop().await;
     }
+    // The skip list describes a load that no longer has a running agent
+    // behind it — drop it rather than let it resurface on a later start
+    // that skipped nothing.
+    state.ssh_skipped.lock().clear();
     Ok(())
 }
 
@@ -381,6 +431,123 @@ mod decrypt_tests {
     }
 }
 
+/// Every SSH-key cipher must leave `classify_ssh_cipher` accounted for —
+/// either loadable or explicitly skipped. A silent third outcome is what
+/// made the agent report fewer keys than the vault held, with no
+/// explanation anywhere.
+#[cfg(test)]
+mod classify_tests {
+    use super::*;
+    use crate::crypto::{encrypt_string, SymmetricKey};
+    use crate::models::{Cipher, CipherSshKey};
+
+    fn test_key() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(7).wrapping_add(3);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn foreign_key() -> SymmetricKey {
+        let mut bytes = [0u8; 64];
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(13).wrapping_add(47);
+        }
+        SymmetricKey::from_bytes(&bytes).unwrap()
+    }
+
+    fn ssh_cipher(key: &SymmetricKey, ssh_key: Option<CipherSshKey>) -> Cipher {
+        Cipher {
+            id: "ssh-cipher-id".into(),
+            kind: CipherType::SshKey,
+            key: None,
+            name: encrypt_string("my-server-key", key).unwrap(),
+            notes: None,
+            organization_id: None,
+            folder_id: None,
+            collection_ids: vec![],
+            revision_date: None,
+            deleted_date: None,
+            favorite: false,
+            login: None,
+            card: None,
+            identity: None,
+            ssh_key,
+            fields: None,
+            password_history: None,
+        }
+    }
+
+    #[test]
+    fn loadable_key_round_trips_name_and_pem() {
+        let key = test_key();
+        let c = ssh_cipher(
+            &key,
+            Some(CipherSshKey {
+                private_key: Some(encrypt_string("PEM-BODY", &key).unwrap()),
+                public_key: None,
+                key_fingerprint: None,
+            }),
+        );
+        let (id, name, pem) = classify_ssh_cipher(&c, &key).expect("should load");
+        assert_eq!(id, "ssh-cipher-id");
+        assert_eq!(name, "my-server-key");
+        assert_eq!(pem, "PEM-BODY");
+    }
+
+    #[test]
+    fn missing_ssh_payload_is_reported_not_dropped() {
+        let key = test_key();
+        let c = ssh_cipher(&key, None);
+        let s = classify_ssh_cipher(&c, &key).expect_err("should be skipped");
+        assert_eq!(s.name, "my-server-key");
+        assert!(s.reason.contains("no SSH key data"), "{}", s.reason);
+    }
+
+    #[test]
+    fn public_key_only_item_is_reported_not_dropped() {
+        let key = test_key();
+        let c = ssh_cipher(
+            &key,
+            Some(CipherSshKey {
+                private_key: None,
+                public_key: Some("ssh-ed25519 AAAA…".into()),
+                key_fingerprint: None,
+            }),
+        );
+        let s = classify_ssh_cipher(&c, &key).expect_err("should be skipped");
+        assert!(s.reason.contains("no private key"), "{}", s.reason);
+    }
+
+    #[test]
+    fn undecryptable_private_key_is_reported_not_dropped() {
+        let key = test_key();
+        // Encrypted under a key this vault doesn't hold.
+        let c = ssh_cipher(
+            &key,
+            Some(CipherSshKey {
+                private_key: Some(encrypt_string("PEM-BODY", &foreign_key()).unwrap()),
+                public_key: None,
+                key_fingerprint: None,
+            }),
+        );
+        let s = classify_ssh_cipher(&c, &key).expect_err("should be skipped");
+        assert!(s.reason.contains("could not decrypt"), "{}", s.reason);
+    }
+
+    /// An unreadable name must still produce a locatable row rather than
+    /// an anonymous one — the id is the only handle left.
+    #[test]
+    fn undecryptable_name_falls_back_to_the_cipher_id() {
+        let key = test_key();
+        let mut c = ssh_cipher(&key, None);
+        c.name = encrypt_string("my-server-key", &foreign_key()).unwrap();
+        let s = classify_ssh_cipher(&c, &key).expect_err("should be skipped");
+        assert!(s.name.contains("ssh-cipher-id"), "{}", s.name);
+    }
+}
+
 #[cfg(test)]
 mod generate_tests {
     use super::*;
@@ -419,6 +586,9 @@ mod generate_tests {
 #[tauri::command]
 pub fn ssh_agent_status(state: State<'_, AppState>) -> Result<SshAgentStatus> {
     let slot = state.ssh_agent.lock();
+    // Replayed from the last start, never recomputed: this command must not
+    // touch the vault. An agent that isn't running has nothing to explain,
+    // so the list stays empty there.
     Ok(match slot.as_ref() {
         Some(h) => SshAgentStatus {
             running: true,
@@ -432,7 +602,7 @@ pub fn ssh_agent_status(state: State<'_, AppState>) -> Result<SshAgentStatus> {
                     fingerprint: k.fingerprint.clone(),
                 })
                 .collect(),
-            skipped: Vec::new(),
+            skipped: state.ssh_skipped.lock().clone(),
         },
         None => SshAgentStatus {
             running: false,

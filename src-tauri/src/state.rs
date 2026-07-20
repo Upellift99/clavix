@@ -22,6 +22,13 @@ pub struct AppState {
     pub ssh_confirms: Mutex<HashMap<u64, tokio::sync::oneshot::Sender<bool>>>,
     /// Monotonic id source for `ssh_confirms` requests.
     pub ssh_confirm_seq: Mutex<u64>,
+    /// Keys the last agent start could not load, with the reason for each.
+    /// Kept here rather than on `SshAgentHandle` because it describes the
+    /// vault-to-agent load, not the running agent — and because it must
+    /// outlive a failed start, where no handle exists at all. Lets
+    /// `ssh_agent_status` explain a key count that looks short, instead of
+    /// the explanation being visible only in the `start_ssh_agent` reply.
+    pub ssh_skipped: Mutex<Vec<crate::commands::ssh::SkippedKey>>,
     /// Last user-driven activity (command invocation that touches the
     /// session). Updated by `mark_activity`. Backs the auto-lock watchdog
     /// spawned in `run()` — backend safety net so a frozen WebView or a
@@ -75,6 +82,7 @@ impl Default for AppState {
             ssh_agent: Mutex::new(None),
             ssh_confirms: Mutex::new(HashMap::new()),
             ssh_confirm_seq: Mutex::new(0),
+            ssh_skipped: Mutex::new(Vec::new()),
             last_activity: Mutex::new(Instant::now()),
             auto_lock_minutes: Mutex::new(None),
             pending_2fa: Mutex::new(None),

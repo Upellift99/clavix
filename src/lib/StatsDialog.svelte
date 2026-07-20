@@ -320,6 +320,13 @@
           ? m.ssh_agent_running({ count: String(sshAgent.keys.length) })
           : m.ssh_agent_stopped()}
       </span>
+      {#if sshAgent.running && sshAgent.skipped.length > 0}
+        <!-- Say it next to the count itself: the exposed number looking
+             short is exactly what sends the user hunting for an answer. -->
+        <span class="ssh-agent-skipped-badge">
+          {m.ssh_agent_skipped_badge({ count: String(sshAgent.skipped.length) })}
+        </span>
+      {/if}
     </div>
     {#if sshAgent.running && sshAgent.socketPath}
       <div class="ssh-agent-sock">

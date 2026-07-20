@@ -58,6 +58,17 @@
   font-weight: 500;
 }
 
+/* Sits beside the "N keys exposed" count, where a short number is
+   noticed. Amber rather than red: a skipped key is informational, not
+   a failure of the agent that did start. */
+.ssh-agent-skipped-badge {
+  font-size: 0.82rem;
+  color: #8a5a00;
+  background: #fdf3e0;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
 .ssh-agent-sock {
   display: flex;
   align-items: center;
@@ -311,11 +322,13 @@
   .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
   .generator-output { background: #1e1e1e; }
   .error-text { color: #ff8a8a; }
+  .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
 }
 
 :root.force-dark .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
 :root.force-dark .generator-output { background: #1e1e1e; }
 :root.force-dark .error-text { color: #ff8a8a; }
+:root.force-dark .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
 
 /* Shared modal-dialog shell for ImportDialog and ExportDialog. These used
    to live only in ImportDialog's scoped <style>, so ExportDialog referenced
