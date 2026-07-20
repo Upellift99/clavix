@@ -801,7 +801,7 @@ dependencies = [
 
 [[package]]
 name = "clavix"
-version = "0.5.0"
+version = "0.10.0"
 dependencies = [
  "aes 0.8.4",
  "argon2",
@@ -2855,9 +2855,9 @@ dependencies = [
 
 [[package]]
 name = "keepass"
-version = "0.13.16"
+version = "0.13.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd9de0a6cd63e83eed9afd7985120db74cc167b7360fe1b77e7ef3f4ee501443"
+checksum = "2765eb6c9966956f5b421f44657140856accd7a769151dd47811d81ff2d8e8df"
 dependencies = [
  "aes 0.9.0",
  "base64 0.22.1",
@@ -2873,6 +2873,7 @@ dependencies = [
  "hex-literal",
  "hmac 0.13.0",
  "hybrid-array",
+ "indexmap 2.14.0",
  "js-sys",
  "quick-xml 0.41.0",
  "rust-argon2",
