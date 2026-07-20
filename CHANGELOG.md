@@ -5,6 +5,18 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0](https://github.com/Upellift99/clavix/compare/v0.12.0...v0.13.0) (2026-07-20)
+
+
+### Features
+
+* **ssh-agent:** show the full fingerprint in the signing prompt ([#204](https://github.com/Upellift99/clavix/issues/204)) ([b3b86c5](https://github.com/Upellift99/clavix/commit/b3b86c51adf77142bb77cb3fc7597ce5eaac7859))
+
+
+### Bug Fixes
+
+* **import:** back off instead of hammering a server that says no ([#205](https://github.com/Upellift99/clavix/issues/205)) ([d90d43f](https://github.com/Upellift99/clavix/commit/d90d43f6a443657556f24399b5a9bc3575d0f435))
+
 ## [0.12.0](https://github.com/Upellift99/clavix/compare/v0.11.2...v0.12.0) (2026-07-20)
 
 
