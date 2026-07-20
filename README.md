@@ -23,11 +23,8 @@ built for the self-hosted Vaultwarden community. The goal: finally
 provide a comfortable tree-based vault with drag & drop, the way
 KeePassXC has offered for years.
 
-> **Status: alpha, read+write.** Releases starting from `v0.1.7`
-> support creating and editing items, full 2FA (including WebAuthn
-> and YubiKey OTP), an embedded SSH agent, KeePassXC import and a
-> built-in security audit. See [CHANGELOG.md](CHANGELOG.md) for the
-> full picture per version.
+**Status: alpha, read+write** — item create/edit, full 2FA, an embedded
+SSH agent, KeePassXC import and a security audit all work today.
 
 ## What Clavix can do today
 
@@ -39,73 +36,53 @@ Against a real Vaultwarden instance, Clavix:
   so it works even though the desktop app doesn't run under the
   vault's domain;
 - **persists the session locally** under `~/.local/share/clavix/` —
-  on restart you land on an *Unlock* screen that only asks for the
-  master password, the OAuth2 token refreshes automatically 60 s
-  before expiry, and the refresh token stored on disk is itself
-  encrypted under the user key;
-- **unlocks with a Yubikey** (optional) — after an enrolment from
-  Préférences, touching a registered FIDO2 token releases the
-  cached user key without re-typing the master password (CTAP2
-  `hmac-secret`, conceptually identical to Bitwarden Web's "PRF
-  Unlock"). The master password remains accepted in fallback;
-  rotating it on another client invalidates the wrap automatically
-  rather than producing wrong decrypts;
-- syncs the full vault (items, folders, collections, organizations);
-- **decrypts and encrypts everything client-side**: AES-256-CBC +
-  HMAC-SHA256 for the personal vault, RSA-OAEP-SHA1 for organization
-  keys;
+  restart lands on an *Unlock* screen that only asks for the master
+  password; the access token auto-refreshes 60 s before expiry and the
+  refresh token on disk is encrypted under the user key;
+- **unlocks with a Yubikey** (optional) — after enrolment, touching a
+  registered FIDO2 token releases the cached user key without the master
+  password (CTAP2 `hmac-secret`, like Bitwarden Web's "PRF Unlock"). The
+  master password stays accepted as fallback, and rotating it on another
+  client invalidates the wrap instead of producing wrong decrypts;
+- syncs the full vault (items, folders, collections, organizations),
+  **encrypting and decrypting everything client-side** (AES-256-CBC +
+  HMAC-SHA256 personal, RSA-OAEP-SHA1 org keys);
 - **creates, edits and deletes items** (logins, secure notes, cards,
-  identities, SSH keys) either in your personal vault or inside an
-  organization you belong to — org items are encrypted with the org
-  key and posted through the dedicated `/ciphers/create` endpoint;
-- **auto-locks** after your configured idle window, with a tokio
-  watchdog on the Rust side that drops the in-memory session even if
-  the WebView freezes;
-- **lives in the system tray**: an icon with a right-click menu
-  (Ouvrir / Verrouiller maintenant / Quitter) keeps Clavix one click
-  away while the window is hidden. The X button and the `_` minimise
-  button both hide into the tray by default (KeePassXC / Bitwarden
-  Desktop semantics) — flip either of them to "quit" / "minimise to
-  taskbar" from Préférences if you'd rather keep the platform default;
-- **generates TOTP codes** live from the stored secret (supports
-  `otpauth://` URIs with custom period, digits, or hash algorithm);
-- **scans QR codes** through the device camera to populate the TOTP
-  field when creating or editing a login (`jsQR` + `getUserMedia`);
-- keeps an **encrypted SQLite cache** of the vault, so the next
-  unlock (even offline) shows the vault instantly;
-- shows the complete list of items with a live substring search and
-  **favicons** for logins (fetched via the Vaultwarden icons endpoint,
-  cached server-side; silent emoji fallback per cipher type when the
-  favicon is unavailable);
-- navigates through a hierarchical **TreeView** built from the
-  Bitwarden `/` naming convention (personal folders + collections
-  per organization), with a **draggable splitter** to resize the
-  tree panel (width persisted to localStorage);
-- shows item details with masked sensitive fields, one-click copy,
-  and automatic **clipboard clearing after 30 seconds**;
-- **drag & drops items** onto folders or organization collections —
-  including personal → org (automatic share + re-encryption),
-  cross-org transfer (re-encryption from source to target org key)
-  and all cipher types;
-- **drag & drops whole folders** to rearrange the tree — all their
-  sub-folders are renamed in cascade on the server;
-- **right-click on any folder** in the sidebar to rename or delete
-  it (Vaultwarden's web UI doesn't expose a delete control today),
-  including the path-only synthetic parents the tree builds from
-  `parent/child` names — both actions cascade through every folder
-  whose path falls under the clicked node, so deleting `work` also
-  drops `work/projects` and detaches its ciphers in one batch.
-  Same-name folders coming from the server are shown as separate
-  entries instead of being silently merged;
-- runs a **security audit** (🛡) combining HIBP k-anonymity breach
-  lookups with local detection of **reused** and **weak** passwords
-  (zxcvbn score ≤ 2);
-- **imports a KeePassXC CSV export** and creates a folder per
-  *Group* value on the fly (📥 button);
-- embeds an **SSH agent** (Linux / macOS): exposes the Ed25519 and
-  RSA keys from your vault over a Unix socket so `ssh`, `git`,
-  `scp`, `rsync`, … can use them without writing the private keys
-  to disk, the same way Bitwarden Desktop now does.
+  identities, SSH keys) in your personal vault or inside an organization
+  you belong to;
+- **auto-locks** after your idle window, with a tokio watchdog that drops
+  the in-memory session even if the WebView freezes;
+- **lives in the system tray**: the X and `_` buttons hide into the tray
+  by default (KeePassXC / Bitwarden Desktop semantics); switch either to
+  quit / minimise-to-taskbar in Préférences;
+- **generates TOTP codes** live from the stored secret (`otpauth://` URIs
+  with custom period, digits, hash), and **scans QR codes** through the
+  camera to fill the TOTP field;
+- keeps an **encrypted SQLite cache**, so the next unlock — even offline —
+  shows the vault instantly;
+- shows all items with live substring search and **favicons** for logins
+  (emoji fallback per type when unavailable);
+- navigates a hierarchical **TreeView** from the Bitwarden `/` naming
+  convention (personal folders + org collections), with a draggable
+  splitter to resize it;
+- shows item details with masked fields, one-click copy, and **clipboard
+  clearing after 30 seconds**;
+- **drag & drops items** onto folders or org collections — including
+  personal → org (automatic share + re-encryption), cross-org transfer,
+  and all cipher types — and **whole folders** to rearrange the tree,
+  cascade-renaming sub-folders on the server;
+- **right-click any folder** to rename or delete it (Vaultwarden's web UI
+  has no delete control today), including the synthetic path-only parents
+  the tree builds from `parent/child` names; both cascade through every
+  descendant, so deleting `work` also drops `work/projects`. Same-name
+  server folders stay separate instead of being merged;
+- runs a **security audit** (🛡) combining HIBP k-anonymity lookups with
+  local **reused** and **weak** password detection (zxcvbn ≤ 2);
+- **imports a KeePassXC CSV export**, creating a folder per *Group* on the
+  fly (📥);
+- embeds an **SSH agent** (Linux / macOS): exposes the Ed25519 and RSA
+  keys from your vault over a Unix socket so `ssh`, `git`, `scp`, … use
+  them without the private keys ever touching disk.
 
 The master password never hits the server nor the disk: only derived
 values are exchanged (master password hash for authentication, master
@@ -174,56 +151,12 @@ community.
 > Clavix does **not** use the official Bitwarden SDK (ambiguous
 > license). The crypto is reimplemented in-project, under GPL-3.0.
 
-## MVP roadmap
+## Roadmap
 
-### Phase 1 — Read-only
-- [x] Login against a Vaultwarden instance (custom URL)
-- [x] Master password unlock (PBKDF2 + Argon2id)
-- [x] TOTP / YubiKey OTP / WebAuthn / FIDO2 2FA
-- [x] Initial sync: items, folders, collections, organizations
-- [x] Decrypt names and fields (AES-CBC + HMAC, RSA-OAEP)
-- [x] Persisted session on disk + *Unlock* screen (refresh token
-  encrypted at rest, access token auto-refreshed)
-- [x] Full list with live search
-- [x] Item details + clipboard copy with 30 s auto-clear
-- [x] Encrypted local cache (offline read-only mode)
-- [x] Auto-lock watchdog (JS timer + tokio backend safety net)
-
-### Phase 2 — Tree view
-- [x] Parse `/`-separated names into a hierarchy
-- [x] TreeView with expand/collapse
-- [x] Tree of personal folders **and** organization collections
-- [x] Draggable splitter to resize the tree panel
-
-### Phase 3 — Drag & drop (killer feature)
-- [x] Drag items onto a folder (PUT `/ciphers/{id}/partial`)
-- [x] Drag items onto an organization collection
-- [x] Drag a folder onto another folder, with cascade rename of
-  sub-folders
-- [x] Share a personal item into an organization collection
-  (PUT `/ciphers/{id}/share`, re-encrypted client-side with the
-  target org key)
-- [x] Cross-org item transfer (re-encryption source → target org)
-- [x] All cipher types supported for sharing (logins, secure notes,
-  cards, identities, SSH keys)
-
-### Phase 4 — Read / write
-- [x] Create and edit personal items (all 5 cipher types)
-- [x] Create and edit inside an organization + collection
-- [x] Restore / permanently delete items
-- [x] Built-in password generator
-- [x] Live TOTP code generation + QR scanner to import TOTP secrets
-- [x] Security audit: HIBP + reused + weak (zxcvbn)
-- [x] KeePassXC CSV import with automatic folder creation
-- [x] **SSH agent** (Unix socket) — Ed25519 and RSA
-- [x] **WebAuthn / FIDO2** in 2FA via CTAP2/HID (no browser needed)
-- [x] **Yubikey re-unlock** via the CTAP2 `hmac-secret` extension
-  (touch instead of master password after auto-lock)
-- [x] **Folder management** — right-click delete + rename on any
-  node (real or synthetic path-only parent), with cascade through
-  descendants; fix for same-name folders showing as one entry
-- [x] **System tray** — icon, right-click menu (Ouvrir / Verrouiller
-  / Quitter), and configurable close-to-tray + minimize-to-tray
+Everything through read+write is shipped — login and 2FA, the tree view,
+drag & drop (including personal → org and cross-org), full item CRUD, the
+SSH agent, the security audit and KeePassXC import. See the feature list
+above, or [CHANGELOG.md](CHANGELOG.md) for what landed in each version.
 
 ### Planned
 
@@ -236,7 +169,7 @@ community.
 - ✅ **Code signing** for macOS and Windows builds.
 - 🗄️ **KDBX** (direct native KeePass file) import.
 
-### Out of MVP scope (for now)
+### Out of scope (for now)
 
 Attachments, Sends, passkeys (storing them in the vault), browser
 autofill.
