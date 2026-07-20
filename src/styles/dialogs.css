@@ -120,6 +120,13 @@
   margin: 0.4rem 0 0.6rem;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
+  display: grid;
+  /* Name hugs the longest entry (shrinking below it only when the dialog
+     is too narrow, where the ellipsis takes over), algorithm hugs its
+     text, and the leftover space lands after the fingerprint instead of
+     in the middle of the row. */
+  grid-template-columns: minmax(0, max-content) max-content minmax(0, 1fr);
+  align-content: start;
   /* 9rem showed about five rows, so a typical vault's key list arrived
      pre-scrolled — the thing the user opened the panel to read was the
      part hidden. The dialog itself scrolls, so a taller box costs
@@ -128,14 +135,27 @@
   overflow-y: auto;
 }
 
+/* The grid lives on the list, not on each row, so the three columns are
+   sized once across every row. That is what lets the name column be
+   `max-content` — wide enough for the longest name and not a pixel more.
+   A per-row grid could only ever use a fixed width (content-sized tracks
+   would resolve per row and the fingerprints would stop lining up), and
+   any fixed width leaves a canyon next to short names. */
 .ssh-agent-key {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.35rem 0.6rem;
+  display: contents;
+}
+
+.ssh-agent-key > * {
+  align-self: center;
+  /* Spacing comes from padding rather than `gap` so the row separator
+     runs unbroken across the columns instead of dashing over the gaps. */
+  padding: 0.35rem 0.6rem 0.35rem 0;
   border-bottom: 1px solid #f0f0f0;
   font-size: 0.82rem;
+}
+
+.ssh-agent-key > *:first-child {
+  padding-left: 0.6rem;
 }
 
 .ssh-agent-key:last-child {
@@ -148,13 +168,14 @@
   white-space: nowrap;
 }
 
+/* Plain muted text rather than a pill: with the row cells now being the
+   grid items, the badge would have to carry the cell's padding and its
+   background would fill the full row height — a band, not a pill. In a
+   dense table the pill was noise anyway. */
 .ssh-agent-key-algo {
   font-family: ui-monospace, monospace;
   font-size: 0.74rem;
   color: #666;
-  background: #f3f4f6;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
 }
 
 .ssh-agent-key-fp {
