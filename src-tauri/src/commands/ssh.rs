@@ -8,7 +8,7 @@ use tokio::sync::oneshot;
 use crate::crypto::decrypt_name;
 use crate::error::{Error, Result};
 use crate::models::CipherType;
-use crate::ssh_agent::{self, KeyInfo, SignGuard, SignPolicy};
+use crate::ssh_agent::{self, SignGuard, SignPolicy, SignRequest};
 use crate::state::AppState;
 
 /// Payload emitted to the frontend when a signature needs approval.
@@ -20,6 +20,12 @@ pub struct ConfirmRequest {
     pub comment: String,
     pub algorithm: String,
     pub fingerprint: String,
+    /// Process name of the requesting client, when it could be resolved.
+    /// Advisory only — see `ssh_agent::CallerInfo` for why this must not
+    /// drive a trust decision.
+    pub caller_name: Option<String>,
+    /// Pid of the requesting client, when it could be resolved.
+    pub caller_pid: Option<u32>,
 }
 
 fn parse_sign_policy(policy: &str) -> SignPolicy {
@@ -35,7 +41,7 @@ fn parse_sign_policy(policy: &str) -> SignPolicy {
 /// Runs inside the agent task; parks a `oneshot` in `AppState`, surfaces
 /// the window, emits the request, and waits — denying on timeout so a
 /// missed prompt can't hang an `ssh`/`git` invocation forever.
-async fn request_confirmation(app: &AppHandle, info: KeyInfo) -> bool {
+async fn request_confirmation(app: &AppHandle, req: SignRequest) -> bool {
     let state = app.state::<AppState>();
     let id = {
         let mut seq = state.ssh_confirm_seq.lock();
@@ -55,9 +61,11 @@ async fn request_confirmation(app: &AppHandle, info: KeyInfo) -> bool {
 
     let payload = ConfirmRequest {
         id,
-        comment: info.comment,
-        algorithm: info.algorithm,
-        fingerprint: info.fingerprint,
+        comment: req.key.comment,
+        algorithm: req.key.algorithm,
+        fingerprint: req.key.fingerprint,
+        caller_name: req.caller.as_ref().and_then(|c| c.name.clone()),
+        caller_pid: req.caller.as_ref().map(|c| c.pid),
     };
     if app.emit("ssh-agent-confirm", &payload).is_err() {
         state.ssh_confirms.lock().remove(&id);
@@ -210,9 +218,9 @@ pub async fn start_ssh_agent(
         None
     } else {
         let app = app.clone();
-        Some(Arc::new(move |info: KeyInfo| {
+        Some(Arc::new(move |req: SignRequest| {
             let app = app.clone();
-            Box::pin(async move { request_confirmation(&app, info).await })
+            Box::pin(async move { request_confirmation(&app, req).await })
                 as std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
         }))
     };

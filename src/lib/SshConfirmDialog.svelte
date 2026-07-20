@@ -10,6 +10,10 @@
     comment: string;
     algorithm: string;
     fingerprint: string;
+    // Advisory identity of the requesting process — see the Rust
+    // `CallerInfo` docs on why this must not drive a trust decision.
+    callerName: string | null;
+    callerPid: number | null;
   };
 
   // Client-side auto-deny mirrors the backend's 30 s timeout so a prompt
@@ -61,6 +65,17 @@
   function shortFp(fp: string): string {
     return fp.length <= 24 ? fp : fp.slice(0, 17) + "…" + fp.slice(-4);
   }
+
+  // "git (pid 4321)" / "pid 4321" when the name is unavailable (macOS has
+  // no /proc) / null when the peer couldn't be identified at all.
+  const callerLabel = $derived.by(() => {
+    if (!current) return null;
+    const { callerName, callerPid } = current;
+    if (callerName && callerPid !== null)
+      return m.ssh_confirm_caller_named({ name: callerName, pid: String(callerPid) });
+    if (callerPid !== null) return m.ssh_confirm_caller_pid({ pid: String(callerPid) });
+    return null;
+  });
 </script>
 
 <dialog
@@ -82,7 +97,16 @@
       </dd>
       <dt>{m.ssh_confirm_fingerprint()}</dt>
       <dd><code title={current.fingerprint}>{shortFp(current.fingerprint)}</code></dd>
+      <dt>{m.ssh_confirm_caller_label()}</dt>
+      <dd>
+        {#if callerLabel}
+          {callerLabel}
+        {:else}
+          <span class="ssh-confirm-caller-unknown">{m.ssh_confirm_caller_unknown()}</span>
+        {/if}
+      </dd>
     </dl>
+    <p class="ssh-confirm-caller-hint">{m.ssh_confirm_caller_hint()}</p>
     <div class="ssh-confirm-actions">
       <button type="button" class="secondary" onclick={() => respond(false)}>
         {m.ssh_confirm_deny()}
@@ -131,6 +155,15 @@
     color: #777;
     font-size: 0.85em;
   }
+  .ssh-confirm-caller-unknown {
+    color: #777;
+    font-style: italic;
+  }
+  .ssh-confirm-caller-hint {
+    margin: -0.5rem 0 1rem;
+    color: #777;
+    font-size: 0.8rem;
+  }
   .ssh-confirm-actions {
     display: flex;
     justify-content: flex-end;
@@ -140,13 +173,17 @@
   @media (prefers-color-scheme: dark) {
     .ssh-confirm-body,
     .ssh-confirm-key dt,
-    .ssh-confirm-algo {
+    .ssh-confirm-algo,
+    .ssh-confirm-caller-unknown,
+    .ssh-confirm-caller-hint {
       color: #aaa;
     }
   }
   :global(:root.force-dark) .ssh-confirm-body,
   :global(:root.force-dark) .ssh-confirm-key dt,
-  :global(:root.force-dark) .ssh-confirm-algo {
+  :global(:root.force-dark) .ssh-confirm-algo,
+  :global(:root.force-dark) .ssh-confirm-caller-unknown,
+  :global(:root.force-dark) .ssh-confirm-caller-hint {
     color: #aaa;
   }
 </style>

@@ -21,6 +21,18 @@ mod stub {
         pub fingerprint: String,
     }
 
+    #[derive(Debug, Clone)]
+    pub struct CallerInfo {
+        pub pid: u32,
+        pub name: Option<String>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct SignRequest {
+        pub key: KeyInfo,
+        pub caller: Option<CallerInfo>,
+    }
+
     pub struct SshAgentHandle {
         pub socket_path: PathBuf,
         pub keys: Vec<KeyInfo>,
@@ -41,7 +53,7 @@ mod stub {
     }
 
     pub type ConfirmFn = std::sync::Arc<
-        dyn Fn(KeyInfo) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
+        dyn Fn(SignRequest) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
             + Send
             + Sync,
     >;
@@ -140,6 +152,77 @@ mod unix {
         pub fingerprint: String,
     }
 
+    /// Best-effort identity of the process on the other end of the agent
+    /// socket, shown in the confirmation prompt so the user can tell a
+    /// `git push` they just ran from a signature they never asked for.
+    ///
+    /// This is INDICATIVE, NOT A SECURITY BOUNDARY. The kernel vouches for
+    /// the pid at connect time (`SO_PEERCRED`), but pids are recycled and
+    /// `/proc/<pid>/comm` is an unauthenticated 15-byte label the process
+    /// itself can change. Never gate a trust decision on it — it exists to
+    /// help a human recognise their own action.
+    #[derive(Debug, Clone)]
+    pub struct CallerInfo {
+        pub pid: u32,
+        /// Process name, when it can be read. `None` on platforms without
+        /// `/proc` (macOS), or if the process exited before we looked.
+        pub name: Option<String>,
+    }
+
+    /// What the user is being asked to approve: the key, plus whoever asked.
+    #[derive(Debug, Clone)]
+    pub struct SignRequest {
+        pub key: KeyInfo,
+        pub caller: Option<CallerInfo>,
+    }
+
+    /// Read the peer's credentials off an accepted connection.
+    ///
+    /// Returns `None` rather than failing the connection: an unidentifiable
+    /// caller must still be able to request a signature (the user then sees
+    /// "unknown", which is itself useful information).
+    fn peer_caller(stream: &UnixStream) -> Option<CallerInfo> {
+        let cred = stream.peer_cred().ok()?;
+        // `pid()` is `Option` because not every Unix exposes it.
+        let pid = cred.pid()?;
+        if pid <= 0 {
+            return None;
+        }
+        let pid = pid as u32;
+        Some(CallerInfo {
+            pid,
+            name: process_name(pid),
+        })
+    }
+
+    /// Resolve a pid to a process name. Linux-only via `/proc`; other Unixes
+    /// get `None` and the prompt falls back to showing the bare pid.
+    fn process_name(pid: u32) -> Option<String> {
+        #[cfg(target_os = "linux")]
+        {
+            let comm = std::fs::read_to_string(format!("/proc/{pid}/comm")).ok()?;
+            let name = comm.trim();
+            if name.is_empty() {
+                return None;
+            }
+            // `comm` is attacker-controlled text heading for a dialog.
+            // Keep it to a short, printable, single-line label.
+            let cleaned: String = name
+                .chars()
+                .filter(|c| !c.is_control())
+                .take(32)
+                .collect::<String>()
+                .trim()
+                .to_string();
+            (!cleaned.is_empty()).then_some(cleaned)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = pid;
+            None
+        }
+    }
+
     impl From<&AgentKey> for KeyInfo {
         fn from(k: &AgentKey) -> Self {
             Self {
@@ -168,7 +251,7 @@ mod unix {
     /// of any Tauri dependency — `commands::ssh` supplies the real
     /// implementation that drives the confirmation dialog.
     pub type ConfirmFn =
-        Arc<dyn Fn(KeyInfo) -> Pin<Box<dyn Future<Output = bool> + Send>> + Send + Sync>;
+        Arc<dyn Fn(SignRequest) -> Pin<Box<dyn Future<Output = bool> + Send>> + Send + Sync>;
 
     /// Signature-authorization policy for a running agent, plus the
     /// per-run set of keys already approved under `PerSession`.
@@ -192,15 +275,20 @@ mod unix {
         /// Decide whether a signature with `key` may proceed. Awaits the
         /// user only when the policy requires it; the caller must NOT hold
         /// the key-store lock across this call (it can block on a human).
-        async fn authorize(&self, key: &KeyInfo) -> bool {
+        async fn authorize(&self, key: &KeyInfo, caller: Option<&CallerInfo>) -> bool {
             match self.policy {
                 SignPolicy::Never => true,
-                SignPolicy::Always => self.ask(key).await,
+                SignPolicy::Always => self.ask(key, caller).await,
                 SignPolicy::PerSession => {
+                    // Keyed on the fingerprint alone, deliberately: the
+                    // documented contract is "ask once per key per agent
+                    // run". Keying on (key, caller) would re-prompt for
+                    // every new `ssh` process, which is the behaviour
+                    // `Always` already provides.
                     if self.approved.lock().await.contains(&key.fingerprint) {
                         return true;
                     }
-                    let ok = self.ask(key).await;
+                    let ok = self.ask(key, caller).await;
                     if ok {
                         self.approved.lock().await.insert(key.fingerprint.clone());
                     }
@@ -209,11 +297,17 @@ mod unix {
             }
         }
 
-        async fn ask(&self, key: &KeyInfo) -> bool {
+        async fn ask(&self, key: &KeyInfo, caller: Option<&CallerInfo>) -> bool {
             // A confirming policy with no callback wired can't be
             // satisfied — deny rather than silently sign.
             match &self.confirm {
-                Some(confirm) => confirm(key.clone()).await,
+                Some(confirm) => {
+                    confirm(SignRequest {
+                        key: key.clone(),
+                        caller: caller.cloned(),
+                    })
+                    .await
+                }
                 None => false,
             }
         }
@@ -353,8 +447,12 @@ mod unix {
                     Ok((stream, _)) => {
                         let store = store_task.clone();
                         let guard = guard.clone();
+                        // Resolve the peer at accept time: the pid is only
+                        // guaranteed meaningful while the connection is
+                        // open, and the process may exit mid-request.
+                        let caller = peer_caller(&stream);
                         tokio::spawn(async move {
-                            if let Err(e) = serve(stream, store, guard).await {
+                            if let Err(e) = serve(stream, store, guard, caller).await {
                                 eprintln!("[clavix agent] connection error: {e}");
                             }
                         });
@@ -382,6 +480,7 @@ mod unix {
         mut stream: UnixStream,
         keys: KeyStore,
         guard: SignGuard,
+        caller: Option<CallerInfo>,
     ) -> std::io::Result<()> {
         loop {
             let len = match stream.read_u32().await {
@@ -399,7 +498,9 @@ mod unix {
 
             let response = match msg_type {
                 SSH_AGENTC_REQUEST_IDENTITIES => handle_list(&keys).await,
-                SSH_AGENTC_SIGN_REQUEST => handle_sign(&keys, &guard, payload).await,
+                SSH_AGENTC_SIGN_REQUEST => {
+                    handle_sign(&keys, &guard, payload, caller.as_ref()).await
+                }
                 _ => vec![SSH_AGENT_FAILURE],
             };
 
@@ -422,7 +523,12 @@ mod unix {
         out
     }
 
-    async fn handle_sign(keys: &KeyStore, guard: &SignGuard, payload: &[u8]) -> Vec<u8> {
+    async fn handle_sign(
+        keys: &KeyStore,
+        guard: &SignGuard,
+        payload: &[u8],
+        caller: Option<&CallerInfo>,
+    ) -> Vec<u8> {
         let mut reader = SshReader::new(payload);
         let Ok(key_blob) = reader.read_string() else {
             return vec![SSH_AGENT_FAILURE];
@@ -444,7 +550,7 @@ mod unix {
             KeyInfo::from(k)
         };
 
-        if !guard.authorize(&key_info).await {
+        if !guard.authorize(&key_info, caller).await {
             return vec![SSH_AGENT_FAILURE];
         }
 
@@ -528,6 +634,46 @@ mod unix {
     mod tests {
         use super::*;
 
+        /// Both ends of a socketpair live in this test process, so the
+        /// credentials the agent reads must resolve to our own pid — which
+        /// makes the expected value exactly known rather than "some pid".
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn peer_caller_resolves_the_connecting_process() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let dir = std::env::temp_dir().join(format!("clavix-peer-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            let sock = dir.join("agent.sock");
+
+            let caller = rt.block_on(async {
+                let listener = UnixListener::bind(&sock).unwrap();
+                let connect = tokio::spawn({
+                    let sock = sock.clone();
+                    async move { UnixStream::connect(&sock).await.unwrap() }
+                });
+                let (server_side, _) = listener.accept().await.unwrap();
+                let _client = connect.await.unwrap();
+                peer_caller(&server_side)
+            });
+
+            let caller = caller.expect("peer credentials available on Linux");
+            assert_eq!(caller.pid, std::process::id());
+            // The name comes from /proc/<pid>/comm — the test binary's own.
+            let name = caller.name.expect("comm readable for a live process");
+            assert!(!name.is_empty());
+            assert!(!name.contains('\n'), "name must be a single line: {name:?}");
+
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        /// A pid that cannot exist yields no name rather than a bogus one.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn process_name_is_none_for_an_unknown_pid() {
+            assert_eq!(process_name(u32::MAX), None);
+        }
+
         #[test]
         fn write_string_prepends_big_endian_length() {
             let mut out = Vec::new();
@@ -587,7 +733,7 @@ mod unix {
             payload.extend_from_slice(&u32::to_be_bytes(0)); // flags
 
             let guard = SignGuard::new(SignPolicy::Never, None);
-            let out = rt.block_on(handle_sign(&keys, &guard, &payload));
+            let out = rt.block_on(handle_sign(&keys, &guard, &payload, None));
             assert_eq!(out, vec![SSH_AGENT_FAILURE]);
         }
 
@@ -600,7 +746,7 @@ mod unix {
         }
 
         fn counting_confirm(answer: bool, calls: Arc<Mutex<u32>>) -> ConfirmFn {
-            Arc::new(move |_info: KeyInfo| {
+            Arc::new(move |_req: SignRequest| {
                 let calls = calls.clone();
                 Box::pin(async move {
                     *calls.lock().await += 1;
@@ -617,7 +763,7 @@ mod unix {
                 SignPolicy::Never,
                 Some(counting_confirm(false, calls.clone())),
             );
-            assert!(rt.block_on(g.authorize(&dummy_key("SHA256:a"))));
+            assert!(rt.block_on(g.authorize(&dummy_key("SHA256:a"), None)));
             assert_eq!(rt.block_on(async { *calls.lock().await }), 0);
         }
 
@@ -630,8 +776,8 @@ mod unix {
                 Some(counting_confirm(true, calls.clone())),
             );
             let k = dummy_key("SHA256:a");
-            assert!(rt.block_on(g.authorize(&k)));
-            assert!(rt.block_on(g.authorize(&k)));
+            assert!(rt.block_on(g.authorize(&k, None)));
+            assert!(rt.block_on(g.authorize(&k, None)));
             assert_eq!(rt.block_on(async { *calls.lock().await }), 2);
         }
 
@@ -640,7 +786,7 @@ mod unix {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let calls = Arc::new(Mutex::new(0u32));
             let g = SignGuard::new(SignPolicy::Always, Some(counting_confirm(false, calls)));
-            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"))));
+            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"), None)));
         }
 
         #[test]
@@ -653,9 +799,9 @@ mod unix {
             );
             let a = dummy_key("SHA256:a");
             let b = dummy_key("SHA256:b");
-            assert!(rt.block_on(g.authorize(&a)));
-            assert!(rt.block_on(g.authorize(&a))); // remembered — no second ask
-            assert!(rt.block_on(g.authorize(&b))); // different key — asks again
+            assert!(rt.block_on(g.authorize(&a, None)));
+            assert!(rt.block_on(g.authorize(&a, None))); // remembered — no second ask
+            assert!(rt.block_on(g.authorize(&b, None))); // different key — asks again
             assert_eq!(rt.block_on(async { *calls.lock().await }), 2);
         }
 
@@ -668,8 +814,8 @@ mod unix {
                 Some(counting_confirm(false, calls.clone())),
             );
             let a = dummy_key("SHA256:a");
-            assert!(!rt.block_on(g.authorize(&a)));
-            assert!(!rt.block_on(g.authorize(&a)));
+            assert!(!rt.block_on(g.authorize(&a, None)));
+            assert!(!rt.block_on(g.authorize(&a, None)));
             assert_eq!(rt.block_on(async { *calls.lock().await }), 2); // re-asked
         }
 
@@ -677,7 +823,7 @@ mod unix {
         fn authorize_confirming_policy_without_callback_denies() {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let g = SignGuard::new(SignPolicy::Always, None);
-            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"))));
+            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"), None)));
         }
 
         /// RFC 8032 §7.1 "TEST 2" Ed25519 vector. Pins the two things a
@@ -733,7 +879,7 @@ mod unix {
 
             let rt = Runtime::new().unwrap();
             let guard = SignGuard::new(SignPolicy::Never, None);
-            let out = rt.block_on(handle_sign(&keys, &guard, &payload));
+            let out = rt.block_on(handle_sign(&keys, &guard, &payload, None));
 
             assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE);
             let mut reader = SshReader::new(&out[1..]);
