@@ -3,7 +3,13 @@
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
   min-width: 320px;
-  max-width: 480px;
+  /* 480px was too tight once the SSH-agent section grew a policy
+     selector, an autostart toggle with its explanation, the socket row
+     and the key table: labels wrapped onto two lines and the
+     fingerprint column got clipped. Widen, but stay under the viewport
+     on small screens. */
+  width: min(760px, calc(100vw - 3rem));
+  max-width: none;
   /* Native <dialog>'s user-agent max-height (~viewport - 1rem) caps the
      box, but its default overflow is visible — long content (the Stats
      dialog is the worst offender: account info + preferences + SSH agent
@@ -114,7 +120,11 @@
   margin: 0.4rem 0 0.6rem;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  max-height: 9rem;
+  /* 9rem showed about five rows, so a typical vault's key list arrived
+     pre-scrolled — the thing the user opened the panel to read was the
+     part hidden. The dialog itself scrolls, so a taller box costs
+     nothing on small screens. */
+  max-height: 20rem;
   overflow-y: auto;
 }
 

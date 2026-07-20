@@ -13,8 +13,16 @@ pub fn build_sync_summary(
     user_key: &SymmetricKey,
     org_keys: &HashMap<String, SymmetricKey>,
 ) -> SyncSummary {
+    // Trashed items are excluded, matching every other count in the app:
+    // the sidebar's per-type rows, its "all items" total, and the SSH
+    // agent's key load all skip `deleted_date`. Counting them here made
+    // the stats dialog disagree with all three — it reported 9 SSH keys
+    // against the 8 the agent could expose, which reads as a bug in the
+    // agent rather than in the count.
+    let live = || response.ciphers.iter().filter(|c| c.deleted_date.is_none());
+
     let mut type_counts = TypeCounts::default();
-    for c in &response.ciphers {
+    for c in live() {
         match c.kind {
             CipherType::Login => type_counts.login += 1,
             CipherType::SecureNote => type_counts.secure_note += 1,
@@ -23,6 +31,7 @@ pub fn build_sync_summary(
             CipherType::SshKey => type_counts.ssh_key += 1,
         }
     }
+    let item_count = live().count();
 
     let folders: Vec<FolderSummary> = response
         .folders
@@ -95,7 +104,7 @@ pub fn build_sync_summary(
     SyncSummary {
         email: response.profile.email.clone(),
         name: response.profile.name.clone(),
-        item_count: response.ciphers.len(),
+        item_count,
         folder_count: response.folders.len(),
         collection_count: response.collections.len(),
         organization_count: response.profile.organizations.len(),
@@ -432,6 +441,36 @@ mod tests {
         assert_eq!(s.type_counts.login, 2);
         assert_eq!(s.type_counts.secure_note, 1);
         assert_eq!(s.type_counts.card, 0);
+    }
+
+    /// Trashed items must not inflate the stats dialog. Counting them
+    /// made it disagree with the sidebar and with the SSH agent: a vault
+    /// with one deleted SSH key reported 2 keys while the agent could
+    /// only ever expose the 1 live one, which reads as a missing key.
+    #[test]
+    fn sync_summary_counts_exclude_trashed_items() {
+        let uk = user_key();
+        let mut trashed_ssh = make_cipher_of_type("c3", CipherType::SshKey, &uk, None);
+        trashed_ssh.deleted_date = Some("2026-07-01T00:00:00Z".into());
+        let mut trashed_login = make_cipher_of_type("c4", CipherType::Login, &uk, None);
+        trashed_login.deleted_date = Some("2026-07-01T00:00:00Z".into());
+
+        let resp = response_with(
+            vec![],
+            vec![],
+            vec![
+                make_cipher_of_type("c1", CipherType::Login, &uk, None),
+                make_cipher_of_type("c2", CipherType::SshKey, &uk, None),
+                trashed_ssh,
+                trashed_login,
+            ],
+            vec![],
+        );
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        assert_eq!(s.type_counts.ssh_key, 1, "trashed SSH key must not count");
+        assert_eq!(s.type_counts.login, 1, "trashed login must not count");
+        assert_eq!(s.item_count, 2, "item_count must skip the trash too");
     }
 
     #[test]
