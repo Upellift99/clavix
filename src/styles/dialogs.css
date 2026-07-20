@@ -182,6 +182,13 @@
   font-family: ui-monospace, monospace;
   font-size: 0.74rem;
   color: #444;
+  /* The full fingerprint is rendered now. It fits at the dialog's normal
+     width; on a narrow window the track shrinks below its content and
+     the ellipsis takes over, with `title` still carrying the full value.
+     Without this the unbreakable string would overflow the row. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ssh-agent-skipped-list {
