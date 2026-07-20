@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.2](https://github.com/Upellift99/clavix/compare/v0.11.1...v0.11.2) (2026-07-20)
+
+
+### Bug Fixes
+
+* **ssh-agent:** close the gap in the key list ([#200](https://github.com/Upellift99/clavix/issues/200)) ([41cba2a](https://github.com/Upellift99/clavix/commit/41cba2a188213fa1616ebe881d71a27848ae94bc))
+
 ## [0.11.1](https://github.com/Upellift99/clavix/compare/v0.11.0...v0.11.1) (2026-07-20)
 
 
