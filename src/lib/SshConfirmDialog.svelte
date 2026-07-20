@@ -62,10 +62,6 @@
     if (next) show(next);
   }
 
-  function shortFp(fp: string): string {
-    return fp.length <= 24 ? fp : fp.slice(0, 17) + "…" + fp.slice(-4);
-  }
-
   // "git (pid 4321)" / "pid 4321" when the name is unavailable (macOS has
   // no /proc) / null when the peer couldn't be identified at all.
   const callerLabel = $derived.by(() => {
@@ -96,7 +92,13 @@
         <span class="ssh-confirm-algo">{current.algorithm}</span>
       </dd>
       <dt>{m.ssh_confirm_fingerprint()}</dt>
-      <dd><code title={current.fingerprint}>{shortFp(current.fingerprint)}</code></dd>
+      <!-- Full value: this is the prompt where the fingerprint matters
+           most — approving a signature means recognising the key, and a
+           truncated fingerprint can't be compared against `ssh-add -l`
+           or the one shown by the server. `code` already carries
+           `word-break: break-all`, so a narrow window wraps it rather
+           than overflowing. -->
+      <dd><code title={current.fingerprint}>{current.fingerprint}</code></dd>
       <dt>{m.ssh_confirm_caller_label()}</dt>
       <dd>
         {#if callerLabel}
@@ -120,7 +122,11 @@
 
 <style>
   .ssh-confirm-dialog {
-    max-width: 26rem;
+    /* 26rem left the fingerprint field about 276px against the ~386px a
+       full SHA256 fingerprint needs, which is why it used to be
+       truncated. Widened to fit it on one line; the `min` keeps the
+       dialog inside a narrow viewport. */
+    max-width: min(35rem, calc(100vw - 2rem));
     border: none;
     border-radius: 10px;
     padding: 1.25rem 1.4rem;
