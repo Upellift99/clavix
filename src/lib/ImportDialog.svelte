@@ -79,7 +79,16 @@
   //
   // Hence: space the writes out, back off when told to, and stop rather
   // than hammer a server that is refusing us.
-  const THROTTLE_MS = 60;
+  // Starting spacing. 60ms was a guess, and it was wrong: against a
+  // proxy capped at 5 r/s it still produced 6 r/s once latency was
+  // accounted for, so the run kept earning 429s. 200ms targets 5 r/s,
+  // which clears the common default — but the number below matters far
+  // less than the fact that it adapts, since the client cannot know any
+  // given deployment's limit.
+  const INITIAL_THROTTLE_MS = 200;
+  // Ceiling for the learned spacing: past this the import is so slow
+  // that stopping and telling the user beats grinding on.
+  const MAX_THROTTLE_MS = 2000;
   const MAX_RATE_LIMIT_RETRIES = 5;
   const BASE_BACKOFF_MS = 1000;
 
@@ -255,6 +264,10 @@
     // Must be cleared here too: without it a second run would break out
     // of the loop on its first iteration, importing nothing.
     abortedReason = null;
+    // Each run relearns the pace from scratch. Carrying a widened value
+    // over would make a retry of a once-throttled import needlessly slow
+    // even against a server that is no longer limiting.
+    let throttleMs = INITIAL_THROTTLE_MS;
     plannedCount = toImport.length;
     // Everything parsed but left out of this run: duplicates plus unchecked rows.
     skippedCount = entries.length - toImport.length;
@@ -313,6 +326,13 @@
             const status = httpStatusOf(e);
             if (status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
               attempt += 1;
+              // Slow the *rest of the run*, not just this retry. Backing
+              // off only the retry leaves the base pace above the limit,
+              // so the next items earn their own 429s — and a WAF that
+              // counts 429s as bad behaviour bans the client long before
+              // the import ends. Widening permanently converges under
+              // whatever limit this deployment actually enforces.
+              throttleMs = Math.min(throttleMs * 2, MAX_THROTTLE_MS);
               await sleep(BASE_BACKOFF_MS * 2 ** (attempt - 1));
               continue;
             }
@@ -339,7 +359,7 @@
       // already refusing us; the summary tells the user what remains.
       if (abortedReason) break;
 
-      await sleep(THROTTLE_MS);
+      await sleep(throttleMs);
     }
 
     importing = false;
