@@ -8,6 +8,7 @@
   import {
     EMPTY_EDITOR_INITIAL,
     type CipherSummary,
+    type EditorPayload,
     type CollectionSummary,
     type FolderSummary,
     type OrganizationSummary,
@@ -58,12 +59,39 @@
   // note vanished with no way to tell which one it was.
   let failures = $state<{ title: string; username: string; message: string }[]>([]);
   let skippedCount = $state(0);
+  // Set when the run stopped early because the server pushed back
+  // (rate limit exhausted, or a proxy/WAF refusing us outright). The
+  // remaining entries were never attempted — see `startImport`.
+  let abortedReason = $state<"rate_limited" | "blocked" | null>(null);
   // KDBX path: we hold the picked file until the user types the
   // master password, then call `parse_kdbx` over IPC. The CSV path
   // ignores all of these.
   let pendingKdbxFile = $state<File | null>(null);
   let kdbxPassword = $state("");
   let kdbxParsing = $state(false);
+
+  // An import is the one place Clavix issues hundreds of writes back to
+  // back, and a self-hosted server usually sits behind something that
+  // reacts to that. Left unthrottled, a 1100-item import tripped
+  // Vaultwarden's own rate limiter, whose 429s then tripped the WAF in
+  // front of it, which banned the client for an hour — and the loop kept
+  // firing another 1100 requests into the ban.
+  //
+  // Hence: space the writes out, back off when told to, and stop rather
+  // than hammer a server that is refusing us.
+  const THROTTLE_MS = 60;
+  const MAX_RATE_LIMIT_RETRIES = 5;
+  const BASE_BACKOFF_MS = 1000;
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  /** HTTP status behind a Tauri error, or null if it wasn't an HTTP one. */
+  function httpStatusOf(e: unknown): number | null {
+    const err = e as { code?: string; data?: { status?: unknown } };
+    if (err?.code !== "http_status") return null;
+    const status = Number(err.data?.status);
+    return Number.isFinite(status) ? status : null;
+  }
 
   const existingIds = $derived(
     new Set(existing.map((c) => importIdentity(c.name, c.username ?? ""))),
@@ -125,6 +153,7 @@
       failures = [];
       skippedCount = 0;
       plannedCount = 0;
+      abortedReason = null;
       excluded = new Set();
       pendingKdbxFile = null;
       kdbxPassword = "";
@@ -223,6 +252,9 @@
     failedCount = 0;
     lastError = null;
     failures = [];
+    // Must be cleared here too: without it a second run would break out
+    // of the loop on its first iteration, importing nothing.
+    abortedReason = null;
     plannedCount = toImport.length;
     // Everything parsed but left out of this run: duplicates plus unchecked rows.
     skippedCount = entries.length - toImport.length;
@@ -250,7 +282,10 @@
           folderId = known ?? null;
         }
 
-        await api.createCipher({
+        // Annotated because hoisting the literal out of the call site
+        // loses the contextual typing that narrowed `cipherType` to
+        // `CipherKind`.
+        const payload: EditorPayload = {
           ...EMPTY_EDITOR_INITIAL,
           cipherType: 1,
           name: entry.title || "(sans nom)",
@@ -262,8 +297,33 @@
           password: entry.password,
           uris: entry.url ? [entry.url] : [],
           totp: entry.totp,
-        });
-        createdCount += 1;
+        };
+
+        // Retry only what retrying can fix. A 429 means "slow down", so
+        // wait longer each time. A 403 means something in front of the
+        // server has decided against us — retrying is what turns a
+        // refusal into a ban, so stop immediately and say so.
+        let attempt = 0;
+        for (;;) {
+          try {
+            await api.createCipher(payload);
+            createdCount += 1;
+            break;
+          } catch (e) {
+            const status = httpStatusOf(e);
+            if (status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+              attempt += 1;
+              await sleep(BASE_BACKOFF_MS * 2 ** (attempt - 1));
+              continue;
+            }
+            if (status === 429) {
+              abortedReason = "rate_limited";
+            } else if (status === 403) {
+              abortedReason = "blocked";
+            }
+            throw e;
+          }
+        }
       } catch (e) {
         failedCount += 1;
         lastError = (e as Error).message ?? String(e);
@@ -274,6 +334,12 @@
         });
       }
       progress += 1;
+
+      // Leave the run half-done rather than push a server that is
+      // already refusing us; the summary tells the user what remains.
+      if (abortedReason) break;
+
+      await sleep(THROTTLE_MS);
     }
 
     importing = false;
@@ -483,6 +549,16 @@
             {" "}{m.import_skipped({ count: String(skippedCount) })}
           {/if}
         </p>
+        {#if abortedReason}
+          <!-- The remaining entries were never attempted, so say how many
+               and why — a bare failure count would read as "these items
+               are bad" rather than "the server stopped us". -->
+          <p class="import-aborted">
+            {abortedReason === "blocked"
+              ? m.import_aborted_blocked({ remaining: String(plannedCount - progress) })
+              : m.import_aborted_rate_limited({ remaining: String(plannedCount - progress) })}
+          </p>
+        {/if}
         {#if failures.length > 0}
           <div class="import-failures">
             <p>{m.import_failures_heading()}</p>
@@ -716,6 +792,17 @@
   .import-done {
     margin: 0.5rem 0;
     font-size: 0.9rem;
+  }
+
+  /* Amber, not the failures' red: the entries that remain aren't bad,
+     they were never sent. */
+  .import-aborted {
+    color: #7a3b00;
+    background: #fdf3e0;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
   }
 
   .kdbx-password-row {
