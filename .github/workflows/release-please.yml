@@ -15,17 +15,21 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  # Needed to hand the tag over to the build workflow below.
-  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # RELEASE_PLEASE_TOKEN rather than GITHUB_TOKEN: anything the built-in
+      # token creates is barred from triggering further workflow runs, so the
+      # release PR arrived with zero checks — ci.yml never ran on the one PR
+      # that changes every version file in the repo. A PAT lifts that, and it
+      # also makes the tag fire release.yml on its own (see below).
       - name: Create or update the release PR, tag on merge
         id: release
         uses: googleapis/release-please-action@v5
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
@@ -37,11 +41,16 @@ jobs:
       # Re-resolve on the release branch so the bump lands as one commit.
       # release-please force-pushes that branch on every master push, which
       # drops this commit; the same run then puts it back.
+      # Checked out with the PAT too, so the lock commit below is pushed by it:
+      # a GITHUB_TOKEN push fires no `synchronize` event, which would leave the
+      # PR's checks pinned to the pre-sync commit — the one tree where
+      # `--locked` can still be wrong.
       - name: Check out the release branch
         if: ${{ steps.release.outputs.prs_created == 'true' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ fromJson(steps.release.outputs.pr).headBranchName }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
       - name: Keep Cargo.lock in step with the released version
         if: ${{ steps.release.outputs.prs_created == 'true' }}
@@ -57,13 +66,10 @@ jobs:
           git commit -m "chore: sync Cargo.lock with the released version" -- src-tauri/Cargo.lock
           git push
 
-      # A tag pushed by GITHUB_TOKEN does NOT fire release.yml's
-      # `push: tags` trigger — GitHub refuses to chain workflow runs off
-      # its own token, to avoid recursion. workflow_dispatch is the
-      # documented exception, and release.yml already accepts a `tag`
-      # input, so hand the new tag straight to it.
-      - name: Build and publish the artifacts for the new tag
-        if: ${{ steps.release.outputs.release_created == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run release.yml -f tag="${{ steps.release.outputs.tag_name }}" --repo "$GITHUB_REPOSITORY"
+      # There used to be a `gh workflow run release.yml` step here, because a
+      # tag pushed by GITHUB_TOKEN does not fire release.yml's `push: tags`
+      # trigger — GitHub refuses to chain runs off its own token. The PAT is
+      # not subject to that, so the tag now starts the build by itself and the
+      # explicit dispatch would only produce a second, concurrent build racing
+      # the first to upload the same assets. release.yml keeps its
+      # workflow_dispatch input for re-running a tag by hand.
