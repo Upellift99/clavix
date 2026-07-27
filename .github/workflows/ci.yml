@@ -61,8 +61,14 @@ jobs:
       - name: cargo fmt (check)
         run: cargo fmt --all -- --check
 
+      # `--locked` has to be on the FIRST cargo invocation, not just on the
+      # test step: clippy without it silently regenerates Cargo.lock on the
+      # runner, so the later `--locked` guard only ever validated a lock CI
+      # had just rewritten. That is how the committed lock sat at clavix
+      # 0.11.0 while Cargo.toml said 0.13.1, across three releases, with CI
+      # green the whole time.
       - name: cargo clippy (strict)
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --locked -- -D warnings
 
       # `--tests` covers both lib unit tests AND integration tests
       # under `src-tauri/tests/` (refresh_token_endpoint,

@@ -29,6 +29,34 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+      # release-please bumps the version in src-tauri/Cargo.toml (see
+      # `extra-files`) but knows nothing about Cargo.lock, which carries the
+      # same version for the `clavix` package. Left alone the two drift, and
+      # what we tag is no longer what `--locked` resolves — the lock said
+      # 0.11.0 while the manifest said 0.13.1 for three releases running.
+      # Re-resolve on the release branch so the bump lands as one commit.
+      # release-please force-pushes that branch on every master push, which
+      # drops this commit; the same run then puts it back.
+      - name: Check out the release branch
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ fromJson(steps.release.outputs.pr).headBranchName }}
+
+      - name: Keep Cargo.lock in step with the released version
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        run: |
+          # Resolution only — no compiler, no Tauri system deps needed.
+          cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 > /dev/null
+          if git diff --quiet -- src-tauri/Cargo.lock; then
+            echo "Cargo.lock already matches the release version"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: sync Cargo.lock with the released version" -- src-tauri/Cargo.lock
+          git push
+
       # A tag pushed by GITHUB_TOKEN does NOT fire release.yml's
       # `push: tags` trigger — GitHub refuses to chain workflow runs off
       # its own token, to avoid recursion. workflow_dispatch is the
