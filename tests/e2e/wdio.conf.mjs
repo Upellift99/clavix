@@ -79,7 +79,15 @@ export const config = {
   maxInstances: 1,
   capabilities: [
     {
-      maxInstances: 1,
+      // WDIO-specific capabilities have to carry the `wdio:` prefix since v8 —
+      // anything else without a vendor prefix is forwarded to the driver as a
+      // W3C capability and rejected.
+      "wdio:maxInstances": 1,
+      // WebdriverIO v9 negotiates WebDriver BiDi by default, asking for
+      // `webSocketUrl: true` in the session request. tauri-driver proxies to
+      // WebKitWebDriver, which implements classic WebDriver only and fails the
+      // session on the unknown capability. Pin the session to classic.
+      "wdio:enforceWebDriverClassic": true,
       "tauri:options": {
         application: app,
       },
@@ -103,6 +111,11 @@ export const config = {
   // (issue: tracked separately) but doubling the mocha timeout
   // closes the immediate flake.
   mochaOpts: { ui: "bdd", timeout: 120_000 },
+  // tauri-driver listens on 127.0.0.1 (and spawns WebKitWebDriver there too,
+  // see --native-host below). Pin the client to the same literal so the
+  // session request cannot land on ::1 when `localhost` resolves IPv6-first
+  // (tauri-apps/tauri#3815).
+  hostname: "127.0.0.1",
   port: 4444,
 
   // Boots Vaultwarden and seeds it before any spec runs. Knobs:
