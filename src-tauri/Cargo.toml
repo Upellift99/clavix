@@ -36,7 +36,12 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 pbkdf2 = "0.12"
 sha2 = "0.10"
 argon2 = "0.5"
-base64 = "0.22"
+# 0.23 turned on SIMD engines by default, which flips the crate from
+# `forbid(unsafe_code)` to `deny` and compiles hand-written AVX2/NEON
+# intrinsics into a binary that handles vault keys. We only ever use the
+# scalar `general_purpose` engines, so drop the default features and keep
+# the unsafe code out of the tree.
+base64 = { version = "0.23", default-features = false, features = ["std"] }
 zeroize = { version = "1", features = ["derive"] }
 secrecy = "0.10"
 uuid = { version = "1", features = ["v4"] }
