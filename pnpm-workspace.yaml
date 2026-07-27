@@ -2,10 +2,18 @@
 # Moved here from the `pnpm.overrides` field in package.json, which pnpm 11+
 # no longer reads (see https://pnpm.io/settings).
 overrides:
+  # GHSA-3jxr-9vmj-r5cp, backported to both lines the wdio chain pulls in.
+  # Do NOT collapse these into `brace-expansion@<5.0.8: ^5.0.8` to also cover
+  # GHSA-mh99-v99m-4gvg: 5.x exports `{ expand }` instead of the callable
+  # default, so every minimatch <= 6 dies with "expand is not a function".
+  # Only minimatch >= 9.0.6 speaks that API, and getting there means moving
+  # @wdio off v7 — see the follow-up issue.
+  brace-expansion@<1.1.16: ^1.1.16
+  brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
   cookie@<0.7.0: ^0.7.0
   cross-spawn@<7.0.5: ^7.0.6
   esbuild@<0.25.0: ^0.25.0
-  js-yaml@<4.1.2: ^4.1.2
+  js-yaml@<4.3.0: ^4.3.0
   kysely@<0.28.17: ^0.28.17
   minimatch@<3.1.3: ^3.1.3
   serialize-javascript@<7.0.5: ^7.0.5
