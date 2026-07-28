@@ -182,9 +182,17 @@ fn decrypt_totp_secret(state: &AppState, id: &str) -> Result<Option<String>> {
 /// Current TOTP code + seconds remaining for a login item. Computed in Rust so
 /// the shared secret stays out of the WebView (a leaked seed = permanent 2FA
 /// bypass). The renderer polls this once a second for the live field.
+///
+/// Deliberately does **not** call `mark_activity`. A timer firing on its own
+/// is not a user being present, and at one call a second this was enough to
+/// hold `last_activity` permanently fresh: with any TOTP item selected the
+/// backend auto-lock watchdog could never reach its idle threshold, including
+/// on a locked screen with nobody at the machine. The renderer's own idle
+/// timer never counted these polls either — it only watches mouse and
+/// keyboard — so dropping this makes the two agree rather than changing what
+/// a user sees.
 #[tauri::command]
 pub fn totp_code(state: State<'_, AppState>, id: String) -> Result<crate::totp::TotpCode> {
-    crate::state::mark_activity(&state);
     let secret = decrypt_totp_secret(&state, &id)?.ok_or_else(|| Error::Storage {
         reason: "item has no TOTP secret".into(),
     })?;
