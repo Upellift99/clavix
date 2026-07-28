@@ -134,6 +134,13 @@ pub const PENDING_2FA_TTL_SECS: u64 = 300;
 
 /// Bumps `last_activity` to now. Cheap; called at the start of any command
 /// that proves the user is still around (sync, decrypt, refresh, etc).
+///
+/// Only ever call this from a command that follows a *discrete* user action.
+/// Never from one the renderer polls on a timer: `totp_code` used to call it,
+/// and since the TOTP field re-reads the code once a second, one visible TOTP
+/// item was enough to keep this timestamp fresh forever and stop the auto-lock
+/// watchdog from ever firing. A poll proves a timer is running, not that
+/// anyone is there.
 pub fn mark_activity(state: &AppState) {
     *state.last_activity.lock() = Instant::now();
 }
