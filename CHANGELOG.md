@@ -5,6 +5,18 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0](https://github.com/Upellift99/clavix/compare/v0.13.2...v0.14.0) (2026-07-28)
+
+
+### Features
+
+* **auto-lock:** lock N minutes after the desktop session locks ([#223](https://github.com/Upellift99/clavix/issues/223)) ([be0813d](https://github.com/Upellift99/clavix/commit/be0813d84cc8dd636cc787b5770df22a038089b5))
+
+
+### Bug Fixes
+
+* **auto-lock:** stop the TOTP poll from defeating the idle watchdog ([#222](https://github.com/Upellift99/clavix/issues/222)) ([b33f976](https://github.com/Upellift99/clavix/commit/b33f976ac6fca0ea180da1a760f8782c7a8a32fe))
+
 ## [0.13.2](https://github.com/Upellift99/clavix/compare/v0.13.1...v0.13.2) (2026-07-27)
 
 
