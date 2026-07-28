@@ -72,6 +72,25 @@ keepass = "0.13"
 # exposes the API to us — it doesn't add a new crate to the build.
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+# Desktop-session lock detection, one probe per platform (see
+# `src/screen_lock.rs`). All three are already in the tree transitively —
+# zbus via the tray stack, windows-sys and core-foundation via Tauri /
+# wry — so these declarations only expose an existing build to us.
+[target.'cfg(target_os = "linux")'.dependencies]
+# Session/system bus client for the screensaver + logind queries. No
+# default features: we make plain method calls and don't need the
+# blocking API, the p2p transport or the proxy-derive extras.
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+# Raw FFI only — the input-desktop query is three calls. `windows-sys`
+# rather than `windows` keeps us on the same crate Tauri already builds.
+windows-sys = { version = "0.61", features = ["Win32_System_StationsAndDesktops"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# CFDictionary/CFBoolean wrappers around the CGSession lookup.
+core-foundation = "0.10"
+
 [dev-dependencies]
 # Property-based tests on adversarial-input parsers — currently EncString
 # (Bitwarden ciphertext format) and the WebAuthn challenge JSON. The

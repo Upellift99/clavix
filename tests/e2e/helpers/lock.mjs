@@ -16,6 +16,11 @@ export async function seedAutoLockWindow(minutes) {
 
   await browser.execute((mins) => {
     localStorage.setItem("clavix.autoLockMinutes", String(mins));
+    // Pin the trigger explicitly. Bootstrap would infer `idle` from a
+    // positive window anyway (the pre-0.14 migration path), but this spec
+    // is here to exercise the idle timer, not the migration — so say so
+    // rather than depending on a compatibility shim staying put.
+    localStorage.setItem("clavix.autoLockTrigger", "idle");
     localStorage.setItem("clavix.onboarded", "1");
     window.location.reload();
   }, minutes);

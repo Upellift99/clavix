@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AuditResult,
+  AutoLockTrigger,
   CipherDetail,
   DecryptedSshKey,
   EditorPayload,
@@ -94,7 +95,12 @@ export const api = {
 
   logout: () => invoke<void>("logout"),
 
-  setAutoLockMinutes: (minutes: number) => invoke<void>("set_auto_lock_minutes", { minutes }),
+  setAutoLock: (trigger: AutoLockTrigger, minutes: number) =>
+    invoke<void>("set_auto_lock", { trigger, minutes }),
+
+  /// Whether this desktop session can report its lock state. Probed at
+  /// runtime, not derived from the platform — see `screen_lock.rs`.
+  screenLockAvailable: () => invoke<boolean>("screen_lock_available"),
 
   setCloseToTray: (value: boolean) => invoke<void>("set_close_to_tray", { value }),
 

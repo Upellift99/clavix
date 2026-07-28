@@ -310,6 +310,7 @@
   }
 
   setupAutoLock({
+    getTrigger: () => prefs.autoLockTrigger,
     getMinutes: () => prefs.autoLockMinutes,
     getLastActivityAt: () => prefs.lastActivityAt,
     markActivity: () => prefs.markActivity(),
@@ -596,6 +597,7 @@
     currentLocale={prefs.currentLocale}
     themePref={prefs.themePref}
     autoLockMinutes={prefs.autoLockMinutes}
+    autoLockTrigger={prefs.autoLockTrigger}
     closeToTray={prefs.closeToTray}
     minimizeToTray={prefs.minimizeToTray}
     hideDockOnTray={prefs.hideDockOnTray}
@@ -604,7 +606,7 @@
     sshAgentAutoStart={prefs.sshAgentAutoStart}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
     onApplyTheme={(t) => prefs.applyTheme(t)}
-    onApplyAutoLock={(min) => prefs.setAutoLockMinutes(min)}
+    onApplyAutoLock={(trigger, min) => prefs.setAutoLock(trigger, min)}
     onApplyCloseToTray={(v) => prefs.setCloseToTray(v)}
     onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
     onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}

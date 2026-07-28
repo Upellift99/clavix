@@ -4,11 +4,13 @@
 // widening these modules is a no-op for real consumers (there are none).
 pub mod api;
 mod audit;
+mod auto_lock;
 mod cache;
 mod commands;
 pub mod crypto;
 pub mod error;
 pub mod models;
+mod screen_lock;
 pub mod services;
 mod ssh_agent;
 // `state` is widened to `pub` so the integration test in
@@ -28,9 +30,7 @@ mod update;
 mod webauthn;
 mod yubikey_unlock;
 
-use std::time::Duration;
-
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 use state::AppState;
 
@@ -55,64 +55,12 @@ pub fn run() {
             // the app had pre-#38.
             commands::tray::build_tray(app.handle());
 
-            // Auto-lock watchdog. Backend safety net: if the WebView freezes
-            // or the JS timer is disabled, the session must still drop after
-            // the configured idle window. Polls every 30 s — slow enough to be
-            // free, fast enough that worst-case overshoot is bounded.
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                loop {
-                    tokio::time::sleep(Duration::from_secs(30)).await;
-                    let state = handle.state::<AppState>();
-                    // Wipe an abandoned 2FA prompt's master-key material once it
-                    // outlives its TTL — runs every tick, independent of the
-                    // auto-lock config below.
-                    crate::services::auth::clear_pending_two_factor_if_stale(&state);
-                    let Some(minutes) = *state.auto_lock_minutes.lock() else {
-                        continue;
-                    };
-                    if !minutes.is_finite() || minutes <= 0.0 {
-                        continue;
-                    }
-                    let idle = state.last_activity.lock().elapsed();
-                    if idle < Duration::from_secs_f64(minutes * 60.0) {
-                        continue;
-                    }
-                    let agent = state.ssh_agent.lock().take();
-                    if let Some(h) = agent {
-                        h.stop().await;
-                    }
-                    // Idle threshold reached: also drop any pending 2FA slot so
-                    // the master key never survives the lock.
-                    crate::services::auth::clear_pending_two_factor(&state);
-                    let locked = {
-                        let mut session_guard = state.session.lock();
-                        if session_guard.is_some() {
-                            *session_guard = None;
-                            eprintln!("[clavix] session auto-locked after {minutes} min idle");
-                            true
-                        } else {
-                            false
-                        }
-                    };
-                    // Mirror the tray "Verrouiller maintenant" path: tell the
-                    // WebView the session is gone so it leaves the vault view
-                    // at once. Without this the backend drops the session
-                    // silently and the UI keeps showing a stale list until the
-                    // next IPC call fails with `not_authenticated` — which is
-                    // exactly the "connexion perdue, plus rien ne marche"
-                    // dead-end users hit after a 10-min idle window.
-                    if locked {
-                        if let Err(e) =
-                            handle.emit(crate::commands::tray::EVENT_SESSION_LOCKED, ())
-                        {
-                            eprintln!(
-                                "[clavix] emit session-locked after auto-lock failed (non-fatal): {e}"
-                            );
-                        }
-                    }
-                }
-            });
+            // Auto-lock watchdog + desktop-session-lock poller. Backend
+            // safety net for the idle trigger (a frozen WebView or a
+            // disabled JS timer must not keep the vault unlocked), and the
+            // sole owner of the screen-lock trigger — the renderer has no
+            // way to see the session lock. See `auto_lock` for cadences.
+            auto_lock::spawn(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -124,7 +72,8 @@ pub fn run() {
             commands::auth::unlock,
             commands::auth::lock,
             commands::auth::logout,
-            commands::auth::set_auto_lock_minutes,
+            commands::auth::set_auto_lock,
+            commands::auth::screen_lock_available,
             commands::auth::webauthn_sign_challenge,
             commands::auth::yubikey_unlock_state,
             commands::auth::enroll_yubikey_unlock,

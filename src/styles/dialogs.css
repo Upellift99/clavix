@@ -264,6 +264,14 @@
   margin-top: 0.25rem;
 }
 
+/* The screen-lock trigger is offered on every platform, but only fires
+   where the session's lock state is readable. When it isn't, this warning
+   is the only thing standing between the user and a setting that looks
+   armed and never fires — so it reads as a warning, not as a hint. */
+.auto-lock-warning {
+  color: #7a3b00;
+}
+
 .audit-success {
   color: #18683a;
   font-weight: 500;
@@ -373,6 +381,7 @@
   .error-text { color: #ff8a8a; }
   .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
   .ssh-agent-env-unknown { color: #aaa; }
+  .auto-lock-warning { color: #f0c070; }
 }
 
 :root.force-dark .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
@@ -380,6 +389,7 @@
 :root.force-dark .error-text { color: #ff8a8a; }
 :root.force-dark .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
 :root.force-dark .ssh-agent-env-unknown { color: #aaa; }
+:root.force-dark .auto-lock-warning { color: #f0c070; }
 
 /* Shared modal-dialog shell for ImportDialog and ExportDialog. These used
    to live only in ImportDialog's scoped <style>, so ExportDialog referenced

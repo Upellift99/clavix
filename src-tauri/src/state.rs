@@ -4,12 +4,60 @@ use std::time::Instant;
 
 use parking_lot::Mutex;
 use rsa::RsaPrivateKey;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use zeroize::ZeroizeOnDrop;
 
 use crate::api::VaultwardenClient;
 use crate::crypto::{MasterKey, MasterPasswordHash, SymmetricKey};
 use crate::models::{Prelogin, SyncResponse, TokenSet};
 use crate::ssh_agent::SshAgentHandle;
+
+/// What starts the auto-lock countdown. Crosses the IPC boundary, so the
+/// TypeScript union in `src/lib/generated/AutoLockTrigger.ts` is generated
+/// from this — don't hand-mirror it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum AutoLockTrigger {
+    /// Never auto-lock. The user's explicit "Jamais".
+    Off,
+    /// Time since the last sign of the user: mouse / keyboard in the
+    /// WebView, or a session-touching command reaching `mark_activity`.
+    Idle,
+    /// Time since the *desktop session* locked, as reported by
+    /// `screen_lock::probe`. Unlike `Idle` this ignores the renderer
+    /// entirely — the screen being locked is the signal.
+    ScreenLock,
+}
+
+/// The auto-lock configuration as a unit, because the two fields are only
+/// meaningful together: `minutes` is a delay measured from whatever
+/// `trigger` names, and `0` means "immediately" for `ScreenLock` while it
+/// means "disabled" for `Idle`. Keeping them in one mutex also makes the
+/// watchdog's read atomic — it can't observe a new trigger with the old
+/// delay mid-update.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AutoLockSetting {
+    pub trigger: AutoLockTrigger,
+    /// Stored as `f64` to accommodate the sub-minute values the E2E suite
+    /// seeds through localStorage; the production UI only ever writes
+    /// non-negative integers.
+    pub minutes: f64,
+}
+
+impl Default for AutoLockSetting {
+    /// Inert until the renderer pushes the user's real preference on
+    /// bootstrap — same as the old `auto_lock_minutes: None`. Defaulting
+    /// to a live window here would lock vaults on a config the user
+    /// never chose.
+    fn default() -> Self {
+        Self {
+            trigger: AutoLockTrigger::Off,
+            minutes: 0.0,
+        }
+    }
+}
 
 pub struct AppState {
     pub session: Mutex<Option<Session>>,
@@ -34,12 +82,17 @@ pub struct AppState {
     /// spawned in `run()` — backend safety net so a frozen WebView or a
     /// disabled JS timer can't keep the vault unlocked indefinitely.
     pub last_activity: Mutex<Instant>,
-    /// `Some(n)` enables the auto-lock watchdog with an `n`-minute idle
-    /// window. `None` disables it. Stored as `f64` to accommodate
-    /// sub-minute values written by the E2E suite via localStorage; the
-    /// production UI only ever writes positive integers. The frontend
-    /// keeps this in sync via the `set_auto_lock_minutes` command.
-    pub auto_lock_minutes: Mutex<Option<f64>>,
+    /// What arms the auto-lock watchdog and after how long. The frontend
+    /// keeps this in sync via the `set_auto_lock` command; the watchdog
+    /// spawned in `auto_lock::spawn` is the only reader.
+    pub auto_lock: Mutex<AutoLockSetting>,
+    /// When the desktop session was first *observed* locked, or `None`
+    /// while it is unlocked (or while the screen-lock trigger is off, or
+    /// while the platform can't tell us). Maintained exclusively by the
+    /// poller in `auto_lock` from `screen_lock::probe` — deliberately not
+    /// by `mark_activity`, because `totp_code` is polled once a second by
+    /// the renderer and would otherwise clear this on a locked screen.
+    pub screen_locked_since: Mutex<Option<Instant>>,
     /// Login that returned `TwoFactorRequired` parks its derived material
     /// here while the user reaches for their hardware key / authenticator.
     /// `webauthn_sign_challenge` and `login_with_two_factor` read from
@@ -84,7 +137,8 @@ impl Default for AppState {
             ssh_confirm_seq: Mutex::new(0),
             ssh_skipped: Mutex::new(Vec::new()),
             last_activity: Mutex::new(Instant::now()),
-            auto_lock_minutes: Mutex::new(None),
+            auto_lock: Mutex::new(AutoLockSetting::default()),
+            screen_locked_since: Mutex::new(None),
             pending_2fa: Mutex::new(None),
             // Hide-to-tray by default on Windows/macOS (KeePassXC,
             // Bitwarden Desktop shape), but off on Linux: GNOME ships

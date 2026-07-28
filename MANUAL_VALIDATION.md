@@ -194,3 +194,72 @@ individual sign call's.
 - **No per-signature consent prompt** today. Once the agent is
   enabled, every `ssh`/`git` call signs silently. A "ask before
   sign" mode is on the roadmap but not in this checklist.
+
+---
+
+## Auto-lock on desktop-session lock
+
+Code path: `src-tauri/src/screen_lock.rs` (per-platform lock probe) driven
+by the poller in `src-tauri/src/auto_lock.rs`. Selected in Préférences as
+the "Après le verrouillage de la session" group of the auto-lock setting.
+
+Automated tests cover the *decision* (`auto_lock::due`, unit-tested for
+every trigger) and the preference round-trip (`prefs.test.ts`). What they
+cannot cover is the only interesting part: whether the running desktop
+actually reports its lock state. That is what this checklist is for.
+
+### Platform matrix
+
+- **Linux** — three backends, tried in order and cached once one answers:
+  `org.gnome.ScreenSaver.GetActive`, `org.freedesktop.ScreenSaver.GetActive`
+  (KDE / XFCE / Cinnamon / MATE), then systemd-logind's `LockedHint` on
+  `/org/freedesktop/login1/session/auto`. A session with none of the three
+  reports "unavailable" and the UI warns.
+- **macOS** — `CGSessionCopyCurrentDictionary()["CGSSessionScreenIsLocked"]`.
+  Also reads as locked at the fast-user-switching login window.
+- **Windows** — the input desktop (`OpenInputDesktop` + `GetUserObjectInformationW`).
+  Also reads as locked while a UAC consent prompt is on the secure desktop.
+
+### Prerequisites
+
+- A desktop session you can lock and unlock — **not** an SSH shell. A
+  remote shell has no screensaver bus name and its logind session is not
+  the graphical one, so it reports unlocked forever.
+- Clavix started **from a terminal**, so `stderr` is visible. The poller
+  logs one line per transition; it is the whole diagnostic.
+
+### Happy path
+
+- [ ] **Detection is available** — open Préférences and pick a
+  "Après le verrouillage de la session" entry. No ⚠️ warning appears
+  under the selector. (If it does, the session can't report its lock
+  state: record which desktop/session type, and stop here.)
+- [ ] **Countdown starts** — with the vault unlocked, pick "Immédiatement",
+  lock the screen, wait ~10 s, unlock. stderr shows
+  `desktop session locked — auto-lock countdown started` and then
+  `session auto-locked: 0 min after the desktop session locked`, and the
+  app is back on the unlock view.
+- [ ] **Countdown resets** — pick a 5 min delay, lock the screen, unlock
+  within a few seconds. stderr shows the `countdown started` line followed
+  by `countdown reset`, and the vault is **still unlocked**.
+- [ ] **Delay is honoured** — pick a 5 min delay, lock the screen, leave it
+  locked for 6 min. The vault is locked on return, and stderr names the
+  5 min window. (Expect up to 5 s of overshoot: that's the poll period.)
+- [ ] **Idle is unaffected** — switch back to an "Après inactivité" entry.
+  Locking and unlocking the screen quickly no longer locks the vault; only
+  real inactivity does.
+
+### Known limitations
+
+- **Up to 5 s of imprecision** on every transition — the lock state is
+  polled (`SCREEN_POLL_PERIOD`), not subscribed to. Irrelevant at
+  minute granularity, visible on "Immédiatement".
+- **logind's `LockedHint` is a hint.** It reflects what something *told*
+  logind. A screensaver that locks the screen without calling
+  `SetLockedHint` and without owning a screensaver bus name will not be
+  detected — the trigger then never fires, and nothing warns, because the
+  probe itself answers fine. Prefer a desktop that owns one of the two
+  screensaver names.
+- **Windows reports the UAC secure desktop as locked**, so an
+  "Immédiatement" setting can lock the vault when a consent prompt
+  appears. Errs on the safe side; note it if it surprises a tester.

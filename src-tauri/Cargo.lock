@@ -813,6 +813,7 @@ dependencies = [
  "argon2",
  "base64 0.23.0",
  "cbc 0.1.2",
+ "core-foundation",
  "ctap-hid-fido2",
  "dirs",
  "ed25519-dalek",
@@ -847,6 +848,8 @@ dependencies = [
  "ts-rs",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
+ "zbus",
  "zeroize",
  "zxcvbn",
 ]
@@ -5883,8 +5886,10 @@ dependencies = [
  "mio",
  "parking_lot",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
+ "tracing",
  "windows-sys 0.61.2",
 ]
 
@@ -7428,6 +7433,7 @@ dependencies = [
  "rustix",
  "serde",
  "serde_repr",
+ "tokio",
  "tracing",
  "uds_windows",
  "uuid",
