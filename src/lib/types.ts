@@ -55,6 +55,12 @@ export type { LoginOutcome as LoginResult } from "./generated/LoginOutcome";
 export type { TotpCode } from "./generated/TotpCode";
 export type { UpdateInfo } from "./generated/UpdateInfo";
 
+// Auto-lock trigger (state.rs). Generated rather than hand-written for the
+// usual reason: the variant spellings are serde's, not ours — `screenLock`
+// is `ScreenLock` renamed, and a typo here would silently disable the
+// trigger instead of failing the build.
+export type { AutoLockTrigger } from "./generated/AutoLockTrigger";
+
 export type DecryptedSshKey = {
   privateKey: string;
   publicKey: string;

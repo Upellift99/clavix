@@ -4,13 +4,20 @@
   import { formatError } from "./format";
   import PasswordInput from "./PasswordInput.svelte";
   import type { SshAgentConfirm } from "./prefs.svelte";
-  import type { Locale, SshAgentStatus, SyncSummary, ThemePref } from "./types";
+  import type {
+    AutoLockTrigger,
+    Locale,
+    SshAgentStatus,
+    SyncSummary,
+    ThemePref,
+  } from "./types";
 
   type Props = {
     summary: SyncSummary;
     currentLocale: Locale;
     themePref: ThemePref;
     autoLockMinutes: number;
+    autoLockTrigger: AutoLockTrigger;
     closeToTray: boolean;
     minimizeToTray: boolean;
     hideDockOnTray: boolean;
@@ -19,7 +26,7 @@
     sshAgentAutoStart: boolean;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
-    onApplyAutoLock: (minutes: number) => void;
+    onApplyAutoLock: (trigger: AutoLockTrigger, minutes: number) => void;
     onApplyCloseToTray: (value: boolean) => void;
     onApplyMinimizeToTray: (value: boolean) => void;
     onApplyHideDockOnTray: (value: boolean) => void;
@@ -35,6 +42,7 @@
     currentLocale,
     themePref,
     autoLockMinutes,
+    autoLockTrigger,
     closeToTray,
     minimizeToTray,
     hideDockOnTray,
@@ -168,8 +176,37 @@
     }
   }
 
+  // The select encodes both halves of the setting in one value, because
+  // a native <select> carries one. "off" needs no delay; everything else
+  // is "<trigger>:<minutes>".
+  const autoLockValue = $derived(
+    autoLockTrigger === "off" ? "off" : `${autoLockTrigger}:${autoLockMinutes}`,
+  );
+
+  function applyAutoLock(raw: string) {
+    if (raw === "off") {
+      onApplyAutoLock("off", 0);
+      return;
+    }
+    const [trigger, minutes] = raw.split(":");
+    onApplyAutoLock(trigger as AutoLockTrigger, parseInt(minutes, 10));
+  }
+
+  // `null` until probed. Only ever false on a session whose lock state we
+  // can't read (no screensaver D-Bus name, no GUI session) — in which
+  // case the screen-lock options would silently never fire, so the UI
+  // says so rather than letting the user pick a dead setting.
+  let screenLockAvailable = $state<boolean | null>(null);
+
   export async function open() {
     dialog?.showModal();
+    // Deliberately not awaited before the SSH/Yubikey refreshes: it's a
+    // decoration on one row, and on a wedged D-Bus it can take a couple
+    // of seconds to answer.
+    void api
+      .screenLockAvailable()
+      .then((v) => (screenLockAvailable = v))
+      .catch(() => (screenLockAvailable = false));
     await refreshSshAgent();
     await refreshYubikey();
   }
@@ -225,18 +262,38 @@
       <dt>{m.stats_auto_lock()}</dt>
       <dd>
         <select
-          value={autoLockMinutes}
-          onchange={(e) =>
-            onApplyAutoLock(parseInt((e.currentTarget as HTMLSelectElement).value, 10))}
+          value={autoLockValue}
+          onchange={(e) => applyAutoLock((e.currentTarget as HTMLSelectElement).value)}
         >
-          <option value={0}>{m.stats_auto_lock_never()}</option>
-          <option value={1}>{m.stats_auto_lock_minutes({ count: "1" })}</option>
-          <option value={5}>{m.stats_auto_lock_minutes({ count: "5" })}</option>
-          <option value={10}>{m.stats_auto_lock_minutes({ count: "10" })}</option>
-          <option value={15}>{m.stats_auto_lock_minutes({ count: "15" })}</option>
-          <option value={30}>{m.stats_auto_lock_minutes({ count: "30" })}</option>
-          <option value={60}>{m.stats_auto_lock_hour()}</option>
+          <option value="off">{m.stats_auto_lock_never()}</option>
+          <optgroup label={m.stats_auto_lock_group_idle()}>
+            <option value="idle:1">{m.stats_auto_lock_minutes({ count: "1" })}</option>
+            <option value="idle:5">{m.stats_auto_lock_minutes({ count: "5" })}</option>
+            <option value="idle:10">{m.stats_auto_lock_minutes({ count: "10" })}</option>
+            <option value="idle:15">{m.stats_auto_lock_minutes({ count: "15" })}</option>
+            <option value="idle:30">{m.stats_auto_lock_minutes({ count: "30" })}</option>
+            <option value="idle:60">{m.stats_auto_lock_hour()}</option>
+          </optgroup>
+          <optgroup label={m.stats_auto_lock_group_screen()}>
+            <option value="screenLock:0">{m.stats_auto_lock_screen_now()}</option>
+            <option value="screenLock:5">{m.stats_auto_lock_minutes({ count: "5" })}</option>
+            <option value="screenLock:15">{m.stats_auto_lock_minutes({ count: "15" })}</option>
+            <option value="screenLock:60">{m.stats_auto_lock_hour()}</option>
+          </optgroup>
         </select>
+        <!-- One line per mode, always shown. "Inactivité" in particular
+             does not mean what most people read into it — it's measured
+             against this window, not against the computer — and a setting
+             whose name misleads is worse than one that explains itself. -->
+        {#if autoLockTrigger === "screenLock" && screenLockAvailable === false}
+          <p class="hint auto-lock-warning">⚠️ {m.stats_auto_lock_screen_unavailable()}</p>
+        {:else if autoLockTrigger === "screenLock"}
+          <p class="hint">{m.stats_auto_lock_screen_hint()}</p>
+        {:else if autoLockTrigger === "idle"}
+          <p class="hint">{m.stats_auto_lock_idle_hint()}</p>
+        {:else}
+          <p class="hint">{m.stats_auto_lock_never_hint()}</p>
+        {/if}
       </dd>
       <dt>{m.settings_require_narrowing()}</dt>
       <dd>

@@ -1,11 +1,12 @@
 import { getLocale, setLocale } from "$lib/paraglide/runtime";
-import type { Locale, ThemePref } from "./types";
+import type { AutoLockTrigger, Locale, ThemePref } from "./types";
 
 const LOCALE_STORAGE_KEY = "clavix.locale";
 const THEME_STORAGE_KEY = "clavix.theme";
 const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
 const DETAIL_HEIGHT_STORAGE_KEY = "clavix.detailHeight";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
+const AUTO_LOCK_TRIGGER_STORAGE_KEY = "clavix.autoLockTrigger";
 const CLOSE_TO_TRAY_STORAGE_KEY = "clavix.closeToTray";
 const MINIMIZE_TO_TRAY_STORAGE_KEY = "clavix.minimizeToTray";
 const HIDE_DOCK_ON_TRAY_STORAGE_KEY = "clavix.hideDockOnTray";
@@ -52,6 +53,7 @@ export const DETAIL_HEIGHT_MIN = 160;
 export const DETAIL_HEIGHT_MAX = 900;
 const DETAIL_HEIGHT_DEFAULT = 320;
 const AUTO_LOCK_DEFAULT_MINUTES = 10;
+const AUTO_LOCK_DEFAULT_TRIGGER: AutoLockTrigger = "idle";
 // Hide-to-tray default matches the Rust mirror: on for Windows/macOS
 // (KeePassXC, Bitwarden Desktop shape), off for Linux. GNOME ships
 // tray support behind an extension whose runtime state is unreliable
@@ -70,6 +72,7 @@ export class PrefsController {
   treeWidth = $state<number>(TREE_WIDTH_DEFAULT);
   detailHeight = $state<number>(DETAIL_HEIGHT_DEFAULT);
   autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
+  autoLockTrigger = $state<AutoLockTrigger>(AUTO_LOCK_DEFAULT_TRIGGER);
   closeToTray = $state<boolean>(CLOSE_TO_TRAY_DEFAULT);
   minimizeToTray = $state<boolean>(MINIMIZE_TO_TRAY_DEFAULT);
   hideDockOnTray = $state<boolean>(false);
@@ -121,6 +124,20 @@ export class PrefsController {
         if (Number.isFinite(parsed) && parsed >= 0) {
           this.autoLockMinutes = parsed;
         }
+      }
+      // The trigger key arrived after the minutes key. When it's absent
+      // — every pre-0.14 install, and the E2E helper, which seeds only
+      // the minutes — reconstruct the old meaning: a positive window was
+      // an idle window, and zero was "Jamais".
+      const savedTrigger = localStorage.getItem(AUTO_LOCK_TRIGGER_STORAGE_KEY);
+      if (
+        savedTrigger === "off" ||
+        savedTrigger === "idle" ||
+        savedTrigger === "screenLock"
+      ) {
+        this.autoLockTrigger = savedTrigger;
+      } else {
+        this.autoLockTrigger = this.autoLockMinutes > 0 ? "idle" : "off";
       }
       // Honour an explicit stored value either way; absence keeps the
       // platform default (off on Linux, on elsewhere) so a user who
@@ -270,9 +287,14 @@ export class PrefsController {
     }
   }
 
-  setAutoLockMinutes(minutes: number) {
+  /** Both halves move together — `minutes` is a delay measured from
+   *  whatever `trigger` names, so persisting one without the other would
+   *  leave a coherent-looking but wrong setting behind on reload. */
+  setAutoLock(trigger: AutoLockTrigger, minutes: number) {
+    this.autoLockTrigger = trigger;
     this.autoLockMinutes = minutes;
     try {
+      localStorage.setItem(AUTO_LOCK_TRIGGER_STORAGE_KEY, trigger);
       localStorage.setItem(AUTO_LOCK_STORAGE_KEY, String(minutes));
     } catch {
       // ignore

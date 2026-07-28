@@ -16,7 +16,7 @@ use crate::services::auth::{
     prepare_credentials, recover_refresh_token, set_pending_two_factor, store_session,
     with_pending_two_factor,
 };
-use crate::state::{AppState, PendingTwoFactor};
+use crate::state::{AppState, AutoLockSetting, AutoLockTrigger, PendingTwoFactor};
 use crate::store;
 use crate::yubikey_unlock;
 
@@ -452,15 +452,50 @@ fn clone_user_key(state: &AppState) -> Result<SymmetricKey> {
     SymmetricKey::from_bytes(bytes.as_slice())
 }
 
+/// Mirrors the renderer's auto-lock preference into `AppState`. Called on
+/// bootstrap and on every change to the setting.
 #[tauri::command]
-pub fn set_auto_lock_minutes(state: State<'_, AppState>, minutes: f64) -> Result<()> {
-    let mut guard = state.auto_lock_minutes.lock();
-    *guard = if minutes.is_finite() && minutes > 0.0 {
-        Some(minutes)
+pub fn set_auto_lock(
+    state: State<'_, AppState>,
+    trigger: AutoLockTrigger,
+    minutes: f64,
+) -> Result<()> {
+    let minutes = if minutes.is_finite() && minutes > 0.0 {
+        minutes
     } else {
-        None
+        0.0
     };
+    // An idle window of zero is the old encoding of "Jamais" — the E2E
+    // suite and any pre-0.14 localStorage still speak it. Normalise here
+    // so the watchdog only ever sees a coherent pair.
+    let trigger = match trigger {
+        AutoLockTrigger::Idle if minutes <= 0.0 => AutoLockTrigger::Off,
+        other => other,
+    };
+
+    let previous = {
+        let mut guard = state.auto_lock.lock();
+        let previous = *guard;
+        *guard = AutoLockSetting { trigger, minutes };
+        previous
+    };
+    // Switching triggers must not inherit the other mode's countdown: a
+    // screen-lock observation made while the setting was something else
+    // would make the new window expire early — possibly instantly.
+    if previous.trigger != trigger {
+        *state.screen_locked_since.lock() = None;
+    }
     Ok(())
+}
+
+/// Whether this desktop session can report its lock state at all, so the
+/// settings dialog can warn instead of silently offering a trigger that
+/// would never fire. Probes for real rather than checking `cfg!` — the
+/// answer depends on the running session (D-Bus screensaver name present,
+/// GUI session attached), not on the target we compiled for.
+#[tauri::command]
+pub async fn screen_lock_available() -> bool {
+    crate::screen_lock::probe().await.is_some()
 }
 
 #[tauri::command]
