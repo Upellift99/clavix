@@ -216,25 +216,18 @@ export class VaultController {
     void this.sync();
   }
 
+  // Navigation keeps the search box intact: the query narrows *within*
+  // whatever folder / quick filter is active, so browsing around while
+  // hunting for an item no longer means retyping the query at every
+  // click. When the combination matches nothing, the list's empty state
+  // offers "Effacer la recherche" as the way out.
   selectQuickFilter(f: QuickFilter) {
     this.quickFilter = f;
     this.selectedKey = null;
-    this.clearSearch();
   }
 
   selectNode(key: string) {
     this.selectedKey = this.selectedKey === key ? null : key;
-    this.clearSearch();
-  }
-
-  // Wipe both the raw input and the debounced mirror so the filter
-  // recomputes immediately. Leaving searchDebounced behind would keep
-  // the list narrowed for ~150ms after a folder click, which reads as
-  // "click did nothing" — the exact symptom this method fixes.
-  private clearSearch() {
-    if (this.search === "" && this.searchDebounced === "") return;
-    this.search = "";
-    this.searchDebounced = "";
   }
 
   toggleSort(key: SortKey) {
