@@ -34,9 +34,38 @@ use tauri::Manager;
 
 use state::AppState;
 
+/// Escape hatch for the single-instance lock. Set to any value to let
+/// a second Clavix boot alongside a running one — needed by the E2E
+/// suite (which relaunches the binary between specs while a dev build
+/// may sit in the tray) and by anyone deliberately running two vaults.
+const ALLOW_MULTIPLE_INSTANCES_ENV: &str = "CLAVIX_ALLOW_MULTIPLE_INSTANCES";
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    // Single-instance guard, registered before every other plugin as
+    // the plugin's docs require. A second launch never reaches the rest
+    // of this builder: the plugin hands argv over to the running
+    // process (which just raises its window) and exits.
+    //
+    // Two windows are the visible symptom; the real damage is the SSH
+    // agent. `ssh_agent.rs` unlinks any stale socket before binding, so
+    // instance #2 starting its agent would take over
+    // `$XDG_RUNTIME_DIR/clavix/agent.sock` — every ssh(1) already
+    // pointing at SSH_AUTH_SOCK would then be served by a vault that is
+    // very likely still locked, with no error explaining why the keys
+    // vanished.
+    if std::env::var_os(ALLOW_MULTIPLE_INSTANCES_ENV).is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            // Reuse the tray's raise path: it handles the
+            // hidden-to-tray and minimised cases, and carries the
+            // GNOME/X11 focus dance we already needed there.
+            commands::tray::raise_main_window(app);
+        }));
+    }
+
+    builder
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
