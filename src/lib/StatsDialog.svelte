@@ -3,7 +3,7 @@
   import { api } from "./api";
   import { formatError } from "./format";
   import PasswordInput from "./PasswordInput.svelte";
-  import type { SshAgentConfirm } from "./prefs.svelte";
+  import type { SshAgentConfirm, ToolbarAlign } from "./prefs.svelte";
   import type {
     AutoLockTrigger,
     Locale,
@@ -22,6 +22,8 @@
     minimizeToTray: boolean;
     hideDockOnTray: boolean;
     requireNarrowing: boolean;
+    toolbarAlign: ToolbarAlign;
+    autoSyncMinutes: number;
     sshAgentConfirm: SshAgentConfirm;
     sshAgentAutoStart: boolean;
     onApplyLocale: (loc: Locale) => void;
@@ -31,6 +33,8 @@
     onApplyMinimizeToTray: (value: boolean) => void;
     onApplyHideDockOnTray: (value: boolean) => void;
     onApplyRequireNarrowing: (value: boolean) => void;
+    onApplyToolbarAlign: (value: ToolbarAlign) => void;
+    onApplyAutoSyncMinutes: (value: number) => void;
     onApplySshAgentConfirm: (value: SshAgentConfirm) => void;
     onApplySshAgentAutoStart: (value: boolean) => void;
     onCopySocketPath: (socketPath: string) => void;
@@ -47,6 +51,8 @@
     minimizeToTray,
     hideDockOnTray,
     requireNarrowing,
+    toolbarAlign,
+    autoSyncMinutes,
     sshAgentConfirm,
     sshAgentAutoStart,
     onApplyLocale,
@@ -56,6 +62,8 @@
     onApplyMinimizeToTray,
     onApplyHideDockOnTray,
     onApplyRequireNarrowing,
+    onApplyToolbarAlign,
+    onApplyAutoSyncMinutes,
     onApplySshAgentConfirm,
     onApplySshAgentAutoStart,
     onCopySocketPath,
@@ -294,6 +302,40 @@
         {:else}
           <p class="hint">{m.stats_auto_lock_never_hint()}</p>
         {/if}
+      </dd>
+      <dt>{m.settings_auto_sync()}</dt>
+      <dd>
+        <select
+          value={String(autoSyncMinutes)}
+          onchange={(e) =>
+            onApplyAutoSyncMinutes(
+              parseInt((e.currentTarget as HTMLSelectElement).value, 10),
+            )}
+        >
+          <option value="0">{m.settings_auto_sync_never()}</option>
+          <option value="5">{m.stats_auto_lock_minutes({ count: "5" })}</option>
+          <option value="15">{m.stats_auto_lock_minutes({ count: "15" })}</option>
+          <option value="30">{m.stats_auto_lock_minutes({ count: "30" })}</option>
+          <option value="60">{m.stats_auto_lock_hour()}</option>
+        </select>
+        <p class="hint">
+          {autoSyncMinutes > 0
+            ? m.settings_auto_sync_hint()
+            : m.settings_auto_sync_never_hint()}
+        </p>
+      </dd>
+      <dt>{m.settings_toolbar_align()}</dt>
+      <dd>
+        <select
+          value={toolbarAlign}
+          onchange={(e) =>
+            onApplyToolbarAlign(
+              (e.currentTarget as HTMLSelectElement).value as ToolbarAlign,
+            )}
+        >
+          <option value="left">{m.settings_toolbar_align_left()}</option>
+          <option value="center">{m.settings_toolbar_align_center()}</option>
+        </select>
       </dd>
       <dt>{m.settings_require_narrowing()}</dt>
       <dd>

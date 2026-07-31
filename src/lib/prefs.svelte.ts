@@ -15,6 +15,19 @@ const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 const REQUIRE_NARROWING_STORAGE_KEY = "clavix.requireNarrowing";
 const SSH_AGENT_CONFIRM_STORAGE_KEY = "clavix.sshAgentConfirm";
 const SSH_AGENT_AUTOSTART_STORAGE_KEY = "clavix.sshAgentAutoStart";
+const TOOLBAR_ALIGN_STORAGE_KEY = "clavix.toolbarAlign";
+const AUTO_SYNC_STORAGE_KEY = "clavix.autoSyncMinutes";
+
+/** Where the toolbar's icon groups sit. The session indicator stays on
+ *  the right either way — only the buttons move. */
+export type ToolbarAlign = "left" | "center";
+const TOOLBAR_ALIGN_DEFAULT: ToolbarAlign = "left";
+
+/** Minutes between two automatic syncs; 0 disables them. Half an hour
+ *  keeps a long-running window from drifting hours behind the server
+ *  (the state the status dot calls "stale") without turning a 4 000-item
+ *  vault into a background download every few minutes. */
+const AUTO_SYNC_DEFAULT_MINUTES = 30;
 
 // Off by default, deliberately: starting the agent exposes the vault's
 // SSH keys on a socket, and that should follow from someone asking for
@@ -81,6 +94,8 @@ export class PrefsController {
   requireNarrowing = $state<boolean>(REQUIRE_NARROWING_DEFAULT);
   sshAgentConfirm = $state<SshAgentConfirm>(SSH_AGENT_CONFIRM_DEFAULT);
   sshAgentAutoStart = $state<boolean>(SSH_AGENT_AUTOSTART_DEFAULT);
+  toolbarAlign = $state<ToolbarAlign>(TOOLBAR_ALIGN_DEFAULT);
+  autoSyncMinutes = $state<number>(AUTO_SYNC_DEFAULT_MINUTES);
 
   /** Loads persisted values from localStorage and applies side effects. */
   bootstrap() {
@@ -179,6 +194,20 @@ export class PrefsController {
       // must never turn key exposure on by itself.
       this.sshAgentAutoStart =
         localStorage.getItem(SSH_AGENT_AUTOSTART_STORAGE_KEY) === "true";
+      const savedAlign = localStorage.getItem(TOOLBAR_ALIGN_STORAGE_KEY);
+      if (savedAlign === "left" || savedAlign === "center") {
+        this.toolbarAlign = savedAlign;
+      }
+      // A stored value only overrides the default when it parses to a
+      // sane cadence: 0 (off) or a positive number of minutes. Junk in
+      // localStorage must not turn the periodic sync into a busy loop.
+      const savedAutoSync = localStorage.getItem(AUTO_SYNC_STORAGE_KEY);
+      if (savedAutoSync !== null) {
+        const parsed = parseFloat(savedAutoSync);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          this.autoSyncMinutes = parsed;
+        }
+      }
       const savedColumns = localStorage.getItem(VISIBLE_COLUMNS_STORAGE_KEY);
       if (savedColumns) {
         try {
@@ -224,6 +253,24 @@ export class PrefsController {
     this.sshAgentAutoStart = value;
     try {
       localStorage.setItem(SSH_AGENT_AUTOSTART_STORAGE_KEY, String(value));
+    } catch {
+      // best-effort
+    }
+  }
+
+  setToolbarAlign(value: ToolbarAlign) {
+    this.toolbarAlign = value;
+    try {
+      localStorage.setItem(TOOLBAR_ALIGN_STORAGE_KEY, value);
+    } catch {
+      // best-effort
+    }
+  }
+
+  setAutoSyncMinutes(value: number) {
+    this.autoSyncMinutes = value;
+    try {
+      localStorage.setItem(AUTO_SYNC_STORAGE_KEY, String(value));
     } catch {
       // best-effort
     }

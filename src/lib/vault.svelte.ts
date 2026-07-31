@@ -189,16 +189,31 @@ export class VaultController {
     }
   }
 
-  async sync() {
+  /**
+   * `quiet` keeps a failure out of the big red error box and reports it
+   * only through the status indicator. It is for syncs the user did not
+   * ask for — the periodic one — where a dropped Wi-Fi connection should
+   * dim the dot, not plaster an error across a vault the user is reading.
+   */
+  async sync(opts: { quiet?: boolean } = {}) {
+    const quiet = opts.quiet === true;
+    const priorSyncError = this.lastSyncError;
     this.syncing = true;
-    this.error = null;
+    if (!quiet) this.error = null;
     this.lastSyncError = null;
     try {
       this.summary = await api.sync();
       this.lastSyncAt = Date.now();
+      // A silent sync that succeeds retires the box a *previous* sync
+      // failure put on screen — but only that one. `error` is a shared
+      // bucket (openCipher, moves, …), and a background refresh has no
+      // business erasing a message the user hasn't read yet.
+      if (quiet && this.error !== null && this.error === priorSyncError) {
+        this.error = null;
+      }
     } catch (e) {
       const msg = formatError(e);
-      this.error = msg;
+      if (!quiet) this.error = msg;
       this.lastSyncError = msg;
     } finally {
       this.syncing = false;
@@ -212,8 +227,8 @@ export class VaultController {
    * it. Errors land in `lastSyncError` / `error` like a normal sync —
    * nothing is thrown.
    */
-  syncInBackground() {
-    void this.sync();
+  syncInBackground(opts: { quiet?: boolean } = {}) {
+    void this.sync(opts);
   }
 
   // Navigation keeps the search box intact: the query narrows *within*

@@ -29,6 +29,7 @@
   } from "$lib/prefs.svelte";
   import { api } from "$lib/api";
   import { setupAutoLock } from "$lib/auto-lock.svelte";
+  import { setupAutoSync } from "$lib/auto-sync.svelte";
   import { formatError } from "$lib/format";
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
@@ -318,6 +319,18 @@
     onLock: lockAndReset,
   });
 
+  setupAutoSync({
+    getMinutes: () => prefs.autoSyncMinutes,
+    isLoggedIn: () => auth.phase === "loggedIn",
+    getLastSyncAt: () => vault.lastSyncAt,
+    // The editor holds unsaved input against a cipher a sync would
+    // replace under it, so an open editor postpones the refresh rather
+    // than racing it. A sync already in flight is skipped for the
+    // obvious reason.
+    canSync: () => !vault.syncing && !vault.editorOpen,
+    onSync: () => vault.syncInBackground({ quiet: true }),
+  });
+
   // Mirror the close-to-tray preference into Rust whenever it
   // changes (and once on bootstrap, after `prefs.bootstrap()` lands
   // the localStorage value). The window-event handler reads from
@@ -416,6 +429,7 @@
         />
       {/if}
       <Toolbar
+        align={prefs.toolbarAlign}
         syncing={vault.syncing}
         hasSync={vault.summary !== null}
         lastSyncAt={vault.lastSyncAt}
@@ -602,6 +616,8 @@
     minimizeToTray={prefs.minimizeToTray}
     hideDockOnTray={prefs.hideDockOnTray}
     requireNarrowing={prefs.requireNarrowing}
+    toolbarAlign={prefs.toolbarAlign}
+    autoSyncMinutes={prefs.autoSyncMinutes}
     sshAgentConfirm={prefs.sshAgentConfirm}
     sshAgentAutoStart={prefs.sshAgentAutoStart}
     onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
@@ -611,6 +627,8 @@
     onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
     onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
     onApplyRequireNarrowing={(v) => prefs.setRequireNarrowing(v)}
+    onApplyToolbarAlign={(v) => prefs.setToolbarAlign(v)}
+    onApplyAutoSyncMinutes={(v) => prefs.setAutoSyncMinutes(v)}
     onApplySshAgentConfirm={(v) => prefs.setSshAgentConfirm(v)}
     onApplySshAgentAutoStart={(v) => prefs.setSshAgentAutoStart(v)}
     onCopySocketPath={copySshAgentSocket}

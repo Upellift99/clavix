@@ -335,3 +335,46 @@ between specs.
 - **A hard-killed instance on Linux** (SIGKILL) releases its bus name
   when the connection drops, so the next launch works. A frozen —
   not dead — process still holds the name and will simply be raised.
+
+---
+
+## Background auto-sync
+
+Code path: `src/lib/auto-sync.svelte.ts`, wired in `src/routes/+page.svelte`
+and configured in Préférences ("Synchronisation auto", default 30 min).
+
+The unit tests cover the preference (parsing, defaults, persistence); the
+timer itself is a wall-clock behaviour against a live server and an
+unlocked vault, which is what this checklist is for. Set the cadence to
+5 min so a run takes minutes, not an afternoon.
+
+### Happy path
+
+- [ ] **It fires** — unlock, note the toolbar's "Dernière sync il y a N
+  min", then leave the window alone. Within ~5 min + one poll (30 s) the
+  label resets to "à l'instant" and the dot goes back to green.
+- [ ] **A manual sync postpones the automatic one** — click Sync by hand
+  at minute 4. The next automatic sync lands 5 min after *that* click,
+  not one minute later.
+- [ ] **Changes from another client land on their own** — edit an item in
+  the Bitwarden web vault, then wait. The change shows up in Clavix
+  without touching the Sync button.
+- [ ] **An open editor postpones it** — open an item for editing and let
+  the window elapse. Nothing refreshes under the form, and no sync fires
+  the instant the editor closes; the next one comes a full window later.
+- [ ] **Offline stays quiet** — cut the network. The dot goes red /
+  "hors ligne", but no red error box appears over the vault. Restore the
+  network: the next automatic sync clears the indicator by itself.
+- [ ] **"Jamais" means never** — set the cadence to Jamais and leave the
+  window open past the old window. Nothing syncs until you click Sync.
+- [ ] **A locked vault never syncs** — lock it, wait past the window,
+  check the server logs / the "last sync" label after unlocking: no
+  request went out while locked.
+
+### Known limitations
+
+- The cadence is measured from the last *successful* sync, so a run of
+  failures retries on the same cadence rather than backing off.
+- The timer lives in the WebView. A frozen renderer stops syncing (it
+  also stops the auto-lock front-end timer; the Rust watchdog covers the
+  lock, nothing covers the sync).
