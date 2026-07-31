@@ -46,7 +46,9 @@ Against a real Vaultwarden instance, Clavix:
   client invalidates the wrap instead of producing wrong decrypts;
 - syncs the full vault (items, folders, collections, organizations),
   **encrypting and decrypting everything client-side** (AES-256-CBC +
-  HMAC-SHA256 personal, RSA-OAEP-SHA1 org keys);
+  HMAC-SHA256 personal, RSA-OAEP-SHA1 org keys), on unlock, on demand,
+  and **every 30 min in the background** (cadence configurable in
+  Préférences, down to off);
 - **creates, edits and deletes items** (logins, secure notes, cards,
   identities, SSH keys) in your personal vault or inside an organization
   you belong to;

@@ -7,8 +7,10 @@
     type SessionStatus,
   } from "./format";
   import Icon from "./Icon.svelte";
+  import type { ToolbarAlign } from "./prefs.svelte";
 
   type Props = {
+    align?: ToolbarAlign;
     syncing: boolean;
     hasSync: boolean;
     lastSyncAt: number | null;
@@ -26,6 +28,7 @@
   };
 
   let {
+    align = "left",
     syncing,
     hasSync,
     lastSyncAt,
@@ -78,115 +81,122 @@
   );
 </script>
 
-<nav class="toolbar" aria-label="Actions">
-  <!-- Section: session -->
-  <div class="tb-group">
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onSync}
-      disabled={syncing}
-      title={syncTitle}
-      aria-label={syncTitle}
-    >
-      <Icon name="refresh" size={18} class={syncing ? "icon-spin" : ""} />
-    </button>
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onLock}
-      title={m.action_lock()}
-      aria-label={m.action_lock()}
-    >
-      <Icon name="lock" size={18} />
-    </button>
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onSwitchAccount}
-      title={m.action_logout()}
-      aria-label={m.action_logout()}
-    >
-      <Icon name="log-out" size={18} />
-    </button>
+<!-- Centred mode adds an empty first cell so the buttons are centred on
+     the window, not on the space the status indicator leaves free. -->
+<nav class="toolbar" class:centered={align === "center"} aria-label="Actions">
+  {#if align === "center"}
+    <span class="tb-spacer" aria-hidden="true"></span>
+  {/if}
+  <div class="tb-main">
+    <!-- Section: session -->
+    <div class="tb-group">
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onSync}
+        disabled={syncing}
+        title={syncTitle}
+        aria-label={syncTitle}
+      >
+        <Icon name="refresh" size={18} class={syncing ? "icon-spin" : ""} />
+      </button>
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onLock}
+        title={m.action_lock()}
+        aria-label={m.action_lock()}
+      >
+        <Icon name="lock" size={18} />
+      </button>
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onSwitchAccount}
+        title={m.action_logout()}
+        aria-label={m.action_logout()}
+      >
+        <Icon name="log-out" size={18} />
+      </button>
+    </div>
+
+    <span class="tb-divider" aria-hidden="true"></span>
+
+    <!-- Section: items -->
+    <div class="tb-group">
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onCreateItem}
+        title={m.action_new_item()}
+        aria-label={m.action_new_item()}
+      >
+        <Icon name="plus" size={18} />
+      </button>
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onOpenImport}
+        title={m.import_label()}
+        aria-label={m.import_label()}
+      >
+        <Icon name="download" size={18} />
+      </button>
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onOpenExport}
+        title={m.export_label()}
+        aria-label={m.export_label()}
+      >
+        <Icon name="upload" size={18} />
+      </button>
+    </div>
+
+    <span class="tb-divider" aria-hidden="true"></span>
+
+    <!-- Section: tools -->
+    <div class="tb-group">
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onOpenGenerator}
+        title={m.generator_label()}
+        aria-label={m.generator_label()}
+      >
+        <Icon name="dice" size={18} />
+      </button>
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onOpenAudit}
+        title={m.audit_label()}
+        aria-label={m.audit_label()}
+      >
+        <Icon name="shield" size={18} />
+      </button>
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onOpenStats}
+        title={m.tree_infos_label()}
+        aria-label={m.tree_infos_label()}
+      >
+        <Icon name="info" size={18} />
+      </button>
+      <button
+        type="button"
+        class="tb-btn"
+        onclick={onOpenAbout}
+        title={m.about_label()}
+        aria-label={m.about_label()}
+      >
+        <Icon name="arrow-up-circle" size={18} />
+      </button>
+    </div>
   </div>
 
-  <span class="tb-divider" aria-hidden="true"></span>
-
-  <!-- Section: items -->
-  <div class="tb-group">
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onCreateItem}
-      title={m.action_new_item()}
-      aria-label={m.action_new_item()}
-    >
-      <Icon name="plus" size={18} />
-    </button>
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onOpenImport}
-      title={m.import_label()}
-      aria-label={m.import_label()}
-    >
-      <Icon name="download" size={18} />
-    </button>
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onOpenExport}
-      title={m.export_label()}
-      aria-label={m.export_label()}
-    >
-      <Icon name="upload" size={18} />
-    </button>
-  </div>
-
-  <span class="tb-divider" aria-hidden="true"></span>
-
-  <!-- Section: tools -->
-  <div class="tb-group">
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onOpenGenerator}
-      title={m.generator_label()}
-      aria-label={m.generator_label()}
-    >
-      <Icon name="dice" size={18} />
-    </button>
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onOpenAudit}
-      title={m.audit_label()}
-      aria-label={m.audit_label()}
-    >
-      <Icon name="shield" size={18} />
-    </button>
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onOpenStats}
-      title={m.tree_infos_label()}
-      aria-label={m.tree_infos_label()}
-    >
-      <Icon name="info" size={18} />
-    </button>
-    <button
-      type="button"
-      class="tb-btn"
-      onclick={onOpenAbout}
-      title={m.about_label()}
-      aria-label={m.about_label()}
-    >
-      <Icon name="arrow-up-circle" size={18} />
-    </button>
-  </div>
-
-  <!-- Right-aligned session indicator -->
+  <!-- Session indicator, right-aligned in both modes -->
   <div class="tb-status" aria-live="polite">
     <span
       class="tb-dot tb-dot--{status}"
@@ -207,6 +217,30 @@
     border: 1px solid #d6e0ee;
     border-radius: 6px;
     flex: 0 0 auto;
+  }
+
+  /* Left mode stays a plain flex row: groups first, status pushed right
+     by its own auto margin. Centred mode switches to a three-column
+     grid with equal side columns, which is the only way to put the
+     buttons on the window's centre line while the status keeps its
+     place on the right. The side columns are minmax(0, 1fr) so a long
+     status label ("Dernière sync il y a 2 h") shrinks its own column
+     instead of nudging the buttons off-centre. */
+  .toolbar.centered {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .toolbar.centered .tb-status {
+    margin-left: 0;
+    justify-self: end;
+  }
+
+  .tb-main {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
   }
 
   .tb-group {

@@ -119,3 +119,80 @@ describe("auto-lock", () => {
     },
   );
 });
+
+describe("auto-sync", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("defaults to every 30 min", () => {
+    const prefs = new PrefsController();
+    prefs.bootstrap();
+    expect(prefs.autoSyncMinutes).toBe(30);
+  });
+
+  it("round-trips through localStorage", () => {
+    const a = new PrefsController();
+    a.setAutoSyncMinutes(5);
+    expect(localStorage.getItem("clavix.autoSyncMinutes")).toBe("5");
+
+    const b = new PrefsController();
+    b.bootstrap();
+    expect(b.autoSyncMinutes).toBe(5);
+  });
+
+  // Zero is a real choice ("Jamais"), not a missing value: it must
+  // survive a reload instead of being read back as the 30 min default.
+  it("keeps an explicit zero as off", () => {
+    const a = new PrefsController();
+    a.setAutoSyncMinutes(0);
+
+    const b = new PrefsController();
+    b.bootstrap();
+    expect(b.autoSyncMinutes).toBe(0);
+  });
+
+  // A garbled or negative value would either disable the timer behind
+  // the user's back or make it fire on every poll — keep the default.
+  it.each(["", "soon", "-5", "null", "{}", "NaN"])(
+    "falls back to the default for the malformed value %j",
+    (stored) => {
+      localStorage.setItem("clavix.autoSyncMinutes", stored);
+      const prefs = new PrefsController();
+      prefs.bootstrap();
+      expect(prefs.autoSyncMinutes).toBe(30);
+    },
+  );
+});
+
+describe("toolbar alignment", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("defaults to left", () => {
+    const prefs = new PrefsController();
+    prefs.bootstrap();
+    expect(prefs.toolbarAlign).toBe("left");
+  });
+
+  it("round-trips through localStorage", () => {
+    const a = new PrefsController();
+    a.setToolbarAlign("center");
+    expect(localStorage.getItem("clavix.toolbarAlign")).toBe("center");
+
+    const b = new PrefsController();
+    b.bootstrap();
+    expect(b.toolbarAlign).toBe("center");
+  });
+
+  it.each(["", "centre", "Center", "right", "{}"])(
+    "ignores the unknown value %j",
+    (stored) => {
+      localStorage.setItem("clavix.toolbarAlign", stored);
+      const prefs = new PrefsController();
+      prefs.bootstrap();
+      expect(prefs.toolbarAlign).toBe("left");
+    },
+  );
+});
