@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import * as m from "$lib/paraglide/messages";
   import { api } from "./api";
@@ -20,12 +20,25 @@
   // nobody answers doesn't linger with buttons that no longer do anything.
   const TIMEOUT_MS = 30_000;
 
+  // The dialog opens with focus on Autoriser (see `show`), which means an
+  // Entrée — or a click — already aimed somewhere else when the prompt
+  // appears would approve a signature nobody read. Swallow approvals for
+  // the first 300 ms: long enough to absorb a keystroke in flight, short
+  // enough that someone reaching for Autoriser never waits on it (reading
+  // the fingerprint takes seconds, not milliseconds). Denials are
+  // deliberately not guarded — refusing early is always safe, and a
+  // stray Échap costs one retried `ssh`.
+  const ARM_DELAY_MS = 300;
+
   let dialog = $state<HTMLDialogElement | null>(null);
+  let allowButton = $state<HTMLButtonElement | null>(null);
   let current = $state<ConfirmReq | null>(null);
   // Signatures can arrive in parallel (e.g. `git` opening several
   // connections); queue extras and show them one at a time.
   let queue = $state<ConfirmReq[]>([]);
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let armTimer: ReturnType<typeof setTimeout> | null = null;
+  let armed = false;
 
   onMount(() => {
     let unlisten: UnlistenFn | null = null;
@@ -36,14 +49,48 @@
     return () => unlisten?.();
   });
 
-  function show(req: ConfirmReq) {
+  // `await tick()` before opening: `showModal()` runs the dialog's focus
+  // algorithm once, at open time, and Svelte 5 flushes the `{#if current}`
+  // block on a microtask. Opening first would therefore run that algorithm
+  // against an empty dialog, leaving focus on the <dialog> element itself
+  // — Entrée then did nothing at all, and Tab was needed to reach any
+  // button. With the content mounted, `showModal()` lands on the first
+  // focusable child (Refuser) and we move focus to Autoriser, so Entrée
+  // approves the signature. Esc still denies, as does the backdrop.
+  async function show(req: ConfirmReq) {
     current = req;
-    dialog?.showModal();
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => respond(false), TIMEOUT_MS);
+    await tick();
+    // A queued request can be answered (or time out) while we await;
+    // don't open a dialog for a prompt that is no longer current.
+    // Compare ids, not references: `current` holds the `$state` proxy of
+    // `req`, so `current !== req` is true even for the same request
+    // (Svelte's `state_proxy_equality_mismatch` warning) and the dialog
+    // would never open. Ids come from a monotonic counter in Rust.
+    if (current?.id !== req.id) return;
+    dialog?.showModal();
+    allowButton?.focus();
+    // Arm only once the dialog is actually on screen — the delay is
+    // meant to cover the moment the user can see it, not the moment we
+    // decided to show it.
+    if (armTimer) clearTimeout(armTimer);
+    armTimer = setTimeout(() => (armed = true), ARM_DELAY_MS);
+  }
+
+  // Approve path, guarded by the arming delay. A swallowed activation is
+  // silent by design: at 300 ms the user is still moving, and a flash of
+  // error text would be worse noise than the second Entrée it costs.
+  function approve() {
+    if (armed) respond(true);
   }
 
   async function respond(approved: boolean) {
+    armed = false;
+    if (armTimer) {
+      clearTimeout(armTimer);
+      armTimer = null;
+    }
     if (timer) {
       clearTimeout(timer);
       timer = null;
@@ -113,7 +160,7 @@
       <button type="button" class="secondary" onclick={() => respond(false)}>
         {m.ssh_confirm_deny()}
       </button>
-      <button type="button" onclick={() => respond(true)}>
+      <button bind:this={allowButton} type="button" onclick={approve}>
         {m.ssh_confirm_allow()}
       </button>
     </div>

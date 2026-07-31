@@ -146,6 +146,18 @@ button.
   writing the private key to disk.
 - [ ] `git ls-remote git@<host>:<path>.git` works the same way (this
   is the realistic developer use case).
+- [ ] **Consent prompt, keyboard only** — with a confirming sign
+  policy, trigger a signature and touch neither mouse nor Tab.
+  **Entrée** approves (focus lands on *Autoriser*), **Échap** denies,
+  and both answers reach `ssh`/`git` immediately. Repeat with two
+  signatures in flight (`git ls-remote` on a repo with submodules, or
+  two `ssh` calls at once): the second prompt opens with focus on
+  *Autoriser* too, not on the dialog frame.
+- [ ] **Held Entrée does not chain approvals** — same two-signature
+  setup, but hold Entrée down through both prompts (keyboard
+  autorepeat). The second prompt must still be waiting when you let
+  go: each one arms its own 300 ms window. Approving deliberately
+  should feel instant — if the delay is perceptible, say so.
 
 **Expected**: signatures use the in-memory decrypted keys held by
 the running agent's `KeyStore`. Those keys are **never written to
@@ -191,9 +203,14 @@ individual sign call's.
 - **One agent per running Clavix instance.** Two simultaneous
   sessions would race on the same socket path; the single-instance
   guard (see that checklist) now prevents the accidental case.
-- **No per-signature consent prompt** today. Once the agent is
-  enabled, every `ssh`/`git` call signs silently. A "ask before
-  sign" mode is on the roadmap but not in this checklist.
+- **The consent prompt defaults to Autoriser.** With a confirming
+  sign policy, the dialog opens with focus on **Autoriser**, so
+  Entrée approves. Esc, the backdrop and the 30 s timeout all deny.
+  Approvals are ignored for the first 300 ms after the prompt appears,
+  which absorbs a keystroke or click already in flight; a keystroke
+  aimed elsewhere that arrives *later*, while the Clavix window has
+  focus, still approves. Deliberate, and the reason the fingerprint
+  and calling process are on the prompt.
 
 ---
 
