@@ -208,8 +208,10 @@ pub fn set_tray_locale(app: AppHandle, locale: String) -> Result<()> {
     Ok(())
 }
 
-/// Raise the main window and give it focus. Two GNOME/X11 quirks
-/// stack here:
+/// Raise the main window and give it focus. Used by the tray
+/// (Ouvrir / left-click) and by the single-instance callback in
+/// `lib.rs`, where a second launch is answered by surfacing the
+/// window the user already has. Two GNOME/X11 quirks stack here:
 ///
 ///   1. `tao`'s Linux backend forwards every window op
 ///      (`show`, `unminimize`, `set_focus`, …) through a glib
@@ -239,7 +241,7 @@ pub fn set_tray_locale(app: AppHandle, locale: String) -> Result<()> {
 /// and `get_visible()` to return true. No-op on Windows/macOS
 /// where `set_focus()` alone already raises — the deferred dance
 /// is harmless there.
-fn raise_main_window(app: &AppHandle) {
+pub(crate) fn raise_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         // Clear any skip-taskbar hint set on the way down by the
         // hide_dock_on_tray path. Safe to call unconditionally: a

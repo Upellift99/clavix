@@ -21,6 +21,11 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
+# Second launch hands off to the running process instead of booting a
+# rival one. Beyond the duplicate windows, a second instance would
+# `remove_file` + rebind the SSH agent socket (`ssh_agent.rs`), silently
+# stealing SSH_AUTH_SOCK from the vault the user actually unlocked.
+tauri-plugin-single-instance = "2"
 tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

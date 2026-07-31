@@ -189,8 +189,8 @@ individual sign call's.
   are skipped by the agent. Adding ECDSA is tracked as part of the
   SSH-agent roadmap.
 - **One agent per running Clavix instance.** Two simultaneous
-  sessions would race on the same socket path; this is not the
-  intended usage.
+  sessions would race on the same socket path; the single-instance
+  guard (see that checklist) now prevents the accidental case.
 - **No per-signature consent prompt** today. Once the agent is
   enabled, every `ssh`/`git` call signs silently. A "ask before
   sign" mode is on the roadmap but not in this checklist.
@@ -263,3 +263,58 @@ actually reports its lock state. That is what this checklist is for.
 - **Windows reports the UAC secure desktop as locked**, so an
   "Immédiatement" setting can lock the vault when a consent prompt
   appears. Errs on the safe side; note it if it surprises a tester.
+
+---
+
+## Single instance
+
+Code path: `tauri_plugin_single_instance` registered first in
+`src-tauri/src/lib.rs::run`, with `commands::tray::raise_main_window` as
+the "someone tried to launch me again" callback.
+
+Nothing here is automatable: the whole point is the behaviour of a
+*second process* against a live desktop session, and the E2E suite runs
+with the guard disabled (`CLAVIX_ALLOW_MULTIPLE_INSTANCES=1` in
+`tests/e2e/wdio.conf.mjs`) precisely so it can relaunch the binary
+between specs.
+
+### Platform matrix
+
+- **Linux** — a well-known name on the session D-Bus, derived from the
+  bundle identifier. Per session bus, so a second *user session* (fast
+  user switching, a separate X/Wayland login) legitimately gets its own
+  instance.
+- **macOS / Windows** — the plugin's own primitives (a listener socket /
+  a named mutex). Same user-scoped behaviour.
+
+### Happy path
+
+- [ ] **Second launch raises the first** — start Clavix, then run
+  `clavix` again from a terminal. No second window and no second tray
+  icon appear; the existing window comes to the front, focused. The
+  second process exits on its own (the shell gets its prompt back).
+- [ ] **Works from the tray** — close Clavix to the tray (window hidden),
+  then launch it again from the app menu. The hidden window is restored
+  and focused rather than a new process starting.
+- [ ] **Works while minimised** — minimise, relaunch: the window is
+  unminimised and focused.
+- [ ] **SSH agent keeps its socket** — with the agent started and
+  `ssh-add -l` listing keys against `$SSH_AUTH_SOCK`, relaunch Clavix and
+  re-run `ssh-add -l`. Same keys, same socket — no rebind. (Before this
+  guard, instance #2 unlinked and re-bound `agent.sock`, and `ssh-add -l`
+  answered from a locked vault.)
+- [ ] **Quit then relaunch** — quit from the tray menu, launch again. The
+  app starts normally; the lock is released on exit, not leaked.
+- [ ] **Escape hatch** — `CLAVIX_ALLOW_MULTIPLE_INSTANCES=1 clavix`
+  starts a second instance alongside the first. Expect the SSH-agent
+  socket takeover described above if both agents are started; that is
+  the documented cost of the opt-out.
+
+### Known limitations
+
+- **Debug and release builds share the identifier**, so a packaged
+  Clavix in the tray will stop `pnpm tauri dev` from booting. Use the
+  escape-hatch env var when developing with the daily driver running.
+- **A hard-killed instance on Linux** (SIGKILL) releases its bus name
+  when the connection drops, so the next launch works. A frozen —
+  not dead — process still holds the name and will simply be raised.

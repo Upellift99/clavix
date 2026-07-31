@@ -229,6 +229,13 @@ export const config = {
           // cost for our UI.
           WEBKIT_DISABLE_COMPOSITING_MODE: "1",
           XDG_DATA_HOME: sandboxDataHome,
+          // The app takes a single-instance lock (lib.rs) keyed on the
+          // bundle identifier, which is shared by debug and release
+          // builds. Without this opt-out, a Clavix sitting in the
+          // maintainer's tray — or a not-yet-reaped binary from the
+          // previous spec — makes the instance under test exit at boot
+          // instead of opening a window.
+          CLAVIX_ALLOW_MULTIPLE_INSTANCES: "1",
         },
       },
     );
