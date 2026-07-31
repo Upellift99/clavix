@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0](https://github.com/Upellift99/clavix/compare/v0.14.1...v0.15.0) (2026-07-31)
+
+
+### Features
+
+* one Clavix per session, and Entrée on the SSH consent prompt ([#227](https://github.com/Upellift99/clavix/issues/227)) ([c69f096](https://github.com/Upellift99/clavix/commit/c69f096c0493c4276ab9cb291c32a81d2daf37b1))
+
 ## [0.14.1](https://github.com/Upellift99/clavix/compare/v0.14.0...v0.14.1) (2026-07-30)
 
 
