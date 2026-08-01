@@ -272,11 +272,15 @@ export class VaultController {
     this.expanded = new Set();
   }
 
+  /**
+   * Load `id` into the detail panel. Idempotent on purpose: it used to
+   * toggle the panel shut when called with the item already open, which
+   * made a double-click on a row read as open-then-close before the
+   * dblclick handler ever ran (and quietly closed the panel after every
+   * save, since `submitEditor` re-opens the item it just wrote). The
+   * panel is closed from its own ✕ button.
+   */
   async openCipher(id: string) {
-    if (this.detail?.id === id) {
-      this.detail = null;
-      return;
-    }
     this.detailLoading = true;
     this.error = null;
     try {
@@ -451,6 +455,21 @@ export class VaultController {
     };
     this.editorMode = "edit";
     this.editorOpen = true;
+  }
+
+  /**
+   * Open the editor straight on `id` — the double-click path from the
+   * list, which doesn't go through the detail panel's "Modifier" button.
+   * `openEditEditor` reads `this.detail`, so the item has to be loaded
+   * first. Items in the trash aren't editable (the detail panel offers
+   * restore/delete instead), so they only get shown.
+   */
+  async openEditorFor(id: string) {
+    await this.openCipher(id);
+    if (this.detail?.id !== id) return;
+    const entry = this.summary?.ciphers.find((c) => c.id === id);
+    if (entry?.deletedDate) return;
+    await this.openEditEditor();
   }
 
   closeEditor() {

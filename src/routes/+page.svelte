@@ -186,9 +186,7 @@
   function openMenuCipher() {
     const id = menuCipher?.id;
     closeRowMenu();
-    // openCipher toggles, so calling it on the already-open item would
-    // close the panel — guard so "Ouvrir" never hides what it opens.
-    if (id && vault.detail?.id !== id) vault.openCipher(id);
+    if (id) vault.openCipher(id);
   }
 
   async function copyMenuUsername() {
@@ -494,6 +492,7 @@
                 visibleColumns={prefs.visibleColumns}
                 {drag}
                 onOpenCipher={(id) => vault.openCipher(id)}
+                onEditCipher={(id) => vault.openEditorFor(id)}
                 onRowContextMenu={openRowMenu}
                 onToggleSort={(k) => vault.toggleSort(k)}
                 onToggleColumn={(k, v) => prefs.setVisibleColumn(k, v)}
