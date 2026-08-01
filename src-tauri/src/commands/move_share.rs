@@ -1,13 +1,13 @@
 use tauri::State;
 use uuid::Uuid;
 
-use crate::cache;
-use crate::crypto::{decrypt_name, encrypt_string, SymmetricKey};
-use crate::error::{Error, Result};
-use crate::services::auth::ensure_fresh_tokens;
-use crate::services::cipher::{build_share_cipher_body, validate_move_to_collection};
-use crate::services::vault::{compute_new_folder_base, plan_folder_renames};
+use crate::session::ensure_fresh_tokens;
 use crate::state::AppState;
+use clavix_core::cache;
+use clavix_core::crypto::{decrypt_name, encrypt_string, SymmetricKey};
+use clavix_core::error::{Error, Result};
+use clavix_core::services::cipher::{build_share_cipher_body, validate_move_to_collection};
+use clavix_core::services::vault::{compute_new_folder_base, plan_folder_renames};
 
 #[tauri::command]
 pub async fn move_cipher_to_folder(

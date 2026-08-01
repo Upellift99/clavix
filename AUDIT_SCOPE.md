@@ -31,16 +31,31 @@ If reviewer time is limited, this is the preferred order:
 5. SSH agent and WebAuthn review
 6. Frontend handling of sensitive state
 
+## Repository layout
+
+The Rust side is two crates:
+
+- `src-tauri/core/` (`clavix-core`) — the vault engine: Bitwarden/Vaultwarden
+  protocol, cryptography, key management, local cache, vault logic. No UI
+  toolkit, no IPC, no Tauri. Most of items 1, 2 and 4 below live here.
+- `src-tauri/` (`clavix`) — the desktop application: the Tauri command
+  surface, the tray, the SSH agent, the USB security key, the auto-lock
+  watchdog. Items 3 and 5 live here.
+
+The boundary is worth knowing before reading: a finding in the engine
+affects every front end built on it, while one in the desktop crate is
+scoped to this application.
+
 ## In Scope
 
 ### 1. Cryptographic Implementation
 
 Primary files:
 
-- `src-tauri/src/crypto.rs`
-- `src-tauri/src/services/auth.rs`
-- `src-tauri/src/services/cipher.rs`
-- `src-tauri/src/services/vault.rs`
+- `src-tauri/core/src/crypto.rs`
+- `src-tauri/core/src/services/auth.rs`
+- `src-tauri/core/src/services/cipher.rs`
+- `src-tauri/core/src/services/vault.rs`
 
 Review topics:
 
@@ -54,8 +69,8 @@ Review topics:
 
 Primary files:
 
-- `src-tauri/src/store.rs`
-- `src-tauri/src/cache.rs`
+- `src-tauri/core/src/store.rs`
+- `src-tauri/core/src/cache.rs`
 - `src-tauri/src/state.rs`
 - `src-tauri/src/commands/auth.rs`
 

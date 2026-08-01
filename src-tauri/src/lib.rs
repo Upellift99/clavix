@@ -1,17 +1,12 @@
-// NB: crypto, models, api, error, services are exposed publicly to let
-// the `examples/e2e_seed.rs` tool reuse the exact same crypto path as
-// the app. clavix_lib isn't published as a third-party crate, so
-// widening these modules is a no-op for real consumers (there are none).
-pub mod api;
-mod audit;
+// The protocol, the crypto and the vault logic live in `clavix-core`
+// (`core/`), which knows nothing about Tauri. What stays here is what
+// needs a desktop: the IPC surface, the tray, the SSH agent, the USB
+// security key, the auto-lock watchdog and the screen-lock probe.
 mod auto_lock;
-mod cache;
 mod commands;
-pub mod crypto;
-pub mod error;
-pub mod models;
 mod screen_lock;
-pub mod services;
+// Adapts `AppState` to the engine's session slots — see the module docs.
+pub mod session;
 mod ssh_agent;
 // `state` is widened to `pub` so the integration test in
 // `src-tauri/tests/token_refresh_lifecycle.rs` (issue #24) can
@@ -19,13 +14,6 @@ mod ssh_agent;
 // — `ensure_fresh_tokens` operates on a real session lock and
 // can't be exercised end-to-end without one.
 pub mod state;
-// `store` is widened to `pub` for the integration tests in
-// `src-tauri/tests/persisted_session_disk.rs` (issue #24): the
-// session-lifecycle scenarios listed in #9 that don't fit a WDIO
-// spec — disk-artifact assertions, restart-simulation — need direct
-// access to load_session / save_session / clear_session.
-pub mod store;
-mod totp;
 mod update;
 mod webauthn;
 mod yubikey_unlock;

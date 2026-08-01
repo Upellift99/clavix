@@ -50,15 +50,15 @@ Older versions may not receive backports.
 
 High-value review areas for Clavix are:
 
-- `src-tauri/src/crypto.rs`
+- `src-tauri/core/src/crypto.rs`
 - session persistence and unlock flow:
-  `src-tauri/src/store.rs`, `src-tauri/src/services/auth.rs`
+  `src-tauri/core/src/store.rs`, `src-tauri/core/src/services/auth.rs`
 - encrypted offline cache:
-  `src-tauri/src/cache.rs`, `src-tauri/src/commands/vault.rs`
+  `src-tauri/core/src/cache.rs`, `src-tauri/src/commands/vault.rs`
 - Tauri command surface and frontend/backend trust boundary:
   `src-tauri/src/commands/`, `src/lib/api.ts`
 - organization re-encryption and move/share flows:
-  `src-tauri/src/services/cipher.rs`,
+  `src-tauri/core/src/services/cipher.rs`,
   `src-tauri/src/commands/move_share.rs`
 - WebAuthn and SSH agent paths:
   `src-tauri/src/webauthn.rs`, `src-tauri/src/ssh_agent.rs`

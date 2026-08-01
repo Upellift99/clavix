@@ -12,7 +12,7 @@
 //! one of the three scenarios listed in issue #24 (the other two
 //! live in `persisted_session_disk.rs`).
 
-use clavix_lib::api::{DeviceInfo, VaultwardenClient};
+use clavix_core::api::{DeviceInfo, VaultwardenClient};
 
 #[tokio::test(flavor = "current_thread")]
 async fn refresh_token_posts_form_and_parses_new_token_set() {
@@ -95,7 +95,7 @@ async fn refresh_token_surfaces_400_with_auth_failed_message() {
         .expect_err("should surface 400 as AuthFailed");
 
     match err {
-        clavix_lib::error::Error::AuthFailed { message } => {
+        clavix_core::error::Error::AuthFailed { message } => {
             assert!(
                 message.contains("Refresh token expired") || message.contains("invalid_grant"),
                 "expected auth-failed message to carry the server's reason, got {message:?}",

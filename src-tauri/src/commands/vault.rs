@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use tauri::State;
 
-use crate::cache;
-use crate::crypto::{decrypt_name, decrypt_org_key, encrypt_string};
-use crate::error::{Error, Result};
-use crate::models::{SyncResponse, SyncSummary};
-use crate::services::auth::ensure_fresh_tokens;
-use crate::services::vault::build_sync_summary;
+use crate::session::ensure_fresh_tokens;
 use crate::state::AppState;
-use crate::store;
+use clavix_core::cache;
+use clavix_core::crypto::{decrypt_name, decrypt_org_key, encrypt_string};
+use clavix_core::error::{Error, Result};
+use clavix_core::models::{SyncResponse, SyncSummary};
+use clavix_core::services::vault::build_sync_summary;
+use clavix_core::store;
 
 #[tauri::command]
 pub async fn sync(state: State<'_, AppState>) -> Result<SyncSummary> {

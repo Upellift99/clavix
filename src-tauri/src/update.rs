@@ -9,7 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::{Error, Result};
+use clavix_core::error::{Error, Result};
 
 const RELEASES_LATEST_API: &str = "https://api.github.com/repos/Upellift99/clavix/releases/latest";
 const USER_AGENT: &str = concat!("Clavix/", env!("CARGO_PKG_VERSION"));

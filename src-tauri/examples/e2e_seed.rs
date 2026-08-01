@@ -42,17 +42,17 @@ use serde_json::{json, Value};
 use sha1::Sha1;
 use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey as SshPrivateKey};
 
-use clavix_lib::api::{DeviceInfo, VaultwardenClient};
-use clavix_lib::crypto::{
+use clavix_core::api::{DeviceInfo, VaultwardenClient};
+use clavix_core::crypto::{
     decrypt_user_key, derive_master_key, derive_master_password_hash, encrypt_bytes,
     encrypt_string, stretch_master_key, MasterPasswordHash, SymmetricKey,
 };
-use clavix_lib::error::{Error, Result};
-use clavix_lib::models::{
+use clavix_core::error::{Error, Result};
+use clavix_core::models::{
     CardInput, CipherCreateInput, IdentityInput, KdfType, LoginInput, LoginResult, SshKeyInput,
     TwoFactorProvider,
 };
-use clavix_lib::services::cipher::build_cipher_body;
+use clavix_core::services::cipher::build_cipher_body;
 
 // Must match PASSWORD_ITERATIONS in tests/e2e/docker-compose.yml. Short
 // iterations keep local test runs snappy; the crypto surface we exercise

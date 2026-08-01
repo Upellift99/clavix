@@ -68,15 +68,18 @@ jobs:
       # 0.11.0 while Cargo.toml said 0.13.1, across three releases, with CI
       # green the whole time.
       - name: cargo clippy (strict)
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
       # `--tests` covers both lib unit tests AND integration tests
       # under `src-tauri/tests/` (refresh_token_endpoint,
       # persisted_session_disk, token_refresh_lifecycle). The previous
       # `--lib` form left the integration suite — load-bearing for
       # the #24 session-lifecycle scenarios — silently uncovered.
+      # `--workspace` reaches `core/` (clavix-core), where the crypto,
+      # protocol and vault-logic tests now live; without it the bulk of
+      # the suite would not run at all.
       - name: cargo test (lib + integration)
-        run: cargo test --tests --locked
+        run: cargo test --workspace --tests --locked
 
       # The TypeScript types the WebView consumes are generated from the Rust
       # ones (ts-rs). If a Rust field is renamed and the checked-in bindings
@@ -86,7 +89,13 @@ jobs:
       # diff, so the bindings cannot drift from their source.
       - name: TypeScript bindings match the Rust types
         run: |
-          TS_RS_EXPORT_DIR=../src/lib/generated cargo test --tests --locked export_bindings
+          # Absolute, not `../src/lib/generated`: ts-rs resolves a relative
+          # value against each crate's own manifest directory, and the
+          # exported types are split across `src-tauri` (UpdateInfo,
+          # AutoLockTrigger) and `src-tauri/core` (everything else), which
+          # sit at different depths.
+          TS_RS_EXPORT_DIR="$GITHUB_WORKSPACE/src/lib/generated" \
+            cargo test --workspace --tests --locked export_bindings
           if ! git diff --exit-code --stat -- ../src/lib/generated; then
             echo "::error::src/lib/generated is stale. Run 'pnpm run bindings' and commit the result."
             exit 1

@@ -4,21 +4,23 @@ use secrecy::SecretString;
 use serde::Serialize;
 use tauri::State;
 
-use crate::api::VaultwardenClient;
-use crate::cache;
-use crate::crypto::{
+use crate::session::{
+    clear_pending_two_factor, set_pending_two_factor, store_session, with_pending_two_factor,
+};
+use crate::state::{AppState, AutoLockSetting, AutoLockTrigger};
+use crate::yubikey_unlock;
+use clavix_core::api::VaultwardenClient;
+use clavix_core::cache;
+use clavix_core::crypto::{
     decrypt_private_key, decrypt_user_key, derive_master_key, encrypt_string, SymmetricKey,
 };
-use crate::error::{Error, Result};
-use crate::models::{LoginOk, LoginOutcome, LoginResult, Prelogin, TwoFactorProvider};
-use crate::services::auth::{
-    clear_pending_two_factor, device_info, extract_session_keys, persist_session,
-    prepare_credentials, recover_refresh_token, set_pending_two_factor, store_session,
-    with_pending_two_factor,
+use clavix_core::error::{Error, Result};
+use clavix_core::models::{LoginOk, LoginOutcome, LoginResult, Prelogin, TwoFactorProvider};
+use clavix_core::services::auth::{
+    device_info, extract_session_keys, persist_session, prepare_credentials, recover_refresh_token,
 };
-use crate::state::{AppState, AutoLockSetting, AutoLockTrigger, PendingTwoFactor};
-use crate::store;
-use crate::yubikey_unlock;
+use clavix_core::session::PendingTwoFactor;
+use clavix_core::store;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

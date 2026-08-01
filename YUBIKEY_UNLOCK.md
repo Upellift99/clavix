@@ -209,10 +209,10 @@ than introduce a new dependency.
 | File | Change |
 | --- | --- |
 | `src-tauri/src/yubikey_unlock.rs` *(new)* | Enrolment + unwrap functions. Encapsulates the call into `ctap-hid-fido2`, the HKDF + AES-GCM wrap, and the user-key-fingerprint computation. |
-| `src-tauri/src/store.rs` | Extend the session file struct with the optional `yubikey_unlock` block. Atomic-rename writers already exist. |
+| `src-tauri/core/src/store.rs` | Extend the session file struct with the optional `yubikey_unlock` block. Atomic-rename writers already exist. |
 | `src-tauri/src/state.rs` | No change expected — the unlocked session is the same shape regardless of how it was unlocked. |
 | `src-tauri/src/commands/auth.rs` | Two new commands: `enroll_yubikey_unlock`, `unlock_with_yubikey`. Plus `disenroll_yubikey_unlock`. |
-| `src-tauri/src/error.rs` | New variants: `YubikeyNoDevice`, `YubikeyPinRequired`, `YubikeyWrongPin`, `YubikeyUserCancelled`, `YubikeyStaleWrap` (fingerprint mismatch). |
+| `src-tauri/core/src/error.rs` | New variants: `YubikeyNoDevice`, `YubikeyPinRequired`, `YubikeyWrongPin`, `YubikeyUserCancelled`, `YubikeyStaleWrap` (fingerprint mismatch). |
 
 ### Front-end
 

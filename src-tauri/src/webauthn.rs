@@ -18,7 +18,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 
-use crate::error::{Error, Result};
+use clavix_core::error::{Error, Result};
 
 #[derive(Debug, Deserialize)]
 struct RawAllowCredential {

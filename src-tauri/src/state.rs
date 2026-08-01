@@ -3,15 +3,15 @@ use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 use parking_lot::Mutex;
-use rsa::RsaPrivateKey;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-use zeroize::ZeroizeOnDrop;
 
-use crate::api::VaultwardenClient;
-use crate::crypto::{MasterKey, MasterPasswordHash, SymmetricKey};
-use crate::models::{Prelogin, SyncResponse, TokenSet};
 use crate::ssh_agent::SshAgentHandle;
+// `Session` and `PendingTwoFactor` moved to `clavix_core::session` — they
+// are vault state, not desktop state, and a second front end needs them
+// as much as this one does. `AppState` below is what stays: the tray
+// flags, the SSH agent, the auto-lock bookkeeping.
+use clavix_core::session::{PendingTwoFactor, Session};
 
 /// What starts the auto-lock countdown. Crosses the IPC boundary, so the
 /// TypeScript union in `src/lib/generated/AutoLockTrigger.ts` is generated
@@ -155,37 +155,6 @@ impl Default for AppState {
     }
 }
 
-/// Material derived during the `login` step that has to survive until
-/// the user completes the second factor. Living here rather than being
-/// re-derived on `login_with_two_factor` saves an Argon2id round (~1 s
-/// on hardened settings), but the security win is the headline: the
-/// rpId anchor used by `webauthn_sign_challenge` is now sourced from
-/// here, not from a JS argument that a compromised renderer could
-/// rewrite between calls.
-#[derive(ZeroizeOnDrop)]
-pub struct PendingTwoFactor {
-    #[zeroize(skip)]
-    pub server_url: String,
-    #[zeroize(skip)]
-    pub email: String,
-    pub master_key: MasterKey,
-    pub password_hash: MasterPasswordHash,
-    #[zeroize(skip)]
-    pub prelogin: Prelogin,
-    #[zeroize(skip)]
-    pub client: VaultwardenClient,
-    /// Wall-clock instant the slot was opened. Anything older than the
-    /// TTL is treated as expired by `take_pending_two_factor`.
-    #[zeroize(skip)]
-    pub created_at: Instant,
-}
-
-/// How long a `PendingTwoFactor` slot stays valid. Long enough that a
-/// user can fish their YubiKey out of a bag and tap it; short enough
-/// that a forgotten slot doesn't accumulate keying material in memory
-/// indefinitely.
-pub const PENDING_2FA_TTL_SECS: u64 = 300;
-
 /// Bumps `last_activity` to now. Cheap; called at the start of any command
 /// that proves the user is still around (sync, decrypt, refresh, etc).
 ///
@@ -197,18 +166,4 @@ pub const PENDING_2FA_TTL_SECS: u64 = 300;
 /// anyone is there.
 pub fn mark_activity(state: &AppState) {
     *state.last_activity.lock() = Instant::now();
-}
-
-pub struct Session {
-    pub client: VaultwardenClient,
-    pub tokens: TokenSet,
-    /// Wall-clock deadline after which `tokens.access_token` must be refreshed.
-    /// Computed from `tokens.expires_in` at the time the token was issued,
-    /// with a 30-second safety margin so we refresh slightly before the
-    /// server considers the token dead.
-    pub expires_at: Instant,
-    pub user_key: SymmetricKey,
-    pub private_key: Option<RsaPrivateKey>,
-    pub org_keys: HashMap<String, SymmetricKey>,
-    pub vault: Option<SyncResponse>,
 }

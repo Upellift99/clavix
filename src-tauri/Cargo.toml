@@ -1,3 +1,12 @@
+# This package doubles as the workspace root so `Cargo.lock` stays at
+# `src-tauri/Cargo.lock` — the path release-please syncs and the CI cache
+# keys on. `core/` sits under this directory for the same reason and not
+# because the engine has anything to do with Tauri; it depends on none of
+# it. Moving it to the repository root means moving the lockfile too, and
+# teaching the release workflow about the new location.
+[workspace]
+members = ["core"]
+
 [package]
 name = "clavix"
 version = "0.16.0"
@@ -27,20 +36,20 @@ tauri-plugin-opener = "2"
 # stealing SSH_AUTH_SOCK from the vault the user actually unlocked.
 tauri-plugin-single-instance = "2"
 tauri-plugin-clipboard-manager = "2"
+# The vault engine: protocol, crypto, cache, vault logic. Everything this
+# crate still declares below is here because a *desktop* concern needs it
+# — the tray, the SSH agent, the USB security key, the KDBX import.
+clavix-core = { path = "core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_repr = "0.1"
 # Generates the TypeScript types the WebView consumes, straight from the
 # Rust definitions, serde attributes included. Hand-written mirrors had
 # silently drifted: `webauthn_challenge` shipped in snake_case while the
 # frontend read `webauthnChallenge`, so WebAuthn 2FA could never work.
 ts-rs = "12"
-thiserror = "2"
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
-pbkdf2 = "0.12"
 sha2 = "0.10"
-argon2 = "0.5"
 # 0.23 turned on SIMD engines by default, which flips the crate from
 # `forbid(unsafe_code)` to `deny` and compiles hand-written AVX2/NEON
 # intrinsics into a binary that handles vault keys. We only ever use the
@@ -50,21 +59,14 @@ base64 = { version = "0.23", default-features = false, features = ["std"] }
 zeroize = { version = "1", features = ["derive"] }
 secrecy = "0.10"
 uuid = { version = "1", features = ["v4"] }
-aes = "0.8"
-cbc = { version = "0.1", features = ["alloc"] }
 hmac = "0.12"
 hkdf = "0.12"
 rsa = "0.9"
-sha1 = "0.10"
 dirs = "6"
 rand = "0.8"
-rusqlite = { version = "0.40", features = ["bundled"] }
-rayon = "1"
-futures = "0.3"
 tokio = { version = "1", features = ["net", "io-util", "sync", "rt", "macros", "time"] }
 ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ed25519", "rsa", "encryption"] }
 ed25519-dalek = "2"
-zxcvbn = { version = "3", default-features = false }
 ctap-hid-fido2 = "3.5"
 parking_lot = "0.12"
 # KDBX import (KeePass / KeePassXC native format). Default features are
@@ -111,6 +113,9 @@ mockito = "1"
 # / write session.json don't trample the dev machine.
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt"] }
+# `examples/e2e_seed.rs` derives its own TOTP secrets. The app itself has
+# no use for SHA-1 any more — that moved to the engine with `totp.rs`.
+sha1 = "0.10"
 
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.
