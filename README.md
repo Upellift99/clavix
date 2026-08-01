@@ -249,29 +249,39 @@ xvfb-run -a pnpm test:e2e
 
 ```
 clavix/
-├── src-tauri/        Rust backend (Tauri)
-│   └── src/
+├── src-tauri/        Rust: the desktop app (crate `clavix`), which is
+│   │                 also the Cargo workspace root
+│   ├── core/         The vault engine (crate `clavix-core`) — no UI
+│   │   └── src/      toolkit, no IPC, no Tauri. Buildable on its own,
+│   │       │         which is the point: a second front end depends on
+│   │       │         this rather than reimplementing it.
+│   │       ├── api.rs       Vaultwarden HTTP client
+│   │       ├── crypto.rs    Key derivation, EncString (AES / RSA),
+│   │       │                encrypt / re-encrypt for server updates
+│   │       ├── models.rs    API types and DTOs sent to the UI
+│   │       ├── services/    Vault logic (auth token refresh, cipher
+│   │       │                body builder, vault summary projection)
+│   │       ├── session.rs   Session + pending-2FA material
+│   │       ├── store.rs     On-disk session persistence
+│   │       ├── cache.rs     Encrypted SQLite vault cache + op-log
+│   │       ├── audit.rs     HIBP k-anonymity + reused/weak detection
+│   │       ├── totp.rs      RFC 6238 TOTP
+│   │       └── error.rs     Unified Error type, serialized as
+│   │                        { code, message, data }
+│   └── src/          What needs a desktop
 │       ├── main.rs         Binary entry point
 │       ├── lib.rs          Tauri setup + command registry
 │       ├── commands/       Tauri commands, one module per domain
 │       │                   (auth, vault, cipher, move_share, ssh,
 │       │                   audit)
-│       ├── services/       Internal helpers used by commands (auth
-│       │                   token refresh, cipher body builder,
-│       │                   vault summary projection)
-│       ├── api.rs          Vaultwarden HTTP client
-│       ├── crypto.rs       Key derivation, EncString (AES / RSA),
-│       │                   encrypt / re-encrypt for server updates
-│       ├── audit.rs        HIBP k-anonymity + reused/weak detection
+│       ├── session.rs      Binds AppState to the engine's session slots
+│       ├── state.rs        AppState (session, ssh agent handle,
+│       │                   tray flags, auto-lock timestamps)
 │       ├── ssh_agent.rs    Unix-socket SSH agent (Ed25519 + RSA)
 │       ├── webauthn.rs     CTAP2 / HID WebAuthn path for 2FA
-│       ├── models.rs       API types and DTOs sent to the UI
-│       ├── state.rs        AppState (session, ssh agent handle,
-│       │                   auto-lock watchdog timestamps)
-│       ├── store.rs        On-disk session persistence
-│       ├── cache.rs        Encrypted SQLite vault cache + op-log
-│       └── error.rs        Unified Error type, serialized as
-│                           { code, message, data }
+│       ├── yubikey_unlock.rs  hmac-secret unlock via a FIDO2 key
+│       ├── auto_lock.rs    Idle + screen-lock watchdog
+│       └── screen_lock.rs  Per-platform session-lock probe
 ├── src/              SvelteKit frontend (static output, no SSR)
 │   ├── app.html
 │   ├── lib/

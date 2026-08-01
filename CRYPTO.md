@@ -7,17 +7,17 @@ externally audited.
 
 Main implementation file:
 
-- `src-tauri/src/crypto.rs`
+- `src-tauri/core/src/crypto.rs`
 
 Related files:
 
-- `src-tauri/src/services/auth.rs`
-- `src-tauri/src/services/cipher.rs`
-- `src-tauri/src/services/vault.rs`
+- `src-tauri/core/src/services/auth.rs`
+- `src-tauri/core/src/services/cipher.rs`
+- `src-tauri/core/src/services/vault.rs`
 - `src-tauri/src/commands/auth.rs`
 - `src-tauri/src/commands/vault.rs`
-- `src-tauri/src/store.rs`
-- `src-tauri/src/cache.rs`
+- `src-tauri/core/src/store.rs`
+- `src-tauri/core/src/cache.rs`
 
 ## Design Intent
 
@@ -121,8 +121,8 @@ for migration from older session files.
 
 See:
 
-- `src-tauri/src/store.rs`
-- `src-tauri/src/services/auth.rs`
+- `src-tauri/core/src/store.rs`
+- `src-tauri/core/src/services/auth.rs`
 
 ### Offline Cache
 
@@ -139,7 +139,7 @@ applied operation is whatever the server returns on the next sync.
 
 See:
 
-- `src-tauri/src/cache.rs`
+- `src-tauri/core/src/cache.rs`
 
 ## Re-Encryption Flows
 
@@ -153,9 +153,9 @@ The most delicate application-level crypto flows are:
 
 These paths live mainly in:
 
-- `src-tauri/src/services/cipher.rs`
+- `src-tauri/core/src/services/cipher.rs`
 - `src-tauri/src/commands/move_share.rs`
-- `src-tauri/src/services/vault.rs`
+- `src-tauri/core/src/services/vault.rs`
 
 These paths should be reviewed for:
 
