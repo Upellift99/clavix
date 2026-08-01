@@ -20,6 +20,8 @@
     visibleColumns: CipherListColumns;
     drag: DragController;
     onOpenCipher: (id: string) => void;
+    /** Double-click: straight to the edit dialog, desktop-idiom style. */
+    onEditCipher: (id: string) => void;
     onRowContextMenu: (event: MouseEvent, cipher: CipherSummary) => void;
     onToggleSort: (key: SortKey) => void;
     onToggleColumn: (key: keyof CipherListColumns, value: boolean) => void;
@@ -40,6 +42,7 @@
     visibleColumns,
     drag,
     onOpenCipher,
+    onEditCipher,
     onRowContextMenu,
     onToggleSort,
     onToggleColumn,
@@ -264,6 +267,7 @@
                 class:hide-username={!visibleColumns.username}
                 class:hide-uri={!visibleColumns.uri}
                 onclick={() => onOpenCipher(c.id)}
+                ondblclick={() => onEditCipher(c.id)}
                 oncontextmenu={(e) => onRowContextMenu(e, c)}
                 draggable="true"
                 ondragstart={(e) => onCipherDragStart(e, c.id)}

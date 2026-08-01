@@ -166,6 +166,50 @@
     organizationId ? collections.filter((c) => c.organizationId === organizationId) : [],
   );
 
+  function sameFields<T extends Record<string, string>>(a: T, b: T): boolean {
+    return Object.keys(a).every((k) => a[k] === b[k]);
+  }
+
+  /**
+   * Has the user typed anything the close paths would throw away? Compared
+   * against `initial` rather than tracked with a flag so undoing an edit
+   * back to its starting value stops counting as a change.
+   */
+  const dirty = $derived(
+    open &&
+      (cipherType !== initial.cipherType ||
+        name !== initial.name ||
+        (folderId ?? null) !== (initial.folderId ?? null) ||
+        favorite !== initial.favorite ||
+        notes !== initial.notes ||
+        username !== initial.username ||
+        password !== initial.password ||
+        urisInput !== initial.uris.join("\n") ||
+        totp !== initial.totp ||
+        !sameFields(card, initial.card) ||
+        !sameFields(identity, initial.identity) ||
+        !sameFields(sshKey, initial.sshKey) ||
+        (organizationId ?? null) !== (initial.organizationId ?? null) ||
+        (collectionId ?? null) !== (initial.collectionIds[0] ?? null)),
+  );
+
+  /**
+   * Close paths that can lose work, split by how deliberate they are.
+   *
+   * A click on the backdrop or a stray Escape is nearly always a slip — a
+   * missed button, a drag that ended outside the panel, a reflex after
+   * closing a native picker — so a form with something in it ignores both.
+   * ✕ and Annuler say exactly one thing, so they always close: prompting
+   * there is nagging, and a `window.confirm` in front of Annuler is also a
+   * native modal sitting in the middle of a WebView, which the E2E driver
+   * can't dismiss.
+   *
+   * An untouched form closes on any of the four.
+   */
+  function requestClose(via: "accidental" | "explicit") {
+    if (via === "explicit" || !dirty) onCancel();
+  }
+
   $effect(() => {
     if (open) {
       cipherType = initial.cipherType;
@@ -318,8 +362,8 @@
 {#if open}
   <div
     class="editor-backdrop"
-    onclick={onCancel}
-    onkeydown={(e) => e.key === "Escape" && onCancel()}
+    onclick={() => requestClose("accidental")}
+    onkeydown={(e) => e.key === "Escape" && requestClose("accidental")}
     role="presentation"
   >
     <div
@@ -332,7 +376,7 @@
         // ever seeing it. We still swallow non-Escape keystrokes so the
         // global vault shortcuts (Ctrl+L, /, etc.) don't fire while
         // editing a field.
-        if (e.key === "Escape") onCancel();
+        if (e.key === "Escape") requestClose("accidental");
         e.stopPropagation();
       }}
       role="dialog"
@@ -344,7 +388,12 @@
         <h2 id="editor-title">
           {mode === "create" ? m.editor_create_title_generic() : m.editor_edit_title()}
         </h2>
-        <button type="button" class="secondary small" onclick={onCancel} aria-label={m.action_close()}>
+        <button
+          type="button"
+          class="secondary small"
+          onclick={() => requestClose("explicit")}
+          aria-label={m.action_close()}
+        >
           ✕
         </button>
       </header>
@@ -621,7 +670,12 @@
         {/if}
 
         <div class="row">
-          <button type="button" class="secondary" onclick={onCancel} disabled={submitting}>
+          <button
+            type="button"
+            class="secondary"
+            onclick={() => requestClose("explicit")}
+            disabled={submitting}
+          >
             {m.action_cancel()}
           </button>
           <button type="submit" disabled={submitting || !name.trim()}>
