@@ -33,9 +33,9 @@ use rand::RngCore;
 use sha2::Sha256;
 use zeroize::Zeroizing;
 
-use crate::crypto::{encrypt_bytes, EncString, SymmetricKey};
-use crate::error::{Error, Result};
-use crate::store::YubikeyUnlockBlock;
+use clavix_core::crypto::{encrypt_bytes, EncString, SymmetricKey};
+use clavix_core::error::{Error, Result};
+use clavix_core::store::YubikeyUnlockBlock;
 
 /// Schema version written to disk. Bumped on any wire change. Only
 /// version 1 is recognised today; an unknown version is a hard error
@@ -460,7 +460,7 @@ fn map_ctap_error(err: impl std::fmt::Display) -> Error {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::EncString;
+    use clavix_core::crypto::EncString;
 
     /// Deterministic in-memory authenticator. The only contract a real
     /// authenticator gives us is "same salt + same credential ⇒ same

@@ -40,12 +40,13 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use clavix_lib::api::VaultwardenClient;
-use clavix_lib::crypto::{encrypt_string, EncString, SymmetricKey};
-use clavix_lib::models::{KdfType, TokenSet};
-use clavix_lib::services::auth::ensure_fresh_tokens;
-use clavix_lib::state::{AppState, Session};
-use clavix_lib::store::{self, PersistedSession};
+use clavix_core::api::VaultwardenClient;
+use clavix_core::crypto::{encrypt_string, EncString, SymmetricKey};
+use clavix_core::models::{KdfType, TokenSet};
+use clavix_core::session::Session;
+use clavix_core::store::{self, PersistedSession};
+use clavix_lib::session::ensure_fresh_tokens;
+use clavix_lib::state::AppState;
 use tempfile::TempDir;
 
 // SAFETY: `std::env::set_var` is process-wide. Cargo runs tests in

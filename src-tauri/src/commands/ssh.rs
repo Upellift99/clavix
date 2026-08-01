@@ -5,11 +5,11 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::oneshot;
 
-use crate::crypto::decrypt_name;
-use crate::error::{Error, Result};
-use crate::models::CipherType;
 use crate::ssh_agent::{self, SignGuard, SignPolicy, SignRequest};
 use crate::state::AppState;
+use clavix_core::crypto::decrypt_name;
+use clavix_core::error::{Error, Result};
+use clavix_core::models::CipherType;
 
 /// Payload emitted to the frontend when a signature needs approval.
 /// The dialog shows the key and answers via `respond_ssh_agent_confirm`.
@@ -34,8 +34,8 @@ pub struct ConfirmRequest {
 /// Total by construction: there is no third outcome, which is what keeps
 /// the agent's key count reconcilable with the vault's SSH-key count.
 fn classify_ssh_cipher(
-    c: &crate::models::Cipher,
-    key: &crate::crypto::SymmetricKey,
+    c: &clavix_core::models::Cipher,
+    key: &clavix_core::crypto::SymmetricKey,
 ) -> std::result::Result<(String, String, String), SkippedKey> {
     // The name is itself vault ciphertext and can fail to decrypt. Fall
     // back to the cipher id so the row stays identifiable — an unnamed
@@ -204,8 +204,8 @@ pub async fn start_ssh_agent(
             .filter(|c| matches!(c.kind, CipherType::SshKey))
         {
             let owner =
-                crate::services::cipher::owning_key(c, &session.user_key, &session.org_keys);
-            let item = crate::services::cipher::item_key(c, owner);
+                clavix_core::services::cipher::owning_key(c, &session.user_key, &session.org_keys);
+            let item = clavix_core::services::cipher::item_key(c, owner);
             let key = item.as_ref().unwrap_or(owner);
             match classify_ssh_cipher(c, key) {
                 Ok(entry) => out.push(entry),
@@ -446,8 +446,8 @@ mod decrypt_tests {
 #[cfg(test)]
 mod classify_tests {
     use super::*;
-    use crate::crypto::{encrypt_string, SymmetricKey};
-    use crate::models::{Cipher, CipherSshKey};
+    use clavix_core::crypto::{encrypt_string, SymmetricKey};
+    use clavix_core::models::{Cipher, CipherSshKey};
 
     fn test_key() -> SymmetricKey {
         let mut bytes = [0u8; 64];

@@ -3,7 +3,7 @@
 //! display the "not supported" message.
 
 #[cfg(not(unix))]
-use crate::error::{Error, Result};
+use clavix_core::error::{Error, Result};
 #[cfg(not(unix))]
 use std::path::PathBuf;
 
@@ -109,7 +109,7 @@ mod unix {
     use tokio::sync::Mutex;
     use tokio::task::JoinHandle;
 
-    use crate::error::{Error, Result};
+    use clavix_core::error::{Error, Result};
 
     // Agent protocol message types (draft-miller-ssh-agent).
     const SSH_AGENTC_REQUEST_IDENTITIES: u8 = 11;

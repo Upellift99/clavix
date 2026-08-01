@@ -1,13 +1,15 @@
 use tauri::State;
 
-use crate::crypto::decrypt_name;
-use crate::error::{Error, Result};
-use crate::models::{
+use crate::session::ensure_fresh_tokens;
+use crate::state::AppState;
+use clavix_core::crypto::decrypt_name;
+use clavix_core::error::{Error, Result};
+use clavix_core::models::{
     CardDetail, CipherCreateInput, CipherDetail, IdentityDetail, LoginDetail, SshKeyDetail,
 };
-use crate::services::auth::ensure_fresh_tokens;
-use crate::services::cipher::{build_cipher_body, build_login_cipher_body, item_key, owning_key};
-use crate::state::AppState;
+use clavix_core::services::cipher::{
+    build_cipher_body, build_login_cipher_body, item_key, owning_key,
+};
 
 #[tauri::command]
 pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail> {
@@ -192,11 +194,11 @@ fn decrypt_totp_secret(state: &AppState, id: &str) -> Result<Option<String>> {
 /// keyboard — so dropping this makes the two agree rather than changing what
 /// a user sees.
 #[tauri::command]
-pub fn totp_code(state: State<'_, AppState>, id: String) -> Result<crate::totp::TotpCode> {
+pub fn totp_code(state: State<'_, AppState>, id: String) -> Result<clavix_core::totp::TotpCode> {
     let secret = decrypt_totp_secret(&state, &id)?.ok_or_else(|| Error::Storage {
         reason: "item has no TOTP secret".into(),
     })?;
-    crate::totp::code_now(&secret)
+    clavix_core::totp::code_now(&secret)
 }
 
 /// The raw TOTP secret, only for the editor (to edit it) and export (to write
@@ -340,7 +342,7 @@ pub async fn update_cipher(
         let existing_org_id = existing.and_then(|c| c.organization_id.clone());
         let existing_item_key = existing.and_then(|c| c.key.clone());
 
-        let owner: &crate::crypto::SymmetricKey = match existing_org_id.as_deref() {
+        let owner: &clavix_core::crypto::SymmetricKey = match existing_org_id.as_deref() {
             Some(org_id) => s.org_keys.get(org_id).ok_or_else(|| Error::Crypto {
                 reason: format!("no key available for organization {org_id}"),
             })?,
@@ -354,7 +356,7 @@ pub async fn update_cipher(
         // this one included.
         let unwrapped = existing_item_key
             .as_deref()
-            .map(|k| crate::crypto::decrypt_cipher_key(owner, k))
+            .map(|k| clavix_core::crypto::decrypt_cipher_key(owner, k))
             .transpose()?;
         let key = unwrapped.as_ref().unwrap_or(owner);
 

@@ -17,9 +17,9 @@
 
 use std::sync::Mutex;
 
-use clavix_lib::models::KdfType;
-use clavix_lib::services::auth::recover_refresh_token;
-use clavix_lib::store::{self, PersistedSession};
+use clavix_core::models::KdfType;
+use clavix_core::services::auth::recover_refresh_token;
+use clavix_core::store::{self, PersistedSession};
 use tempfile::TempDir;
 
 // SAFETY: `std::env::set_var` is process-wide and not thread-safe.
@@ -106,7 +106,7 @@ fn recover_refresh_falls_back_to_legacy_field() {
     // tests but assert it again here so the integration suite
     // catches a regression even if the unit tests are bypassed in
     // a partial run.
-    use clavix_lib::crypto::SymmetricKey;
+    use clavix_core::crypto::SymmetricKey;
 
     let mut bytes = [0u8; 64];
     for (i, b) in bytes.iter_mut().enumerate() {

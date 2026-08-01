@@ -18,7 +18,7 @@ use keepass::db::{EntryRef, GroupRef};
 use keepass::{Database, DatabaseKey};
 use serde::Serialize;
 
-use crate::error::{Error, Result};
+use clavix_core::error::{Error, Result};
 
 /// One importable login row, ready for `api.createCipher`. Empty
 /// strings rather than `None` for missing fields — matches the

@@ -1,5 +1,5 @@
-use crate::error::Result;
 use crate::update::{self, UpdateInfo};
+use clavix_core::error::Result;
 
 /// Ask GitHub whether a newer Clavix has been published. No session required —
 /// this is a plain outbound check that returns a small verdict to the WebView

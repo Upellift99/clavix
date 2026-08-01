@@ -14,10 +14,10 @@ fmt-fix:
 	cd src-tauri && cargo fmt --all
 
 clippy:
-	cd src-tauri && cargo clippy --all-targets -- -D warnings
+	cd src-tauri && cargo clippy --workspace --all-targets -- -D warnings
 
 test-rust:
-	cd src-tauri && cargo test --lib
+	cd src-tauri && cargo test --workspace --lib
 
 # --- Frontend ---
 

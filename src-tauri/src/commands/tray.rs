@@ -21,8 +21,8 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
-use crate::error::Result;
 use crate::state::AppState;
+use clavix_core::error::Result;
 
 const TRAY_ID: &str = "clavix-tray";
 const ITEM_OPEN: &str = "tray.open";
@@ -303,7 +303,7 @@ fn lock_session(app: &AppHandle) {
         let mut guard = state.session.lock();
         *guard = None;
     }
-    crate::services::auth::clear_pending_two_factor(&state);
+    crate::session::clear_pending_two_factor(&state);
 
     // Tell the renderer the session is gone. Without this the UI
     // would happily keep showing the vault until the next IPC call

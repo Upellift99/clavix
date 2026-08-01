@@ -1,10 +1,10 @@
 use secrecy::SecretString;
 use tauri::State;
 
-use crate::audit;
-use crate::crypto::decrypt_name;
-use crate::error::{Error, Result};
 use crate::state::AppState;
+use clavix_core::audit;
+use clavix_core::crypto::decrypt_name;
+use clavix_core::error::{Error, Result};
 
 #[tauri::command]
 pub async fn audit_vault_passwords(
@@ -24,9 +24,12 @@ pub async fn audit_vault_passwords(
             .filter_map(|c| {
                 let login = c.login.as_ref()?;
                 let pw_enc = login.password.as_deref()?;
-                let owner =
-                    crate::services::cipher::owning_key(c, &session.user_key, &session.org_keys);
-                let item = crate::services::cipher::item_key(c, owner);
+                let owner = clavix_core::services::cipher::owning_key(
+                    c,
+                    &session.user_key,
+                    &session.org_keys,
+                );
+                let item = clavix_core::services::cipher::item_key(c, owner);
                 let key = item.as_ref().unwrap_or(owner);
                 let pw = decrypt_name(pw_enc, key).ok()?;
                 if pw.is_empty() {

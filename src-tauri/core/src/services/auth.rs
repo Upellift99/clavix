@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use parking_lot::Mutex;
 use rsa::RsaPrivateKey;
 use secrecy::SecretString;
 
@@ -11,8 +12,16 @@ use crate::crypto::{
 };
 use crate::error::{Error, Result};
 use crate::models::{Prelogin, TokenSet};
-use crate::state::{AppState, PendingTwoFactor, Session, PENDING_2FA_TTL_SECS};
+use crate::session::{PendingTwoFactor, Session, PENDING_2FA_TTL_SECS};
 use crate::store::{self, PersistedSession};
+
+/// The two slots these functions operate on. They used to take the
+/// desktop crate's whole `AppState`, which is what kept this module from
+/// moving down here with the rest of `services` — that struct also
+/// carries the SSH agent handle and the tray flags. Naming the two
+/// mutexes it actually touched was the entire decoupling.
+pub type SessionSlot = Mutex<Option<Session>>;
+pub type PendingTwoFactorSlot = Mutex<Option<PendingTwoFactor>>;
 
 /// Recover the refresh token from a persisted session. Prefers the encrypted
 /// field (current format); falls back to the legacy clear-text field for
@@ -83,14 +92,14 @@ pub fn compute_expires_at(expires_in: u64) -> Instant {
 }
 
 pub fn store_session(
-    state: &AppState,
+    session: &SessionSlot,
     client: VaultwardenClient,
     tokens: TokenSet,
     user_key: SymmetricKey,
     private_key: Option<RsaPrivateKey>,
 ) {
     let expires_at = compute_expires_at(tokens.expires_in);
-    let mut guard = state.session.lock();
+    let mut guard = session.lock();
     *guard = Some(Session {
         client,
         tokens,
@@ -106,14 +115,15 @@ pub fn store_session(
 /// No-op otherwise. Commands that hit the Vaultwarden API call this before
 /// the first access-token use.
 ///
-/// Takes `&AppState` rather than Tauri's `State<'_, AppState>` so the
-/// function is reachable from `tests/`. Tauri command call sites pass
-/// `&state` and the `State<'r, T>: Deref<Target = T>` impl coerces to
-/// `&AppState` for free, so no call-site change is required.
-pub async fn ensure_fresh_tokens(state: &AppState) -> Result<()> {
-    crate::state::mark_activity(state);
+/// Takes the session slot rather than any app-wide state, so it is
+/// reachable from `tests/` and from a front end with no `AppState` at
+/// all. The desktop crate wraps this in `crate::session::
+/// ensure_fresh_tokens` to also stamp `last_activity` for the auto-lock
+/// watchdog — a refresh is a sign of a live user, but only that crate
+/// has somewhere to record it.
+pub async fn ensure_fresh_tokens(session: &SessionSlot) -> Result<()> {
     let (client, refresh) = {
-        let guard = state.session.lock();
+        let guard = session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         if s.expires_at > Instant::now() + Duration::from_secs(60) {
             return Ok(());
@@ -134,13 +144,13 @@ pub async fn ensure_fresh_tokens(state: &AppState) -> Result<()> {
     // Re-encrypt the (possibly rotated) refresh token under the user key while
     // we still hold the session lock, so we never persist clear-text on disk.
     let encrypted_refresh = {
-        let guard = state.session.lock();
+        let guard = session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         encrypt_string(&new_refresh, &s.user_key)?
     };
 
     {
-        let mut guard = state.session.lock();
+        let mut guard = session.lock();
         if let Some(s) = guard.as_mut() {
             s.tokens.access_token = new_access;
             s.tokens.refresh_token = new_refresh;
@@ -167,15 +177,15 @@ pub async fn ensure_fresh_tokens(state: &AppState) -> Result<()> {
 /// values back from the renderer. Replaces (and zeroizes) any previous
 /// pending login, so the user clicking "Se connecter" twice does not
 /// leave keys hanging around for the longer of the two TTLs.
-pub fn set_pending_two_factor(state: &AppState, pending: PendingTwoFactor) {
-    let mut slot = state.pending_2fa.lock();
+pub fn set_pending_two_factor(pending_2fa: &PendingTwoFactorSlot, pending: PendingTwoFactor) {
+    let mut slot = pending_2fa.lock();
     *slot = Some(pending);
 }
 
 /// Drop and zeroize any pending 2FA slot. Cheap; safe to call when
 /// nothing is pending.
-pub fn clear_pending_two_factor(state: &AppState) {
-    let mut slot = state.pending_2fa.lock();
+pub fn clear_pending_two_factor(pending_2fa: &PendingTwoFactorSlot) {
+    let mut slot = pending_2fa.lock();
     *slot = None;
 }
 
@@ -185,8 +195,8 @@ pub fn clear_pending_two_factor(state: &AppState) {
 /// away would otherwise leave that material in memory indefinitely. The
 /// auto-lock watchdog calls this every tick so an abandoned prompt is wiped
 /// even when auto-lock is disabled or the idle window hasn't elapsed.
-pub fn clear_pending_two_factor_if_stale(state: &AppState) {
-    let mut slot = state.pending_2fa.lock();
+pub fn clear_pending_two_factor_if_stale(pending_2fa: &PendingTwoFactorSlot) {
+    let mut slot = pending_2fa.lock();
     let stale = slot
         .as_ref()
         .map(|p| p.created_at.elapsed() > Duration::from_secs(PENDING_2FA_TTL_SECS))
@@ -200,10 +210,10 @@ pub fn clear_pending_two_factor_if_stale(state: &AppState) {
 /// error when nothing is pending or when the slot has gone stale past
 /// the TTL — the stale path zeroizes the slot on the way out.
 pub fn with_pending_two_factor<R>(
-    state: &AppState,
+    pending_2fa: &PendingTwoFactorSlot,
     f: impl FnOnce(&PendingTwoFactor) -> Result<R>,
 ) -> Result<R> {
-    let mut slot = state.pending_2fa.lock();
+    let mut slot = pending_2fa.lock();
     let stale = slot
         .as_ref()
         .map(|p| p.created_at.elapsed() > Duration::from_secs(PENDING_2FA_TTL_SECS))
