@@ -1,8 +1,8 @@
 .cipher-detail {
-  /* One source of truth for the label column: the label-less blocks
-     (URL list, notes) indent themselves to the value column with these
-     two, so a value never lands a gap-width off from the value above
-     it. Anything that changes the grid must change it here. */
+  /* One source of truth for the label column. `.notes` is the only block
+     left without a label of its own, and it indents itself to the value
+     column with these two so it never lands a gap-width off from the
+     values above it. Anything that changes the grid must change it here. */
   --detail-label-col: 130px;
   --detail-label-gap: 0.85rem;
   --detail-value-indent: calc(var(--detail-label-col) + var(--detail-label-gap));
@@ -173,25 +173,6 @@
   background: #cfe0f5;
 }
 
-.uri-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 0 var(--detail-value-indent);
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.uri-list li {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.uri-list code {
-  overflow-wrap: anywhere;
-}
-
 .notes {
   margin: 0 0 0 var(--detail-value-indent);
   white-space: pre-wrap;
@@ -225,7 +206,6 @@
     grid-template-columns: 1fr;
     gap: 0.1rem;
   }
-  .uri-list,
   .notes {
     margin-left: 0;
   }

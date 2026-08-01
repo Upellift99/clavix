@@ -226,7 +226,7 @@
     </div>
   </header>
 
-  {#if detail.login && (detail.login.username || detail.login.hasPassword)}
+  {#if detail.login && (detail.login.username || detail.login.hasPassword || detail.login.uris.length > 0)}
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_credentials()}</h3>
       {#if detail.login.username}
@@ -242,30 +242,19 @@
           { renderShown: "password" }
         )}
       {/if}
-    </section>
-  {/if}
-
-  {#if detail.login && detail.login.uris.length > 0}
-    <section class="detail-section">
-      <h3 class="detail-section-title">
-        {detail.login.uris.length > 1 ? m.detail_field_url_many() : m.detail_field_url_one()}
-      </h3>
-      <ul class="uri-list">
-        {#each detail.login.uris as u}
-          <li>
-            <code class="value">{u}</code>
-            <button
-              type="button"
-              class="icon-btn"
-              title={m.action_copy()}
-              aria-label={m.action_copy()}
-              onclick={() => onCopy(u, "URL")}
-            >
-              <Icon name="copy" size={14} />
-            </button>
-          </li>
-        {/each}
-      </ul>
+      <!-- URLs used to be their own section, which put the "URL" heading on
+           one line and the address on the next — the only rows in the panel
+           whose label and value didn't share a baseline. They're ordinary
+           labelled rows now, so every label sits to the left of its value. -->
+      {#each detail.login.uris as u, i}
+        {@render plainField(
+          detail.login.uris.length > 1
+            ? `${m.detail_field_url_one()} ${i + 1}`
+            : m.detail_field_url_one(),
+          u,
+          "URL"
+        )}
+      {/each}
     </section>
   {/if}
 
