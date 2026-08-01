@@ -194,18 +194,20 @@
   );
 
   /**
-   * Close paths that can lose work. A click on the backdrop is almost
-   * always a slip — a missed button, a drag that ended outside the panel —
-   * so a half-filled form simply ignores it. Escape and the explicit
-   * ✕ / Annuler buttons are deliberate, so they ask instead of refusing.
+   * Close paths that can lose work, split by how deliberate they are.
+   *
+   * A click on the backdrop or a stray Escape is nearly always a slip — a
+   * missed button, a drag that ended outside the panel, a reflex after
+   * closing a native picker — so a form with something in it ignores both.
+   * ✕ and Annuler say exactly one thing, so they always close: prompting
+   * there is nagging, and a `window.confirm` in front of Annuler is also a
+   * native modal sitting in the middle of a WebView, which the E2E driver
+   * can't dismiss.
+   *
+   * An untouched form closes on any of the four.
    */
-  function requestClose(via: "backdrop" | "explicit") {
-    if (!dirty) {
-      onCancel();
-      return;
-    }
-    if (via === "backdrop") return;
-    if (window.confirm(m.editor_discard_confirm())) onCancel();
+  function requestClose(via: "accidental" | "explicit") {
+    if (via === "explicit" || !dirty) onCancel();
   }
 
   $effect(() => {
@@ -360,8 +362,8 @@
 {#if open}
   <div
     class="editor-backdrop"
-    onclick={() => requestClose("backdrop")}
-    onkeydown={(e) => e.key === "Escape" && requestClose("explicit")}
+    onclick={() => requestClose("accidental")}
+    onkeydown={(e) => e.key === "Escape" && requestClose("accidental")}
     role="presentation"
   >
     <div
@@ -374,7 +376,7 @@
         // ever seeing it. We still swallow non-Escape keystrokes so the
         // global vault shortcuts (Ctrl+L, /, etc.) don't fire while
         // editing a field.
-        if (e.key === "Escape") requestClose("explicit");
+        if (e.key === "Escape") requestClose("accidental");
         e.stopPropagation();
       }}
       role="dialog"

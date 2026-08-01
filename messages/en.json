@@ -78,7 +78,6 @@
   "identity_country": "Country",
   "identity_passport": "Passport",
   "identity_license": "Driver's license",
-  "editor_discard_confirm": "You have unsaved changes. Close anyway and lose them?",
   "editor_edit_title": "Edit item",
   "editor_name": "Name",
   "editor_folder": "Folder",

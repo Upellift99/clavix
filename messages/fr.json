@@ -78,7 +78,6 @@
   "identity_country": "Pays",
   "identity_passport": "Passeport",
   "identity_license": "Permis de conduire",
-  "editor_discard_confirm": "Des informations saisies n’ont pas été enregistrées. Fermer quand même et les perdre ?",
   "editor_edit_title": "Modifier l'item",
   "editor_name": "Nom",
   "editor_folder": "Dossier",

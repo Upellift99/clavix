@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup } from "@testing-library/svelte";
 import { tick } from "svelte";
 
@@ -43,10 +43,6 @@ async function typeName(container: HTMLElement, value: string) {
   await tick();
 }
 
-beforeEach(() => {
-  vi.spyOn(window, "confirm").mockReturnValue(true);
-});
-
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -66,27 +62,36 @@ describe("CipherEditor close guards", () => {
     await typeName(container, "Nouveau compte");
     backdrop.click();
     expect(onCancel).not.toHaveBeenCalled();
-    // Not even a prompt: a stray click outside must be a no-op, not a
-    // question the user can answer wrong and lose the form to.
-    expect(window.confirm).not.toHaveBeenCalled();
   });
 
-  it("asks before discarding when Escape is pressed on a dirty form", async () => {
-    const { onCancel, panel, container } = mount();
-    await tick();
-    await typeName(container, "Nouveau compte");
-    panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
-    expect(onCancel).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps the form open when the discard prompt is declined", async () => {
-    vi.mocked(window.confirm).mockReturnValue(false);
+  it("ignores Escape on a dirty form", async () => {
     const { onCancel, panel, container } = mount();
     await tick();
     await typeName(container, "Nouveau compte");
     panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("still closes on Escape while the form is untouched", async () => {
+    const { onCancel, panel } = mount();
+    await tick();
+    panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  // Annuler and ✕ are unambiguous, so they close a dirty form outright.
+  // The E2E SSH spec depends on this: it fills the key field, gets the
+  // ECDSA rejection, then clicks Annuler and expects the dialog gone.
+  it("closes on Annuler even with unsaved changes", async () => {
+    const { onCancel, container } = mount();
+    await tick();
+    await typeName(container, "Nouveau compte");
+    const cancel = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent?.trim() === "Annuler",
+    ) as HTMLButtonElement;
+    expect(cancel).toBeTruthy();
+    cancel.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("treats a field edited back to its starting value as clean", async () => {
