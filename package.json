@@ -33,7 +33,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "@tauri-apps/cli": "^2.11.2",
     "@testing-library/svelte": "^5.4.2",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@wdio/cli": "^9.30.0",
     "@wdio/local-runner": "^9.30.0",
     "@wdio/mocha-framework": "^9.30.0",
