@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0](https://github.com/Upellift99/clavix/compare/v0.17.0...v0.18.0) (2026-08-03)
+
+
+### Features
+
+* attachments, custom fields, bulk actions, per-item reprompt ([#241](https://github.com/Upellift99/clavix/issues/241)) ([390850b](https://github.com/Upellift99/clavix/commit/390850b0cadd4a4450e127e9f346acc98966bc78))
+
 ## [0.17.0](https://github.com/Upellift99/clavix/compare/v0.16.0...v0.17.0) (2026-08-01)
 
 
