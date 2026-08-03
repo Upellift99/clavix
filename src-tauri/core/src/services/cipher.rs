@@ -247,9 +247,9 @@ pub fn build_update_cipher_body(
         .unwrap_or(&[])
         .iter()
         .filter_map(|h| {
-            h.password.as_ref().map(|p| {
-                serde_json::json!({ "password": p, "lastUsedDate": h.last_used_date })
-            })
+            h.password
+                .as_ref()
+                .map(|p| serde_json::json!({ "password": p, "lastUsedDate": h.last_used_date }))
         })
         .collect();
 
@@ -1291,8 +1291,8 @@ mod tests {
             value: Some("4242".into()),
             linked_id: None,
         }];
-        let body = build_update_cipher_body(&input, &key, &cipher, "2026-08-03T10:00:00.000Z")
-            .unwrap();
+        let body =
+            build_update_cipher_body(&input, &key, &cipher, "2026-08-03T10:00:00.000Z").unwrap();
         assert_eq!(
             decrypt_name(body["fields"][0]["value"].as_str().unwrap(), &key).unwrap(),
             "4242"
@@ -1321,7 +1321,10 @@ mod tests {
         assert!(input.favorite);
         assert!(input.reprompt);
         assert_eq!(input.cipher_type, 1);
-        assert_eq!(input.login.as_ref().unwrap().password.as_deref(), Some("hunter2"));
+        assert_eq!(
+            input.login.as_ref().unwrap().password.as_deref(),
+            Some("hunter2")
+        );
         assert_eq!(input.fields[0].kind, 1);
         assert_eq!(input.fields[0].value.as_deref(), Some("code-123"));
     }

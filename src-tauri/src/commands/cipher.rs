@@ -203,9 +203,11 @@ pub fn reveal_field(
         // in the cipher's own `fields` list — the same order `get_cipher`
         // reports, so the renderer never has to name a secret field.
         custom if custom.starts_with("custom:") => {
-            let index: usize = custom["custom:".len()..].parse().map_err(|_| Error::Storage {
-                reason: format!("malformed custom field selector: {custom}"),
-            })?;
+            let index: usize = custom["custom:".len()..]
+                .parse()
+                .map_err(|_| Error::Storage {
+                    reason: format!("malformed custom field selector: {custom}"),
+                })?;
             cipher
                 .fields
                 .as_deref()
@@ -257,7 +259,10 @@ pub fn password_history(
         .unwrap_or(&[])
         .iter()
         .filter_map(|h| {
-            let password = h.password.as_deref().and_then(|p| decrypt_name(p, key).ok())?;
+            let password = h
+                .password
+                .as_deref()
+                .and_then(|p| decrypt_name(p, key).ok())?;
             Some(PasswordHistoryEntry {
                 password,
                 last_used_date: h.last_used_date.clone(),
@@ -683,7 +688,9 @@ pub async fn download_attachment(
         // itself.
         let file_key = match attachment.key.as_deref() {
             Some(wrapped) => clavix_core::crypto::decrypt_cipher_key(cipher_key, wrapped)?,
-            None => clavix_core::crypto::SymmetricKey::from_bytes(cipher_key.to_bytes().as_slice())?,
+            None => {
+                clavix_core::crypto::SymmetricKey::from_bytes(cipher_key.to_bytes().as_slice())?
+            }
         };
 
         // Fall back to the canonical path on our own server when the
@@ -694,7 +701,12 @@ pub async fn download_attachment(
                 s.client.base_url()
             )
         });
-        (s.client.clone(), s.tokens.access_token.clone(), url, file_key)
+        (
+            s.client.clone(),
+            s.tokens.access_token.clone(),
+            url,
+            file_key,
+        )
     };
 
     let encrypted = client.download_attachment(&access_token, &url).await?;

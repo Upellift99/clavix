@@ -944,7 +944,10 @@ mod tests {
 
         // A download cut short must be an error, never a panic on a slice.
         for len in [0, 1, BUFFER_HEADER_LEN - 1, BUFFER_HEADER_LEN] {
-            assert!(decrypt_buffer(&encrypted[..len], &key).is_err(), "len {len}");
+            assert!(
+                decrypt_buffer(&encrypted[..len], &key).is_err(),
+                "len {len}"
+            );
         }
 
         let mut wrong_type = encrypted.clone();
