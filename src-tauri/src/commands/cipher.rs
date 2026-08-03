@@ -5,10 +5,11 @@ use crate::state::AppState;
 use clavix_core::crypto::decrypt_name;
 use clavix_core::error::{Error, Result};
 use clavix_core::models::{
-    CardDetail, CipherCreateInput, CipherDetail, IdentityDetail, LoginDetail, SshKeyDetail,
+    AttachmentDetail, CardDetail, CipherCreateInput, CipherDetail, CustomFieldDetail,
+    IdentityDetail, LoginDetail, PasswordHistoryEntry, SshKeyDetail,
 };
 use clavix_core::services::cipher::{
-    build_cipher_body, build_login_cipher_body, item_key, owning_key,
+    build_cipher_body, build_login_cipher_body, build_update_cipher_body, item_key, owning_key,
 };
 
 #[tauri::command]
@@ -90,6 +91,50 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
         key_fingerprint: s.key_fingerprint.as_deref().and_then(decrypt_opt),
     });
 
+    // Custom fields keep their vault order — `reveal_field("custom:<i>")`
+    // indexes into this same list, so re-ordering here would reveal the
+    // wrong field.
+    let fields = cipher
+        .fields
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .map(|f| {
+            let kind = f.kind.unwrap_or(0);
+            let hidden = kind == FIELD_KIND_HIDDEN;
+            CustomFieldDetail {
+                name: f.name.as_deref().and_then(decrypt_opt),
+                kind,
+                // Hidden fields are secrets and follow the same rule as
+                // passwords: presence here, value on demand.
+                value: if hidden {
+                    None
+                } else {
+                    f.value.as_deref().and_then(decrypt_opt)
+                },
+                hidden,
+            }
+        })
+        .collect();
+
+    let attachments = cipher
+        .attachments
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .map(|a| AttachmentDetail {
+            id: a.id.clone(),
+            file_name: a.file_name.as_deref().and_then(decrypt_opt),
+            size_name: a.size_name.clone(),
+            size: a
+                .size
+                .as_deref()
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(0)
+                .min(u32::MAX as u64) as u32,
+        })
+        .collect();
+
     Ok(CipherDetail {
         id: cipher.id.clone(),
         kind: cipher.kind as u8,
@@ -104,8 +149,18 @@ pub fn get_cipher(state: State<'_, AppState>, id: String) -> Result<CipherDetail
         card,
         identity,
         ssh_key,
+        fields,
+        password_history_count: cipher
+            .password_history
+            .as_deref()
+            .map_or(0, |h| h.len().min(u32::MAX as usize) as u32),
+        attachments,
+        reprompt: cipher.reprompt.unwrap_or(0) != 0,
     })
 }
+
+/// Bitwarden custom-field type for a hidden (secret) value.
+const FIELD_KIND_HIDDEN: u8 = 1;
 
 /// Decrypt a single secret field of a cipher on demand, by id + field name, so
 /// full plaintext secrets are not eagerly returned by `get_cipher` and left in
@@ -144,6 +199,21 @@ pub fn reveal_field(
             .ssh_key
             .as_ref()
             .and_then(|s| s.private_key.as_deref()),
+        // `custom:<index>` addresses a hidden custom field by its position
+        // in the cipher's own `fields` list — the same order `get_cipher`
+        // reports, so the renderer never has to name a secret field.
+        custom if custom.starts_with("custom:") => {
+            let index: usize = custom["custom:".len()..]
+                .parse()
+                .map_err(|_| Error::Storage {
+                    reason: format!("malformed custom field selector: {custom}"),
+                })?;
+            cipher
+                .fields
+                .as_deref()
+                .and_then(|f| f.get(index))
+                .and_then(|f| f.value.as_deref())
+        }
         other => {
             return Err(Error::Storage {
                 reason: format!("unknown reveal field: {other}"),
@@ -153,6 +223,52 @@ pub fn reveal_field(
     Ok(enc
         .and_then(|e| decrypt_name(e, key).ok())
         .filter(|s| !s.is_empty()))
+}
+
+/// Past passwords of an item, newest first, decrypted on demand.
+///
+/// Same rule as every other secret: this is a command the user has to
+/// reach for, not something `get_cipher` hands out. Entries that fail to
+/// decrypt are dropped rather than shown as placeholders — an old
+/// password is only useful if it is the real one.
+#[tauri::command]
+pub fn password_history(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<PasswordHistoryEntry>> {
+    crate::state::mark_activity(&state);
+    let guard = state.session.lock();
+    let session = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+    let vault = session.vault.as_ref().ok_or_else(|| Error::Storage {
+        reason: "no vault synced yet — synchronise first".into(),
+    })?;
+    let cipher = vault
+        .ciphers
+        .iter()
+        .find(|c| c.id == id)
+        .ok_or_else(|| Error::Storage {
+            reason: format!("cipher not found: {id}"),
+        })?;
+    let owner = owning_key(cipher, &session.user_key, &session.org_keys);
+    let item = item_key(cipher, owner);
+    let key = item.as_ref().unwrap_or(owner);
+
+    Ok(cipher
+        .password_history
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .filter_map(|h| {
+            let password = h
+                .password
+                .as_deref()
+                .and_then(|p| decrypt_name(p, key).ok())?;
+            Some(PasswordHistoryEntry {
+                password,
+                last_used_date: h.last_used_date.clone(),
+            })
+        })
+        .collect())
 }
 
 /// Decrypt a login item's TOTP secret (otpauth URI or bare base32) by id,
@@ -362,7 +478,18 @@ pub async fn update_cipher(
 
         let mut bound_input = input;
         bound_input.organization_id = existing_org_id;
-        let mut body = build_cipher_body(&bound_input, key)?;
+        // `build_update_cipher_body`, not `build_cipher_body`: the PUT
+        // replaces the server's copy wholesale, so the password history
+        // has to be carried across explicitly or it is deleted.
+        let mut body = match existing {
+            Some(cipher) => build_update_cipher_body(
+                &bound_input,
+                key,
+                cipher,
+                &clavix_core::time::now_iso8601(),
+            )?,
+            None => build_cipher_body(&bound_input, key)?,
+        };
         if let Some(wrapped) = existing_item_key {
             body.as_object_mut()
                 .expect("build_cipher_body returns a map")
@@ -383,6 +510,80 @@ pub async fn update_cipher(
         }
     }
     Ok(())
+}
+
+/// Copy an item. `name_suffix` is appended to the original's name (the
+/// renderer supplies the localised " (copy)").
+///
+/// The copy is rebuilt from decrypted values inside Rust and re-encrypted
+/// under the owning key, so no secret crosses to the WebView and the copy
+/// never shares an item key with the original. Attachments are not
+/// duplicated — see `cipher_to_create_input`.
+#[tauri::command]
+pub async fn duplicate_cipher(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    name_suffix: String,
+) -> Result<String> {
+    ensure_fresh_tokens(&state).await?;
+    let (client, access_token, kind) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = s.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+        let cipher = vault
+            .ciphers
+            .iter()
+            .find(|c| c.id == cipher_id)
+            .ok_or_else(|| Error::Storage {
+                reason: format!("cipher not found: {cipher_id}"),
+            })?;
+
+        let owner = owning_key(cipher, &s.user_key, &s.org_keys);
+        let item = item_key(cipher, owner);
+        let read_key = item.as_ref().unwrap_or(owner);
+
+        let mut input = clavix_core::services::cipher::cipher_to_create_input(cipher, read_key)?;
+        input.name.push_str(&name_suffix);
+
+        // The copy is written under the owning key, without an item key of
+        // its own — `build_cipher_body` encrypts every field with the key
+        // we hand it, and no `key` in the body means the server stores the
+        // fields exactly that way.
+        let body = build_cipher_body(&input, owner)?;
+        let kind = if cipher.organization_id.is_some() {
+            CreateKind::Org {
+                cipher: body,
+                collection_ids: input.collection_ids.clone(),
+            }
+        } else {
+            CreateKind::Personal(body)
+        };
+        (s.client.clone(), s.tokens.access_token.clone(), kind)
+    };
+    let created = match kind {
+        CreateKind::Personal(body) => client.create_cipher(&access_token, &body).await?,
+        CreateKind::Org {
+            cipher,
+            collection_ids,
+        } => {
+            let body = serde_json::json!({
+                "cipher": cipher,
+                "collectionIds": collection_ids,
+            });
+            client.create_org_cipher(&access_token, &body).await?
+        }
+    };
+    let id = created.id.clone();
+
+    let mut guard = state.session.lock();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            vault.ciphers.push(created);
+        }
+    }
+    Ok(id)
 }
 
 #[tauri::command]
@@ -433,6 +634,236 @@ pub async fn soft_delete_cipher(state: State<'_, AppState>, cipher_id: String) -
         }
     }
     Ok(())
+}
+
+/// Hard ceiling on an attachment, enforced here as well as in the UI.
+/// Attachment bytes make three round trips through memory (decoded,
+/// encrypted, uploaded) and cross the IPC boundary as base64; a file
+/// large enough to matter would take the WebView down before the server
+/// ever refused it.
+const ATTACHMENT_MAX_BYTES: usize = 100 * 1024 * 1024;
+
+/// Decrypt an attachment and hand it back as base64.
+///
+/// Base64 rather than the `number[]` the KDBX import uses: a JSON array
+/// of integers costs about four bytes per byte of file, which is a real
+/// tax at attachment sizes. The renderer turns this back into a Blob and
+/// offers it as a download — the plaintext never touches the disk from
+/// our side.
+#[tauri::command]
+pub async fn download_attachment(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    attachment_id: String,
+) -> Result<String> {
+    ensure_fresh_tokens(&state).await?;
+    let (client, access_token, url, file_key) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = s.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+        let cipher = vault
+            .ciphers
+            .iter()
+            .find(|c| c.id == cipher_id)
+            .ok_or_else(|| Error::Storage {
+                reason: format!("cipher not found: {cipher_id}"),
+            })?;
+        let attachment = cipher
+            .attachments
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .find(|a| a.id == attachment_id)
+            .ok_or_else(|| Error::Storage {
+                reason: format!("attachment not found: {attachment_id}"),
+            })?;
+
+        let owner = owning_key(cipher, &s.user_key, &s.org_keys);
+        let item = item_key(cipher, owner);
+        let cipher_key = item.as_ref().unwrap_or(owner);
+        // v2 attachments carry their own key, wrapped under the cipher
+        // key. Legacy ones (no `key`) are encrypted under the cipher key
+        // itself.
+        let file_key = match attachment.key.as_deref() {
+            Some(wrapped) => clavix_core::crypto::decrypt_cipher_key(cipher_key, wrapped)?,
+            None => {
+                clavix_core::crypto::SymmetricKey::from_bytes(cipher_key.to_bytes().as_slice())?
+            }
+        };
+
+        // Fall back to the canonical path on our own server when the
+        // vault carries no URL for the attachment.
+        let url = attachment.url.clone().unwrap_or_else(|| {
+            format!(
+                "{}attachments/{cipher_id}/{attachment_id}",
+                s.client.base_url()
+            )
+        });
+        (
+            s.client.clone(),
+            s.tokens.access_token.clone(),
+            url,
+            file_key,
+        )
+    };
+
+    let encrypted = client.download_attachment(&access_token, &url).await?;
+    let plaintext = clavix_core::crypto::decrypt_buffer(&encrypted, &file_key)?;
+    Ok(base64_encode(&plaintext))
+}
+
+/// Encrypt a file and attach it to an item.
+///
+/// `data_base64` is the raw file as the renderer read it. Everything the
+/// server sees is encrypted here: the payload under a per-file key
+/// generated for this upload, the file name under the cipher's key, and
+/// the file key itself wrapped under the cipher's key.
+#[tauri::command]
+pub async fn upload_attachment(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    file_name: String,
+    data_base64: String,
+) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
+
+    let plaintext = base64_decode(&data_base64)?;
+    if plaintext.is_empty() {
+        return Err(Error::Storage {
+            reason: "refusing to attach an empty file".into(),
+        });
+    }
+    if plaintext.len() > ATTACHMENT_MAX_BYTES {
+        return Err(Error::Storage {
+            reason: format!(
+                "attachment is {} bytes, over the {ATTACHMENT_MAX_BYTES}-byte limit",
+                plaintext.len()
+            ),
+        });
+    }
+
+    let (client, access_token, encrypted_name, encrypted_data, wrapped_key) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let vault = s.vault.as_ref().ok_or_else(|| Error::Storage {
+            reason: "no vault synced yet — synchronise first".into(),
+        })?;
+        let cipher = vault
+            .ciphers
+            .iter()
+            .find(|c| c.id == cipher_id)
+            .ok_or_else(|| Error::Storage {
+                reason: format!("cipher not found: {cipher_id}"),
+            })?;
+        let owner = owning_key(cipher, &s.user_key, &s.org_keys);
+        let item = item_key(cipher, owner);
+        let cipher_key = item.as_ref().unwrap_or(owner);
+
+        let file_key = clavix_core::crypto::SymmetricKey::generate();
+        let encrypted_data = clavix_core::crypto::encrypt_buffer(&plaintext, &file_key)?;
+        let wrapped_key = clavix_core::crypto::encrypt_cipher_key(&file_key, cipher_key)?;
+        let encrypted_name = clavix_core::crypto::encrypt_string(&file_name, cipher_key)?;
+        (
+            s.client.clone(),
+            s.tokens.access_token.clone(),
+            encrypted_name,
+            encrypted_data,
+            wrapped_key,
+        )
+    };
+
+    // `fileSize` is the size of the *ciphertext*: it is what the server
+    // stores and what it checks the upload against.
+    let slot = client
+        .attachment_upload_slot(
+            &access_token,
+            &cipher_id,
+            &serde_json::json!({
+                "key": wrapped_key,
+                "fileName": encrypted_name,
+                "fileSize": encrypted_data.len(),
+                "adminRequest": false,
+            }),
+        )
+        .await?;
+    let attachment_id = slot
+        .get("attachmentId")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| Error::InvalidResponse {
+            reason: "attachment/v2 response carried no attachmentId".into(),
+        })?
+        .to_owned();
+
+    client
+        .upload_attachment_data(
+            &access_token,
+            &cipher_id,
+            &attachment_id,
+            &encrypted_name,
+            encrypted_data,
+        )
+        .await?;
+
+    // The v2 response embeds the updated cipher; adopting it here means
+    // the new attachment shows up without waiting for the next sync.
+    if let Some(updated) = slot.get("cipherResponse") {
+        if let Ok(cipher) = serde_json::from_value::<clavix_core::models::Cipher>(updated.clone()) {
+            let mut guard = state.session.lock();
+            if let Some(session) = guard.as_mut() {
+                if let Some(vault) = session.vault.as_mut() {
+                    if let Some(slot) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                        *slot = cipher;
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_attachment(
+    state: State<'_, AppState>,
+    cipher_id: String,
+    attachment_id: String,
+) -> Result<()> {
+    ensure_fresh_tokens(&state).await?;
+    let (client, access_token) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        (s.client.clone(), s.tokens.access_token.clone())
+    };
+    client
+        .delete_attachment(&access_token, &cipher_id, &attachment_id)
+        .await?;
+
+    let mut guard = state.session.lock();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(cipher) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                if let Some(attachments) = cipher.attachments.as_mut() {
+                    attachments.retain(|a| a.id != attachment_id);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn base64_encode(bytes: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+fn base64_decode(value: &str) -> Result<Vec<u8>> {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(value)
+        .map_err(|e| Error::Storage {
+            reason: format!("invalid base64 payload: {e}"),
+        })
 }
 
 /// Permanent delete: removes the cipher row from the server. Used

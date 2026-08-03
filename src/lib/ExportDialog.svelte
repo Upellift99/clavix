@@ -2,7 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import { api } from "$lib/api";
   import { serializeBitwardenCsv, type CsvExportRow } from "./csv";
-  import type { CipherSummary, FolderSummary } from "./types";
+  import type { CipherDetail, CipherSummary, FolderSummary } from "./types";
 
   let {
     open,
@@ -53,6 +53,26 @@
     ciphers.filter((c) => !c.deletedDate && c.kind === 2).length,
   );
 
+  /**
+   * Custom fields for the export, hidden values included: `get_cipher`
+   * withholds those, so each one is fetched the same way the password
+   * is. An export that silently dropped them would be a lossy backup.
+   */
+  async function exportFields(
+    detail: CipherDetail,
+  ): Promise<{ name: string; value: string }[]> {
+    const out: { name: string; value: string }[] = [];
+    for (const [index, field] of detail.fields.entries()) {
+      out.push({
+        name: field.name ?? "",
+        value: field.hidden
+          ? ((await api.revealField(detail.id, `custom:${index}`)) ?? "")
+          : (field.value ?? ""),
+      });
+    }
+    return out;
+  }
+
   async function handleExport() {
     if (exporting) return;
     const targets = targetsFor(includeLogins, includeNotes);
@@ -92,6 +112,8 @@
             loginUsername: detail.login?.username ?? "",
             loginPassword,
             loginTotp,
+            fields: await exportFields(detail),
+            reprompt: detail.reprompt,
           });
         } else if (detail.kind === 2) {
           rows.push({
@@ -104,6 +126,8 @@
             loginUsername: "",
             loginPassword: "",
             loginTotp: "",
+            fields: await exportFields(detail),
+            reprompt: detail.reprompt,
           });
         }
         progress += 1;

@@ -72,6 +72,19 @@ impl SymmetricKey {
         out[32..].copy_from_slice(&self.mac);
         Zeroizing::new(out)
     }
+
+    /// A fresh random 64-byte key. Used for per-attachment keys, which
+    /// Bitwarden generates client-side and ships wrapped under the
+    /// cipher's key — the server never sees the file key.
+    pub fn generate() -> Self {
+        let mut bytes = Zeroizing::new([0u8; 64]);
+        rand::thread_rng().fill_bytes(bytes.as_mut());
+        let mut enc = [0u8; 32];
+        let mut mac = [0u8; 32];
+        enc.copy_from_slice(&bytes[..32]);
+        mac.copy_from_slice(&bytes[32..]);
+        Self { enc, mac }
+    }
 }
 
 /// Absolute client-side floors on server-supplied KDF parameters. The prelogin
@@ -396,6 +409,83 @@ pub fn encrypt_bytes(plaintext: &[u8], key: &SymmetricKey) -> Result<String> {
         STANDARD.encode(&ciphertext),
         STANDARD.encode(mac_bytes)
     ))
+}
+
+/// Attachment payloads travel in Bitwarden's *binary* EncString layout,
+/// not the base64 `2.iv|ct|mac` text form: one type byte, then the raw
+/// IV, MAC and ciphertext back to back.
+///
+///   [0]      encryption type (2 = AesCbc256_HmacSha256_B64)
+///   [1..17]  IV
+///   [17..49] HMAC-SHA256 over IV || ciphertext
+///   [49..]   AES-256-CBC ciphertext
+///
+/// A 5 MB file would otherwise pay a 33 % base64 tax in both directions.
+const ENC_TYPE_AES_CBC_HMAC: u8 = 2;
+const BUFFER_HEADER_LEN: usize = 1 + 16 + 32;
+
+pub fn encrypt_buffer(plaintext: &[u8], key: &SymmetricKey) -> Result<Vec<u8>> {
+    let mut iv = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut iv);
+
+    let cipher = Aes256CbcEnc::new_from_slices(&key.enc, &iv).map_err(|e| Error::Crypto {
+        reason: format!("AES-CBC encrypt init: {e}"),
+    })?;
+    let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(plaintext);
+
+    let mut mac = HmacSha256::new_from_slice(&key.mac).map_err(|e| Error::Crypto {
+        reason: format!("HMAC init: {e}"),
+    })?;
+    mac.update(&iv);
+    mac.update(&ciphertext);
+    let mac_bytes = mac.finalize().into_bytes();
+
+    let mut out = Vec::with_capacity(BUFFER_HEADER_LEN + ciphertext.len());
+    out.push(ENC_TYPE_AES_CBC_HMAC);
+    out.extend_from_slice(&iv);
+    out.extend_from_slice(&mac_bytes);
+    out.extend_from_slice(&ciphertext);
+    Ok(out)
+}
+
+pub fn decrypt_buffer(buffer: &[u8], key: &SymmetricKey) -> Result<Vec<u8>> {
+    // Length and type are checked before anything is fed to the cipher:
+    // this input comes straight off the wire, and a truncated download
+    // must be an error rather than a panic on a slice index.
+    if buffer.len() <= BUFFER_HEADER_LEN {
+        return Err(Error::Crypto {
+            reason: format!(
+                "encrypted attachment too short: {} bytes, header alone is {BUFFER_HEADER_LEN}",
+                buffer.len()
+            ),
+        });
+    }
+    if buffer[0] != ENC_TYPE_AES_CBC_HMAC {
+        return Err(Error::Crypto {
+            reason: format!("unsupported attachment encryption type: {}", buffer[0]),
+        });
+    }
+    let iv = &buffer[1..17];
+    let expected_mac = &buffer[17..BUFFER_HEADER_LEN];
+    let ciphertext = &buffer[BUFFER_HEADER_LEN..];
+
+    let mut hmac = HmacSha256::new_from_slice(&key.mac).map_err(|e| Error::Crypto {
+        reason: format!("HMAC init: {e}"),
+    })?;
+    hmac.update(iv);
+    hmac.update(ciphertext);
+    hmac.verify_slice(expected_mac).map_err(|_| Error::Crypto {
+        reason: "MAC verification failed on attachment (wrong key or tampered file)".into(),
+    })?;
+
+    let cipher = Aes256CbcDec::new_from_slices(&key.enc, iv).map_err(|e| Error::Crypto {
+        reason: format!("AES-CBC init: {e}"),
+    })?;
+    cipher
+        .decrypt_padded_vec_mut::<Pkcs7>(ciphertext)
+        .map_err(|e| Error::Crypto {
+            reason: format!("AES-CBC decrypt: {e}"),
+        })
 }
 
 #[cfg(test)]
@@ -795,5 +885,83 @@ mod tests {
         let parsed = EncString::parse(&encoded).unwrap();
         assert!(parsed.decrypt_sym(&key).is_ok());
         assert!(parsed.decrypt_string_sym(&key).is_err());
+    }
+
+    // ============ attachment buffers ============
+
+    #[test]
+    fn buffer_round_trips_arbitrary_bytes() {
+        let key = deterministic_sym_key(7);
+        // Deliberately not a multiple of the AES block size, and with a
+        // NUL and a high byte in it: attachment payloads are arbitrary
+        // binary, not text.
+        let payload: Vec<u8> = (0..1000u32).map(|i| (i % 256) as u8).collect();
+        let encrypted = encrypt_buffer(&payload, &key).unwrap();
+
+        assert_eq!(encrypted[0], 2, "type byte");
+        assert_eq!(encrypted.len() % 16, BUFFER_HEADER_LEN % 16);
+        assert_ne!(&encrypted[BUFFER_HEADER_LEN..], &payload[..]);
+
+        assert_eq!(decrypt_buffer(&encrypted, &key).unwrap(), payload);
+    }
+
+    #[test]
+    fn buffer_round_trips_an_empty_payload() {
+        let key = deterministic_sym_key(8);
+        let encrypted = encrypt_buffer(&[], &key).unwrap();
+        assert_eq!(decrypt_buffer(&encrypted, &key).unwrap(), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn buffer_uses_a_fresh_iv_per_call() {
+        let key = deterministic_sym_key(9);
+        let a = encrypt_buffer(b"same input", &key).unwrap();
+        let b = encrypt_buffer(b"same input", &key).unwrap();
+        assert_ne!(a, b, "a reused IV would leak that two files are identical");
+    }
+
+    #[test]
+    fn buffer_rejects_a_tampered_payload() {
+        let key = deterministic_sym_key(10);
+        let mut encrypted = encrypt_buffer(b"invoice.pdf contents", &key).unwrap();
+        let last = encrypted.len() - 1;
+        encrypted[last] ^= 0x01;
+        assert!(decrypt_buffer(&encrypted, &key).is_err());
+    }
+
+    #[test]
+    fn buffer_rejects_the_wrong_key() {
+        let key = deterministic_sym_key(11);
+        let other = deterministic_sym_key(12);
+        let encrypted = encrypt_buffer(b"secret", &key).unwrap();
+        assert!(decrypt_buffer(&encrypted, &other).is_err());
+    }
+
+    #[test]
+    fn buffer_rejects_truncated_and_unknown_input() {
+        let key = deterministic_sym_key(13);
+        let encrypted = encrypt_buffer(b"payload", &key).unwrap();
+
+        // A download cut short must be an error, never a panic on a slice.
+        for len in [0, 1, BUFFER_HEADER_LEN - 1, BUFFER_HEADER_LEN] {
+            assert!(
+                decrypt_buffer(&encrypted[..len], &key).is_err(),
+                "len {len}"
+            );
+        }
+
+        let mut wrong_type = encrypted.clone();
+        wrong_type[0] = 6;
+        assert!(decrypt_buffer(&wrong_type, &key).is_err());
+    }
+
+    #[test]
+    fn generated_keys_differ_and_are_usable() {
+        let a = SymmetricKey::generate();
+        let b = SymmetricKey::generate();
+        assert_ne!(a.to_bytes().as_slice(), b.to_bytes().as_slice());
+        let encrypted = encrypt_buffer(b"file", &a).unwrap();
+        assert_eq!(decrypt_buffer(&encrypted, &a).unwrap(), b"file");
+        assert!(decrypt_buffer(&encrypted, &b).is_err());
     }
 }

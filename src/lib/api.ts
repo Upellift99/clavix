@@ -7,6 +7,7 @@ import type {
   EditorPayload,
   LoginOk,
   LoginResult,
+  PasswordHistoryEntry,
   SshAgentStatus,
   StoredAccount,
   SyncSummary,
@@ -28,6 +29,17 @@ function payloadToRust(input: EditorPayload): Record<string, unknown> {
     notes: nullIfEmpty(input.notes),
     organizationId: input.organizationId,
     collectionIds: input.organizationId ? input.collectionIds : [],
+    // Fields with neither a name nor a value are the empty row the editor
+    // leaves behind when someone adds one and changes their mind.
+    fields: input.fields
+      .filter((f) => f.name.length > 0 || f.value.length > 0)
+      .map((f) => ({
+        kind: f.kind,
+        name: nullIfEmpty(f.name),
+        value: nullIfEmpty(f.value),
+        linkedId: f.linkedId,
+      })),
+    reprompt: input.reprompt,
   };
   if (input.cipherType === 1) {
     base.login = {
@@ -167,6 +179,31 @@ export const api = {
     invoke<void>("soft_delete_cipher", { cipherId }),
 
   deleteCipher: (cipherId: string) => invoke<void>("delete_cipher", { cipherId }),
+
+  /** Server-side copy of an item. The plaintext never leaves Rust: the
+      copy is decrypted, renamed and re-encrypted there. Returns the new id. */
+  duplicateCipher: (cipherId: string, nameSuffix: string) =>
+    invoke<string>("duplicate_cipher", { cipherId, nameSuffix }),
+
+  /** Past passwords, newest first. Fetched on demand like any secret. */
+  passwordHistory: (id: string) =>
+    invoke<PasswordHistoryEntry[]>("password_history", { id }),
+
+  /** Decrypted attachment, base64-encoded (see the Rust side on why not
+      a byte array). */
+  downloadAttachment: (cipherId: string, attachmentId: string) =>
+    invoke<string>("download_attachment", { cipherId, attachmentId }),
+
+  uploadAttachment: (cipherId: string, fileName: string, dataBase64: string) =>
+    invoke<void>("upload_attachment", { cipherId, fileName, dataBase64 }),
+
+  deleteAttachment: (cipherId: string, attachmentId: string) =>
+    invoke<void>("delete_attachment", { cipherId, attachmentId }),
+
+  /** Local master-password check for the per-item reprompt gate. No
+      network, no session change — false just means "wrong password". */
+  verifyMasterPassword: (password: string) =>
+    invoke<boolean>("verify_master_password", { password }),
 
   moveCipherToFolder: (cipherId: string, folderId: string | null) =>
     invoke<void>("move_cipher_to_folder", { cipherId, folderId }),

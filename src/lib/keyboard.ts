@@ -26,6 +26,11 @@ export type VaultKeyDeps = {
 export function makeVaultKeyHandler(deps: VaultKeyDeps) {
   return async function handle(event: KeyboardEvent) {
     if (!deps.isLoggedIn()) return;
+    // A modal dialog owns the keyboard while it is up. Without this,
+    // Escape on a delete confirmation both answered the dialog and
+    // collapsed the detail panel behind it, and Ctrl+C over a
+    // confirmation copied the password of the item underneath.
+    if (document.querySelector("dialog[open]")) return;
     const detail = deps.getDetail();
 
     if (event.key === "Escape" && detail) {

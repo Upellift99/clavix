@@ -11,6 +11,7 @@ import {
 import {
   EMPTY_EDITOR_INITIAL,
   type CipherDetail,
+  type EditorField,
   type EditorInitial,
   type EditorPayload,
   type QuickFilter,
@@ -309,6 +310,9 @@ export class VaultController {
     }
   }
 
+  // Both delete paths assume the caller already got a yes: confirmation
+  // is a UI concern and lives in `ConfirmDialog` (see routes/+page.svelte),
+  // which the store cannot reach and unit tests should not have to stub.
   async softDeleteCipher(id: string) {
     try {
       await api.softDeleteCipher(id);
@@ -325,8 +329,7 @@ export class VaultController {
     }
   }
 
-  async deleteCipherForever(id: string, confirm: string) {
-    if (!window.confirm(confirm)) return;
+  async deleteCipherForever(id: string) {
     try {
       await api.deleteCipher(id);
       if (this.summary) {
@@ -336,6 +339,98 @@ export class VaultController {
     } catch (e) {
       this.error = formatError(e);
     }
+  }
+
+  /**
+   * Copy an item. The whole operation runs in Rust — decrypt, rename,
+   * re-encrypt, create — so no secret passes through here. A sync
+   * follows because the new cipher only exists server-side and in the
+   * Rust vault; the summary this store paints from is rebuilt from it.
+   */
+  async duplicateCipher(id: string, nameSuffix: string) {
+    try {
+      await api.duplicateCipher(id, nameSuffix);
+      await this.sync();
+    } catch (e) {
+      this.error = formatError(e);
+    }
+  }
+
+  /**
+   * Bulk operations, run one item at a time.
+   *
+   * Sequential rather than `Promise.all`: each call is a write against
+   * the same vault, and Vaultwarden is a single server that a hundred
+   * parallel PUTs would simply queue anyway — worse, a partial failure
+   * mid-flight would leave the local optimistic state unrecoverable.
+   * The count of failures is returned so the caller can say so instead
+   * of showing one error per item.
+   */
+  async bulkSoftDelete(ids: string[]): Promise<number> {
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await api.softDeleteCipher(id);
+        const c = this.summary?.ciphers.find((c) => c.id === id);
+        if (c) c.deletedDate = "pending-sync";
+        if (this.detail?.id === id) this.closeDetail();
+      } catch {
+        failed += 1;
+      }
+    }
+    return failed;
+  }
+
+  async bulkDeleteForever(ids: string[]): Promise<number> {
+    let failed = 0;
+    const removed = new Set<string>();
+    for (const id of ids) {
+      try {
+        await api.deleteCipher(id);
+        removed.add(id);
+        if (this.detail?.id === id) this.closeDetail();
+      } catch {
+        failed += 1;
+      }
+    }
+    if (this.summary && removed.size > 0) {
+      this.summary.ciphers = this.summary.ciphers.filter((c) => !removed.has(c.id));
+    }
+    return failed;
+  }
+
+  async bulkRestore(ids: string[]): Promise<number> {
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await api.restoreCipher(id);
+        const c = this.summary?.ciphers.find((c) => c.id === id);
+        if (c) c.deletedDate = null;
+      } catch {
+        failed += 1;
+      }
+    }
+    return failed;
+  }
+
+  async bulkMoveToFolder(ids: string[], folderId: string | null): Promise<number> {
+    let failed = 0;
+    for (const id of ids) {
+      const cipher = this.summary?.ciphers.find((c) => c.id === id);
+      // Org items live in collections, not folders; skip them silently
+      // rather than counting a failure the server never saw.
+      if (!cipher || cipher.organizationId) continue;
+      if (cipher.folderId === folderId) continue;
+      const previous = cipher.folderId;
+      cipher.folderId = folderId;
+      try {
+        await api.moveCipherToFolder(id, folderId);
+      } catch {
+        cipher.folderId = previous;
+        failed += 1;
+      }
+    }
+    return failed;
   }
 
   openCreateEditor() {
@@ -379,8 +474,22 @@ export class VaultController {
     let cardNumber = "";
     let cardCode = "";
     let ssn = "";
+    // Hidden custom fields follow the same rule as every other secret:
+    // `get_cipher` withholds the value, so the editor has to ask for it
+    // or saving would write the field back empty.
+    const fields: EditorField[] = [];
     try {
       const id = this.detail.id;
+      for (const [index, field] of this.detail.fields.entries()) {
+        fields.push({
+          kind: field.kind,
+          name: field.name ?? "",
+          value: field.hidden
+            ? ((await api.revealField(id, `custom:${index}`)) ?? "")
+            : (field.value ?? ""),
+          linkedId: null,
+        });
+      }
       if (this.detail.login?.hasPassword) {
         password = (await api.revealField(id, "password")) ?? "";
       }
@@ -452,6 +561,8 @@ export class VaultController {
       },
       organizationId: currentCipher?.organizationId ?? null,
       collectionIds: currentCipher?.collectionIds ?? [],
+      fields,
+      reprompt: this.detail.reprompt,
     };
     this.editorMode = "edit";
     this.editorOpen = true;
@@ -464,11 +575,15 @@ export class VaultController {
    * first. Items in the trash aren't editable (the detail panel offers
    * restore/delete instead), so they only get shown.
    */
-  async openEditorFor(id: string) {
+  async openEditorFor(id: string, gate?: (detail: CipherDetail) => Promise<boolean>) {
     await this.openCipher(id);
     if (this.detail?.id !== id) return;
     const entry = this.summary?.ciphers.find((c) => c.id === id);
     if (entry?.deletedDate) return;
+    // The editor reveals every secret the item holds, so an item asking
+    // for the master password has to ask here too. The check runs after
+    // the load because only the detail knows about the flag.
+    if (gate && !(await gate(this.detail))) return;
     await this.openEditEditor();
   }
 

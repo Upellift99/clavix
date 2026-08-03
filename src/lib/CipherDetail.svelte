@@ -3,8 +3,15 @@
   import Icon from "./Icon.svelte";
   import TotpField from "./TotpField.svelte";
   import { api } from "./api";
-  import { cipherTypeLabel } from "./format";
-  import type { CipherDetail, CipherSummary, OrganizationSummary } from "./types";
+  import { cipherTypeLabel, formatBytes } from "./format";
+  import { ATTACHMENT_MAX_BYTES } from "./limits";
+  import type {
+    CipherDetail,
+    CipherSummary,
+    ConfirmFn,
+    OrganizationSummary,
+    PasswordHistoryEntry,
+  } from "./types";
 
   type Props = {
     detail: CipherDetail;
@@ -16,6 +23,16 @@
     onRestore: (id: string) => void;
     onSoftDelete: (id: string) => void;
     onDeleteForever: (id: string) => void;
+    onDuplicate: (id: string, name: string) => void;
+    /** The page's master-password gate for this item: true when the
+        item isn't flagged, when it was already unlocked, or when the
+        user answers the prompt correctly. */
+    onReprompt: () => Promise<boolean>;
+    confirm: ConfirmFn;
+    /** Attachment work happens here but errors belong on the page. */
+    onError: (e: unknown) => void;
+    /** Re-read the item after an attachment changed it. */
+    onRefresh: (id: string) => void;
   };
 
   let {
@@ -28,6 +45,11 @@
     onRestore,
     onSoftDelete,
     onDeleteForever,
+    onDuplicate,
+    onReprompt,
+    confirm,
+    onError,
+    onRefresh,
   }: Props = $props();
 
   let showPassword = $state(false);
@@ -41,6 +63,24 @@
   // currently open item; wiped whenever the item changes.
   let revealed = $state<Record<string, string>>({});
 
+  // Custom hidden fields the user asked to see, by index into detail.fields.
+  let shownFields = $state<Set<number>>(new Set());
+  let historyEntries = $state<PasswordHistoryEntry[] | null>(null);
+  let historyOpen = $state(false);
+  let uploading = $state(false);
+  let fileInput = $state<HTMLInputElement | null>(null);
+
+  /**
+   * Guard every path that turns ciphertext into something on screen or in
+   * the clipboard. Returns false when the user backs out of the prompt,
+   * and callers must then do nothing at all. Whether a prompt is needed
+   * at all is the page's call — it tracks which items are unlocked, so
+   * the row menu and the keyboard shortcuts agree with this panel.
+   */
+  async function passReprompt(): Promise<boolean> {
+    return onReprompt();
+  }
+
   async function revealValue(field: string): Promise<string> {
     if (revealed[field] === undefined) {
       revealed = { ...revealed, [field]: (await api.revealField(detail.id, field)) ?? "" };
@@ -51,14 +91,118 @@
   /** Copy a secret field, fetching it first if needed (kept out of long-lived
       state — only touched transiently for the copy). */
   async function copyField(field: string, label: string) {
+    if (!(await passReprompt())) return;
     const value = await revealValue(field);
     if (value) await onCopy(value, label);
   }
 
   /** Reveal-toggle a secret field: fetch it before showing. */
   async function toggleSecret(field: string, shown: boolean, set: (v: boolean) => void) {
-    if (!shown) await revealValue(field);
+    if (!shown) {
+      if (!(await passReprompt())) return;
+      await revealValue(field);
+    }
     set(!shown);
+  }
+
+  async function toggleCustomField(index: number) {
+    const next = new Set(shownFields);
+    if (next.has(index)) {
+      next.delete(index);
+    } else {
+      if (!(await passReprompt())) return;
+      await revealValue(`custom:${index}`);
+      next.add(index);
+    }
+    shownFields = next;
+  }
+
+  async function toggleHistory() {
+    if (historyOpen) {
+      historyOpen = false;
+      return;
+    }
+    if (!(await passReprompt())) return;
+    try {
+      if (historyEntries === null) {
+        historyEntries = await api.passwordHistory(detail.id);
+      }
+      historyOpen = true;
+    } catch (e) {
+      onError(e);
+    }
+  }
+
+  // Attachments are handed back base64-encoded and offered as a normal
+  // browser download — the same Blob + <a download> path the CSV export
+  // uses, so nothing is written to disk without the user picking where.
+  async function downloadAttachment(id: string, fileName: string | null) {
+    if (!(await passReprompt())) return;
+    try {
+      const base64 = await api.downloadAttachment(detail.id, id);
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName ?? `clavix-attachment-${id}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      onError(e);
+    }
+  }
+
+  async function onAttachmentPicked(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    // Clear immediately so picking the same file twice still fires a change.
+    input.value = "";
+    if (!file) return;
+    if (file.size > ATTACHMENT_MAX_BYTES) {
+      onError(
+        new Error(
+          m.detail_attachment_too_large({
+            size: formatBytes(file.size),
+            limit: formatBytes(ATTACHMENT_MAX_BYTES),
+          }),
+        ),
+      );
+      return;
+    }
+    uploading = true;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      // Chunked: String.fromCharCode(...bytes) blows the argument limit
+      // somewhere around a hundred thousand bytes.
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      }
+      await api.uploadAttachment(detail.id, file.name, btoa(binary));
+      onRefresh(detail.id);
+    } catch (e) {
+      onError(e);
+    } finally {
+      uploading = false;
+    }
+  }
+
+  async function deleteAttachment(id: string, fileName: string | null) {
+    const ok = await confirm({
+      title: m.detail_attachment_confirm_delete_title(),
+      body: m.detail_attachment_confirm_delete({ name: fileName ?? id }),
+      confirmLabel: m.detail_attachment_delete(),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.deleteAttachment(detail.id, id);
+      onRefresh(detail.id);
+    } catch (e) {
+      onError(e);
+    }
   }
 
   $effect(() => {
@@ -69,6 +213,9 @@
     showSsn = false;
     showSshPrivate = false;
     revealed = {};
+    shownFields = new Set();
+    historyEntries = null;
+    historyOpen = false;
   });
 
   const isDeleted = $derived(summaryEntry?.deletedDate ?? null);
@@ -208,6 +355,13 @@
         <button type="button" class="secondary small" onclick={onEdit}>
           <Icon name="edit" size={14} />
           {m.action_edit()}
+        </button>
+        <button
+          type="button"
+          class="secondary small"
+          onclick={() => onDuplicate(detail.id, detail.name)}
+        >
+          {m.action_duplicate()}
         </button>
         <button type="button" class="secondary small" onclick={() => onSoftDelete(detail.id)}>
           <Icon name="trash" size={14} />
@@ -371,6 +525,131 @@
           "clé privée",
           { masked: m.detail_field_private_key_hidden(), renderShown: "ssh" }
         )}
+      {/if}
+    </section>
+  {/if}
+
+  {#if detail.fields.length > 0}
+    <section class="detail-section">
+      <h3 class="detail-section-title">{m.detail_custom_fields()}</h3>
+      {#each detail.fields as field, index (index)}
+        {@const label = field.name ?? `#${index + 1}`}
+        {#if field.hidden}
+          {@render secretField(
+            label,
+            `custom:${index}`,
+            shownFields.has(index),
+            () => toggleCustomField(index),
+            label.toLowerCase()
+          )}
+        {:else if field.kind === 2}
+          <div class="detail-field" role="group">
+            <dt>{label}</dt>
+            <dd>
+              <span class="value">
+                {field.value === "true" ? m.editor_field_true() : m.editor_field_false()}
+              </span>
+            </dd>
+          </div>
+        {:else if field.value}
+          {@render plainField(label, field.value)}
+        {:else}
+          <div class="detail-field" role="group">
+            <dt>{label}</dt>
+            <dd><span class="value muted">—</span></dd>
+          </div>
+        {/if}
+      {/each}
+    </section>
+  {/if}
+
+  {#if detail.attachments.length > 0 || !isDeleted}
+    <section class="detail-section">
+      <h3 class="detail-section-title">{m.detail_attachments()}</h3>
+      {#each detail.attachments as attachment (attachment.id)}
+        <div class="attachment-row">
+          <span class="attachment-name">{attachment.fileName ?? attachment.id}</span>
+          <span class="attachment-size">
+            {attachment.sizeName ?? formatBytes(attachment.size)}
+          </span>
+          <button
+            type="button"
+            class="secondary small"
+            onclick={() => downloadAttachment(attachment.id, attachment.fileName)}
+          >
+            {m.detail_attachment_download()}
+          </button>
+          {#if !isDeleted}
+            <button
+              type="button"
+              class="icon-btn"
+              title={m.detail_attachment_delete()}
+              aria-label={m.detail_attachment_delete()}
+              onclick={() => deleteAttachment(attachment.id, attachment.fileName)}
+            >
+              <Icon name="trash" size={14} />
+            </button>
+          {/if}
+        </div>
+      {/each}
+      {#if !isDeleted}
+        <div class="attachment-add">
+          <input
+            bind:this={fileInput}
+            type="file"
+            class="visually-hidden"
+            onchange={onAttachmentPicked}
+          />
+          <button
+            type="button"
+            class="secondary small"
+            disabled={uploading}
+            onclick={() => fileInput?.click()}
+          >
+            {uploading ? m.detail_attachment_uploading() : m.detail_attachment_add()}
+          </button>
+        </div>
+      {/if}
+    </section>
+  {/if}
+
+  {#if detail.passwordHistoryCount > 0}
+    <section class="detail-section">
+      <h3 class="detail-section-title">{m.detail_password_history()}</h3>
+      <div class="history-header">
+        <span class="hint">
+          {m.detail_password_history_count({ count: String(detail.passwordHistoryCount) })}
+        </span>
+        <button type="button" class="secondary small" onclick={toggleHistory}>
+          {historyOpen
+            ? m.detail_password_history_hide()
+            : m.detail_password_history_show()}
+        </button>
+      </div>
+      {#if historyOpen}
+        {#if historyEntries && historyEntries.length > 0}
+          {#each historyEntries as entry, i (i)}
+            <div class="detail-field" role="group">
+              <dt class="history-date">{entry.lastUsedDate?.slice(0, 10) ?? "—"}</dt>
+              <dd>
+                <code class="value password">
+                  {#each [...entry.password] as ch}<span class={charClass(ch)}>{ch}</span>{/each}
+                </code>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  title={m.action_copy()}
+                  aria-label={m.action_copy()}
+                  onclick={() => onCopy(entry.password, "mot de passe")}
+                >
+                  <Icon name="copy" size={14} />
+                </button>
+              </dd>
+            </div>
+          {/each}
+        {:else}
+          <p class="hint">{m.detail_password_history_empty()}</p>
+        {/if}
       {/if}
     </section>
   {/if}

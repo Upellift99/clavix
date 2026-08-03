@@ -303,6 +303,142 @@ impl VaultwardenClient {
         Ok(())
     }
 
+    /// Step 1 of the two-step attachment upload: reserve a slot and get
+    /// back an attachment id plus where to PUT the bytes. The body carries
+    /// the encrypted file name, the wrapped per-file key and the
+    /// *ciphertext* length.
+    ///
+    /// Returns the raw JSON: callers need `attachmentId`, and the shape of
+    /// the rest differs between Vaultwarden and Bitwarden cloud.
+    pub async fn attachment_upload_slot(
+        &self,
+        access_token: &str,
+        cipher_id: &str,
+        body: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/attachment/v2"))?;
+        let response = self
+            .http
+            .post(url)
+            .bearer_auth(access_token)
+            .json(body)
+            .send()
+            .await?;
+        let status = response.status();
+        let bytes = response.bytes().await?;
+        if !status.is_success() {
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: String::from_utf8_lossy(&bytes).into_owned(),
+            });
+        }
+        serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
+            reason: e.to_string(),
+        })
+    }
+
+    /// Step 2: the encrypted bytes themselves, as multipart/form-data on
+    /// the direct-upload endpoint (`fileUploadType: 0`, the only one
+    /// Vaultwarden implements). The part must be named `data` and carry a
+    /// file name, or Vaultwarden rejects the request.
+    pub async fn upload_attachment_data(
+        &self,
+        access_token: &str,
+        cipher_id: &str,
+        attachment_id: &str,
+        encrypted_name: &str,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/attachment/{attachment_id}"))?;
+        // The file name in the multipart part is metadata for the server's
+        // form parser; the name that matters is the encrypted one already
+        // registered in step 1.
+        let part = reqwest::multipart::Part::bytes(data)
+            .file_name(encrypted_name.to_owned())
+            .mime_str("application/octet-stream")
+            .map_err(|e| Error::InvalidResponse {
+                reason: format!("multipart part: {e}"),
+            })?;
+        let form = reqwest::multipart::Form::new().part("data", part);
+        let response = self
+            .http
+            .post(url)
+            .bearer_auth(access_token)
+            .multipart(form)
+            .send()
+            .await?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+        Ok(())
+    }
+
+    /// The encrypted bytes of an attachment.
+    ///
+    /// `url` comes from the vault (the server put it there), so it is
+    /// treated as untrusted input: the bearer token is attached **only**
+    /// when the URL is on the server we are logged in to. A hostile or
+    /// compromised server that points an attachment at a third-party host
+    /// gets an anonymous GET, never our access token. Anything that is not
+    /// HTTPS on a foreign host is refused outright.
+    pub async fn download_attachment(&self, access_token: &str, url: &str) -> Result<Vec<u8>> {
+        let parsed = Url::parse(url).map_err(|_| Error::InvalidUrl {
+            url: url.to_string(),
+        })?;
+        let same_origin = parsed.scheme() == self.base_url.scheme()
+            && parsed.host_str() == self.base_url.host_str()
+            && parsed.port_or_known_default() == self.base_url.port_or_known_default();
+        if !same_origin && parsed.scheme() != "https" {
+            return Err(Error::InvalidUrl {
+                url: url.to_string(),
+            });
+        }
+
+        let mut request = self.http.get(parsed);
+        if same_origin {
+            request = request.bearer_auth(access_token);
+        }
+        let response = request.send().await?;
+        let status = response.status();
+        let bytes = response.bytes().await?;
+        if !status.is_success() {
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: String::from_utf8_lossy(&bytes).into_owned(),
+            });
+        }
+        Ok(bytes.to_vec())
+    }
+
+    pub async fn delete_attachment(
+        &self,
+        access_token: &str,
+        cipher_id: &str,
+        attachment_id: &str,
+    ) -> Result<()> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/attachment/{attachment_id}"))?;
+        let response = self
+            .http
+            .delete(url)
+            .bearer_auth(access_token)
+            .send()
+            .await?;
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status: status.as_u16(),
+                message: body,
+            });
+        }
+        Ok(())
+    }
+
     pub async fn update_cipher_partial(
         &self,
         access_token: &str,

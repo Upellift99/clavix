@@ -14,6 +14,20 @@ export type Phase =
 
 export type StoredAccount = { serverUrl: string; email: string };
 
+// One confirmation prompt, as handed to `ConfirmDialog.ask()`. The
+// strings are already localised by the caller — the dialog holds no
+// copy of its own beyond the Cancel label.
+export type ConfirmRequest = {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  /** Paints the confirm button red. Set it for anything that destroys data. */
+  danger?: boolean;
+};
+
+/** What a page passes down so a child can raise a confirmation. */
+export type ConfirmFn = (request: ConfirmRequest) => Promise<boolean>;
+
 export type TauriError = {
   code: string;
   message: string;
@@ -47,6 +61,10 @@ export type { SyncSummary } from "./generated/SyncSummary";
 export type { LoginDetail, CardDetail, IdentityDetail, SshKeyDetail };
 export type { CipherDetail } from "./generated/CipherDetail";
 export type { CipherCreateInput } from "./generated/CipherCreateInput";
+export type { CustomFieldDetail } from "./generated/CustomFieldDetail";
+export type { CustomFieldInput } from "./generated/CustomFieldInput";
+export type { AttachmentDetail } from "./generated/AttachmentDetail";
+export type { PasswordHistoryEntry } from "./generated/PasswordHistoryEntry";
 
 // Rust calls it LoginOutcome; the frontend has always called it LoginResult.
 export type { LoginOutcome as LoginResult } from "./generated/LoginOutcome";
@@ -123,6 +141,21 @@ export type EditorInitial = {
   organizationId: string | null;
   /** Collections the item will belong to inside the organization. */
   collectionIds: string[];
+  /** Custom fields, in display order. Always sent: the cipher PUT
+      replaces the server's copy, so an omitted list deletes them. */
+  fields: EditorField[];
+  /** Ask for the master password again before revealing this item. */
+  reprompt: boolean;
+};
+
+/** One editable custom field. `kind` follows Bitwarden: 0 text, 1 hidden,
+    2 boolean, 3 linked. Linked fields are shown read-only — their meaning
+    comes from a browser extension we don't ship. */
+export type EditorField = {
+  kind: number;
+  name: string;
+  value: string;
+  linkedId: number | null;
 };
 
 export const EMPTY_CARD_FIELDS: CardFields = {
@@ -177,6 +210,8 @@ export const EMPTY_EDITOR_INITIAL: EditorInitial = {
   sshKey: { ...EMPTY_SSH_FIELDS },
   organizationId: null,
   collectionIds: [],
+  fields: [],
+  reprompt: false,
 };
 
 export type EditorPayload = Omit<EditorInitial, "id">;

@@ -260,6 +260,36 @@ pub struct Cipher {
     /// Password history entries; `password` is an EncString.
     #[serde(default)]
     pub password_history: Option<Vec<CipherPasswordHistory>>,
+    /// Master-password reprompt: 0 (or absent) = none, 1 = ask again before
+    /// revealing this item's secrets. Advisory by construction — the server
+    /// enforces nothing and any client can ignore it — so it guards against
+    /// a shoulder-surfer at an unlocked vault, not against an attacker who
+    /// owns the machine.
+    #[serde(default)]
+    pub reprompt: Option<u8>,
+    /// Files attached to this cipher. `file_name` and `key` are EncStrings;
+    /// `key` wraps the per-attachment key the payload itself is encrypted
+    /// under (absent on legacy attachments, which use the cipher key).
+    #[serde(default)]
+    pub attachments: Option<Vec<CipherAttachment>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CipherAttachment {
+    pub id: String,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub file_name: Option<String>,
+    #[serde(default)]
+    pub key: Option<String>,
+    /// Ciphertext length in bytes, as a string on the wire (Bitwarden sends
+    /// it as a string; Vaultwarden mirrors that).
+    #[serde(default)]
+    pub size: Option<String>,
+    #[serde(default)]
+    pub size_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -390,6 +420,53 @@ pub struct CipherDetail {
     pub card: Option<CardDetail>,
     pub identity: Option<IdentityDetail>,
     pub ssh_key: Option<SshKeyDetail>,
+    /// Custom fields, in vault order. Hidden ones carry no value — same
+    /// rule as every other secret (see `reveal_field("custom:<index>")`).
+    pub fields: Vec<CustomFieldDetail>,
+    /// How many past passwords the item carries. The passwords themselves
+    /// come from `password_history`, on demand.
+    pub password_history_count: u32,
+    pub attachments: Vec<AttachmentDetail>,
+    /// Whether the item asks for the master password before revealing.
+    pub reprompt: bool,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomFieldDetail {
+    pub name: Option<String>,
+    /// Bitwarden field type: 0 text, 1 hidden, 2 boolean, 3 linked.
+    pub kind: u8,
+    /// Plaintext for text/boolean/linked fields; `None` for hidden ones.
+    pub value: Option<String>,
+    /// True when the value was withheld because the field is hidden.
+    pub hidden: bool,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentDetail {
+    pub id: String,
+    /// Decrypted file name, or `None` when it fails to decrypt.
+    pub file_name: Option<String>,
+    /// Server-rendered size, e.g. "1.4 MB".
+    pub size_name: Option<String>,
+    /// Ciphertext size in bytes; 0 when the server sent no usable value.
+    /// `u32` rather than `u64` on purpose: ts-rs maps a 64-bit integer to
+    /// `bigint`, which is a lie on this boundary — Tauri serialises it as
+    /// a JSON number and the WebView receives a plain `number`. 4 GiB is
+    /// far above any attachment this app will accept anyway.
+    pub size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordHistoryEntry {
+    pub password: String,
+    pub last_used_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
@@ -580,6 +657,30 @@ pub struct CipherCreateInput {
     /// organization.  Ignored when `organization_id` is `None`.
     #[serde(default)]
     pub collection_ids: Vec<String>,
+    /// Custom fields, in display order. Sent on every write: the cipher
+    /// PUT has replace semantics, so omitting them deletes them.
+    #[serde(default)]
+    pub fields: Vec<CustomFieldInput>,
+    /// Ask for the master password before revealing this item's secrets.
+    #[serde(default)]
+    pub reprompt: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomFieldInput {
+    /// 0 text, 1 hidden, 2 boolean, 3 linked.
+    #[serde(default)]
+    pub kind: u8,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub value: Option<String>,
+    /// Only meaningful for linked fields (kind 3); echoed back untouched
+    /// so an item edited here keeps a link another client set up.
+    #[serde(default)]
+    pub linked_id: Option<i32>,
 }
 
 fn default_cipher_type() -> u8 {

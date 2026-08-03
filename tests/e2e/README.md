@@ -46,6 +46,19 @@ Running `pnpm test:e2e` assumes the Tauri binary already exists at
 `src-tauri/target/debug/clavix`. The WebdriverIO config errors out early
 if the binary or `tauri-driver` is missing, with a hint.
 
+## Related: the attachment integration test
+
+`src-tauri/tests/attachment_round_trip.rs` uses the same container but
+none of the WebDriver stack — it drives `VaultwardenClient` directly to
+prove the attachment upload/download wire format and the custom-field /
+password-history round trip against a real server. Ignored by default:
+
+```bash
+docker compose -f tests/e2e/docker-compose.yml up -d
+cargo run --example e2e_seed          # from src-tauri/
+cargo test --test attachment_round_trip -- --ignored
+```
+
 ## Specs
 
 The suite is driven by a seeded Vaultwarden instance (Docker, port

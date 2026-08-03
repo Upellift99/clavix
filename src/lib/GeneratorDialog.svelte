@@ -6,9 +6,13 @@
   type Props = {
     currentLocale: Locale;
     onCopy: (value: string) => void;
+    /** When set, the dialog offers "Use this password" and hands the
+        result back — this is how the item editor reaches the same
+        options instead of carrying a generator of its own. */
+    onUse?: (value: string) => void;
   };
 
-  let { currentLocale, onCopy }: Props = $props();
+  let { currentLocale, onCopy, onUse }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
   let length = $state(20);
@@ -32,7 +36,9 @@
   }
 
   export function open() {
-    if (!output) regenerate();
+    // Always a fresh password when opened from the editor: the previous
+    // one has, by then, usually been used somewhere.
+    if (!output || onUse) regenerate();
     dialog?.showModal();
   }
 
@@ -100,9 +106,27 @@
       <button type="button" class="secondary" onclick={regenerate}>
         {m.generator_regenerate()}
       </button>
-      <button type="button" onclick={() => output && onCopy(output)} disabled={!output}>
+      <button
+        type="button"
+        class={onUse ? "secondary" : undefined}
+        onclick={() => output && onCopy(output)}
+        disabled={!output}
+      >
         {m.action_copy()}
       </button>
+      {#if onUse}
+        <button
+          type="button"
+          onclick={() => {
+            if (!output) return;
+            onUse(output);
+            close();
+          }}
+          disabled={!output}
+        >
+          {m.generator_use()}
+        </button>
+      {/if}
     </div>
   {/key}
 </dialog>

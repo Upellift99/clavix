@@ -1,8 +1,9 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
   import QrScanner from "$lib/QrScanner.svelte";
+  import GeneratorDialog from "$lib/GeneratorDialog.svelte";
   import { api } from "$lib/api";
-  import type { TauriError } from "$lib/types";
+  import type { Locale, TauriError } from "$lib/types";
 
   type FolderSummary = { id: string; name: string };
   type OrganizationSummary = { id: string; name: string };
@@ -46,6 +47,13 @@
     keyFingerprint: string;
   };
 
+  export type EditorField = {
+    kind: number;
+    name: string;
+    value: string;
+    linkedId: number | null;
+  };
+
   export type Initial = {
     id: string | null;
     cipherType: CipherKind;
@@ -67,6 +75,9 @@
     // org scoping
     organizationId: string | null;
     collectionIds: string[];
+    // custom fields + master-password reprompt
+    fields: EditorField[];
+    reprompt: boolean;
   };
 
   export type SubmitPayload = Omit<Initial, "id">;
@@ -114,8 +125,10 @@
     folders,
     organizations,
     collections,
+    currentLocale,
     onCancel,
     onSubmit,
+    onCopy,
   }: {
     open: boolean;
     mode: "create" | "edit";
@@ -123,8 +136,13 @@
     folders: FolderSummary[];
     organizations: OrganizationSummary[];
     collections: CollectionSummary[];
+    /** Only forwarded to the generator dialog, which re-renders on it. */
+    currentLocale: Locale;
     onCancel: () => void;
     onSubmit: (payload: SubmitPayload) => Promise<void>;
+    /** Copy from the generator dialog goes through the page's clipboard
+        controller (auto-clear, toast) rather than a bare writeText. */
+    onCopy: (value: string, label: string) => void;
   } = $props();
 
   let cipherType = $state<CipherKind>(1);
@@ -141,6 +159,12 @@
   let sshKey = $state<SshKeyFields>({ ...EMPTY_SSH });
   let organizationId = $state<string | null>(null);
   let collectionId = $state<string | null>(null);
+  let fields = $state<EditorField[]>([]);
+  let reprompt = $state(false);
+  // Which hidden custom fields are currently shown in the clear. Indices
+  // into `fields`; reset every time the editor opens.
+  let shownFields = $state<Set<number>>(new Set());
+  let generatorDialog = $state<{ open: () => void } | null>(null);
   let showPassword = $state(false);
   let submitting = $state(false);
   let error = $state<string | null>(null);
@@ -190,8 +214,43 @@
         !sameFields(identity, initial.identity) ||
         !sameFields(sshKey, initial.sshKey) ||
         (organizationId ?? null) !== (initial.organizationId ?? null) ||
-        (collectionId ?? null) !== (initial.collectionIds[0] ?? null)),
+        (collectionId ?? null) !== (initial.collectionIds[0] ?? null) ||
+        reprompt !== initial.reprompt ||
+        !sameCustomFields(fields, initial.fields)),
   );
+
+  function sameCustomFields(a: EditorField[], b: EditorField[]): boolean {
+    return (
+      a.length === b.length &&
+      a.every(
+        (f, i) =>
+          f.kind === b[i].kind && f.name === b[i].name && f.value === b[i].value,
+      )
+    );
+  }
+
+  function addField() {
+    fields.push({ kind: 0, name: "", value: "", linkedId: null });
+  }
+
+  function removeField(index: number) {
+    fields.splice(index, 1);
+    // Indices shift under the reveal set, so rebuild it rather than
+    // leaving it pointing at whatever moved up.
+    const next = new Set<number>();
+    for (const i of shownFields) {
+      if (i < index) next.add(i);
+      else if (i > index) next.add(i - 1);
+    }
+    shownFields = next;
+  }
+
+  function toggleFieldVisible(index: number) {
+    const next = new Set(shownFields);
+    if (next.has(index)) next.delete(index);
+    else next.add(index);
+    shownFields = next;
+  }
 
   /**
    * Close paths that can lose work, split by how deliberate they are.
@@ -226,6 +285,11 @@
       sshKey = { ...initial.sshKey };
       organizationId = initial.organizationId;
       collectionId = initial.collectionIds[0] ?? null;
+      // Copied, not aliased: the rows are edited in place and `initial`
+      // is what `dirty` compares against.
+      fields = initial.fields.map((f) => ({ ...f }));
+      reprompt = initial.reprompt;
+      shownFields = new Set();
       showPassword = false;
       submitting = false;
       error = null;
@@ -303,20 +367,17 @@
     }
   }
 
-  function generatePassword() {
-    const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const lower = "abcdefghijklmnopqrstuvwxyz";
-    const digits = "0123456789";
-    const symbols = "!@#$%^&*()-_=+[]{};:,.<>?/";
-    const ambiguous = /[O0Il1|`']/g;
-    const charset = (upper + lower + digits + symbols).replace(ambiguous, "");
-    const length = 20;
-    const chars = Array.from(charset);
-    const rng = new Uint32Array(length);
-    crypto.getRandomValues(rng);
-    const out: string[] = [];
-    for (let i = 0; i < length; i++) out.push(chars[rng[i] % chars.length]);
-    password = out.join("");
+  // The editor used to roll its own 20-character password with a fixed
+  // character set, which meant the one place people actually create
+  // passwords was the one place the generator's options were out of
+  // reach. It now opens the same dialog as the toolbar and takes the
+  // result back through `onUse`.
+  function openGenerator() {
+    generatorDialog?.open();
+  }
+
+  function useGeneratedPassword(value: string) {
+    password = value;
     showPassword = true;
   }
 
@@ -350,6 +411,8 @@
         sshKey: { ...sshKey },
         organizationId,
         collectionIds: organizationId && collectionId ? [collectionId] : [],
+        fields: fields.map((f) => ({ ...f, name: f.name.trim() })),
+        reprompt,
       });
     } catch (e) {
       error = (e as Error).message ?? String(e);
@@ -478,7 +541,12 @@
               >
                 {showPassword ? m.action_hide() : m.action_show()}
               </button>
-              <button type="button" class="secondary small" onclick={generatePassword}>
+              <button
+                type="button"
+                class="secondary small"
+                onclick={openGenerator}
+                title={m.generator_title()}
+              >
                 🎲
               </button>
             </div>
@@ -660,10 +728,85 @@
           <textarea bind:value={notes} rows="3"></textarea>
         </label>
 
+        <!-- Custom fields. Every item type can carry them, so this sits
+             outside the per-type blocks. -->
+        <fieldset class="custom-fields">
+          <legend>{m.editor_custom_fields()}</legend>
+          {#each fields as field, index (index)}
+            <div class="custom-field-row">
+              <select bind:value={field.kind} aria-label={m.editor_field_type()}>
+                <option value={0}>{m.editor_field_text()}</option>
+                <option value={1}>{m.editor_field_hidden()}</option>
+                <option value={2}>{m.editor_field_boolean()}</option>
+                {#if field.kind === 3}
+                  <!-- Linked fields come from the browser extension we
+                       don't ship; offered only so an existing one can be
+                       kept as it is rather than silently retyped. -->
+                  <option value={3}>{m.editor_field_linked()}</option>
+                {/if}
+              </select>
+              <input
+                type="text"
+                bind:value={field.name}
+                placeholder={m.editor_field_name()}
+                aria-label={m.editor_field_name()}
+                autocomplete="off"
+              />
+              {#if field.kind === 2}
+                <label class="custom-field-bool">
+                  <input
+                    type="checkbox"
+                    checked={field.value === "true"}
+                    onchange={(e) =>
+                      (field.value = e.currentTarget.checked ? "true" : "false")}
+                  />
+                  <span>{field.value === "true" ? m.editor_field_true() : m.editor_field_false()}</span>
+                </label>
+              {:else}
+                <input
+                  type={field.kind === 1 && !shownFields.has(index) ? "password" : "text"}
+                  bind:value={field.value}
+                  placeholder={m.editor_field_value()}
+                  aria-label={m.editor_field_value()}
+                  autocomplete="off"
+                  readonly={field.kind === 3}
+                />
+              {/if}
+              {#if field.kind === 1}
+                <button
+                  type="button"
+                  class="secondary small"
+                  onclick={() => toggleFieldVisible(index)}
+                >
+                  {shownFields.has(index) ? m.action_hide() : m.action_show()}
+                </button>
+              {/if}
+              <button
+                type="button"
+                class="secondary small"
+                onclick={() => removeField(index)}
+                aria-label={m.editor_field_remove()}
+                title={m.editor_field_remove()}
+              >
+                ✕
+              </button>
+            </div>
+          {/each}
+          <button type="button" class="secondary small" onclick={addField}>
+            + {m.editor_field_add()}
+          </button>
+        </fieldset>
+
         <label class="checkbox-row">
           <input type="checkbox" bind:checked={favorite} />
           <span>★ {m.items_favorite()}</span>
         </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" bind:checked={reprompt} />
+          <span>{m.editor_reprompt()}</span>
+        </label>
+        <small class="reprompt-hint">{m.editor_reprompt_hint()}</small>
 
         {#if error}
           <p class="editor-error">{error}</p>
@@ -693,6 +836,15 @@
       totp = uri;
       qrOpen = false;
     }}
+  />
+
+  <!-- The same generator as the toolbar's, options and all. It is a
+       native modal <dialog>, so it stacks above the editor panel. -->
+  <GeneratorDialog
+    bind:this={generatorDialog}
+    {currentLocale}
+    onCopy={(value) => onCopy(value, "mot de passe")}
+    onUse={useGeneratedPassword}
   />
 {/if}
 
@@ -840,6 +992,69 @@
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .reprompt-hint {
+    display: block;
+    margin: -0.35rem 0 0.6rem 1.6rem;
+    color: #666;
+    font-size: 0.78rem;
+  }
+
+  .custom-fields {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem 0.75rem;
+    margin: 0.35rem 0 0.75rem;
+  }
+
+  .custom-fields legend {
+    padding: 0 0.35rem;
+    font-size: 0.82rem;
+    color: #666;
+  }
+
+  /* Type, name, value, then the buttons. The value column takes the
+     slack so a long secret stays readable in a 560px panel. */
+  .custom-field-row {
+    display: grid;
+    grid-template-columns: auto minmax(6rem, 1fr) minmax(6rem, 1.4fr) auto auto;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .custom-field-row select,
+  .custom-field-row input[type="text"],
+  .custom-field-row input[type="password"] {
+    font: inherit;
+    padding: 0.3rem 0.4rem;
+    min-width: 0;
+  }
+
+  .custom-field-bool {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .reprompt-hint,
+    .custom-fields legend {
+      color: #9aa0aa;
+    }
+    .custom-fields {
+      border-color: #444;
+    }
+  }
+  :global(:root.force-dark) .reprompt-hint,
+  :global(:root.force-dark) .custom-fields legend {
+    color: #9aa0aa;
+  }
+  :global(:root.force-dark) .custom-fields {
+    border-color: #444;
   }
 
   .editor-error {

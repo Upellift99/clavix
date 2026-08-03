@@ -14,6 +14,17 @@
  */
 export const MAX_ENCRYPTED_VALUE_LENGTH = 10_000;
 
+/**
+ * Largest file Clavix will attach, mirroring the ceiling the Rust side
+ * enforces (`ATTACHMENT_MAX_BYTES` in `commands/cipher.rs`). Checked here
+ * too so a mistaken 2 GB pick is refused before it is read into memory,
+ * base64-encoded and pushed across the IPC boundary.
+ *
+ * Your server may well refuse smaller files than this — Vaultwarden has
+ * its own per-file and per-user quotas.
+ */
+export const ATTACHMENT_MAX_BYTES = 100 * 1024 * 1024;
+
 const b64Len = (bytes: number) => 4 * Math.ceil(bytes / 3);
 
 /**

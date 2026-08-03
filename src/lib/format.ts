@@ -117,6 +117,26 @@ export function mask(value: string, length: number = 12): string {
   return "•".repeat(Math.min(value.length, length));
 }
 
+/**
+ * Human-readable byte size for attachment rows: "812 B", "1.4 MB".
+ * Binary units (1024) with the decimal names the OS file managers use —
+ * matching what the server itself reports in `sizeName`, which is the
+ * value shown whenever it is available.
+ */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  // One decimal below 10 ("1.4 MB"), none above ("14 MB") — the extra
+  // digit stops carrying information once the number is that big.
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
 export function extractDomain(uri: string): string | null {
   try {
     const url = new URL(uri.startsWith("http") ? uri : `https://${uri}`);

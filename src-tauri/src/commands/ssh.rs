@@ -484,6 +484,8 @@ mod classify_tests {
             ssh_key,
             fields: None,
             password_history: None,
+            reprompt: None,
+            attachments: None,
         }
     }
 
