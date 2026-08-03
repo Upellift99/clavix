@@ -267,6 +267,8 @@ mod tests {
             ssh_key: None,
             fields: None,
             password_history: None,
+            reprompt: None,
+            attachments: None,
         }
     }
 
@@ -294,6 +296,8 @@ mod tests {
             ssh_key: None,
             fields: None,
             password_history: None,
+            reprompt: None,
+            attachments: None,
         }
     }
 

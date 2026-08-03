@@ -96,6 +96,12 @@ Supported variants currently include:
 The parser validates structure and lengths before use. For symmetric
 payloads, MAC verification happens before decryption.
 
+Attachment payloads use the same construction in Bitwarden's **binary**
+layout rather than the base64 text form — one type byte, then the raw IV
+(16 bytes), MAC (32 bytes) and ciphertext, handled by `encrypt_buffer` /
+`decrypt_buffer`. Length and type are checked before any slicing, since
+this input arrives straight off the wire and may be truncated.
+
 Important review target:
 
 - malformed or adversarial `EncString` parsing
@@ -150,6 +156,14 @@ The most delicate application-level crypto flows are:
 - sharing a personal item into an organization
 - moving ciphers across organizations with re-encryption
 - decrypting organization collection names and item fields
+- duplicating an item: `cipher_to_create_input` decrypts a stored cipher
+  back to plaintext and `build_cipher_body` re-encrypts it under the
+  owning key. The copy gets no item key of its own, so it never shares
+  one with the original.
+- attachments: each file is encrypted under a **per-file** key generated
+  client-side (`SymmetricKey::generate`), which is itself wrapped under
+  the cipher's key. The server sees neither. Legacy attachments with no
+  `key` field are read under the cipher key directly.
 
 These paths live mainly in:
 

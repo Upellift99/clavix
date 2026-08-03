@@ -15,6 +15,8 @@
   import AuditDialog from "$lib/AuditDialog.svelte";
   import AboutDialog from "$lib/AboutDialog.svelte";
   import SshConfirmDialog from "$lib/SshConfirmDialog.svelte";
+  import ConfirmDialog from "$lib/ConfirmDialog.svelte";
+  import RepromptDialog from "$lib/RepromptDialog.svelte";
   import UpdateBanner from "$lib/UpdateBanner.svelte";
   import { ClipboardController, type ClipboardVariant } from "$lib/clipboard.svelte";
   import { DragController } from "$lib/drag.svelte";
@@ -34,7 +36,12 @@
   import { startSplitterDrag } from "$lib/splitter";
   import { makeVaultKeyHandler } from "$lib/keyboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
-  import type { CipherDetail as CipherDetailData, CipherSummary, UpdateInfo } from "$lib/types";
+  import type {
+    CipherDetail as CipherDetailData,
+    CipherSummary,
+    ConfirmFn,
+    UpdateInfo,
+  } from "$lib/types";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
   const prefs = new PrefsController();
@@ -48,8 +55,153 @@
   let auditDialog = $state<{ open: () => void } | null>(null);
   let aboutDialog = $state<{ open: () => Promise<void> } | null>(null);
   let generatorDialog = $state<{ open: () => void } | null>(null);
+  let confirmDialog = $state<{ ask: ConfirmFn } | null>(null);
+  let repromptDialog = $state<{ ask: (name: string) => Promise<boolean> } | null>(null);
   let importOpen = $state(false);
   let exportOpen = $state(false);
+
+  // Every destructive action funnels through here. The dialog is mounted
+  // unconditionally at the bottom of the page, so a null `confirmDialog`
+  // would mean the component tree isn't up yet — answer "no" rather than
+  // let a delete through unconfirmed.
+  const confirm: ConfirmFn = async (request) =>
+    (await confirmDialog?.ask(request)) ?? false;
+
+  /**
+   * The per-item master-password gate.
+   *
+   * Owned by the page rather than by the detail panel because a flagged
+   * item can be reached from four places — the panel, the row context
+   * menu, the Ctrl+B/C/T shortcuts and the editor — and a gate that only
+   * covers one of them is decoration. Answering it unlocks the item
+   * until the vault locks, so an item with three secrets asks once.
+   *
+   * Fails closed, like `confirm`: no dialog, no reveal.
+   */
+  let unlockedItems = $state<Set<string>>(new Set());
+
+  async function requireReprompt(
+    item: { id: string; name: string; reprompt: boolean } | null,
+  ): Promise<boolean> {
+    if (!item) return false;
+    if (!item.reprompt || unlockedItems.has(item.id)) return true;
+    const ok = (await repromptDialog?.ask(item.name)) ?? false;
+    if (ok) unlockedItems = new Set(unlockedItems).add(item.id);
+    return ok;
+  }
+
+  /** Gate for a cipher we only know by id — resolves the loaded detail. */
+  async function requireRepromptForId(id: string): Promise<boolean> {
+    const detail = vault.detail?.id === id ? vault.detail : await api.getCipher(id);
+    return requireReprompt(detail);
+  }
+
+  async function confirmSoftDelete(id: string, name: string) {
+    const ok = await confirm({
+      title: m.action_confirm_soft_delete_title(),
+      body: m.action_confirm_soft_delete({ name }),
+      confirmLabel: m.action_soft_delete(),
+      danger: true,
+    });
+    if (ok) await vault.softDeleteCipher(id);
+  }
+
+  async function confirmDeleteForever(id: string, name: string) {
+    const ok = await confirm({
+      title: m.action_confirm_delete_title(),
+      body: m.action_confirm_delete({ name }),
+      confirmLabel: m.action_delete_forever(),
+      danger: true,
+    });
+    if (ok) await vault.deleteCipherForever(id);
+  }
+
+  async function confirmDuplicate(id: string, name: string) {
+    const ok = await confirm({
+      title: m.action_confirm_duplicate_title(),
+      body: m.action_confirm_duplicate({ name }),
+      confirmLabel: m.action_duplicate(),
+    });
+    if (ok) await vault.duplicateCipher(id, m.action_duplicate_suffix());
+  }
+
+  // ---- multi-selection ----------------------------------------------
+  // The set lives here rather than in the vault store: it is a property
+  // of what is on screen, and every filter change or sync that rebuilds
+  // the list can leave ids in it that no longer exist. `selectedIds` is
+  // therefore reconciled against the visible items before any bulk call.
+  let selectedIds = $state<Set<string>>(new Set());
+  const trashView = $derived(vault.quickFilter === "trash");
+
+  function toggleSelection(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedIds = next;
+  }
+
+  function setSelection(ids: string[]) {
+    selectedIds = new Set(ids);
+  }
+
+  function clearSelection() {
+    if (selectedIds.size > 0) selectedIds = new Set();
+  }
+
+  /** The selection, minus anything the current list no longer shows. */
+  function liveSelection(): string[] {
+    const visible = new Set(vault.filteredCiphers.map((c) => c.id));
+    return [...selectedIds].filter((id) => visible.has(id));
+  }
+
+  function reportBulkFailures(failed: number) {
+    vault.error = failed > 0 ? m.bulk_failed({ count: String(failed) }) : null;
+  }
+
+  async function bulkDelete() {
+    const ids = liveSelection();
+    if (ids.length === 0) return;
+    const count = String(ids.length);
+    // Inside the trash, "delete" is the permanent one — same as the
+    // per-item buttons in the detail panel.
+    const ok = await confirm(
+      trashView
+        ? {
+            title: m.bulk_delete_forever_confirm_title(),
+            body: m.bulk_delete_forever_confirm({ count }),
+            confirmLabel: m.action_delete_forever(),
+            danger: true,
+          }
+        : {
+            title: m.bulk_delete_confirm_title(),
+            body: m.bulk_delete_confirm({ count }),
+            confirmLabel: m.action_soft_delete(),
+            danger: true,
+          },
+    );
+    if (!ok) return;
+    const failed = trashView
+      ? await vault.bulkDeleteForever(ids)
+      : await vault.bulkSoftDelete(ids);
+    clearSelection();
+    reportBulkFailures(failed);
+  }
+
+  async function bulkRestore() {
+    const ids = liveSelection();
+    if (ids.length === 0) return;
+    const failed = await vault.bulkRestore(ids);
+    clearSelection();
+    reportBulkFailures(failed);
+  }
+
+  async function bulkMove(folderId: string | null) {
+    const ids = liveSelection();
+    if (ids.length === 0) return;
+    const failed = await vault.bulkMoveToFolder(ids, folderId);
+    clearSelection();
+    reportBulkFailures(failed);
+  }
 
   // Update check: populated once at startup by the Rust check (see api.checkForUpdate).
   // The banner shows only while a newer version exists and the user hasn't
@@ -197,9 +349,11 @@
 
   async function copyMenuPassword() {
     const id = menuCipher?.id;
-    const hasPassword = menuDetail?.login?.hasPassword;
+    const detail = menuDetail;
+    const hasPassword = detail?.login?.hasPassword;
     closeRowMenu();
     if (!id || !hasPassword) return;
+    if (!(await requireReprompt(detail))) return;
     try {
       const password = await api.revealField(id, "password");
       if (password) await copyToClipboard(password, "mot de passe");
@@ -210,9 +364,11 @@
 
   async function copyMenuTotp() {
     const id = menuCipher?.id;
-    const hasTotp = menuDetail?.login?.hasTotp;
+    const detail = menuDetail;
+    const hasTotp = detail?.login?.hasTotp;
     closeRowMenu();
     if (!id || !hasTotp) return;
+    if (!(await requireReprompt(detail))) return;
     try {
       const { code } = await api.totpCode(id);
       await copyToClipboard(code, "code TOTP");
@@ -232,6 +388,34 @@
     }
   }
 
+  // Delete/restore from the row menu, so the trash is reachable without
+  // opening the item first. Name and id are read before closing the menu
+  // — `closeRowMenu` clears `menuCipher`, and the confirmation that
+  // follows is asynchronous.
+  async function softDeleteMenuCipher() {
+    const cipher = menuCipher;
+    closeRowMenu();
+    if (cipher) await confirmSoftDelete(cipher.id, cipher.name);
+  }
+
+  async function deleteMenuCipherForever() {
+    const cipher = menuCipher;
+    closeRowMenu();
+    if (cipher) await confirmDeleteForever(cipher.id, cipher.name);
+  }
+
+  async function duplicateMenuCipher() {
+    const cipher = menuCipher;
+    closeRowMenu();
+    if (cipher) await confirmDuplicate(cipher.id, cipher.name);
+  }
+
+  async function restoreMenuCipher() {
+    const id = menuCipher?.id;
+    closeRowMenu();
+    if (id) await vault.restoreCipher(id);
+  }
+
   async function copySshAgentSocket(socketPath: string) {
     await copyToClipboard(`export SSH_AUTH_SOCK=${socketPath}`, "SSH_AUTH_SOCK");
   }
@@ -247,11 +431,16 @@
     vault.reset();
     showAllOnce = false;
     closeRowMenu();
+    clearSelection();
+    // A reprompt answered before the lock must not still count after it.
+    unlockedItems = new Set();
   }
 
   async function switchAccountAndReset() {
     await auth.switchAccount();
     vault.reset();
+    clearSelection();
+    unlockedItems = new Set();
   }
 
   function onSplitterMouseDown(event: MouseEvent) {
@@ -284,8 +473,14 @@
     closeDetail: () => vault.closeDetail(),
     lock: () => lockAndReset(),
     copy: copyToClipboard,
-    getPassword: async (id) => (await api.revealField(id, "password")) ?? "",
-    getTotpCode: async (id) => (await api.totpCode(id)).code,
+    // Ctrl+C / Ctrl+T act on the item the detail panel is showing, so
+    // the gate is the same one that panel uses. An empty string means
+    // "nothing to copy" to the handler, which is what a refused prompt
+    // should look like.
+    getPassword: async (id) =>
+      (await requireRepromptForId(id)) ? ((await api.revealField(id, "password")) ?? "") : "",
+    getTotpCode: async (id) =>
+      (await requireRepromptForId(id)) ? (await api.totpCode(id)).code : "",
     onError: (e) => (vault.error = formatError(e)),
   });
 
@@ -467,6 +662,7 @@
                 onMoveCipherToCollection={(id, cid) => vault.moveCipherToCollection(id, cid)}
                 onMoveFolderPath={(s, t) => vault.performFolderMove(s, t)}
                 onDeleteFolder={(ids) => vault.deleteFolder(ids)}
+                {confirm}
                 onRenameFolder={(src, dst) => vault.renameFolderPath(src, dst)}
               />
 
@@ -475,7 +671,7 @@
                 class="splitter"
                 role="separator"
                 aria-orientation="vertical"
-                aria-label="Redimensionner le panneau"
+                aria-label={m.a11y_resize_tree()}
                 onmousedown={onSplitterMouseDown}
               ></div>
 
@@ -492,18 +688,27 @@
                 visibleColumns={prefs.visibleColumns}
                 {drag}
                 onOpenCipher={(id) => vault.openCipher(id)}
-                onEditCipher={(id) => vault.openEditorFor(id)}
+                onEditCipher={(id) => vault.openEditorFor(id, requireReprompt)}
                 onRowContextMenu={openRowMenu}
                 onToggleSort={(k) => vault.toggleSort(k)}
                 onToggleColumn={(k, v) => prefs.setVisibleColumn(k, v)}
                 onSearchInputRef={(el) => (searchInput = el)}
                 bind:search={vault.search}
+                {selectedIds}
+                onToggleSelection={toggleSelection}
+                onSetSelection={setSelection}
+                onClearSelection={clearSelection}
+                folders={vault.summary.folders}
+                {trashView}
+                onBulkMove={bulkMove}
+                onBulkDelete={bulkDelete}
+                onBulkRestore={bulkRestore}
               />
             </div>
 
             {#if vault.detailLoading}
               <section class="box">
-                <p class="hint">Déchiffrement de l'item…</p>
+                <p class="hint">{m.detail_decrypting()}</p>
               </section>
             {/if}
 
@@ -513,7 +718,7 @@
                 class="detail-splitter"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label="Redimensionner le panneau de détail"
+                aria-label={m.a11y_resize_detail()}
                 onmousedown={onDetailSplitterMouseDown}
               ></div>
               <div class="detail-pane" style="height: {prefs.detailHeight}px;">
@@ -523,11 +728,17 @@
                   organizations={vault.summary.organizations}
                   onCopy={copyToClipboard}
                   onClose={() => vault.closeDetail()}
-                  onEdit={() => vault.openEditEditor()}
+                  onEdit={async () => {
+                    if (await requireReprompt(vault.detail)) await vault.openEditEditor();
+                  }}
                   onRestore={(id) => vault.restoreCipher(id)}
-                  onSoftDelete={(id) => vault.softDeleteCipher(id)}
-                  onDeleteForever={(id) =>
-                    vault.deleteCipherForever(id, m.action_confirm_delete())}
+                  onSoftDelete={(id) => confirmSoftDelete(id, vault.detail?.name ?? "")}
+                  onDeleteForever={(id) => confirmDeleteForever(id, vault.detail?.name ?? "")}
+                  onDuplicate={confirmDuplicate}
+                  onReprompt={() => requireReprompt(vault.detail)}
+                  {confirm}
+                  onError={(e) => (vault.error = formatError(e))}
+                  onRefresh={(id) => vault.openCipher(id)}
                 />
               </div>
             {/if}
@@ -594,6 +805,26 @@
         <kbd class="ctx-shortcut">Ctrl+U</kbd>
       </button>
     {/if}
+    {#if !menuCipher.deletedDate}
+      <button type="button" role="menuitem" onclick={duplicateMenuCipher}>
+        <span class="ctx-label">{m.action_duplicate()}</span>
+      </button>
+    {/if}
+    <!-- Destructive block, kept below a rule and away from the copy
+         actions: the row above it is one the user hits constantly. -->
+    <div class="ctx-sep" role="separator"></div>
+    {#if menuCipher.deletedDate}
+      <button type="button" role="menuitem" onclick={restoreMenuCipher}>
+        <span class="ctx-label">{m.action_restore()}</span>
+      </button>
+      <button type="button" role="menuitem" class="danger" onclick={deleteMenuCipherForever}>
+        <span class="ctx-label">{m.action_delete_forever()}</span>
+      </button>
+    {:else}
+      <button type="button" role="menuitem" class="danger" onclick={softDeleteMenuCipher}>
+        <span class="ctx-label">{m.action_soft_delete()}</span>
+      </button>
+    {/if}
   </div>
 {/if}
 
@@ -647,6 +878,14 @@
      at any time, including while the vault view is up or hidden. -->
 <SshConfirmDialog />
 
+<!-- Shared "are you sure?" prompt. Its strings come from the caller, so
+     it needs no `{#key currentLocale}` wrapper — each `ask()` builds
+     them fresh at the language in force. -->
+<ConfirmDialog bind:this={confirmDialog} />
+
+<!-- Per-item master-password gate (Bitwarden's "reprompt"). -->
+<RepromptDialog bind:this={repromptDialog} />
+
 {#key prefs.currentLocale}
   <CipherEditor
     open={vault.editorOpen}
@@ -655,8 +894,10 @@
     folders={vault.summary?.folders ?? []}
     organizations={vault.summary?.organizations ?? []}
     collections={vault.summary?.collections ?? []}
+    currentLocale={prefs.currentLocale}
     onCancel={() => vault.closeEditor()}
     onSubmit={(input) => vault.submitEditor(input)}
+    onCopy={copyToClipboard}
   />
   <ImportDialog
     open={importOpen}

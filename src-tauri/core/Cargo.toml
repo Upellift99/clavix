@@ -24,7 +24,9 @@ serde_repr = "0.1"
 ts-rs = "12"
 thiserror = "2"
 url = "2"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
+# `multipart` is for attachment upload: Vaultwarden's direct-upload
+# endpoint takes multipart/form-data and nothing else.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip", "multipart"] }
 pbkdf2 = "0.12"
 sha2 = "0.10"
 argon2 = "0.5"

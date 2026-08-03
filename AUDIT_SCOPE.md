@@ -60,10 +60,12 @@ Primary files:
 Review topics:
 
 - KDF handling and parameter validation
-- EncString parsing and failure behavior
+- EncString parsing and failure behavior, text form and attachment
+  buffer form (`encrypt_buffer` / `decrypt_buffer`)
 - MAC verification and decryption order
 - user-key and org-key derivation / usage
-- re-encryption logic for create, update, share, move
+- per-attachment key generation, wrapping and reuse
+- re-encryption logic for create, update, share, move, duplicate
 
 ### 2. Session and Local Persistence
 
@@ -146,6 +148,10 @@ Review topics:
 - copy-to-clipboard behavior and auto-clear
 - lock/logout state reset
 - accidental rendering, logging, or persistence of sensitive values
+- hidden custom fields and password history: both are withheld by
+  `get_cipher` and fetched on demand, like every other secret
+- decrypted attachment bytes, which reach the WebView base64-encoded to
+  be offered as a download
 
 ## Out of Scope
 

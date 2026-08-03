@@ -231,6 +231,34 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Logi
     Ok(LoginOk { email })
 }
 
+/// Check a master password without touching the session.
+///
+/// Backs the per-item "ask again" (reprompt) gate. Purely local: the
+/// password is run through the stored KDF parameters and used to unwrap
+/// the stored user key, which only succeeds — MAC verification — for the
+/// right password. No network call, no session mutation, nothing written.
+///
+/// Returns false on a wrong password rather than an error: a mistyped
+/// password is an expected answer here, not a failure.
+#[tauri::command]
+pub async fn verify_master_password(state: State<'_, AppState>, password: String) -> Result<bool> {
+    crate::state::mark_activity(&state);
+    let persisted = store::load_session()?.ok_or_else(|| Error::Storage {
+        reason: "no stored session to verify against".into(),
+    })?;
+
+    let password: SecretString = password.into();
+    let master_key = derive_master_key(
+        &password,
+        &persisted.email,
+        persisted.kdf,
+        persisted.kdf_iterations,
+        persisted.kdf_memory,
+        persisted.kdf_parallelism,
+    )?;
+    Ok(decrypt_user_key(&master_key, &persisted.encrypted_user_key).is_ok())
+}
+
 /// Perform a WebAuthn / FIDO2 assertion against the user's USB security
 /// key, for a Bitwarden-style challenge. Returns the JSON string that
 /// must be sent back to the server as `twoFactorToken` with provider=7.

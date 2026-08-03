@@ -142,6 +142,11 @@ export type CsvExportRow = {
   loginUsername: string;
   loginPassword: string;
   loginTotp: string;
+  /** Custom fields, in item order. Hidden ones are exported in the
+      clear — an export is a "get my secrets out" path by definition. */
+  fields: { name: string; value: string }[];
+  /** Per-item master-password reprompt. */
+  reprompt: boolean;
 };
 
 const BITWARDEN_HEADERS = [
@@ -175,12 +180,17 @@ export function escapeCsvField(value: string): string {
 }
 
 /**
- * Serialise a list of cipher rows to the Bitwarden CSV dialect:
- * CRLF line endings, header row first, `fields`/`reprompt` columns
- * always empty / 0 (Clavix has no custom fields and no per-cipher
- * reprompt setting). Multiple URIs join with `\n` inside the
- * `login_uri` cell.
+ * Serialise a list of cipher rows to the Bitwarden CSV dialect: CRLF
+ * line endings, header row first. Multiple URIs join with `\n` inside
+ * the `login_uri` cell, and custom fields go into the `fields` cell as
+ * `name: value` lines — the shape Bitwarden Desktop writes and reads
+ * back.
  */
+
+/** `fields` cell: one `name: value` per line, Bitwarden's own format. */
+function serializeFields(fields: { name: string; value: string }[]): string {
+  return fields.map((f) => `${f.name}: ${f.value}`).join("\n");
+}
 export function serializeBitwardenCsv(rows: CsvExportRow[]): string {
   const lines: string[] = [BITWARDEN_HEADERS.join(",")];
   for (const row of rows) {
@@ -190,8 +200,8 @@ export function serializeBitwardenCsv(rows: CsvExportRow[]): string {
       row.type,
       row.name,
       row.notes,
-      "", // fields (unsupported in Clavix)
-      "0", // reprompt (unsupported in Clavix)
+      serializeFields(row.fields),
+      row.reprompt ? "1" : "0",
       row.loginUris.join("\n"),
       row.loginUsername,
       row.loginPassword,

@@ -5,7 +5,7 @@
   import type { DragController } from "./drag.svelte";
   import { collectFolderIds, folderPathFromKey } from "./tree";
   import type { CipherIndex } from "./tree";
-  import type { Locale, QuickFilter, SyncSummary, TreeNode } from "./types";
+  import type { ConfirmFn, Locale, QuickFilter, SyncSummary, TreeNode } from "./types";
 
   type Props = {
     summary: SyncSummary;
@@ -27,6 +27,8 @@
     onMoveFolderPath: (source: string, targetParent: string | null) => Promise<void>;
     onDeleteFolder: (folderIds: string[]) => Promise<void>;
     onRenameFolder: (sourcePath: string, newPath: string) => Promise<void>;
+    /** Raises the page-level ConfirmDialog; resolves true on confirm. */
+    confirm: ConfirmFn;
   };
 
   let {
@@ -49,6 +51,7 @@
     onMoveFolderPath,
     onDeleteFolder,
     onRenameFolder,
+    confirm,
   }: Props = $props();
 
   // Right-click context menu state. `node` is the folder leaf the
@@ -109,7 +112,7 @@
     if (ids.size === 0) return;
 
     const path = folderPathFromKey(node.key) ?? node.label;
-    const message =
+    const body =
       ids.size === 1 && node.folderId
         ? m.folder_delete_confirm({ name: path, count: String(node.itemCount) })
         : m.folder_delete_confirm_cascade({
@@ -120,7 +123,12 @@
             subCount: String(node.folderId ? ids.size - 1 : ids.size),
             itemCount: String(node.itemCount),
           });
-    const ok = window.confirm(message);
+    const ok = await confirm({
+      title: m.folder_delete_confirm_title(),
+      body,
+      confirmLabel: m.folder_action_delete(),
+      danger: true,
+    });
     if (!ok) return;
     await onDeleteFolder(Array.from(ids));
   }

@@ -27,6 +27,8 @@ function emptyRow(over: Partial<CsvExportRow>): CsvExportRow {
     loginUsername: "",
     loginPassword: "",
     loginTotp: "",
+    fields: [],
+    reprompt: false,
     ...over,
   };
 }
@@ -67,6 +69,25 @@ describe("serializeBitwardenCsv", () => {
       }),
     ]);
     expect(out).toContain("Work,1,note,API keys,rotate every 90 days,,0,,,,");
+  });
+
+  it("writes custom fields as name: value lines in the fields cell", () => {
+    const out = serializeBitwardenCsv([
+      emptyRow({
+        name: "Bank",
+        fields: [
+          { name: "Account", value: "AC-42" },
+          { name: "Recovery", value: "code-123" },
+        ],
+      }),
+    ]);
+    // Two entries → the cell holds a newline → quoted by escapeCsvField.
+    expect(out).toContain('"Account: AC-42\nRecovery: code-123"');
+  });
+
+  it("exports the reprompt flag as 1", () => {
+    const out = serializeBitwardenCsv([emptyRow({ name: "Guarded", reprompt: true })]);
+    expect(out).toContain(",Guarded,,,1,,,,");
   });
 
   it("CSV-escapes commas and quotes inside fields", () => {

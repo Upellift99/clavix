@@ -25,8 +25,10 @@ function mount(overrides: Record<string, unknown> = {}) {
       folders: [],
       organizations: [],
       collections: [],
+      currentLocale: "fr" as const,
       onCancel,
       onSubmit: vi.fn().mockResolvedValue(undefined),
+      onCopy: vi.fn(),
       ...overrides,
     },
   });
@@ -104,5 +106,81 @@ describe("CipherEditor close guards", () => {
     await typeName(container, "CloudFlare");
     backdrop.click();
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** The "+ Ajouter un champ" button, whatever the surrounding markup. */
+function addFieldButton(container: HTMLElement): HTMLButtonElement {
+  return [...container.querySelectorAll("button")].find((b) =>
+    b.textContent?.includes("Ajouter un champ"),
+  ) as HTMLButtonElement;
+}
+
+function fieldRows(container: HTMLElement): NodeListOf<HTMLElement> {
+  return container.querySelectorAll(".custom-field-row");
+}
+
+describe("CipherEditor custom fields", () => {
+  it("adds and removes rows", async () => {
+    const { container } = mount();
+    await tick();
+    expect(fieldRows(container).length).toBe(0);
+
+    addFieldButton(container).click();
+    await tick();
+    expect(fieldRows(container).length).toBe(1);
+
+    // The ✕ at the end of the row.
+    const remove = [...fieldRows(container)[0].querySelectorAll("button")].at(
+      -1,
+    ) as HTMLButtonElement;
+    remove.click();
+    await tick();
+    expect(fieldRows(container).length).toBe(0);
+  });
+
+  it("submits the fields it was given, hidden ones included", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const { container } = mount({
+      mode: "edit" as const,
+      onSubmit,
+      initial: {
+        ...EMPTY_EDITOR_INITIAL,
+        id: "abc",
+        name: "Bank",
+        fields: [
+          { kind: 0, name: "Account", value: "AC-42", linkedId: null },
+          { kind: 1, name: "Recovery", value: "code-123", linkedId: null },
+        ],
+        reprompt: true,
+      },
+    });
+    await tick();
+    expect(fieldRows(container).length).toBe(2);
+
+    (container.querySelector("form") as HTMLFormElement).dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+    await tick();
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const payload = onSubmit.mock.calls[0][0];
+    // Custom fields and the reprompt flag have to make the round trip:
+    // the cipher PUT replaces the server's copy, so anything the editor
+    // fails to send back is deleted from the item.
+    expect(payload.fields).toEqual([
+      { kind: 0, name: "Account", value: "AC-42", linkedId: null },
+      { kind: 1, name: "Recovery", value: "code-123", linkedId: null },
+    ]);
+    expect(payload.reprompt).toBe(true);
+  });
+
+  it("counts an added field as an unsaved change", async () => {
+    const { onCancel, backdrop, container } = mount();
+    await tick();
+    addFieldButton(container).click();
+    await tick();
+    backdrop.click();
+    expect(onCancel).not.toHaveBeenCalled();
   });
 });

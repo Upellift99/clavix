@@ -1,8 +1,11 @@
 use crate::crypto::{
-    decrypt_cipher_key, encrypt_cipher_key, encrypt_string, reencrypt_with_key, SymmetricKey,
+    decrypt_cipher_key, decrypt_name, encrypt_cipher_key, encrypt_string, reencrypt_with_key,
+    SymmetricKey,
 };
 use crate::error::{Error, Result};
-use crate::models::{CardInput, Cipher, CipherCreateInput, IdentityInput, LoginInput, SshKeyInput};
+use crate::models::{
+    CardInput, Cipher, CipherCreateInput, CustomFieldInput, IdentityInput, LoginInput, SshKeyInput,
+};
 use std::collections::HashMap;
 
 /// The key a cipher is *owned* by: the org key for an org item, the user
@@ -118,6 +121,30 @@ fn encrypt_ssh_key(ssh: &SshKeyInput, key: &SymmetricKey) -> Result<serde_json::
     }))
 }
 
+/// Custom fields, encrypted under the item's key.
+///
+/// `name` and `value` are EncStrings; `type` and `linkedId` are plaintext
+/// metadata. Boolean fields (type 2) carry the literal strings "true" /
+/// "false", so they go through the same encryption as any text value.
+/// Empty names are kept: Bitwarden allows an unnamed field and dropping
+/// it here would silently delete data on the next save.
+fn encrypt_fields(
+    fields: &[CustomFieldInput],
+    key: &SymmetricKey,
+) -> Result<Vec<serde_json::Value>> {
+    fields
+        .iter()
+        .map(|f| -> Result<serde_json::Value> {
+            Ok(serde_json::json!({
+                "type": f.kind,
+                "name": enc_opt_raw(f.name.as_deref(), key)?,
+                "value": enc_opt_raw(f.value.as_deref(), key)?,
+                "linkedId": f.linked_id,
+            }))
+        })
+        .collect()
+}
+
 pub fn build_cipher_body(
     input: &CipherCreateInput,
     key: &SymmetricKey,
@@ -132,6 +159,8 @@ pub fn build_cipher_body(
         "folderId": input.folder_id,
         "favorite": input.favorite,
         "organizationId": input.organization_id,
+        "fields": encrypt_fields(&input.fields, key)?,
+        "reprompt": u8::from(input.reprompt),
     });
     let obj = body.as_object_mut().expect("json! returned a map");
 
@@ -186,6 +215,163 @@ pub fn build_login_cipher_body(
     let mut input = input.clone();
     input.cipher_type = 1;
     build_cipher_body(&input, key)
+}
+
+/// The body for an update (PUT /ciphers/{id}), which is `build_cipher_body`
+/// plus the two things only the *existing* cipher can supply.
+///
+/// The cipher PUT has replace semantics: whatever the body omits is gone
+/// from the server copy. Until this existed, saving an item through the
+/// editor silently deleted its password history — the editor never had a
+/// reason to know about it, so it could not send it back.
+///
+/// It also does what every Bitwarden client does on save: when the
+/// password changed, the previous one is pushed onto the history. The old
+/// value is echoed as-is, still encrypted: it is already under `key` (the
+/// same key the new body is written with), so there is nothing to
+/// re-encrypt and no plaintext to handle.
+///
+/// `now` is passed in rather than read from the clock so the behaviour is
+/// testable.
+pub fn build_update_cipher_body(
+    input: &CipherCreateInput,
+    key: &SymmetricKey,
+    existing: &Cipher,
+    now: &str,
+) -> Result<serde_json::Value> {
+    let mut body = build_cipher_body(input, key)?;
+
+    let mut history: Vec<serde_json::Value> = existing
+        .password_history
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .filter_map(|h| {
+            h.password.as_ref().map(|p| {
+                serde_json::json!({ "password": p, "lastUsedDate": h.last_used_date })
+            })
+        })
+        .collect();
+
+    let previous = existing.login.as_ref().and_then(|l| l.password.as_deref());
+    if let Some(previous_enc) = previous {
+        let previous_plain = decrypt_name(previous_enc, key).ok();
+        let next_plain = input
+            .login
+            .as_ref()
+            .and_then(|l| l.password.as_deref())
+            .filter(|p| !p.is_empty());
+        // Compare plaintext, not ciphertext: a fresh IV on every write
+        // means the same password re-encrypts to a different string, and
+        // comparing those would push a history entry on every single save.
+        // An old password we cannot decrypt is left alone rather than
+        // recorded blind.
+        if let Some(old) = previous_plain.filter(|p| !p.is_empty()) {
+            if next_plain != Some(old.as_str()) {
+                history.insert(
+                    0,
+                    serde_json::json!({ "password": previous_enc, "lastUsedDate": now }),
+                );
+            }
+        }
+    }
+
+    // Bitwarden's own cap; keeps a decade of rotations from growing the
+    // item without bound.
+    history.truncate(5);
+
+    body.as_object_mut()
+        .expect("build_cipher_body returns a map")
+        .insert("passwordHistory".into(), serde_json::Value::Array(history));
+    Ok(body)
+}
+
+/// Decrypt a stored cipher back into the input shape a write takes.
+///
+/// This is what makes "duplicate" possible without the plaintext ever
+/// leaving Rust: the copy is rebuilt from decrypted values here and
+/// re-encrypted by `build_cipher_body` on the way out. `key` must be the
+/// key the cipher's fields are actually under (item key when it has one).
+///
+/// Deliberately dropped from the copy: attachments (their bytes live on
+/// the server, and cloning them means re-uploading each one) and the
+/// password history (it belongs to the original item's timeline).
+///
+/// Fields that fail to decrypt come back as `None` rather than failing
+/// the whole conversion — one unreadable field must not block the copy.
+pub fn cipher_to_create_input(cipher: &Cipher, key: &SymmetricKey) -> Result<CipherCreateInput> {
+    let dec = |s: Option<&str>| -> Option<String> {
+        s.and_then(|v| decrypt_name(v, key).ok())
+            .filter(|v| !v.is_empty())
+    };
+
+    Ok(CipherCreateInput {
+        name: decrypt_name(&cipher.name, key)?,
+        folder_id: cipher.folder_id.clone(),
+        favorite: cipher.favorite,
+        notes: dec(cipher.notes.as_deref()),
+        login: cipher.login.as_ref().map(|l| LoginInput {
+            username: dec(l.username.as_deref()),
+            password: dec(l.password.as_deref()),
+            uris: l
+                .uris
+                .as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .filter_map(|u| dec(u.uri.as_deref()))
+                .collect(),
+            totp: dec(l.totp.as_deref()),
+        }),
+        card: cipher.card.as_ref().map(|c| CardInput {
+            cardholder_name: dec(c.cardholder_name.as_deref()),
+            brand: dec(c.brand.as_deref()),
+            number: dec(c.number.as_deref()),
+            exp_month: dec(c.exp_month.as_deref()),
+            exp_year: dec(c.exp_year.as_deref()),
+            code: dec(c.code.as_deref()),
+        }),
+        identity: cipher.identity.as_ref().map(|i| IdentityInput {
+            title: dec(i.title.as_deref()),
+            first_name: dec(i.first_name.as_deref()),
+            middle_name: dec(i.middle_name.as_deref()),
+            last_name: dec(i.last_name.as_deref()),
+            address1: dec(i.address1.as_deref()),
+            address2: dec(i.address2.as_deref()),
+            address3: dec(i.address3.as_deref()),
+            city: dec(i.city.as_deref()),
+            state: dec(i.state.as_deref()),
+            postal_code: dec(i.postal_code.as_deref()),
+            country: dec(i.country.as_deref()),
+            company: dec(i.company.as_deref()),
+            email: dec(i.email.as_deref()),
+            phone: dec(i.phone.as_deref()),
+            ssn: dec(i.ssn.as_deref()),
+            username: dec(i.username.as_deref()),
+            passport_number: dec(i.passport_number.as_deref()),
+            license_number: dec(i.license_number.as_deref()),
+        }),
+        ssh_key: cipher.ssh_key.as_ref().map(|s| SshKeyInput {
+            private_key: dec(s.private_key.as_deref()),
+            public_key: dec(s.public_key.as_deref()),
+            key_fingerprint: dec(s.key_fingerprint.as_deref()),
+        }),
+        cipher_type: cipher.kind as u8,
+        organization_id: cipher.organization_id.clone(),
+        collection_ids: cipher.collection_ids.clone(),
+        fields: cipher
+            .fields
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .map(|f| CustomFieldInput {
+                kind: f.kind.unwrap_or(0),
+                name: dec(f.name.as_deref()),
+                value: dec(f.value.as_deref()),
+                linked_id: f.linked_id,
+            })
+            .collect(),
+        reprompt: cipher.reprompt.unwrap_or(0) != 0,
+    })
 }
 
 /// Validates that a cipher can be moved into the given organisation
@@ -419,6 +605,8 @@ mod tests {
             ssh_key: None,
             fields: None,
             password_history: None,
+            reprompt: None,
+            attachments: None,
         }
     }
 
@@ -435,6 +623,8 @@ mod tests {
             cipher_type: 1,
             organization_id: None,
             collection_ids: vec![],
+            fields: vec![],
+            reprompt: false,
         }
     }
 
@@ -908,5 +1098,261 @@ mod tests {
     fn move_to_collection_rejects_cross_org() {
         let err = validate_move_to_collection(Some("org-a"), "org-b").unwrap_err();
         assert!(matches!(err, Error::AuthFailed { .. }));
+    }
+
+    // ============ custom fields / reprompt ============
+
+    #[test]
+    fn body_encrypts_custom_fields_and_keeps_metadata_plain() {
+        let key = test_key();
+        let mut input = base_input();
+        input.cipher_type = 2;
+        input.fields = vec![
+            CustomFieldInput {
+                kind: 0,
+                name: Some("Account ID".into()),
+                value: Some("AC-42".into()),
+                linked_id: None,
+            },
+            CustomFieldInput {
+                kind: 1,
+                name: Some("Recovery".into()),
+                value: Some("code-123".into()),
+                linked_id: None,
+            },
+        ];
+        let body = build_cipher_body(&input, &key).unwrap();
+
+        let first = &body["fields"][0];
+        assert_eq!(first["type"], 0);
+        assert_eq!(first["linkedId"], serde_json::Value::Null);
+        assert_eq!(
+            decrypt_name(first["name"].as_str().unwrap(), &key).unwrap(),
+            "Account ID"
+        );
+        assert_eq!(
+            decrypt_name(first["value"].as_str().unwrap(), &key).unwrap(),
+            "AC-42"
+        );
+        // Hidden fields are encrypted exactly like visible ones — "hidden"
+        // is a display hint, not a second layer of protection.
+        let second = &body["fields"][1];
+        assert_eq!(second["type"], 1);
+        assert_eq!(
+            decrypt_name(second["value"].as_str().unwrap(), &key).unwrap(),
+            "code-123"
+        );
+    }
+
+    #[test]
+    fn body_carries_the_reprompt_flag() {
+        let key = test_key();
+        let mut input = base_input();
+        input.cipher_type = 2;
+        assert_eq!(build_cipher_body(&input, &key).unwrap()["reprompt"], 0);
+        input.reprompt = true;
+        assert_eq!(build_cipher_body(&input, &key).unwrap()["reprompt"], 1);
+    }
+
+    // ============ build_update_cipher_body ============
+
+    fn login_cipher_with_password(key: &SymmetricKey, password: &str) -> Cipher {
+        let mut cipher = base_cipher(CipherType::Login, key);
+        cipher.login = Some(crate::models::CipherLogin {
+            username: Some(encrypt_string("alice", key).unwrap()),
+            password: Some(encrypt_string(password, key).unwrap()),
+            totp: None,
+            uris: None,
+        });
+        cipher
+    }
+
+    fn login_input_with_password(password: &str) -> CipherCreateInput {
+        let mut input = base_input();
+        input.login = Some(LoginInput {
+            username: Some("alice".into()),
+            password: Some(password.into()),
+            uris: vec![],
+            totp: None,
+        });
+        input
+    }
+
+    #[test]
+    fn update_body_preserves_existing_password_history() {
+        // The regression that motivated this: PUT /ciphers/{id} replaces the
+        // server's copy, so a body without `passwordHistory` deletes it.
+        let key = test_key();
+        let mut cipher = login_cipher_with_password(&key, "same");
+        cipher.password_history = Some(vec![CipherPasswordHistory {
+            last_used_date: Some("2024-01-01T00:00:00.000Z".into()),
+            password: Some(encrypt_string("ancient", &key).unwrap()),
+        }]);
+
+        let body = build_update_cipher_body(
+            &login_input_with_password("same"),
+            &key,
+            &cipher,
+            "2026-08-03T10:00:00.000Z",
+        )
+        .unwrap();
+
+        let history = body["passwordHistory"].as_array().unwrap();
+        assert_eq!(history.len(), 1, "unchanged password adds no entry");
+        assert_eq!(
+            decrypt_name(history[0]["password"].as_str().unwrap(), &key).unwrap(),
+            "ancient"
+        );
+        assert_eq!(history[0]["lastUsedDate"], "2024-01-01T00:00:00.000Z");
+    }
+
+    #[test]
+    fn update_body_pushes_the_replaced_password_onto_the_history() {
+        let key = test_key();
+        let cipher = login_cipher_with_password(&key, "old-pass");
+        let body = build_update_cipher_body(
+            &login_input_with_password("new-pass"),
+            &key,
+            &cipher,
+            "2026-08-03T10:00:00.000Z",
+        )
+        .unwrap();
+
+        let history = body["passwordHistory"].as_array().unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0]["lastUsedDate"], "2026-08-03T10:00:00.000Z");
+        assert_eq!(
+            decrypt_name(history[0]["password"].as_str().unwrap(), &key).unwrap(),
+            "old-pass",
+            "the entry records the password being replaced, not the new one"
+        );
+    }
+
+    #[test]
+    fn update_body_ignores_a_re_encrypted_but_identical_password() {
+        // Every write draws a fresh IV, so the ciphertext of an unchanged
+        // password differs every time. Comparing ciphertext here would push
+        // a history entry on every save until the cap flushed the real ones.
+        let key = test_key();
+        let cipher = login_cipher_with_password(&key, "steady");
+        let body = build_update_cipher_body(
+            &login_input_with_password("steady"),
+            &key,
+            &cipher,
+            "2026-08-03T10:00:00.000Z",
+        )
+        .unwrap();
+        assert!(body["passwordHistory"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn update_body_caps_the_history_at_five_entries() {
+        let key = test_key();
+        let mut cipher = login_cipher_with_password(&key, "current");
+        cipher.password_history = Some(
+            (0..5)
+                .map(|i| CipherPasswordHistory {
+                    last_used_date: Some(format!("2024-01-0{}T00:00:00.000Z", i + 1)),
+                    password: Some(encrypt_string(&format!("old-{i}"), &key).unwrap()),
+                })
+                .collect(),
+        );
+
+        let body = build_update_cipher_body(
+            &login_input_with_password("rotated"),
+            &key,
+            &cipher,
+            "2026-08-03T10:00:00.000Z",
+        )
+        .unwrap();
+
+        let history = body["passwordHistory"].as_array().unwrap();
+        assert_eq!(history.len(), 5);
+        // Newest first: the just-replaced password leads, and the oldest
+        // entry is the one that falls off.
+        assert_eq!(
+            decrypt_name(history[0]["password"].as_str().unwrap(), &key).unwrap(),
+            "current"
+        );
+        assert_eq!(
+            decrypt_name(history[4]["password"].as_str().unwrap(), &key).unwrap(),
+            "old-3"
+        );
+    }
+
+    #[test]
+    fn update_body_keeps_custom_fields_from_the_input() {
+        let key = test_key();
+        let cipher = login_cipher_with_password(&key, "same");
+        let mut input = login_input_with_password("same");
+        input.fields = vec![CustomFieldInput {
+            kind: 0,
+            name: Some("PIN".into()),
+            value: Some("4242".into()),
+            linked_id: None,
+        }];
+        let body = build_update_cipher_body(&input, &key, &cipher, "2026-08-03T10:00:00.000Z")
+            .unwrap();
+        assert_eq!(
+            decrypt_name(body["fields"][0]["value"].as_str().unwrap(), &key).unwrap(),
+            "4242"
+        );
+    }
+
+    // ============ cipher_to_create_input ============
+
+    #[test]
+    fn create_input_round_trips_a_login_through_decryption() {
+        let key = test_key();
+        let mut cipher = login_cipher_with_password(&key, "hunter2");
+        cipher.notes = Some(encrypt_string("line one\nline two", &key).unwrap());
+        cipher.favorite = true;
+        cipher.reprompt = Some(1);
+        cipher.fields = Some(vec![CipherField {
+            kind: Some(1),
+            name: Some(encrypt_string("Recovery", &key).unwrap()),
+            value: Some(encrypt_string("code-123", &key).unwrap()),
+            linked_id: None,
+        }]);
+
+        let input = cipher_to_create_input(&cipher, &key).unwrap();
+        assert_eq!(input.name, "My item");
+        assert_eq!(input.notes.as_deref(), Some("line one\nline two"));
+        assert!(input.favorite);
+        assert!(input.reprompt);
+        assert_eq!(input.cipher_type, 1);
+        assert_eq!(input.login.as_ref().unwrap().password.as_deref(), Some("hunter2"));
+        assert_eq!(input.fields[0].kind, 1);
+        assert_eq!(input.fields[0].value.as_deref(), Some("code-123"));
+    }
+
+    #[test]
+    fn create_input_drops_the_password_history() {
+        // A copy starts its own timeline: the original's rotations say
+        // nothing about the new item.
+        let key = test_key();
+        let mut cipher = login_cipher_with_password(&key, "hunter2");
+        cipher.password_history = Some(vec![CipherPasswordHistory {
+            last_used_date: Some("2024-01-01T00:00:00.000Z".into()),
+            password: Some(encrypt_string("ancient", &key).unwrap()),
+        }]);
+
+        let input = cipher_to_create_input(&cipher, &key).unwrap();
+        let body = build_cipher_body(&input, &key).unwrap();
+        assert!(body.get("passwordHistory").is_none());
+    }
+
+    #[test]
+    fn create_input_survives_a_field_it_cannot_decrypt() {
+        let key = test_key();
+        let stranger = other_test_key();
+        let mut cipher = login_cipher_with_password(&key, "hunter2");
+        // A note encrypted under a key we do not hold — the copy must
+        // still be creatable, minus that one value.
+        cipher.notes = Some(encrypt_string("unreadable", &stranger).unwrap());
+
+        let input = cipher_to_create_input(&cipher, &key).unwrap();
+        assert_eq!(input.notes, None);
+        assert_eq!(input.login.unwrap().password.as_deref(), Some("hunter2"));
     }
 }

@@ -194,6 +194,14 @@ The current project does not attempt to solve:
 - protection against local malware with user-level access
 - hardened memory isolation between frontend and backend
 - resistance to screenshots, screen readers, or shoulder surfing
+- **per-item master-password reprompt as a security control.** Clavix
+  honours Bitwarden's `reprompt` flag and asks for the master password
+  before revealing a flagged item, but the flag is advisory by
+  construction: the server does not enforce it, any other client may
+  ignore it, and the decrypted vault is already in memory when the
+  prompt appears. It raises the bar for someone at an unlocked screen,
+  and nothing more. `verify_master_password` is a local KDF + unwrap
+  check with no network round trip.
 - enterprise policy controls
 - forensic-grade deletion of secrets from swap, crash dumps, or all
   allocator internals

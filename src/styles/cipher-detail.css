@@ -260,3 +260,74 @@
 }
 :root.force-dark .notes { color: #d1d5db; }
 :root.force-dark .detail-footer { color: #9ca3af; }
+
+/* ---------------------------------------------------------------------
+   Attachments, password history and the "no value" custom field.
+   Global like the rest of this file: CipherDetail carries no <style>
+   block of its own, every rule lives here.
+   ------------------------------------------------------------------- */
+
+.attachment-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.attachment-name {
+  /* The name is user data and can be long; it takes the slack and
+     ellipsises rather than pushing the buttons off the panel. */
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-size {
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.attachment-add {
+  margin-top: 0.35rem;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.history-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.value.muted {
+  color: #9ca3af;
+}
+
+/* Keeps the file input in the accessibility tree (the button forwards
+   its click) without showing the browser's own file widget. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .attachment-size { color: #9aa0aa; }
+  .value.muted { color: #7b8190; }
+}
+
+:root.force-dark .attachment-size { color: #9aa0aa; }
+:root.force-dark .value.muted { color: #7b8190; }

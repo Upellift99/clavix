@@ -237,6 +237,58 @@
   opacity: 0.5;
 }
 
+/* Multi-selection (Ctrl/Shift-click). Deliberately a different visual
+   register from `.selected`, which means "this is the item the detail
+   panel is showing" — a row can be both at once. A left bar plus a
+   tint reads as a tick mark without needing a checkbox column. */
+.cipher-row.ticked,
+.cipher-row.zebra.ticked {
+  background: #d9e9fb;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.cipher-row.ticked:hover,
+.cipher-row.zebra.ticked:hover {
+  background: #c2dbf6;
+}
+
+.cipher-row.selected.ticked,
+.cipher-row.zebra.selected.ticked {
+  background: #6ea3df;
+  box-shadow: inset 3px 0 0 #1d4ed8;
+}
+
+/* Bulk-action bar, shown only while a selection exists. */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.4rem;
+  border: 1px solid #cfe0f5;
+  border-radius: 6px;
+  background: #eef5fd;
+}
+
+.selection-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-right: 0.15rem;
+}
+
+.selection-bar select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.3rem;
+}
+
+.selection-bar .danger {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
 /* Subtle background-colour transition so the row doesn't snap-flash
    on hover or selection. 100 ms is fast enough to feel responsive
    on a 60 Hz redraw, slow enough to look intentional. */
@@ -415,6 +467,22 @@
   background: #eef2fa;
 }
 
+.ctx-menu button.danger {
+  color: #b9301a;
+}
+
+.ctx-menu button.danger:hover {
+  background: #fdecec;
+}
+
+/* Hairline above the destructive block. Margins rather than padding so
+   the rule spans the menu's full width, inside its 0.25rem padding. */
+.ctx-sep {
+  height: 1px;
+  margin: 0.25rem -0.25rem;
+  background: #e4e6ea;
+}
+
 .ctx-label {
   white-space: nowrap;
 }
@@ -434,11 +502,27 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  .cipher-row.ticked,
+  .cipher-row.zebra.ticked { background: #1e3556; box-shadow: inset 3px 0 0 #60a5fa; }
+  .cipher-row.ticked:hover,
+  .cipher-row.zebra.ticked:hover { background: #274672; }
+  .selection-bar { background: #1b2434; border-color: #2e3a52; }
   .ctx-menu { background: #2a2a2a; border-color: #444; }
   .ctx-menu button:hover { background: #2c3a55; }
+  .ctx-menu button.danger { color: #ffb4a8; }
+  .ctx-menu button.danger:hover { background: #5a2222; }
+  .ctx-sep { background: #444; }
   .ctx-shortcut { color: #9aa0aa; background: #33383f; border-color: #454b54; }
 }
 
+:root.force-dark .cipher-row.ticked,
+:root.force-dark .cipher-row.zebra.ticked { background: #1e3556; box-shadow: inset 3px 0 0 #60a5fa; }
+:root.force-dark .cipher-row.ticked:hover,
+:root.force-dark .cipher-row.zebra.ticked:hover { background: #274672; }
+:root.force-dark .selection-bar { background: #1b2434; border-color: #2e3a52; }
 :root.force-dark .ctx-menu { background: #2a2a2a; border-color: #444; }
 :root.force-dark .ctx-menu button:hover { background: #2c3a55; }
+:root.force-dark .ctx-menu button.danger { color: #ffb4a8; }
+:root.force-dark .ctx-menu button.danger:hover { background: #5a2222; }
+:root.force-dark .ctx-sep { background: #444; }
 :root.force-dark .ctx-shortcut { color: #9aa0aa; background: #33383f; border-color: #454b54; }

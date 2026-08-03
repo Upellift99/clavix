@@ -27,6 +27,20 @@
     onToggleColumn: (key: keyof CipherListColumns, value: boolean) => void;
     onSearchInputRef: (el: HTMLInputElement | null) => void;
     search: string;
+    // ---- multi-selection ----
+    /** Ids currently ticked. Owned by the page; the list only asks. */
+    selectedIds: Set<string>;
+    onToggleSelection: (id: string) => void;
+    onSetSelection: (ids: string[]) => void;
+    onClearSelection: () => void;
+    /** Folders offered by the bulk "move to" picker. */
+    folders: { id: string; name: string }[];
+    /** True when the trash filter is active: bulk delete is permanent
+        there, and restore becomes available. */
+    trashView: boolean;
+    onBulkMove: (folderId: string | null) => void;
+    onBulkDelete: () => void;
+    onBulkRestore: () => void;
   };
 
   let {
@@ -48,7 +62,50 @@
     onToggleColumn,
     onSearchInputRef,
     search = $bindable(),
+    selectedIds,
+    onToggleSelection,
+    onSetSelection,
+    onClearSelection,
+    folders,
+    trashView,
+    onBulkMove,
+    onBulkDelete,
+    onBulkRestore,
   }: Props = $props();
+
+  // Anchor for Shift-click ranges: the last row clicked without Shift.
+  // Kept as an id rather than an index so a re-filter can't silently
+  // point it at a different item.
+  let anchorId = $state<string | null>(null);
+
+  /**
+   * Rows behave like a desktop file list: a plain click opens the item,
+   * Ctrl/Cmd-click adds or removes one, Shift-click takes everything
+   * between the anchor and here. The selection is deliberately dropped
+   * on a plain click — otherwise a stale tick from three filters ago
+   * would silently join the next bulk delete.
+   */
+  function onRowClick(event: MouseEvent, cipher: CipherSummary) {
+    if (event.shiftKey && anchorId) {
+      event.preventDefault();
+      const from = items.findIndex((i) => i.id === anchorId);
+      const to = items.findIndex((i) => i.id === cipher.id);
+      if (from !== -1 && to !== -1) {
+        const [start, end] = from <= to ? [from, to] : [to, from];
+        onSetSelection(items.slice(start, end + 1).map((i) => i.id));
+      }
+      return;
+    }
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      anchorId = cipher.id;
+      onToggleSelection(cipher.id);
+      return;
+    }
+    anchorId = cipher.id;
+    if (selectedIds.size > 0) onClearSelection();
+    onOpenCipher(cipher.id);
+  }
 
   const ROW_HEIGHT = 36;
   const OVERSCAN = 6;
@@ -148,6 +205,48 @@
       </button>
     {/if}
   </div>
+  <!-- Only on screen while something is selected: an always-present bar
+       would take a row of vertical space from the list for an action
+       nobody has asked for yet. -->
+  {#if selectedIds.size > 0}
+    <div class="selection-bar" role="toolbar" aria-label={m.items_selected({ count: String(selectedIds.size) })}>
+      <span class="selection-count">
+        {m.items_selected({ count: String(selectedIds.size) })}
+      </span>
+      <button type="button" class="secondary small" onclick={() => onSetSelection(items.map((i) => i.id))}>
+        {m.items_select_all()}
+      </button>
+      {#if trashView}
+        <button type="button" class="secondary small" onclick={onBulkRestore}>
+          {m.bulk_restore()}
+        </button>
+      {:else}
+        <select
+          aria-label={m.bulk_move_to_folder()}
+          value=""
+          onchange={(e) => {
+            const value = e.currentTarget.value;
+            // Back to the placeholder so the same folder can be picked
+            // twice in a row.
+            e.currentTarget.value = "";
+            if (value !== "") onBulkMove(value === "__none__" ? null : value);
+          }}
+        >
+          <option value="" disabled>{m.bulk_move_to_folder()}</option>
+          <option value="__none__">{m.bulk_no_folder()}</option>
+          {#each folders as folder (folder.id)}
+            <option value={folder.id}>{folder.name}</option>
+          {/each}
+        </select>
+      {/if}
+      <button type="button" class="small danger" onclick={onBulkDelete}>
+        {m.bulk_delete()}
+      </button>
+      <button type="button" class="secondary small" onclick={onClearSelection}>
+        {m.items_clear_selection()}
+      </button>
+    </div>
+  {/if}
   {#if gated}
     <div class="empty-state" role="status">
       <Icon name="search" size={40} class="empty-icon" />
@@ -263,10 +362,12 @@
                 class="cipher-row cipher-columns"
                 class:zebra={(virtualWindow.start + i) % 2 === 1}
                 class:selected={selectedId === c.id}
+                class:ticked={selectedIds.has(c.id)}
                 class:dragging={drag.cipherId === c.id}
                 class:hide-username={!visibleColumns.username}
                 class:hide-uri={!visibleColumns.uri}
-                onclick={() => onOpenCipher(c.id)}
+                aria-pressed={selectedIds.has(c.id)}
+                onclick={(e) => onRowClick(e, c)}
                 ondblclick={() => onEditCipher(c.id)}
                 oncontextmenu={(e) => onRowContextMenu(e, c)}
                 draggable="true"

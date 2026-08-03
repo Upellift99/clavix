@@ -22,6 +22,7 @@ pub mod models;
 pub mod services;
 pub mod session;
 pub mod store;
+pub mod time;
 pub mod totp;
 
 pub use error::{Error, Result};

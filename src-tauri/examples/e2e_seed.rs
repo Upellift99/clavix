@@ -700,6 +700,8 @@ fn login_input(
         cipher_type: 1,
         organization_id: None,
         collection_ids: Vec::new(),
+        fields: Vec::new(),
+        reprompt: false,
     }
 }
 
@@ -716,6 +718,8 @@ fn secure_note_input(name: &str, notes: &str) -> CipherCreateInput {
         cipher_type: 2,
         organization_id: None,
         collection_ids: Vec::new(),
+        fields: Vec::new(),
+        reprompt: false,
     }
 }
 
@@ -739,6 +743,8 @@ fn card_input(name: &str) -> CipherCreateInput {
         cipher_type: 3,
         organization_id: None,
         collection_ids: Vec::new(),
+        fields: Vec::new(),
+        reprompt: false,
     }
 }
 
@@ -762,6 +768,8 @@ fn identity_input(name: &str) -> CipherCreateInput {
         cipher_type: 4,
         organization_id: None,
         collection_ids: Vec::new(),
+        fields: Vec::new(),
+        reprompt: false,
     }
 }
 
@@ -798,5 +806,7 @@ fn ssh_key_input(name: &str) -> Result<CipherCreateInput> {
         cipher_type: 5,
         organization_id: None,
         collection_ids: Vec::new(),
+        fields: Vec::new(),
+        reprompt: false,
     })
 }
