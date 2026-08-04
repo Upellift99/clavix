@@ -2,14 +2,16 @@
 # Moved here from the `pnpm.overrides` field in package.json, which pnpm 11+
 # no longer reads (see https://pnpm.io/settings).
 overrides:
-  # GHSA-3jxr-9vmj-r5cp, backported to both lines the wdio chain pulls in.
-  # Do NOT collapse these into `brace-expansion@<5.0.8: ^5.0.8` to also cover
-  # GHSA-mh99-v99m-4gvg: 5.x exports `{ expand }` instead of the callable
-  # default, so every minimatch <= 6 dies with "expand is not a function".
-  # Only minimatch >= 9.0.6 speaks that API, and getting there means moving
-  # @wdio off v7 — see the follow-up issue.
-  brace-expansion@<1.1.16: ^1.1.16
-  brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
+  # GHSA-3jxr-9vmj-r5cp, then GHSA-mh99-v99m-4gvg and GHSA-rgw5-rvv9-x895
+  # (the latter bypasses the former's mitigation), backported to both lines
+  # the wdio chain pulls in. Floors track the highest patched version of the
+  # three: 1.1.18 and 2.1.4.
+  # Do NOT collapse these into `brace-expansion@<5.0.8: ^5.0.8`: 5.x exports
+  # `{ expand }` instead of the callable default, so every minimatch <= 6 dies
+  # with "expand is not a function". Only minimatch >= 9.0.6 speaks that API,
+  # and getting there means moving @wdio off v7 — see the follow-up issue.
+  brace-expansion@<1.1.18: ^1.1.18
+  brace-expansion@>=2.0.0 <2.1.4: ^2.1.4
   cookie@<0.7.0: ^0.7.0
   cross-spawn@<7.0.5: ^7.0.6
   esbuild@<0.25.0: ^0.25.0
@@ -19,5 +21,11 @@ overrides:
   serialize-javascript@<7.0.5: ^7.0.5
   tar-fs@>=2.0.0 <2.1.4: ^2.1.4
   tmp@<0.2.6: ^0.2.6
+  # GHSA-4cwx-7wf7-3272 (high) plus four medium cache/cookie/CRLF advisories,
+  # all fixed on the same three release lines. The wdio chain carries 6.x
+  # (webdriver) and 7.x (cheerio), vitest/jsdom carries 8.x — pin each.
+  undici@<6.28.0: ^6.28.0
+  undici@>=7.0.0 <7.29.0: ^7.29.0
+  undici@>=8.0.0 <8.9.0: ^8.9.0
   uuid@<14.0.0: ^14.0.0
   ws@<8.21.0: ^8.21.0
