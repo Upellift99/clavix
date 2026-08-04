@@ -56,6 +56,29 @@ export async function loginAsSeededUser() {
  * Resolves as soon as rows are present, so it is a no-op when the gate
  * is off.
  */
+/**
+ * Re-sync from the toolbar and wait for the list to carry `name`.
+ *
+ * Items created through `invoke("create_cipher")` land in the Rust
+ * vault, not in the Svelte store the list paints from — the renderer
+ * only learns about them when *it* asks for a sync. A spec that
+ * creates fixtures over IPC and then looks for their rows has to press
+ * the same button a user would, or it waits twenty seconds for a row
+ * that was never going to appear.
+ */
+export async function syncAndWaitForRow(name) {
+  const syncButton = await $(".toolbar .tb-btn");
+  await syncButton.waitForClickable({ timeout: 15_000 });
+  await syncButton.click();
+  await showAllItems();
+  const row = await $(`.cipher-row*=${name}`);
+  await row.waitForClickable({
+    timeout: 30_000,
+    timeoutMsg: `no row for ${JSON.stringify(name)} after a toolbar sync`,
+  });
+  return row;
+}
+
 export async function showAllItems() {
   await browser.waitUntil(
     async () => {

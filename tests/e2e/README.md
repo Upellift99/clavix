@@ -89,6 +89,10 @@ UI tests.
 | `share-cipher.spec.mjs`  | Personal cipher → org collection via `share_cipher_to_collection` IPC |
 | `lock-unlock.spec.mjs`   | Lock → unlock round-trip restores the vault              |
 | `auto-lock.spec.mjs`     | Idle window elapses → `UnlockForm` reappears             |
+| `custom-fields.spec.mjs` | Editor adds text + hidden fields; hidden value withheld by `get_cipher`, and an unrelated edit does not wipe them |
+| `bulk-selection.spec.mjs` | Ctrl-click selection → bulk trash through the confirmation; a plain click drops the selection |
+| `attachments.spec.mjs`   | Pick a file → upload → download → byte-for-byte compare; delete after confirmation |
+| `reprompt.spec.mjs`      | Wrong master password reveals nothing; dismissal reveals nothing; the row menu is gated too |
 
 Two env vars to iterate locally without recycling Docker each run:
 
