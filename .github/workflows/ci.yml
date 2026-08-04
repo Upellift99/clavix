@@ -145,6 +145,52 @@ jobs:
       - name: Unit tests (vitest)
         run: pnpm test
 
+      # The npm counterpart to the `cargo audit` step above, which had no
+      # equivalent until now. That gap was not theoretical: on 2026-08-04 the
+      # Dependabot alert page listed five `undici` advisories while `pnpm audit`
+      # found four more HIGH findings on `brace-expansion` that Dependabot never
+      # surfaced, because a stale override floor in pnpm-workspace.yaml kept the
+      # package from being re-flagged (see #245).
+      #
+      # Split in two on purpose:
+      #
+      # `--prod` is absolute — nothing vulnerable ships in the Tauri binary.
+      # If it ever goes red, users are exposed.
+      #
+      # The full-tree pass reaches the dev chain (@wdio/*, jsdom, vite) where
+      # both of the 2026-08-04 findings actually lived.
+      #
+      # Two pnpm audit flags look like they belong here and MUST NOT be used;
+      # both were measured against a deliberately re-pinned brace-expansion
+      # 2.1.2 tree that plain `pnpm audit` correctly failed with exit 1:
+      #
+      #   --ignore-unfixable   exits 0 and prints nothing on that tree. It
+      #                        treats an advisory as unfixable when an override
+      #                        pins the version — and this repo pins a dozen of
+      #                        them right below, so the flag blinds the gate
+      #                        exactly where the gate is needed.
+      #
+      #   --ignore <CVE>       always exits 0, even for a CVE that does not
+      #                        exist (tested with CVE-0000-0000). It is not a
+      #                        filter: it WRITES the id into `auditConfig` in
+      #                        pnpm-workspace.yaml and reports success. Passing
+      #                        it in CI would turn this step into a no-op and
+      #                        mutate a tracked file on the runner.
+      #
+      # `--ignore-registry-errors` per pnpm's own CI guidance: a flaky npm
+      # registry must not fail an unrelated build.
+      #
+      # To silence a genuinely unactionable advisory, hand-edit
+      # `auditConfig.ignoreCves` in pnpm-workspace.yaml and document why,
+      # mirroring the `--ignore RUSTSEC-...` comment on the cargo audit step.
+      # Config-based ignores keep the exit code honest: a tree with one ignored
+      # and one live finding still fails. Never reach for the CLI flag.
+      - name: pnpm audit (production tree)
+        run: pnpm audit --prod --ignore-registry-errors
+
+      - name: pnpm audit (full tree)
+        run: pnpm audit --ignore-registry-errors
+
   e2e:
     name: E2E (Tauri + WebdriverIO)
     runs-on: ubuntu-24.04
