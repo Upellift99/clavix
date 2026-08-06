@@ -6,5 +6,11 @@
 # will have schema files for capabilities auto-completion
 /gen/schemas
 
-# ts-rs default export dir — the tracked bindings live in ../src/lib/generated
+# ts-rs default export dir — the tracked bindings live in ../src/lib/generated,
+# written there by `pnpm run bindings` (which sets TS_RS_EXPORT_DIR). A bare
+# `cargo test` has no such variable and falls back to this per-crate default,
+# so every crate exporting a type needs an entry here. Missing one means the
+# stale copy gets committed and then drifts unnoticed: CI only diffs
+# src/lib/generated, so nothing ever fails on it.
 /bindings/
+/core/bindings/
