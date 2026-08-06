@@ -60,6 +60,12 @@ Against a real Vaultwarden instance, Clavix:
 - **generates TOTP codes** live from the stored secret (`otpauth://` URIs
   with custom period, digits, hash), and **scans QR codes** through the
   camera to fill the TOTP field;
+- **rates password strength** where you choose one — the generator shows
+  exact entropy in bits (it reacts when you drop a character class,
+  which a guessability score cannot), the editor and the item view show
+  a zxcvbn score. Scoring happens in Rust, so the item view can show the
+  strength of a password that is **still masked** and never crossed the
+  IPC boundary, and so the editor can never contradict the audit;
 - keeps an **encrypted SQLite cache**, so the next unlock shows the vault
   instantly; when the server is unreachable the unlock falls back to that
   cache and opens the vault **read-only** (standalone mode);
@@ -84,8 +90,10 @@ Against a real Vaultwarden instance, Clavix:
   server folders stay separate instead of being merged;
 - runs a **security audit** (🛡) combining HIBP k-anonymity lookups with
   local **reused** and **weak** password detection (zxcvbn ≤ 2);
-- **imports a KeePassXC CSV export**, creating a folder per *Group* on the
-  fly (📥);
+- **imports a KeePassXC CSV or KDBX export**, creating a folder per
+  *Group* on the fly (📥), and reads back its own encrypted backups —
+  cards, identities and SSH keys included, which the CSV schema cannot
+  carry;
 - embeds an **SSH agent** (Linux / macOS): exposes the Ed25519 and RSA
   keys from your vault over a Unix socket so `ssh`, `git`, `scp`, … use
   them without the private keys ever touching disk.
