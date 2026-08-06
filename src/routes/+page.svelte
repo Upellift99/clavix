@@ -18,6 +18,7 @@
   import ConfirmDialog from "$lib/ConfirmDialog.svelte";
   import RepromptDialog from "$lib/RepromptDialog.svelte";
   import UpdateBanner from "$lib/UpdateBanner.svelte";
+  import StandaloneBanner from "$lib/StandaloneBanner.svelte";
   import { ClipboardController, type ClipboardVariant } from "$lib/clipboard.svelte";
   import { DragController } from "$lib/drag.svelte";
   import { AuthController } from "$lib/auth.svelte";
@@ -46,6 +47,13 @@
 
   const prefs = new PrefsController();
   const drag = new DragController();
+
+  // Every drop in this app is a write (move to folder, move to
+  // collection, share). With no server behind the vault there is
+  // nowhere for one to land, so no drag may start at all.
+  $effect(() => {
+    drag.disabled = auth.isReadOnly;
+  });
   const clipboard = new ClipboardController();
   const auth = new AuthController();
   const vault = new VaultController();
@@ -233,12 +241,25 @@
 
   auth.on(async (event) => {
     if (event === "loggedIn") {
+      // A file-backed standalone session already holds its vault; it
+      // has no cache entry and nothing to sync against.
+      if (auth.origin === "exportFile") {
+        await vault.loadStandalone();
+        return;
+      }
+
       // Paint the UI immediately from the encrypted local cache, then
       // reconcile against the server in the background. On a fresh
       // profile loadCached finds nothing and syncInBackground fills the
       // vault once the network roundtrip lands — no more empty screen
       // until the user hits "Sync" manually.
       await vault.loadCached();
+
+      // A cache-backed session has no server to reconcile with, and
+      // starting the SSH agent in an emergency unlock would expose the
+      // vault's keys on a socket without the user asking.
+      if (auth.isReadOnly) return;
+
       vault.syncInBackground();
       void autoStartSshAgent();
     }
@@ -614,6 +635,9 @@
     {/if}
 
     {#if auth.phase === "loggedIn"}
+      {#if auth.isReadOnly && auth.origin}
+        <StandaloneBanner origin={auth.origin} />
+      {/if}
       {#if showUpdateBanner && updateInfo}
         <UpdateBanner
           info={updateInfo}
@@ -627,6 +651,7 @@
         hasSync={vault.summary !== null}
         lastSyncAt={vault.lastSyncAt}
         lastSyncError={vault.lastSyncError}
+        readOnly={auth.isReadOnly}
         onSync={() => vault.sync()}
         onLock={lockAndReset}
         onSwitchAccount={switchAccountAndReset}
@@ -688,7 +713,8 @@
                 visibleColumns={prefs.visibleColumns}
                 {drag}
                 onOpenCipher={(id) => vault.openCipher(id)}
-                onEditCipher={(id) => vault.openEditorFor(id, requireReprompt)}
+                onEditCipher={(id) =>
+                  auth.isReadOnly ? undefined : vault.openEditorFor(id, requireReprompt)}
                 onRowContextMenu={openRowMenu}
                 onToggleSort={(k) => vault.toggleSort(k)}
                 onToggleColumn={(k, v) => prefs.setVisibleColumn(k, v)}
@@ -703,6 +729,7 @@
                 onBulkMove={bulkMove}
                 onBulkDelete={bulkDelete}
                 onBulkRestore={bulkRestore}
+                readOnly={auth.isReadOnly}
               />
             </div>
 
@@ -739,6 +766,7 @@
                   {confirm}
                   onError={(e) => (vault.error = formatError(e))}
                   onRefresh={(id) => vault.openCipher(id)}
+                  readOnly={auth.isReadOnly}
                 />
               </div>
             {/if}
@@ -805,25 +833,29 @@
         <kbd class="ctx-shortcut">Ctrl+U</kbd>
       </button>
     {/if}
-    {#if !menuCipher.deletedDate}
-      <button type="button" role="menuitem" onclick={duplicateMenuCipher}>
-        <span class="ctx-label">{m.action_duplicate()}</span>
-      </button>
-    {/if}
-    <!-- Destructive block, kept below a rule and away from the copy
-         actions: the row above it is one the user hits constantly. -->
-    <div class="ctx-sep" role="separator"></div>
-    {#if menuCipher.deletedDate}
-      <button type="button" role="menuitem" onclick={restoreMenuCipher}>
-        <span class="ctx-label">{m.action_restore()}</span>
-      </button>
-      <button type="button" role="menuitem" class="danger" onclick={deleteMenuCipherForever}>
-        <span class="ctx-label">{m.action_delete_forever()}</span>
-      </button>
-    {:else}
-      <button type="button" role="menuitem" class="danger" onclick={softDeleteMenuCipher}>
-        <span class="ctx-label">{m.action_soft_delete()}</span>
-      </button>
+    <!-- Everything below writes. In standalone mode the menu keeps only
+         its open/copy entries. -->
+    {#if !auth.isReadOnly}
+      {#if !menuCipher.deletedDate}
+        <button type="button" role="menuitem" onclick={duplicateMenuCipher}>
+          <span class="ctx-label">{m.action_duplicate()}</span>
+        </button>
+      {/if}
+      <!-- Destructive block, kept below a rule and away from the copy
+           actions: the row above it is one the user hits constantly. -->
+      <div class="ctx-sep" role="separator"></div>
+      {#if menuCipher.deletedDate}
+        <button type="button" role="menuitem" onclick={restoreMenuCipher}>
+          <span class="ctx-label">{m.action_restore()}</span>
+        </button>
+        <button type="button" role="menuitem" class="danger" onclick={deleteMenuCipherForever}>
+          <span class="ctx-label">{m.action_delete_forever()}</span>
+        </button>
+      {:else}
+        <button type="button" role="menuitem" class="danger" onclick={softDeleteMenuCipher}>
+          <span class="ctx-label">{m.action_soft_delete()}</span>
+        </button>
+      {/if}
     {/if}
   </div>
 {/if}

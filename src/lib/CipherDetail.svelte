@@ -35,6 +35,10 @@
     onError: (e: unknown) => void;
     /** Re-read the item after an attachment changed it. */
     onRefresh: (id: string) => void;
+    /** Vault opened without a server: every action that writes is
+        hidden, and so is attachment download — the payloads live on
+        the server, not in the vault, so there is nothing to fetch. */
+    readOnly?: boolean;
   };
 
   let {
@@ -52,6 +56,7 @@
     confirm,
     onError,
     onRefresh,
+    readOnly = false,
   }: Props = $props();
 
   let showPassword = $state(false);
@@ -380,7 +385,9 @@
       <h2>{detail.name}</h2>
     </div>
     <div class="row">
-      {#if isDeleted}
+      {#if readOnly}
+        <!-- Nothing here writes anywhere in standalone mode. -->
+      {:else if isDeleted}
         <button type="button" class="secondary small" onclick={() => onRestore(detail.id)}>
           {m.action_restore()}
         </button>
@@ -613,14 +620,21 @@
           <span class="attachment-size">
             {attachment.sizeName ?? formatBytes(attachment.size)}
           </span>
-          <button
-            type="button"
-            class="secondary small"
-            onclick={() => downloadAttachment(attachment.id, attachment.fileName)}
-          >
-            {m.detail_attachment_download()}
-          </button>
-          {#if !isDeleted}
+          {#if readOnly}
+            <!-- Attachment payloads live on the server, not in the
+                 vault: with no server there is nothing to download,
+                 so the button would only ever fail. -->
+            <span class="attachment-size">{m.detail_attachment_unavailable()}</span>
+          {:else}
+            <button
+              type="button"
+              class="secondary small"
+              onclick={() => downloadAttachment(attachment.id, attachment.fileName)}
+            >
+              {m.detail_attachment_download()}
+            </button>
+          {/if}
+          {#if !isDeleted && !readOnly}
             <button
               type="button"
               class="icon-btn"
@@ -633,7 +647,7 @@
           {/if}
         </div>
       {/each}
-      {#if !isDeleted}
+      {#if !isDeleted && !readOnly}
         <div class="attachment-add">
           <input
             bind:this={fileInput}

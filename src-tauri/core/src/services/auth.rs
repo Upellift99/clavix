@@ -12,7 +12,7 @@ use crate::crypto::{
 };
 use crate::error::{Error, Result};
 use crate::models::{Prelogin, TokenSet};
-use crate::session::{PendingTwoFactor, Session, PENDING_2FA_TTL_SECS};
+use crate::session::{PendingTwoFactor, Session, SessionOrigin, PENDING_2FA_TTL_SECS};
 use crate::store::{self, PersistedSession};
 
 /// The two slots these functions operate on. They used to take the
@@ -101,13 +101,41 @@ pub fn store_session(
     let expires_at = compute_expires_at(tokens.expires_in);
     let mut guard = session.lock();
     *guard = Some(Session {
-        client,
-        tokens,
-        expires_at,
+        client: Some(client),
+        tokens: Some(tokens),
+        expires_at: Some(expires_at),
+        origin: SessionOrigin::Server,
         user_key,
         private_key,
         org_keys: HashMap::new(),
         vault: None,
+    });
+}
+
+/// Park a vault that has no server behind it.
+///
+/// Used by two flows: an unlock that derived the user key locally but
+/// could not reach the server, and an encrypted export file opened
+/// directly. Neither can write, which `ensure_fresh_tokens` enforces by
+/// refusing any session whose `tokens` is `None`.
+pub fn store_standalone_session(
+    session: &SessionSlot,
+    origin: SessionOrigin,
+    user_key: SymmetricKey,
+    private_key: Option<RsaPrivateKey>,
+    org_keys: HashMap<String, SymmetricKey>,
+    vault: Option<crate::models::SyncResponse>,
+) {
+    let mut guard = session.lock();
+    *guard = Some(Session {
+        client: None,
+        tokens: None,
+        expires_at: None,
+        origin,
+        user_key,
+        private_key,
+        org_keys,
+        vault,
     });
 }
 
@@ -125,10 +153,22 @@ pub async fn ensure_fresh_tokens(session: &SessionSlot) -> Result<()> {
     let (client, refresh) = {
         let guard = session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        if s.expires_at > Instant::now() + Duration::from_secs(60) {
+
+        // This is the write firewall. Every mutating command calls in
+        // here before touching the API, and no read path does — so a
+        // session with no tokens (offline cache, or an export file) is
+        // fenced off from the entire write surface right here, in Rust,
+        // whatever the UI chooses to show.
+        let (Some(client), Some(tokens), Some(expires_at)) =
+            (s.client.as_ref(), s.tokens.as_ref(), s.expires_at)
+        else {
+            return Err(Error::ReadOnlySession);
+        };
+
+        if expires_at > Instant::now() + Duration::from_secs(60) {
             return Ok(());
         }
-        (s.client.clone(), s.tokens.refresh_token.clone())
+        (client.clone(), tokens.refresh_token.clone())
     };
 
     let device = device_info()?;
@@ -151,11 +191,13 @@ pub async fn ensure_fresh_tokens(session: &SessionSlot) -> Result<()> {
 
     {
         let mut guard = session.lock();
+        if let Some(tokens) = guard.as_mut().and_then(|s| s.tokens.as_mut()) {
+            tokens.access_token = new_access;
+            tokens.refresh_token = new_refresh;
+            tokens.expires_in = new_expires_in;
+        }
         if let Some(s) = guard.as_mut() {
-            s.tokens.access_token = new_access;
-            s.tokens.refresh_token = new_refresh;
-            s.tokens.expires_in = new_expires_in;
-            s.expires_at = compute_expires_at(new_expires_in);
+            s.expires_at = Some(compute_expires_at(new_expires_in));
         }
     }
 

@@ -336,7 +336,7 @@ pub async fn create_login_cipher(
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let body = build_login_cipher_body(&input, &s.user_key)?;
-        (s.client.clone(), s.tokens.access_token.clone(), body)
+        (s.client()?.clone(), s.access_token()?.to_string(), body)
     };
     let created = client.create_cipher(&access_token, &body).await?;
     let id = created.id.clone();
@@ -361,7 +361,7 @@ pub async fn update_login_cipher(
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let body = build_login_cipher_body(&input, &s.user_key)?;
-        (s.client.clone(), s.tokens.access_token.clone(), body)
+        (s.client()?.clone(), s.access_token()?.to_string(), body)
     };
     let updated = client
         .update_cipher(&access_token, &cipher_id, &body)
@@ -411,7 +411,7 @@ pub async fn create_cipher(state: State<'_, AppState>, input: CipherCreateInput)
             }
             None => CreateKind::Personal(build_cipher_body(&input, &s.user_key)?),
         };
-        (s.client.clone(), s.tokens.access_token.clone(), kind)
+        (s.client()?.clone(), s.access_token()?.to_string(), kind)
     };
     let created = match kind {
         CreateKind::Personal(body) => client.create_cipher(&access_token, &body).await?,
@@ -495,7 +495,7 @@ pub async fn update_cipher(
                 .expect("build_cipher_body returns a map")
                 .insert("key".into(), serde_json::Value::String(wrapped));
         }
-        (s.client.clone(), s.tokens.access_token.clone(), body)
+        (s.client()?.clone(), s.access_token()?.to_string(), body)
     };
     let updated = client
         .update_cipher(&access_token, &cipher_id, &body)
@@ -560,7 +560,7 @@ pub async fn duplicate_cipher(
         } else {
             CreateKind::Personal(body)
         };
-        (s.client.clone(), s.tokens.access_token.clone(), kind)
+        (s.client()?.clone(), s.access_token()?.to_string(), kind)
     };
     let created = match kind {
         CreateKind::Personal(body) => client.create_cipher(&access_token, &body).await?,
@@ -592,7 +592,7 @@ pub async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Re
     let (client, access_token) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        (s.client.clone(), s.tokens.access_token.clone())
+        (s.client()?.clone(), s.access_token()?.to_string())
     };
     client.restore_cipher(&access_token, &cipher_id).await?;
 
@@ -617,7 +617,7 @@ pub async fn soft_delete_cipher(state: State<'_, AppState>, cipher_id: String) -
     let (client, access_token) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        (s.client.clone(), s.tokens.access_token.clone())
+        (s.client()?.clone(), s.access_token()?.to_string())
     };
     client.soft_delete_cipher(&access_token, &cipher_id).await?;
 
@@ -694,16 +694,16 @@ pub async fn download_attachment(
         };
 
         // Fall back to the canonical path on our own server when the
-        // vault carries no URL for the attachment.
-        let url = attachment.url.clone().unwrap_or_else(|| {
-            format!(
-                "{}attachments/{cipher_id}/{attachment_id}",
-                s.client.base_url()
-            )
-        });
+        // vault carries no URL for the attachment. Resolved before the
+        // closure because `?` cannot escape one.
+        let base_url = s.client()?.base_url().to_string();
+        let url = attachment
+            .url
+            .clone()
+            .unwrap_or_else(|| format!("{base_url}attachments/{cipher_id}/{attachment_id}"));
         (
-            s.client.clone(),
-            s.tokens.access_token.clone(),
+            s.client()?.clone(),
+            s.access_token()?.to_string(),
             url,
             file_key,
         )
@@ -766,8 +766,8 @@ pub async fn upload_attachment(
         let wrapped_key = clavix_core::crypto::encrypt_cipher_key(&file_key, cipher_key)?;
         let encrypted_name = clavix_core::crypto::encrypt_string(&file_name, cipher_key)?;
         (
-            s.client.clone(),
-            s.tokens.access_token.clone(),
+            s.client()?.clone(),
+            s.access_token()?.to_string(),
             encrypted_name,
             encrypted_data,
             wrapped_key,
@@ -833,7 +833,7 @@ pub async fn delete_attachment(
     let (client, access_token) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        (s.client.clone(), s.tokens.access_token.clone())
+        (s.client()?.clone(), s.access_token()?.to_string())
     };
     client
         .delete_attachment(&access_token, &cipher_id, &attachment_id)
@@ -876,7 +876,7 @@ pub async fn delete_cipher(state: State<'_, AppState>, cipher_id: String) -> Res
     let (client, access_token) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        (s.client.clone(), s.tokens.access_token.clone())
+        (s.client()?.clone(), s.access_token()?.to_string())
     };
     client.delete_cipher(&access_token, &cipher_id).await?;
 

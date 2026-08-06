@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Instant;
 
 use secrecy::SecretString;
@@ -5,7 +6,8 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::session::{
-    clear_pending_two_factor, set_pending_two_factor, store_session, with_pending_two_factor,
+    clear_pending_two_factor, set_pending_two_factor, store_session, store_standalone_session,
+    with_pending_two_factor,
 };
 use crate::state::{AppState, AutoLockSetting, AutoLockTrigger};
 use crate::yubikey_unlock;
@@ -19,7 +21,7 @@ use clavix_core::models::{LoginOk, LoginOutcome, LoginResult, Prelogin, TwoFacto
 use clavix_core::services::auth::{
     device_info, extract_session_keys, persist_session, prepare_credentials, recover_refresh_token,
 };
-use clavix_core::session::PendingTwoFactor;
+use clavix_core::session::{PendingTwoFactor, SessionOrigin};
 use clavix_core::store;
 
 #[derive(Debug, Clone, Serialize)]
@@ -48,8 +50,18 @@ pub fn stored_account() -> Result<Option<StoredAccount>> {
 fn ensure_server_matches_active_session(state: &AppState, server_url: &str) -> Result<()> {
     let guard = state.session.lock();
     if let Some(session) = guard.as_ref() {
+        // A standalone session pins no server at all, so there is
+        // nothing to compare against — and no legitimate reason for it
+        // to be making first-factor calls anywhere. Refuse outright
+        // rather than fall through to "any host is fine", which is what
+        // an `if let Some(client)` would have done.
+        let Some(client) = session.client.as_ref() else {
+            return Err(Error::AuthFailed {
+                message: "close the standalone vault before signing in to a server".into(),
+            });
+        };
         let requested = VaultwardenClient::new(server_url)?;
-        if requested.base_url() != session.client.base_url() {
+        if requested.base_url() != client.base_url() {
             return Err(Error::AuthFailed {
                 message: "refusing to contact a different server while a vault session is active"
                     .into(),
@@ -93,7 +105,10 @@ pub async fn login(
             let (user_key, private_key) = extract_session_keys(&master_key, &tokens)?;
             persist_session(&server_url, &email, &pre, &tokens, &user_key)?;
             store_session(&state, client, tokens, user_key, private_key);
-            Ok(LoginOutcome::Success(LoginOk { email }))
+            Ok(LoginOutcome::Success(LoginOk {
+                email,
+                origin: SessionOrigin::Server,
+            }))
         }
         LoginResult::TwoFactorRequired {
             providers,
@@ -171,7 +186,10 @@ pub async fn login_with_two_factor(
     persist_session(&server_url, &email, &prelogin, &tokens, &user_key)?;
     store_session(&state, client, tokens, user_key, private_key);
     clear_pending_two_factor(&state);
-    Ok(LoginOk { email })
+    Ok(LoginOk {
+        email,
+        origin: SessionOrigin::Server,
+    })
 }
 
 /// Drop the parked 2FA login slot. Called by the frontend when the
@@ -212,7 +230,40 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Logi
 
     let client = VaultwardenClient::new(&persisted.server_url)?;
     let device = device_info()?;
-    let mut tokens = client.refresh_token(&refresh_token_plain, &device).await?;
+    let email = persisted.email.clone();
+
+    // Nothing above this line needed the network: deriving the master
+    // key, unwrapping the user key and decrypting the refresh token are
+    // all local. The call below only fetches an *access token*, and it
+    // used to be an unconditional `?` — so a server that was merely
+    // unreachable threw away a user key that had already been recovered
+    // successfully, and left the user stuck on the unlock screen with
+    // an encrypted cache they could not reach.
+    //
+    // Only a transport failure falls through to standalone. A server
+    // that answers and rejects the refresh token (expired, revoked)
+    // means the account really does need signing in again, and saying
+    // "you're offline" there would be a lie.
+    let mut tokens = match client.refresh_token(&refresh_token_plain, &device).await {
+        Ok(tokens) => tokens,
+        Err(Error::Network { source }) => {
+            eprintln!("[clavix] unlock: server unreachable ({source}) — opening the cached vault read-only");
+            store_standalone_session(
+                &state,
+                SessionOrigin::OfflineCache,
+                user_key,
+                private_key,
+                HashMap::new(),
+                None,
+            );
+            crate::state::mark_activity(&state);
+            return Ok(LoginOk {
+                email,
+                origin: SessionOrigin::OfflineCache,
+            });
+        }
+        Err(e) => return Err(e),
+    };
 
     if tokens.refresh_token.is_empty() {
         tokens.refresh_token = refresh_token_plain.clone();
@@ -225,10 +276,12 @@ pub async fn unlock(state: State<'_, AppState>, password: String) -> Result<Logi
     updated.encrypted_refresh_token = Some(encrypted_refresh);
     store::save_session(&updated)?;
 
-    let email = persisted.email.clone();
     store_session(&state, client, tokens, user_key, private_key);
     crate::state::mark_activity(&state);
-    Ok(LoginOk { email })
+    Ok(LoginOk {
+        email,
+        origin: SessionOrigin::Server,
+    })
 }
 
 /// Check a master password without touching the session.
@@ -452,7 +505,31 @@ pub async fn unlock_with_yubikey(
 
     let client = VaultwardenClient::new(&persisted.server_url)?;
     let device = device_info()?;
-    let mut tokens = client.refresh_token(&refresh_token_plain, &device).await?;
+    let email = persisted.email.clone();
+
+    // Same fallback as the master-password unlock: the Yubikey has
+    // already yielded the user key locally, so an unreachable server
+    // must not throw it away. See the comment in `unlock`.
+    let mut tokens = match client.refresh_token(&refresh_token_plain, &device).await {
+        Ok(tokens) => tokens,
+        Err(Error::Network { source }) => {
+            eprintln!("[clavix] yubikey unlock: server unreachable ({source}) — opening the cached vault read-only");
+            store_standalone_session(
+                &state,
+                SessionOrigin::OfflineCache,
+                user_key,
+                private_key,
+                HashMap::new(),
+                None,
+            );
+            crate::state::mark_activity(&state);
+            return Ok(LoginOk {
+                email,
+                origin: SessionOrigin::OfflineCache,
+            });
+        }
+        Err(e) => return Err(e),
+    };
     if tokens.refresh_token.is_empty() {
         tokens.refresh_token = refresh_token_plain.clone();
     }
@@ -463,10 +540,12 @@ pub async fn unlock_with_yubikey(
     updated.encrypted_refresh_token = Some(encrypted_refresh);
     store::save_session(&updated)?;
 
-    let email = persisted.email.clone();
     store_session(&state, client, tokens, user_key, private_key);
     crate::state::mark_activity(&state);
-    Ok(LoginOk { email })
+    Ok(LoginOk {
+        email,
+        origin: SessionOrigin::Server,
+    })
 }
 
 /// Clone the unlocked user key out of the session lock for use by a

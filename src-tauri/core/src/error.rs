@@ -86,6 +86,14 @@ pub enum Error {
     /// sends them in circles.
     #[error("Not a valid Clavix encrypted export: {reason}")]
     ExportMalformed { reason: String },
+
+    /// The vault was opened without a server — from the offline cache
+    /// or from an export file — so there is nowhere to write changes
+    /// to. Every mutating command passes through `ensure_fresh_tokens`,
+    /// which raises this; the UI also hides the affordances, but this
+    /// is the enforcement rather than the decoration.
+    #[error("This vault is open in standalone mode and cannot be modified")]
+    ReadOnlySession,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -296,6 +304,7 @@ impl Serialize for Error {
             Error::ExportMalformed { reason } => {
                 ("export_malformed", serde_json::json!({ "reason": reason }))
             }
+            Error::ReadOnlySession => ("read_only_session", serde_json::json!({})),
         };
 
         ErrorPayload {

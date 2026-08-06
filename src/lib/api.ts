@@ -10,6 +10,7 @@ import type {
   LoginResult,
   PasswordHistoryEntry,
   PasswordStrength,
+  SessionOrigin,
   SshAgentStatus,
   StoredAccount,
   SyncSummary,
@@ -254,6 +255,19 @@ export const api = {
 
   parseKdbx: (bytes: Uint8Array, password: string) =>
     invoke<KdbxEntry[]>("parse_kdbx", { bytes: Array.from(bytes), password }),
+
+  /** Open an encrypted export file as a standalone, read-only vault —
+      no account, no server, no stored session. Refused while another
+      vault is open. */
+  openExportFile: (bytes: Uint8Array, filePassword: string) =>
+    invoke<LoginOk>("open_export_file", { bytes: Array.from(bytes), filePassword }),
+
+  /** Item list for a file-backed standalone session. The cache-backed
+      one gets its list from `loadCachedVault` instead. */
+  standaloneSummary: () => invoke<SyncSummary>("standalone_summary"),
+
+  /** How the open vault was reached, or null when nothing is open. */
+  sessionOrigin: () => invoke<SessionOrigin | null>("session_origin"),
 
   /** Seal the whole vault into a password-protected export file. The
       bytes coming back are already ciphertext — the vault is

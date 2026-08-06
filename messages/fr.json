@@ -464,5 +464,14 @@
   "bulk_delete_forever_confirm": "{count} item(s) seront définitivement supprimés. Cette action est irréversible.",
   "bulk_restore": "Restaurer",
   "bulk_failed": "{count} item(s) n'ont pas pu être traités.",
-  "bulk_no_folder": "Aucun dossier"
+  "bulk_no_folder": "Aucun dossier",
+  "standalone_title_cache": "Mode autonome — coffre en cache local",
+  "standalone_detail_cache": "Le serveur est injoignable. Le coffre est ouvert depuis le cache chiffré de cet appareil : il reflète la dernière synchronisation réussie et ne peut pas être modifié.",
+  "standalone_title_file": "Mode autonome — fichier de sauvegarde",
+  "standalone_detail_file": "Ce coffre est ouvert depuis un fichier d'export chiffré, sans compte ni serveur. Il ne peut pas être modifié.",
+  "standalone_unavailable": "Indisponibles : synchronisation, création et modification d'items, import, pièces jointes, audit de sécurité et agent SSH.",
+  "standalone_open_file": "Ouvrir une sauvegarde chiffrée",
+  "standalone_open_file_hint": "Restauration d'urgence : ouvre un fichier d'export chiffré en lecture seule, sans serveur ni compte.",
+  "err_read_only_session": "Ce coffre est ouvert en mode autonome et ne peut pas être modifié.",
+  "detail_attachment_unavailable": "Indisponible hors ligne"
 }

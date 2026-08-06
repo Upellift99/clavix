@@ -130,6 +130,26 @@ See:
 - `src-tauri/core/src/store.rs`
 - `src-tauri/core/src/services/auth.rs`
 
+### Standalone Sessions
+
+`Session` no longer implies a server: `client`, `tokens` and
+`expires_at` are optional, and `SessionOrigin` records how the vault was
+reached (`Server`, `OfflineCache`, `ExportFile`). The two latter origins
+have no tokens and cannot write.
+
+That restriction is enforced in one place. Every mutating command calls
+`ensure_fresh_tokens` before touching the API and no read path does, so
+refusing a tokenless session there fences off the entire write surface
+regardless of what the UI offers. See `THREAT_MODEL.md` for why this is
+a distinct trust path rather than a variation on the normal one.
+
+For a file-backed session the vault key comes from the export's
+`protectedKey` and takes the slot the user key normally occupies —
+which is what lets every existing read path work unchanged. Items that
+belong to an organisation keep their `organizationId`, so `org_keys` is
+populated with the same vault key for each id present; otherwise
+`owning_key` would fail to resolve them.
+
 ### Offline Cache
 
 The local SQLite cache stores an encrypted vault blob keyed by account.

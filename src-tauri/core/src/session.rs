@@ -13,24 +13,82 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use rsa::RsaPrivateKey;
+use serde::Serialize;
+use ts_rs::TS;
 use zeroize::ZeroizeOnDrop;
 
 use crate::api::VaultwardenClient;
 use crate::crypto::{MasterKey, MasterPasswordHash, SymmetricKey};
+use crate::error::{Error, Result};
 use crate::models::{Prelogin, SyncResponse, TokenSet};
 
+/// Where the vault in a session came from.
+///
+/// A session used to imply a live account on a reachable server. It no
+/// longer does: a vault can also be opened from the local encrypted
+/// cache when the server is down, or straight out of an encrypted
+/// export file with no account at all. The two latter cases have no
+/// tokens, and so no way to write anything back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum SessionOrigin {
+    /// Signed in against the server. The only origin that can write.
+    Server,
+    /// Unlocked from the on-disk encrypted cache with the server
+    /// unreachable. The account exists; it just can't be reached.
+    OfflineCache,
+    /// Opened from an encrypted export file. No account involved.
+    ExportFile,
+}
+
+impl SessionOrigin {
+    /// Whether this session can push changes anywhere.
+    pub fn is_writable(self) -> bool {
+        matches!(self, SessionOrigin::Server)
+    }
+}
+
 pub struct Session {
-    pub client: VaultwardenClient,
-    pub tokens: TokenSet,
+    /// `None` for a standalone session — see [`SessionOrigin`]. Reach
+    /// for it through [`Session::client`], which turns absence into the
+    /// error the UI knows how to explain.
+    pub client: Option<VaultwardenClient>,
+    pub tokens: Option<TokenSet>,
     /// Wall-clock deadline after which `tokens.access_token` must be refreshed.
     /// Computed from `tokens.expires_in` at the time the token was issued,
     /// with a 30-second safety margin so we refresh slightly before the
-    /// server considers the token dead.
-    pub expires_at: Instant,
+    /// server considers the token dead. `None` when there are no tokens.
+    pub expires_at: Option<Instant>,
+    pub origin: SessionOrigin,
     pub user_key: SymmetricKey,
     pub private_key: Option<RsaPrivateKey>,
     pub org_keys: HashMap<String, SymmetricKey>,
     pub vault: Option<SyncResponse>,
+}
+
+impl Session {
+    /// The API client, or [`Error::ReadOnlySession`] when there isn't one.
+    ///
+    /// In practice no caller should ever see that error: every command
+    /// that reaches for the client goes through `ensure_fresh_tokens`
+    /// first, which refuses a tokenless session outright. This is the
+    /// backstop for a command that forgets to.
+    pub fn client(&self) -> Result<&VaultwardenClient> {
+        self.client.as_ref().ok_or(Error::ReadOnlySession)
+    }
+
+    /// The current access token, same contract as [`Session::client`].
+    pub fn access_token(&self) -> Result<&str> {
+        self.tokens
+            .as_ref()
+            .map(|t| t.access_token.as_str())
+            .ok_or(Error::ReadOnlySession)
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.origin.is_writable() && self.tokens.is_some()
+    }
 }
 
 /// Material derived during the `login` step that has to survive until

@@ -123,12 +123,55 @@ These flows deserve concentrated review:
 - persisted session unlock using stored encrypted material
 - token refresh and migration away from legacy plaintext refresh tokens
 - offline cache encryption and decryption
+- **standalone (server-less) sessions** — see below
+- encrypted export files: KDF floors, header authentication, and the
+  re-key walk that must not miss a field
 - organization item sharing and cross-org re-encryption
 - folder rename batch operations and the (write-only, not yet replayed)
   pre-operation snapshots and op-log entries persisted around them
 - SSH agent socket exposure and request handling
 - WebAuthn challenge parsing and authenticator interaction
 - clipboard handling and auto-lock behavior when the UI freezes
+
+## Standalone Sessions
+
+A vault used to be openable only by authenticating against a reachable
+server. There are now two further ways in, both read-only:
+
+- **Offline cache** — the unlock derives the user key locally (it always
+  did; the network call only ever fetched an access token) and, when the
+  server cannot be reached, opens the encrypted SQLite cache instead of
+  failing.
+- **Export file** — an encrypted export is opened with its own file
+  password. No account, no stored session, no network.
+
+This matters for review because it is a **second, independent path to a
+decrypted vault in memory**, and it does not pass through the
+assumptions the rest of the auth surface leans on:
+
+- It never contacts a server, so `ensure_server_matches_active_session`
+  has no pinned host to compare against. A standalone session therefore
+  *refuses* first-factor calls outright rather than treating "no client"
+  as "any host is fine".
+- A file-backed session has no persisted session on disk behind it, so
+  anything reading `store::load_session()` — including the per-item
+  master-password reprompt — has nothing to check against.
+- The vault key comes from the file, not from the account. Two different
+  files opened in sequence are two unrelated vaults.
+
+The write surface is fenced off in Rust, not in the UI: every mutating
+command calls `ensure_fresh_tokens`, no read path does, and it refuses
+any session with no tokens (`Error::ReadOnlySession`). The hidden
+buttons are a courtesy; that check is the control. A review should look
+for a mutating command added later that skips it.
+
+Also disabled, for reasons that do not follow from "read-only":
+
+- **attachment download** — payloads live on the server, not in the
+  vault, so there is nothing local to decrypt;
+- **the security audit** — it queries HIBP over the network;
+- **SSH agent auto-start** — it would expose the vault's keys on a
+  socket during what is, by definition, an unusual situation.
 
 ## Likely Failure Modes
 

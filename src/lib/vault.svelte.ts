@@ -191,6 +191,23 @@ export class VaultController {
   }
 
   /**
+   * Build the item list for a vault opened from an export file.
+   *
+   * Unlike `loadCached`, a failure here is fatal to the screen rather
+   * than a degraded start: there is no cache to fall back on and no
+   * sync coming to fill the gap, so an empty list would be
+   * indistinguishable from an empty backup.
+   */
+  async loadStandalone() {
+    this.error = null;
+    try {
+      this.summary = await api.standaloneSummary();
+    } catch (e) {
+      this.error = formatError(e);
+    }
+  }
+
+  /**
    * `quiet` keeps a failure out of the big red error box and reports it
    * only through the status indicator. It is for syncs the user did not
    * ask for — the periodic one — where a dropped Wi-Fi connection should

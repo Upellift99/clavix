@@ -65,6 +65,8 @@ export function formatError(e: unknown): string {
       return m.err_export_wrong_password();
     case "export_malformed":
       return m.err_export_malformed({ reason: str(data.reason) });
+    case "read_only_session":
+      return m.err_read_only_session();
     default:
       return err.message ?? String(e);
   }

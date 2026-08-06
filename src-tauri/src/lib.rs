@@ -140,6 +140,9 @@ pub fn run() {
             commands::import::parse_kdbx,
             commands::export::export_encrypted,
             commands::export::import_encrypted,
+            commands::standalone::open_export_file,
+            commands::standalone::standalone_summary,
+            commands::standalone::session_origin,
             commands::update::check_for_update,
             commands::update::app_version,
         ])

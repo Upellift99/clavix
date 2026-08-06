@@ -17,7 +17,7 @@ pub async fn sync(state: State<'_, AppState>) -> Result<SyncSummary> {
     let (client, access_token) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        (s.client.clone(), s.tokens.access_token.clone())
+        (s.client()?.clone(), s.access_token()?.to_string())
     };
 
     let response = client.sync(&access_token).await?;
@@ -79,7 +79,7 @@ pub async fn create_folder(state: State<'_, AppState>, name: String) -> Result<S
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let enc = encrypt_string(&trimmed, &s.user_key)?;
-        (s.client.clone(), s.tokens.access_token.clone(), enc)
+        (s.client()?.clone(), s.access_token()?.to_string(), enc)
     };
     let folder = client.create_folder(&access_token, &encrypted_name).await?;
     let id = folder.id.clone();
@@ -111,7 +111,7 @@ pub async fn delete_folder(state: State<'_, AppState>, folder_id: String) -> Res
     let (client, access_token) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        (s.client.clone(), s.tokens.access_token.clone())
+        (s.client()?.clone(), s.access_token()?.to_string())
     };
     client.delete_folder(&access_token, &folder_id).await?;
 
@@ -152,7 +152,7 @@ pub async fn rename_folder(
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
         let enc = encrypt_string(&trimmed, &s.user_key)?;
-        (s.client.clone(), s.tokens.access_token.clone(), enc)
+        (s.client()?.clone(), s.access_token()?.to_string(), enc)
     };
     client
         .update_folder_name(&access_token, &folder_id, &encrypted_name)

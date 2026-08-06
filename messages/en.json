@@ -464,5 +464,14 @@
   "bulk_delete_forever_confirm": "{count} item(s) will be permanently deleted. This cannot be undone.",
   "bulk_restore": "Restore",
   "bulk_failed": "{count} item(s) could not be processed.",
-  "bulk_no_folder": "No folder"
+  "bulk_no_folder": "No folder",
+  "standalone_title_cache": "Standalone mode — local cached vault",
+  "standalone_detail_cache": "The server is unreachable. The vault is open from this device's encrypted cache: it reflects the last successful sync and cannot be modified.",
+  "standalone_title_file": "Standalone mode — backup file",
+  "standalone_detail_file": "This vault is open from an encrypted export file, with no account and no server. It cannot be modified.",
+  "standalone_unavailable": "Unavailable: sync, creating and editing items, import, attachments, security audit and the SSH agent.",
+  "standalone_open_file": "Open an encrypted backup",
+  "standalone_open_file_hint": "Emergency restore: opens an encrypted export file read-only, with no server and no account.",
+  "err_read_only_session": "This vault is open in standalone mode and cannot be modified.",
+  "detail_attachment_unavailable": "Unavailable offline"
 }

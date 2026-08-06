@@ -6,6 +6,7 @@
   import Onboarding from "./Onboarding.svelte";
   import TwoFactorForm from "./TwoFactorForm.svelte";
   import UnlockForm from "./UnlockForm.svelte";
+  import StandaloneOpenForm from "./StandaloneOpenForm.svelte";
   import type { AuthController } from "./auth.svelte";
 
   type Props = {
@@ -61,6 +62,13 @@
     onYubikey={() => auth.submitYubikey()}
     onSwitchAccount={() => auth.switchAccount()}
   />
+{/if}
+
+<!-- The emergency door, offered on both entry screens: "my server is
+     gone" and "this machine has no account yet" are the same problem
+     from two directions. Not shown mid-login. -->
+{#if auth.phase === "unlock" || auth.phase === "idle"}
+  <StandaloneOpenForm onOpen={(bytes, password) => auth.openExportFile(bytes, password)} />
 {/if}
 
 {#if auth.phase === "twoFactor"}
