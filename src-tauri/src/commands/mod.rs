@@ -1,9 +1,12 @@
 pub mod audit;
 pub mod auth;
 pub mod cipher;
+pub mod export;
 pub mod import;
 pub mod move_share;
 pub mod ssh;
+pub mod standalone;
+pub mod strength;
 pub mod tray;
 pub mod update;
 pub mod vault;

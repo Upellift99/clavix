@@ -41,6 +41,9 @@
     onBulkMove: (folderId: string | null) => void;
     onBulkDelete: () => void;
     onBulkRestore: () => void;
+    /** Vault opened without a server: the bulk actions that write are
+        dropped, leaving selection and copy intact. */
+    readOnly?: boolean;
   };
 
   let {
@@ -71,6 +74,7 @@
     onBulkMove,
     onBulkDelete,
     onBulkRestore,
+    readOnly = false,
   }: Props = $props();
 
   // Anchor for Shift-click ranges: the last row clicked without Shift.
@@ -216,7 +220,9 @@
       <button type="button" class="secondary small" onclick={() => onSetSelection(items.map((i) => i.id))}>
         {m.items_select_all()}
       </button>
-      {#if trashView}
+      {#if readOnly}
+        <!-- Selection still works (for copying); nothing that writes does. -->
+      {:else if trashView}
         <button type="button" class="secondary small" onclick={onBulkRestore}>
           {m.bulk_restore()}
         </button>
@@ -239,9 +245,11 @@
           {/each}
         </select>
       {/if}
-      <button type="button" class="small danger" onclick={onBulkDelete}>
-        {m.bulk_delete()}
-      </button>
+      {#if !readOnly}
+        <button type="button" class="small danger" onclick={onBulkDelete}>
+          {m.bulk_delete()}
+        </button>
+      {/if}
       <button type="button" class="secondary small" onclick={onClearSelection}>
         {m.items_clear_selection()}
       </button>

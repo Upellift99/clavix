@@ -7,6 +7,7 @@ use serde::Serialize;
 use sha1::{Digest, Sha1};
 
 use crate::error::{Error, Result};
+use crate::strength;
 
 const HIBP_API: &str = "https://api.pwnedpasswords.com/range/";
 const HIBP_USER_AGENT: &str = concat!("Clavix/", env!("CARGO_PKG_VERSION"));
@@ -34,7 +35,7 @@ pub struct WeakEntry {
     pub cipher_id: String,
     pub name: String,
     /// zxcvbn score, 0 (très faible) à 4 (très fort).  Ici on ne garde
-    /// que les entrées <= 2.
+    /// que les entrées <= `strength::WEAK_SCORE_MAX`.
     pub score: u8,
 }
 
@@ -176,13 +177,14 @@ fn analyze_local(entries: &[(String, String, SecretString)]) -> (Vec<ReusedGroup
         .collect();
     reused.sort_by_key(|g| std::cmp::Reverse(g.cipher_ids.len()));
 
-    // --- Weak: zxcvbn score <= 2 ---
+    // --- Weak: zxcvbn score <= WEAK_SCORE_MAX ---
+    // Routed through `crate::strength` rather than calling zxcvbn here,
+    // so this section and the per-field indicator in the editor can
+    // never disagree about what "weak" means.
     let mut weak = Vec::new();
     for (cid, name, pw) in entries {
-        let pw_str = pw.expose_secret();
-        let score_enum = zxcvbn::zxcvbn(pw_str, &[]).score();
-        let score = score_enum as u8;
-        if score <= 2 {
+        let score = strength::score(pw.expose_secret(), &[]).score;
+        if score <= strength::WEAK_SCORE_MAX {
             weak.push(WeakEntry {
                 cipher_id: cid.clone(),
                 name: name.clone(),

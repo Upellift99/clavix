@@ -5,9 +5,12 @@ import type {
   CipherDetail,
   DecryptedSshKey,
   EditorPayload,
+  ImportedItem,
   LoginOk,
   LoginResult,
   PasswordHistoryEntry,
+  PasswordStrength,
+  SessionOrigin,
   SshAgentStatus,
   StoredAccount,
   SyncSummary,
@@ -219,6 +222,19 @@ export const api = {
 
   auditVaultPasswords: () => invoke<AuditResult>("audit_vault_passwords"),
 
+  /** Score a password the user is typing. `userInputs` (item name,
+      username, domain) let zxcvbn penalise a password that merely
+      echoes the item it protects. */
+  scorePassword: (password: string, userInputs: string[] = []) =>
+    invoke<PasswordStrength>("score_password", { password, userInputs }),
+
+  /** Score a stored item's password *without* revealing it: the
+      decryption happens in Rust and only the verdict crosses back, so
+      the detail pane can show a strength bar on a still-masked field.
+      Null when the item has no login password. */
+  scoreCipherPassword: (id: string) =>
+    invoke<PasswordStrength | null>("score_cipher_password", { id }),
+
   startSshAgent: (policy: string) =>
     invoke<SshAgentStatus>("start_ssh_agent", { policy }),
 
@@ -239,6 +255,37 @@ export const api = {
 
   parseKdbx: (bytes: Uint8Array, password: string) =>
     invoke<KdbxEntry[]>("parse_kdbx", { bytes: Array.from(bytes), password }),
+
+  /** Open an encrypted export file as a standalone, read-only vault —
+      no account, no server, no stored session. Refused while another
+      vault is open. */
+  openExportFile: (bytes: Uint8Array, filePassword: string) =>
+    invoke<LoginOk>("open_export_file", { bytes: Array.from(bytes), filePassword }),
+
+  /** Item list for a file-backed standalone session. The cache-backed
+      one gets its list from `loadCachedVault` instead. */
+  standaloneSummary: () => invoke<SyncSummary>("standalone_summary"),
+
+  /** How the open vault was reached, or null when nothing is open. */
+  sessionOrigin: () => invoke<SessionOrigin | null>("session_origin"),
+
+  /** Seal the whole vault into a password-protected export file. The
+      bytes coming back are already ciphertext — the vault is
+      re-encrypted under a fresh key in Rust and never assembled here
+      in the clear. */
+  exportEncrypted: (filePassword: string) =>
+    invoke<number[]>("export_encrypted", { filePassword }).then(
+      (bytes) => new Uint8Array(bytes),
+    ),
+
+  /** Open an encrypted export. Session-free: the file carries its own
+      key. Returns items ready to replay through `createCipher`, the
+      same shape the CSV and KDBX paths use. */
+  importEncrypted: (bytes: Uint8Array, filePassword: string) =>
+    invoke<ImportedItem[]>("import_encrypted", {
+      bytes: Array.from(bytes),
+      filePassword,
+    }),
 
   /** Ask GitHub (from Rust — the CSP blocks the WebView from reaching it)
       whether a newer Clavix has been published. */

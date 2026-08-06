@@ -7,12 +7,14 @@
 //! `&state`, and so the auto-lock bookkeeping that only exists on this
 //! side stays attached to the calls that imply a live user.
 
+use std::collections::HashMap;
+
 use clavix_core::api::VaultwardenClient;
 use clavix_core::crypto::SymmetricKey;
 use clavix_core::error::Result;
-use clavix_core::models::TokenSet;
+use clavix_core::models::{SyncResponse, TokenSet};
 use clavix_core::services::auth as core_auth;
-use clavix_core::session::PendingTwoFactor;
+use clavix_core::session::{PendingTwoFactor, SessionOrigin};
 use rsa::RsaPrivateKey;
 
 use crate::state::{mark_activity, AppState};
@@ -38,6 +40,26 @@ pub fn store_session(
     private_key: Option<RsaPrivateKey>,
 ) {
     core_auth::store_session(&state.session, client, tokens, user_key, private_key);
+}
+
+/// Park a vault that has no server behind it — an unlock that could
+/// not reach the server, or an encrypted export file opened directly.
+pub fn store_standalone_session(
+    state: &AppState,
+    origin: SessionOrigin,
+    user_key: SymmetricKey,
+    private_key: Option<RsaPrivateKey>,
+    org_keys: HashMap<String, SymmetricKey>,
+    vault: Option<SyncResponse>,
+) {
+    core_auth::store_standalone_session(
+        &state.session,
+        origin,
+        user_key,
+        private_key,
+        org_keys,
+        vault,
+    );
 }
 
 pub fn set_pending_two_factor(state: &AppState, pending: PendingTwoFactor) {

@@ -2,8 +2,9 @@
   import * as m from "$lib/paraglide/messages";
   import QrScanner from "$lib/QrScanner.svelte";
   import GeneratorDialog from "$lib/GeneratorDialog.svelte";
+  import PasswordStrength from "$lib/PasswordStrength.svelte";
   import { api } from "$lib/api";
-  import type { Locale, TauriError } from "$lib/types";
+  import type { Locale, PasswordStrength as Strength, TauriError } from "$lib/types";
 
   type FolderSummary = { id: string; name: string };
   type OrganizationSummary = { id: string; name: string };
@@ -169,6 +170,47 @@
   let submitting = $state(false);
   let error = $state<string | null>(null);
   let qrOpen = $state(false);
+
+  let strength = $state<Strength | null>(null);
+  // Plain counter, not $state: it exists only to identify the most
+  // recent request, and making it reactive would re-run the effect
+  // that increments it.
+  let strengthSeq = 0;
+
+  /**
+   * Score the password as it is typed, debounced.
+   *
+   * Two things this has to get right. The debounce keeps one IPC round
+   * trip per pause instead of one per keystroke; and the sequence check
+   * drops out-of-order replies, because a short password typed after a
+   * long one can otherwise have its verdict overwritten by the slower
+   * earlier request still in flight.
+   *
+   * The item's own identifiers go along for the ride so zxcvbn can
+   * penalise a password that merely echoes them. Failures are
+   * swallowed: the meter is advisory, and an editor that refused to
+   * work because scoring hiccuped would be worse than no meter.
+   */
+  $effect(() => {
+    const current = password;
+    const inputs = [name, username, urisInput.split("\n")[0] ?? ""].filter(
+      (s) => s.trim().length > 0,
+    );
+    if (cipherType !== 1 || current.length === 0) {
+      strength = null;
+      return;
+    }
+    const seq = ++strengthSeq;
+    const timer = setTimeout(() => {
+      api
+        .scorePassword(current, inputs)
+        .then((result) => {
+          if (seq === strengthSeq) strength = result;
+        })
+        .catch(() => {});
+    }, 200);
+    return () => clearTimeout(timer);
+  });
 
   // SSH passphrase prompt state — populated when the user pastes an
   // encrypted OpenSSH private key. The passphrase is consumed once
@@ -550,6 +592,12 @@
                 🎲
               </button>
             </div>
+            {#if password.length > 0}
+              <PasswordStrength
+                score={strength?.score ?? null}
+                warning={strength?.warning ?? null}
+              />
+            {/if}
           </label>
           <label>
             {m.editor_uris()}

@@ -130,6 +130,26 @@ See:
 - `src-tauri/core/src/store.rs`
 - `src-tauri/core/src/services/auth.rs`
 
+### Standalone Sessions
+
+`Session` no longer implies a server: `client`, `tokens` and
+`expires_at` are optional, and `SessionOrigin` records how the vault was
+reached (`Server`, `OfflineCache`, `ExportFile`). The two latter origins
+have no tokens and cannot write.
+
+That restriction is enforced in one place. Every mutating command calls
+`ensure_fresh_tokens` before touching the API and no read path does, so
+refusing a tokenless session there fences off the entire write surface
+regardless of what the UI offers. See `THREAT_MODEL.md` for why this is
+a distinct trust path rather than a variation on the normal one.
+
+For a file-backed session the vault key comes from the export's
+`protectedKey` and takes the slot the user key normally occupies —
+which is what lets every existing read path work unchanged. Items that
+belong to an organisation keep their `organizationId`, so `org_keys` is
+populated with the same vault key for each id present; otherwise
+`owning_key` would fail to resolve them.
+
 ### Offline Cache
 
 The local SQLite cache stores an encrypted vault blob keyed by account.
@@ -146,6 +166,51 @@ applied operation is whatever the server returns on the next sync.
 See:
 
 - `src-tauri/core/src/cache.rs`
+
+### Encrypted Export Files
+
+`src-tauri/core/src/export.rs` writes password-protected vault exports.
+The format is Clavix's own, not Bitwarden's, and the difference is
+structural rather than cosmetic.
+
+Bitwarden's password-protected export decrypts in one step to a JSON
+document containing the whole vault in clear text. Clavix's `data` field
+decrypts to a `SyncResponse` whose items are **still individually
+encrypted**, under a fresh vault key generated per file and wrapped
+under the file password. The plaintext vault therefore never exists as a
+single blob, in the file or in memory.
+
+Layout:
+
+- `kdf` / `salt` — Argon2id by default, 16 random bytes of salt per file
+- `headerAuth` — the canonical header, encrypted; doubles as the
+  password check and as integrity for the KDF parameters
+- `protectedKey` — the vault key, wrapped under the file key
+- `data` — the re-keyed `SyncResponse`
+
+Key derivation reuses the login primitives through `derive_file_key`,
+which differs from `derive_master_key` only in salt discipline: the
+file's random salt is used verbatim, with no lowercasing and no SHA-256
+wrapping. The same KDF floors apply, and they are enforced **before**
+any derivation — a file claiming `iterations: 1` is rejected outright.
+
+An `EncString`'s MAC covers only `iv || ct`, so without `headerAuth` the
+KDF parameters and salt would sit outside any integrity check. Bitwarden
+puts a random GUID in the equivalent slot and gets only a password
+check.
+
+Deliberately not carried by an export: per-item keys (every field is
+re-encrypted directly under the vault key), attachments (the payloads
+are server-side), and trashed items.
+
+Review targets:
+
+- salt reuse, or a salt shorter than the enforced minimum
+- KDF floors bypassed on the read path
+- a wrong password being reported as corruption, or the reverse
+- fields missed by the re-key walk in `reencrypt_cipher` — a forgotten
+  one stays readable only under the *source* key and silently fails to
+  open from the file
 
 ## Re-Encryption Flows
 

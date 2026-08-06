@@ -1,6 +1,8 @@
 <script lang="ts">
   import * as m from "$lib/paraglide/messages";
   import { generatePassword, buildCharset } from "./generator";
+  import { entropyBits } from "./strength";
+  import PasswordStrength from "./PasswordStrength.svelte";
   import type { Locale } from "./types";
 
   type Props = {
@@ -34,6 +36,15 @@
     error = null;
     output = generatePassword({ length, upper, lower, digits, symbols, avoidAmbiguous });
   }
+
+  // Exact entropy, not a zxcvbn score: the draw is uniform over a
+  // charset we control, so `length × log2(|charset|)` is the real
+  // figure. It also reacts to the checkboxes — untick symbols and the
+  // number drops — where zxcvbn would sit pinned at "very strong" and
+  // tell the user nothing about the trade they just made.
+  const bits = $derived(
+    entropyBits({ length, upper, lower, digits, symbols, avoidAmbiguous }),
+  );
 
   export function open() {
     // Always a fresh password when opened from the editor: the previous
@@ -72,6 +83,9 @@
         <code>—</code>
       {/if}
     </div>
+    {#if output}
+      <PasswordStrength {bits} />
+    {/if}
     {#if error}
       <p class="hint error-text">{error}</p>
     {/if}

@@ -118,6 +118,10 @@ pub enum LoginResult {
 #[serde(rename_all = "camelCase")]
 pub struct LoginOk {
     pub email: String,
+    /// How this vault was opened. Anything other than `server` means
+    /// the session is read-only, and the UI says so rather than letting
+    /// the user discover it by having a save rejected.
+    pub origin: crate::session::SessionOrigin,
 }
 
 /// IPC-facing variant of `LoginResult` — same shape as the old type, minus
@@ -539,7 +543,7 @@ pub struct SshKeyDetail {
 
 // ============ Inputs for create/update ============
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginInput {
@@ -553,7 +557,7 @@ pub struct LoginInput {
     pub totp: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CardInput {
@@ -571,7 +575,7 @@ pub struct CardInput {
     pub code: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityInput {
@@ -613,7 +617,7 @@ pub struct IdentityInput {
     pub license_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyInput {
@@ -625,7 +629,7 @@ pub struct SshKeyInput {
     pub key_fingerprint: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CipherCreateInput {
@@ -666,7 +670,7 @@ pub struct CipherCreateInput {
     pub reprompt: bool,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomFieldInput {

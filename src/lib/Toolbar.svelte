@@ -15,6 +15,10 @@
     hasSync: boolean;
     lastSyncAt: number | null;
     lastSyncError: string | null;
+    /** Vault opened without a server (offline cache, or an export
+        file): everything that writes is hidden rather than left to
+        fail against the Rust-side refusal. */
+    readOnly?: boolean;
     onSync: () => void;
     onLock: () => void;
     onSwitchAccount: () => void;
@@ -33,6 +37,7 @@
     hasSync,
     lastSyncAt,
     lastSyncError,
+    readOnly = false,
     onSync,
     onLock,
     onSwitchAccount,
@@ -90,16 +95,18 @@
   <div class="tb-main">
     <!-- Section: session -->
     <div class="tb-group">
-      <button
-        type="button"
-        class="tb-btn"
-        onclick={onSync}
-        disabled={syncing}
-        title={syncTitle}
-        aria-label={syncTitle}
-      >
-        <Icon name="refresh" size={18} class={syncing ? "icon-spin" : ""} />
-      </button>
+      {#if !readOnly}
+        <button
+          type="button"
+          class="tb-btn"
+          onclick={onSync}
+          disabled={syncing}
+          title={syncTitle}
+          aria-label={syncTitle}
+        >
+          <Icon name="refresh" size={18} class={syncing ? "icon-spin" : ""} />
+        </button>
+      {/if}
       <button
         type="button"
         class="tb-btn"
@@ -124,24 +131,26 @@
 
     <!-- Section: items -->
     <div class="tb-group">
-      <button
-        type="button"
-        class="tb-btn"
-        onclick={onCreateItem}
-        title={m.action_new_item()}
-        aria-label={m.action_new_item()}
-      >
-        <Icon name="plus" size={18} />
-      </button>
-      <button
-        type="button"
-        class="tb-btn"
-        onclick={onOpenImport}
-        title={m.import_label()}
-        aria-label={m.import_label()}
-      >
-        <Icon name="download" size={18} />
-      </button>
+      {#if !readOnly}
+        <button
+          type="button"
+          class="tb-btn"
+          onclick={onCreateItem}
+          title={m.action_new_item()}
+          aria-label={m.action_new_item()}
+        >
+          <Icon name="plus" size={18} />
+        </button>
+        <button
+          type="button"
+          class="tb-btn"
+          onclick={onOpenImport}
+          title={m.import_label()}
+          aria-label={m.import_label()}
+        >
+          <Icon name="download" size={18} />
+        </button>
+      {/if}
       <button
         type="button"
         class="tb-btn"
@@ -166,15 +175,20 @@
       >
         <Icon name="dice" size={18} />
       </button>
-      <button
-        type="button"
-        class="tb-btn"
-        onclick={onOpenAudit}
-        title={m.audit_label()}
-        aria-label={m.audit_label()}
-      >
-        <Icon name="shield" size={18} />
-      </button>
+      {#if !readOnly}
+        <!-- The audit queries HIBP over the network; the local
+             "reused"/"weak" halves would work, but a half-audit
+             presented as an audit is worse than none. -->
+        <button
+          type="button"
+          class="tb-btn"
+          onclick={onOpenAudit}
+          title={m.audit_label()}
+          aria-label={m.audit_label()}
+        >
+          <Icon name="shield" size={18} />
+        </button>
+      {/if}
       <button
         type="button"
         class="tb-btn"

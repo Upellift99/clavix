@@ -60,8 +60,12 @@ Against a real Vaultwarden instance, Clavix:
 - **generates TOTP codes** live from the stored secret (`otpauth://` URIs
   with custom period, digits, hash), and **scans QR codes** through the
   camera to fill the TOTP field;
-- keeps an **encrypted SQLite cache**, so the next unlock — even offline —
-  shows the vault instantly;
+- keeps an **encrypted SQLite cache**, so the next unlock shows the vault
+  instantly; when the server is unreachable the unlock falls back to that
+  cache and opens the vault **read-only** (standalone mode);
+- **exports an encrypted backup** protected by a password of your choosing
+  (Argon2id, every item type), and can reopen one **with no server and no
+  account** — the emergency-restore path;
 - shows all items with live substring search and **favicons** for logins
   (emoji fallback per type when unavailable);
 - navigates a hierarchical **TreeView** from the Bitwarden `/` naming

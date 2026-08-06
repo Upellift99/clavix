@@ -6,11 +6,15 @@
   import { exceedsEncryptedLimit } from "$lib/limits";
   import { importIdentity } from "$lib/import";
   import {
+    EMPTY_CARD_FIELDS,
     EMPTY_EDITOR_INITIAL,
+    EMPTY_IDENTITY_FIELDS,
+    EMPTY_SSH_FIELDS,
     type CipherSummary,
     type EditorPayload,
     type CollectionSummary,
     type FolderSummary,
+    type ImportedItem,
     type OrganizationSummary,
   } from "$lib/types";
 
@@ -42,7 +46,21 @@
     destOrgId ? collections.filter((c) => c.organizationId === destOrgId) : [],
   );
 
-  let entries = $state<KeepassEntry[]>([]);
+  /**
+   * A parsed row, whatever it came from.
+   *
+   * CSV and KDBX only ever describe logins, so those paths leave
+   * `payload` unset and the import loop builds a login from the flat
+   * fields. A Clavix encrypted export carries all five item types, and
+   * flattening a card or an SSH key into `KeepassEntry` would silently
+   * drop exactly what that format exists to preserve — so it supplies
+   * a ready-made `payload` instead, and the flat fields are kept only
+   * to feed the preview, the duplicate check and the size check, which
+   * are format-agnostic.
+   */
+  type ImportEntry = KeepassEntry & { payload?: EditorPayload };
+
+  let entries = $state<ImportEntry[]>([]);
   let parseError = $state<string | null>(null);
   let fileName = $state<string | null>(null);
   let importing = $state(false);
@@ -66,9 +84,13 @@
   // KDBX path: we hold the picked file until the user types the
   // master password, then call `parse_kdbx` over IPC. The CSV path
   // ignores all of these.
-  let pendingKdbxFile = $state<File | null>(null);
-  let kdbxPassword = $state("");
-  let kdbxParsing = $state(false);
+  // Two formats need a password before they can be parsed at all: a
+  // KDBX database and a Clavix encrypted export. Both are held here
+  // until the user supplies one, then decrypted in Rust.
+  let pendingFile = $state<File | null>(null);
+  let pendingKind = $state<"kdbx" | "clavix" | null>(null);
+  let filePassword = $state("");
+  let fileParsing = $state(false);
 
   // An import is the one place Clavix issues hundreds of writes back to
   // back, and a self-hosted server usually sits behind something that
@@ -112,7 +134,7 @@
   // will silently skip.
   const newEntries = $derived.by(() => {
     const seen = new Set(existingIds);
-    const result: KeepassEntry[] = [];
+    const result: ImportEntry[] = [];
     for (const e of entries) {
       const id = importIdentity(e.title, e.username);
       if (seen.has(id)) continue;
@@ -164,9 +186,9 @@
       plannedCount = 0;
       abortedReason = null;
       excluded = new Set();
-      pendingKdbxFile = null;
-      kdbxPassword = "";
-      kdbxParsing = false;
+      pendingFile = null;
+      filePassword = "";
+      fileParsing = false;
       destOrgId = null;
       destCollectionId = null;
     }
@@ -182,8 +204,12 @@
   // items (org items must belong to at least one collection).
   const destInvalid = $derived(destOrgId !== null && destCollectionId === null);
 
-  function isKdbx(file: File): boolean {
-    return file.name.toLowerCase().endsWith(".kdbx");
+  /** Which password-protected format this is, or null for plain CSV. */
+  function encryptedKindOf(file: File): "kdbx" | "clavix" | null {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".kdbx")) return "kdbx";
+    if (name.endsWith(".json")) return "clavix";
+    return null;
   }
 
   async function onFileChange(event: Event) {
@@ -194,14 +220,16 @@
     parseError = null;
     entries = [];
     excluded = new Set();
-    pendingKdbxFile = null;
-    kdbxPassword = "";
+    pendingFile = null;
+    pendingKind = null;
+    filePassword = "";
 
-    if (isKdbx(file)) {
-      // Defer the actual parsing to `decryptKdbx()` after the user
-      // types the master password — the keepass crate needs it
-      // up-front to derive the KDBX KDF.
-      pendingKdbxFile = file;
+    const kind = encryptedKindOf(file);
+    if (kind) {
+      // Both formats derive a key from the password before anything can
+      // be read, so the file waits here until `decryptPendingFile()`.
+      pendingFile = file;
+      pendingKind = kind;
       return;
     }
 
@@ -217,27 +245,95 @@
     }
   }
 
-  async function decryptKdbx(event: Event) {
+  /**
+   * Turn the items out of a Clavix encrypted export into rows this
+   * dialog can preview and import.
+   *
+   * The flat `KeepassEntry` fields are filled in for the preview, the
+   * duplicate check and the note-size check — all of which only ever
+   * look at a title, a username and a note. The `payload` alongside
+   * them is what actually gets created, so a card, an identity or an
+   * SSH key survives intact even though the preview row can only
+   * describe it as a name.
+   */
+  function toImportEntries(items: ImportedItem[]): ImportEntry[] {
+    return items.map(({ item, folderName }) => ({
+      title: item.name,
+      username: item.login?.username ?? "",
+      password: item.login?.password ?? "",
+      url: item.login?.uris?.[0] ?? "",
+      notes: item.notes ?? "",
+      totp: item.login?.totp ?? "",
+      group: folderName,
+      payload: {
+        ...EMPTY_EDITOR_INITIAL,
+        cipherType: (item.cipherType as EditorPayload["cipherType"]) ?? 1,
+        name: item.name,
+        favorite: item.favorite,
+        notes: item.notes ?? "",
+        username: item.login?.username ?? "",
+        password: item.login?.password ?? "",
+        uris: item.login?.uris ?? [],
+        totp: item.login?.totp ?? "",
+        card: { ...EMPTY_CARD_FIELDS, ...stripNulls(item.card) },
+        identity: { ...EMPTY_IDENTITY_FIELDS, ...stripNulls(item.identity) },
+        sshKey: { ...EMPTY_SSH_FIELDS, ...stripNulls(item.sshKey) },
+        fields: (item.fields ?? []).map((f) => ({
+          kind: f.kind ?? 0,
+          name: f.name ?? "",
+          value: f.value ?? "",
+          linkedId: f.linkedId ?? null,
+        })),
+        reprompt: item.reprompt,
+        // Destination is decided per-run in `startImport`, not here.
+        folderId: null,
+        organizationId: null,
+        collectionIds: [],
+      },
+    }));
+  }
+
+  /**
+   * Rust sends absent optional fields as `null`; the editor's field
+   * types are plain strings. Spreading the nulls straight in would put
+   * `null` where `""` is expected and render "null" in the editor, so
+   * drop them and let the EMPTY_* defaults stand.
+   */
+  function stripNulls<T extends object>(
+    source: T | null | undefined,
+  ): Partial<{ [K in keyof T]: NonNullable<T[K]> }> {
+    if (!source) return {};
+    return Object.fromEntries(
+      Object.entries(source).filter(([, v]) => v !== null && v !== undefined),
+    ) as Partial<{ [K in keyof T]: NonNullable<T[K]> }>;
+  }
+
+  async function decryptPendingFile(event: Event) {
     event.preventDefault();
-    if (!pendingKdbxFile || kdbxPassword.length === 0 || kdbxParsing) return;
-    kdbxParsing = true;
+    if (!pendingFile || filePassword.length === 0 || fileParsing) return;
+    fileParsing = true;
     parseError = null;
     try {
-      const buffer = await pendingKdbxFile.arrayBuffer();
+      const buffer = await pendingFile.arrayBuffer();
       const bytes = new Uint8Array(buffer);
-      // Same shape as the CSV result, by design: same `entries`
-      // state feeds the rest of the dialog (preview + loop).
-      entries = await api.parseKdbx(bytes, kdbxPassword);
+      // Both branches land in the same `entries` state, which is what
+      // lets the preview, the duplicate check and the throttled import
+      // loop stay ignorant of where a row came from.
+      entries =
+        pendingKind === "clavix"
+          ? toImportEntries(await api.importEncrypted(bytes, filePassword))
+          : await api.parseKdbx(bytes, filePassword);
       excluded = new Set();
       if (entries.length === 0) {
         parseError = m.import_empty();
       }
-      pendingKdbxFile = null;
-      kdbxPassword = "";
+      pendingFile = null;
+      pendingKind = null;
+      filePassword = "";
     } catch (e) {
       parseError = formatError(e);
     } finally {
-      kdbxParsing = false;
+      fileParsing = false;
     }
   }
 
@@ -298,19 +394,31 @@
         // Annotated because hoisting the literal out of the call site
         // loses the contextual typing that narrowed `cipherType` to
         // `CipherKind`.
-        const payload: EditorPayload = {
-          ...EMPTY_EDITOR_INITIAL,
-          cipherType: 1,
-          name: entry.title || "(sans nom)",
-          folderId,
-          organizationId: destOrgId,
-          collectionIds: destOrgId && destCollectionId ? [destCollectionId] : [],
-          notes: entry.notes,
-          username: entry.username,
-          password: entry.password,
-          uris: entry.url ? [entry.url] : [],
-          totp: entry.totp,
-        };
+        //
+        // An encrypted export already supplies a complete payload, of
+        // whatever item type; only the destination is decided here.
+        // CSV and KDBX describe a login and nothing else, so that one
+        // is built from the flat fields.
+        const payload: EditorPayload = entry.payload
+          ? {
+              ...entry.payload,
+              folderId,
+              organizationId: destOrgId,
+              collectionIds: destOrgId && destCollectionId ? [destCollectionId] : [],
+            }
+          : {
+              ...EMPTY_EDITOR_INITIAL,
+              cipherType: 1,
+              name: entry.title || "(sans nom)",
+              folderId,
+              organizationId: destOrgId,
+              collectionIds: destOrgId && destCollectionId ? [destCollectionId] : [],
+              notes: entry.notes,
+              username: entry.username,
+              password: entry.password,
+              uris: entry.url ? [entry.url] : [],
+              totp: entry.totp,
+            };
 
         // Retry only what retrying can fix. A 429 means "slow down", so
         // wait longer each time. A 403 means something in front of the
@@ -406,31 +514,37 @@
 
       <input
         type="file"
-        accept=".csv,text/csv,.kdbx"
+        accept=".csv,text/csv,.kdbx,.json,application/json"
         onchange={onFileChange}
-        disabled={importing || kdbxParsing}
+        disabled={importing || fileParsing}
       />
 
-      {#if pendingKdbxFile}
-        <form class="kdbx-password-row" onsubmit={decryptKdbx}>
+      {#if pendingFile}
+        <form class="kdbx-password-row" onsubmit={decryptPendingFile}>
           <label class="kdbx-password-label" for="import-kdbx-password">
-            {m.import_kdbx_password_label()}
+            {pendingKind === "clavix"
+              ? m.import_clavix_password_label()
+              : m.import_kdbx_password_label()}
           </label>
           <div class="kdbx-password-input-row">
             <!-- svelte-ignore a11y_autofocus -->
             <input
               id="import-kdbx-password"
               type="password"
-              bind:value={kdbxPassword}
+              bind:value={filePassword}
               autofocus
               autocomplete="off"
-              disabled={kdbxParsing}
+              disabled={fileParsing}
             />
-            <button type="submit" disabled={kdbxParsing || kdbxPassword.length === 0}>
-              {kdbxParsing ? m.import_kdbx_decrypting() : m.import_kdbx_decrypt()}
+            <button type="submit" disabled={fileParsing || filePassword.length === 0}>
+              {fileParsing ? m.import_kdbx_decrypting() : m.import_kdbx_decrypt()}
             </button>
           </div>
-          <p class="hint">{m.import_kdbx_password_hint()}</p>
+          <p class="hint">
+            {pendingKind === "clavix"
+              ? m.import_clavix_password_hint()
+              : m.import_kdbx_password_hint()}
+          </p>
         </form>
       {/if}
 

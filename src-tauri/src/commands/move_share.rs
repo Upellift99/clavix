@@ -30,8 +30,8 @@ pub async fn move_cipher_to_folder(
                 reason: format!("cipher not found: {cipher_id}"),
             })?;
         (
-            s.client.clone(),
-            s.tokens.access_token.clone(),
+            s.client()?.clone(),
+            s.access_token()?.to_string(),
             cipher.favorite,
         )
     };
@@ -80,7 +80,7 @@ pub async fn move_cipher_to_collection(
                 reason: format!("collection not found: {collection_id}"),
             })?;
         validate_move_to_collection(cipher.organization_id.as_deref(), &target_org)?;
-        (s.client.clone(), s.tokens.access_token.clone())
+        (s.client()?.clone(), s.access_token()?.to_string())
     };
 
     let collection_ids = vec![collection_id.clone()];
@@ -194,8 +194,8 @@ async fn apply_folder_path_rename(
         }
 
         (
-            session.client.clone(),
-            session.tokens.access_token.clone(),
+            session.client()?.clone(),
+            session.access_token()?.to_string(),
             ops,
         )
     };
@@ -325,8 +325,8 @@ pub async fn share_cipher_to_collection(
         )?;
 
         (
-            session.client.clone(),
-            session.tokens.access_token.clone(),
+            session.client()?.clone(),
+            session.access_token()?.to_string(),
             body,
             target_org_id,
             encrypted_snapshot,

@@ -75,8 +75,8 @@ fn install_session(
 ) {
     let mut g = state.session.lock();
     *g = Some(Session {
-        client,
-        tokens: TokenSet {
+        client: Some(client),
+        tokens: Some(TokenSet {
             access_token: "stale-access".into(),
             refresh_token: refresh_token.to_string(),
             expires_in: 3600,
@@ -85,8 +85,9 @@ fn install_session(
             private_key: None,
             kdf: None,
             kdf_iterations: None,
-        },
-        expires_at,
+        }),
+        expires_at: Some(expires_at),
+        origin: clavix_core::session::SessionOrigin::Server,
         user_key,
         private_key: None,
         org_keys: HashMap::new(),
@@ -206,10 +207,11 @@ async fn refresh_rotates_in_memory_tokens_and_disk_when_already_encrypted() {
     {
         let g = state.session.lock();
         let s = g.as_ref().expect("session present");
-        assert_eq!(s.tokens.access_token, "fresh-access");
-        assert_eq!(s.tokens.refresh_token, "rotated-refresh");
+        let tokens = s.tokens.as_ref().expect("server session keeps its tokens");
+        assert_eq!(tokens.access_token, "fresh-access");
+        assert_eq!(tokens.refresh_token, "rotated-refresh");
         assert!(
-            s.expires_at > Instant::now(),
+            s.expires_at.expect("server session has a deadline") > Instant::now(),
             "expires_at should have moved into the future after refresh",
         );
     }

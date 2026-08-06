@@ -72,6 +72,28 @@ pub enum Error {
     /// "wrong master password" plainly.
     #[error("Incorrect master password")]
     InvalidMasterPassword,
+
+    /// The file password did not open an encrypted export. Reported as
+    /// its own variant rather than a raw MAC failure, because for this
+    /// flow a wrong password is the *expected* answer and the user
+    /// needs to be told to retype it, not shown a crypto internal.
+    #[error("Incorrect file password")]
+    ExportWrongPassword,
+
+    /// The file is not a Clavix encrypted export, or its structure is
+    /// damaged. Kept distinct from `ExportWrongPassword`: retyping the
+    /// password cannot fix this one, and telling the user otherwise
+    /// sends them in circles.
+    #[error("Not a valid Clavix encrypted export: {reason}")]
+    ExportMalformed { reason: String },
+
+    /// The vault was opened without a server — from the offline cache
+    /// or from an export file — so there is nowhere to write changes
+    /// to. Every mutating command passes through `ensure_fresh_tokens`,
+    /// which raises this; the UI also hides the affordances, but this
+    /// is the enforcement rather than the decoration.
+    #[error("This vault is open in standalone mode and cannot be modified")]
+    ReadOnlySession,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -278,6 +300,11 @@ impl Serialize for Error {
             Error::YubikeyStaleWrap => ("yubikey_stale_wrap", serde_json::json!({})),
             Error::YubikeyUnwrapFailed => ("yubikey_unwrap_failed", serde_json::json!({})),
             Error::InvalidMasterPassword => ("invalid_master_password", serde_json::json!({})),
+            Error::ExportWrongPassword => ("export_wrong_password", serde_json::json!({})),
+            Error::ExportMalformed { reason } => {
+                ("export_malformed", serde_json::json!({ "reason": reason }))
+            }
+            Error::ReadOnlySession => ("read_only_session", serde_json::json!({})),
         };
 
         ErrorPayload {

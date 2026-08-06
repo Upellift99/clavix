@@ -97,27 +97,43 @@ const ARGON2_MIN_ITERATIONS: u32 = 2;
 const ARGON2_MIN_MEMORY_MIB: u32 = 15;
 const ARGON2_MIN_PARALLELISM: u32 = 1;
 
-pub fn derive_master_key(
+/// Run the configured KDF over `password` with `salt` used **verbatim**.
+///
+/// Callers resolve the salt themselves, because the two entry points
+/// disagree about what it is: the master key follows Bitwarden and
+/// salts with the e-mail address (hashed for Argon2id, raw for PBKDF2),
+/// while an encrypted export file carries 16 random bytes of its own.
+/// Folding both into one function and letting it decide would mean
+/// re-deriving the wrong key for one of them.
+///
+/// `source` names where the parameters came from, so a rejection reads
+/// as either a hostile server or a tampered file rather than a generic
+/// "bad KDF".
+fn derive_kdf_key(
     password: &SecretString,
-    email: &str,
+    salt: &[u8],
     kdf: KdfType,
     iterations: u32,
     memory: Option<u32>,
     parallelism: Option<u32>,
-) -> Result<MasterKey> {
-    let email_lower = email.trim().to_ascii_lowercase();
+    source: &str,
+) -> Result<[u8; 32]> {
     let password_bytes = password.expose_secret().as_bytes();
 
-    let bytes = match kdf {
+    match kdf {
         KdfType::Pbkdf2 => {
             if iterations < PBKDF2_MIN_ITERATIONS {
                 return Err(Error::Crypto {
                     reason: format!(
-                        "server-supplied PBKDF2 iterations {iterations} below the minimum {PBKDF2_MIN_ITERATIONS} — refusing to derive a weak master key"
+                        "{source} PBKDF2 iterations {iterations} below the minimum {PBKDF2_MIN_ITERATIONS} — refusing to derive a weak key"
                     ),
                 });
             }
-            pbkdf2_hmac_array::<Sha256, 32>(password_bytes, email_lower.as_bytes(), iterations)
+            Ok(pbkdf2_hmac_array::<Sha256, 32>(
+                password_bytes,
+                salt,
+                iterations,
+            ))
         }
         KdfType::Argon2id => {
             let memory_mib = memory.ok_or_else(|| Error::Crypto {
@@ -133,12 +149,11 @@ pub fn derive_master_key(
             {
                 return Err(Error::Crypto {
                     reason: format!(
-                        "server-supplied Argon2id parameters (iterations={iterations}, memory={memory_mib} MiB, parallelism={parallelism}) below the minimums (iterations>={ARGON2_MIN_ITERATIONS}, memory>={ARGON2_MIN_MEMORY_MIB} MiB, parallelism>={ARGON2_MIN_PARALLELISM}) — refusing to derive a weak master key"
+                        "{source} Argon2id parameters (iterations={iterations}, memory={memory_mib} MiB, parallelism={parallelism}) below the minimums (iterations>={ARGON2_MIN_ITERATIONS}, memory>={ARGON2_MIN_MEMORY_MIB} MiB, parallelism>={ARGON2_MIN_PARALLELISM}) — refusing to derive a weak key"
                     ),
                 });
             }
 
-            let salt: [u8; 32] = Sha256::digest(email_lower.as_bytes()).into();
             let params = Params::new(
                 memory_mib.saturating_mul(1024),
                 iterations,
@@ -152,15 +167,87 @@ pub fn derive_master_key(
 
             let mut out = [0u8; 32];
             argon
-                .hash_password_into(password_bytes, &salt, &mut out)
+                .hash_password_into(password_bytes, salt, &mut out)
                 .map_err(|e| Error::Crypto {
                     reason: format!("Argon2id derivation failed: {e}"),
                 })?;
-            out
+            Ok(out)
+        }
+    }
+}
+
+pub fn derive_master_key(
+    password: &SecretString,
+    email: &str,
+    kdf: KdfType,
+    iterations: u32,
+    memory: Option<u32>,
+    parallelism: Option<u32>,
+) -> Result<MasterKey> {
+    let email_lower = email.trim().to_ascii_lowercase();
+
+    // Bitwarden salts PBKDF2 with the raw e-mail and Argon2id with its
+    // SHA-256 digest. Not a design choice of ours — changing either
+    // would make every existing vault undecryptable.
+    let argon_salt: [u8; 32];
+    let salt: &[u8] = match kdf {
+        KdfType::Pbkdf2 => email_lower.as_bytes(),
+        KdfType::Argon2id => {
+            argon_salt = Sha256::digest(email_lower.as_bytes()).into();
+            &argon_salt
         }
     };
 
-    Ok(MasterKey(bytes))
+    Ok(MasterKey(derive_kdf_key(
+        password,
+        salt,
+        kdf,
+        iterations,
+        memory,
+        parallelism,
+        "server-supplied",
+    )?))
+}
+
+/// Derive the key protecting an encrypted export file.
+///
+/// Same primitives as the master key, different salt discipline: the
+/// file carries 16 random bytes and they are used exactly as written,
+/// with no lowercasing and no hashing. That matters — an export has no
+/// e-mail to anchor to, and a per-file random salt is what stops one
+/// precomputation from covering every Clavix export in existence.
+///
+/// The same KDF floors apply. The parameters here come out of the file
+/// being opened, which is attacker-controlled input in exactly the way
+/// a hostile server's prelogin response is.
+pub fn derive_file_key(
+    password: &SecretString,
+    salt: &[u8],
+    kdf: KdfType,
+    iterations: u32,
+    memory: Option<u32>,
+    parallelism: Option<u32>,
+) -> Result<MasterKey> {
+    // Argon2 itself rejects a salt under 8 bytes, but failing here says
+    // "this file is malformed" instead of surfacing a KDF internal.
+    if salt.len() < 16 {
+        return Err(Error::Crypto {
+            reason: format!(
+                "export salt must be at least 16 bytes, got {} — refusing to derive a file key",
+                salt.len()
+            ),
+        });
+    }
+
+    Ok(MasterKey(derive_kdf_key(
+        password,
+        salt,
+        kdf,
+        iterations,
+        memory,
+        parallelism,
+        "file-supplied",
+    )?))
 }
 
 pub fn derive_master_password_hash(

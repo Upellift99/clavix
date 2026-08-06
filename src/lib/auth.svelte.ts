@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { formatError } from "./format";
-import type { Phase, StoredAccount } from "./types";
+import type { Phase, SessionOrigin, StoredAccount } from "./types";
 
 export type AuthEvent = "loggedIn";
 export type AuthListener = (event: AuthEvent) => void | Promise<void>;
@@ -19,6 +19,26 @@ export class AuthController {
   phase = $state<Phase>("init");
   storedAccount = $state<StoredAccount | null>(null);
   error = $state<string | null>(null);
+
+  /**
+   * How the open vault was reached, or null when nothing is open.
+   *
+   * Deliberately not a `Phase`. Standalone mode renders the *same*
+   * vault as a normal session — same list, same detail pane, same
+   * search — it is only read-only. A separate phase would have meant
+   * duplicating that whole branch to change a handful of buttons.
+   */
+  origin = $state<SessionOrigin | null>(null);
+
+  /**
+   * True when the vault cannot be written to: opened from the local
+   * cache with the server down, or from an export file.
+   *
+   * This drives what the UI *offers*. It is not what enforces the
+   * restriction — Rust refuses every mutating command on a tokenless
+   * session regardless of what the renderer thinks.
+   */
+  readonly isReadOnly = $derived(this.origin !== null && this.origin !== "server");
 
   /** True when the persisted session has a Yubikey wrap on disk;
    * drives the "Toucher la Yubikey" button on the unlock view. */
@@ -91,6 +111,7 @@ export class AuthController {
       if (result.type === "success") {
         this.storedAccount = { serverUrl: this.serverUrl, email: this.email };
         this.password = "";
+        this.origin = result.data.origin;
         this.phase = "loggedIn";
         await this.emit("loggedIn");
       } else {
@@ -127,12 +148,13 @@ export class AuthController {
   private async finishTwoFactor(code: string, provider: number) {
     this.phase = "authenticating";
     try {
-      await api.loginWithTwoFactor(code, provider);
+      const result = await api.loginWithTwoFactor(code, provider);
       this.storedAccount = { serverUrl: this.serverUrl, email: this.email };
       this.password = "";
       this.totpCode = "";
       this.yubikeyOtp = "";
       this.webauthnChallenge = null;
+      this.origin = result.origin;
       this.phase = "loggedIn";
       await this.emit("loggedIn");
     } catch (e) {
@@ -149,11 +171,12 @@ export class AuthController {
     this.phase = "authenticating";
     this.error = null;
     try {
-      await api.loginWithTwoFactor(codeSnapshot, this.selectedProvider);
+      const result = await api.loginWithTwoFactor(codeSnapshot, this.selectedProvider);
       this.storedAccount = { serverUrl: this.serverUrl, email: this.email };
       this.password = "";
       this.totpCode = "";
       this.yubikeyOtp = "";
+      this.origin = result.origin;
       this.phase = "loggedIn";
       await this.emit("loggedIn");
     } catch (e) {
@@ -167,8 +190,12 @@ export class AuthController {
     this.phase = "authenticating";
     this.error = null;
     try {
-      await api.unlock(this.password);
+      const result = await api.unlock(this.password);
       this.password = "";
+      // May come back as `offlineCache`: the user key was recovered
+      // locally but the server could not be reached, so the vault opens
+      // from the encrypted cache in read-only mode.
+      this.origin = result.origin;
       this.phase = "loggedIn";
       await this.emit("loggedIn");
     } catch (e) {
@@ -191,9 +218,10 @@ export class AuthController {
     this.error = null;
     try {
       const pin = this.yubikeyPin.trim();
-      await api.unlockWithYubikey(pin.length > 0 ? pin : null);
+      const result = await api.unlockWithYubikey(pin.length > 0 ? pin : null);
       this.password = "";
       this.yubikeyPin = "";
+      this.origin = result.origin;
       this.phase = "loggedIn";
       await this.emit("loggedIn");
     } catch (e) {
@@ -208,6 +236,21 @@ export class AuthController {
     }
   }
 
+  /**
+   * Open an encrypted export file as a standalone, read-only vault.
+   *
+   * The emergency-restore path: no account, no server, no stored
+   * session — just the file and its password. Rust refuses this while
+   * another vault is open, so callers must lock first.
+   */
+  async openExportFile(bytes: Uint8Array, filePassword: string) {
+    this.error = null;
+    const result = await api.openExportFile(bytes, filePassword);
+    this.origin = result.origin;
+    this.phase = "loggedIn";
+    await this.emit("loggedIn");
+  }
+
   async lock() {
     try {
       await api.lock();
@@ -218,6 +261,7 @@ export class AuthController {
     this.totpCode = "";
     this.pendingProviders = [];
     this.error = null;
+    this.origin = null;
     this.phase = this.storedAccount ? "unlock" : "idle";
   }
 
@@ -232,6 +276,7 @@ export class AuthController {
     this.totpCode = "";
     this.pendingProviders = [];
     this.error = null;
+    this.origin = null;
     this.phase = "idle";
   }
 
