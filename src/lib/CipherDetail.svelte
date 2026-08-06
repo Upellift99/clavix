@@ -2,6 +2,7 @@
   import * as m from "$lib/paraglide/messages";
   import Icon from "./Icon.svelte";
   import TotpField from "./TotpField.svelte";
+  import PasswordStrength from "./PasswordStrength.svelte";
   import { api } from "./api";
   import { cipherTypeLabel, formatBytes } from "./format";
   import { ATTACHMENT_MAX_BYTES } from "./limits";
@@ -11,6 +12,7 @@
     ConfirmFn,
     OrganizationSummary,
     PasswordHistoryEntry,
+    PasswordStrength as Strength,
   } from "./types";
 
   type Props = {
@@ -69,6 +71,40 @@
   let historyOpen = $state(false);
   let uploading = $state(false);
   let fileInput = $state<HTMLInputElement | null>(null);
+  let strength = $state<Strength | null>(null);
+  /** Identifies the newest score request; see the effect below. */
+  let strengthSeq = 0;
+
+  /**
+   * Fetch the password's strength for the open item.
+   *
+   * The point of `score_cipher_password` is that this needs neither a
+   * reveal nor a reprompt: the decryption happens in Rust and only the
+   * verdict comes back, so the bar sits under a still-masked field and
+   * the plaintext never enters this component. The reprompt gate
+   * protects the secret itself, and a 0-4 bucket is strictly less than
+   * `reveal_field` already hands out.
+   *
+   * The sequence guard matters here because the user can click through
+   * items faster than the IPC replies, and a late answer for the
+   * previous item would otherwise be painted onto the current one.
+   */
+  $effect(() => {
+    const id = detail.id;
+    if (!detail.login?.hasPassword) {
+      strength = null;
+      return;
+    }
+    const seq = ++strengthSeq;
+    api
+      .scoreCipherPassword(id)
+      .then((result) => {
+        if (seq === strengthSeq) strength = result;
+      })
+      .catch(() => {
+        if (seq === strengthSeq) strength = null;
+      });
+  });
 
   /**
    * Guard every path that turns ciphertext into something on screen or in
@@ -395,6 +431,11 @@
           "mot de passe",
           { renderShown: "password" }
         )}
+        {#if strength}
+          <div class="detail-strength">
+            <PasswordStrength score={strength.score} warning={strength.warning} />
+          </div>
+        {/if}
       {/if}
       <!-- URLs used to be their own section, which put the "URL" heading on
            one line and the address on the next — the only rows in the panel

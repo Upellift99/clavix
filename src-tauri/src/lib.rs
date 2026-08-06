@@ -124,6 +124,8 @@ pub fn run() {
             commands::move_share::rename_folder_path,
             commands::move_share::share_cipher_to_collection,
             commands::audit::audit_vault_passwords,
+            commands::strength::score_password,
+            commands::strength::score_cipher_password,
             commands::ssh::start_ssh_agent,
             commands::ssh::stop_ssh_agent,
             commands::ssh::ssh_agent_status,

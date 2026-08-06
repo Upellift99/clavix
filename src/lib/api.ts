@@ -8,6 +8,7 @@ import type {
   LoginOk,
   LoginResult,
   PasswordHistoryEntry,
+  PasswordStrength,
   SshAgentStatus,
   StoredAccount,
   SyncSummary,
@@ -218,6 +219,19 @@ export const api = {
     invoke<void>("share_cipher_to_collection", { cipherId, collectionId }),
 
   auditVaultPasswords: () => invoke<AuditResult>("audit_vault_passwords"),
+
+  /** Score a password the user is typing. `userInputs` (item name,
+      username, domain) let zxcvbn penalise a password that merely
+      echoes the item it protects. */
+  scorePassword: (password: string, userInputs: string[] = []) =>
+    invoke<PasswordStrength>("score_password", { password, userInputs }),
+
+  /** Score a stored item's password *without* revealing it: the
+      decryption happens in Rust and only the verdict crosses back, so
+      the detail pane can show a strength bar on a still-masked field.
+      Null when the item has no login password. */
+  scoreCipherPassword: (id: string) =>
+    invoke<PasswordStrength | null>("score_cipher_password", { id }),
 
   startSshAgent: (policy: string) =>
     invoke<SshAgentStatus>("start_ssh_agent", { policy }),

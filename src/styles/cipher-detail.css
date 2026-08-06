@@ -97,6 +97,13 @@
   font-size: 0.82rem;
 }
 
+/* The strength bar annotates the password's value, so it lines up with
+   the value column rather than starting at the label. Reuses the
+   indent the panel already defines for exactly this purpose. */
+.detail-strength {
+  margin: -0.15rem 0 0.5rem var(--detail-value-indent);
+}
+
 .detail-field dd {
   margin: 0;
   display: flex;
