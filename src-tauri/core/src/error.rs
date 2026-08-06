@@ -72,6 +72,20 @@ pub enum Error {
     /// "wrong master password" plainly.
     #[error("Incorrect master password")]
     InvalidMasterPassword,
+
+    /// The file password did not open an encrypted export. Reported as
+    /// its own variant rather than a raw MAC failure, because for this
+    /// flow a wrong password is the *expected* answer and the user
+    /// needs to be told to retype it, not shown a crypto internal.
+    #[error("Incorrect file password")]
+    ExportWrongPassword,
+
+    /// The file is not a Clavix encrypted export, or its structure is
+    /// damaged. Kept distinct from `ExportWrongPassword`: retyping the
+    /// password cannot fix this one, and telling the user otherwise
+    /// sends them in circles.
+    #[error("Not a valid Clavix encrypted export: {reason}")]
+    ExportMalformed { reason: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -278,6 +292,10 @@ impl Serialize for Error {
             Error::YubikeyStaleWrap => ("yubikey_stale_wrap", serde_json::json!({})),
             Error::YubikeyUnwrapFailed => ("yubikey_unwrap_failed", serde_json::json!({})),
             Error::InvalidMasterPassword => ("invalid_master_password", serde_json::json!({})),
+            Error::ExportWrongPassword => ("export_wrong_password", serde_json::json!({})),
+            Error::ExportMalformed { reason } => {
+                ("export_malformed", serde_json::json!({ "reason": reason }))
+            }
         };
 
         ErrorPayload {

@@ -138,6 +138,8 @@ pub fn run() {
             commands::tray::set_hide_dock_on_tray,
             commands::tray::set_tray_locale,
             commands::import::parse_kdbx,
+            commands::export::export_encrypted,
+            commands::export::import_encrypted,
             commands::update::check_for_update,
             commands::update::app_version,
         ])

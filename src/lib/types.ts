@@ -66,6 +66,7 @@ export type { CustomFieldInput } from "./generated/CustomFieldInput";
 export type { AttachmentDetail } from "./generated/AttachmentDetail";
 export type { PasswordHistoryEntry } from "./generated/PasswordHistoryEntry";
 export type { PasswordStrength } from "./generated/PasswordStrength";
+export type { ImportedItem } from "./generated/ImportedItem";
 
 // Rust calls it LoginOutcome; the frontend has always called it LoginResult.
 export type { LoginOutcome as LoginResult } from "./generated/LoginOutcome";

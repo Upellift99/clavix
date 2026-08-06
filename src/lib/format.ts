@@ -61,6 +61,10 @@ export function formatError(e: unknown): string {
       return m.err_yubikey_unwrap_failed();
     case "invalid_master_password":
       return m.err_invalid_master_password();
+    case "export_wrong_password":
+      return m.err_export_wrong_password();
+    case "export_malformed":
+      return m.err_export_malformed({ reason: str(data.reason) });
     default:
       return err.message ?? String(e);
   }

@@ -5,6 +5,7 @@ import type {
   CipherDetail,
   DecryptedSshKey,
   EditorPayload,
+  ImportedItem,
   LoginOk,
   LoginResult,
   PasswordHistoryEntry,
@@ -253,6 +254,24 @@ export const api = {
 
   parseKdbx: (bytes: Uint8Array, password: string) =>
     invoke<KdbxEntry[]>("parse_kdbx", { bytes: Array.from(bytes), password }),
+
+  /** Seal the whole vault into a password-protected export file. The
+      bytes coming back are already ciphertext — the vault is
+      re-encrypted under a fresh key in Rust and never assembled here
+      in the clear. */
+  exportEncrypted: (filePassword: string) =>
+    invoke<number[]>("export_encrypted", { filePassword }).then(
+      (bytes) => new Uint8Array(bytes),
+    ),
+
+  /** Open an encrypted export. Session-free: the file carries its own
+      key. Returns items ready to replay through `createCipher`, the
+      same shape the CSV and KDBX paths use. */
+  importEncrypted: (bytes: Uint8Array, filePassword: string) =>
+    invoke<ImportedItem[]>("import_encrypted", {
+      bytes: Array.from(bytes),
+      filePassword,
+    }),
 
   /** Ask GitHub (from Rust — the CSP blocks the WebView from reaching it)
       whether a newer Clavix has been published. */

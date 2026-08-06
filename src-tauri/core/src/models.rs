@@ -539,7 +539,7 @@ pub struct SshKeyDetail {
 
 // ============ Inputs for create/update ============
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginInput {
@@ -553,7 +553,7 @@ pub struct LoginInput {
     pub totp: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CardInput {
@@ -571,7 +571,7 @@ pub struct CardInput {
     pub code: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityInput {
@@ -613,7 +613,7 @@ pub struct IdentityInput {
     pub license_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyInput {
@@ -625,7 +625,7 @@ pub struct SshKeyInput {
     pub key_fingerprint: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CipherCreateInput {
@@ -666,7 +666,7 @@ pub struct CipherCreateInput {
     pub reprompt: bool,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomFieldInput {
