@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0](https://github.com/Upellift99/clavix/compare/v0.18.0...v0.19.0) (2026-08-06)
+
+
+### Features
+
+* password strength, encrypted export, and standalone read-only mode ([#247](https://github.com/Upellift99/clavix/issues/247)) ([eae9922](https://github.com/Upellift99/clavix/commit/eae99224afd2f99d776ba9e795a52ba9708b99e3))
+
 ## [0.18.0](https://github.com/Upellift99/clavix/compare/v0.17.0...v0.18.0) (2026-08-03)
 
 
