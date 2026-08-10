@@ -15,9 +15,14 @@ overrides:
   cookie@<0.7.0: ^0.7.0
   cross-spawn@<7.0.5: ^7.0.6
   esbuild@<0.25.0: ^0.25.0
-  js-yaml@<4.3.0: ^4.3.0
+  # GHSA-5p4m-2wfm-xmqj widened the !!omap quadratic-CPU advisory to cover
+  # 4.3.0, so the previous `<4.3.0: ^4.3.0` floor no longer clears it. 3.x is
+  # still swept up to 4.x on purpose: the fix was never backported there.
+  js-yaml@<4.3.1: ^4.3.1
   kysely@<0.28.17: ^0.28.17
   minimatch@<3.1.3: ^3.1.3
+  # GHSA-2v37-7h3g-55p8, reached only through vite > postcss at build time.
+  nanoid@<3.3.17: ^3.3.17
   serialize-javascript@<7.0.5: ^7.0.5
   tar-fs@>=2.0.0 <2.1.4: ^2.1.4
   tmp@<0.2.6: ^0.2.6
