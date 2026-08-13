@@ -1,0 +1,76 @@
+# cargo-audit configuration. Read from `$CWD/.cargo/audit.toml`, and the
+# Rust CI job runs with `working-directory: src-tauri` — so this file also
+# applies when you run `cargo audit` by hand from src-tauri/, which is the
+# point: local and CI now agree instead of local showing failures CI hides.
+#
+# Why a file rather than `--ignore` flags on the CI step: the flags only
+# existed in ci.yml, so a developer running `cargo audit` locally saw
+# "error: 1 vulnerability found!" on a tree CI called green. (cargo-audit's
+# `--ignore` is otherwise sound — unlike pnpm's, it filters at runtime,
+# writes nothing, and still exits 1 if a live advisory remains. It was not
+# a correctness problem, only a local/CI divergence.)
+#
+# Every id below is EXPECTED and reviewed. The CI step denies unmaintained
+# and unsound advisories, so anything NOT listed here turns the build red —
+# that is the whole purpose. Do not add an id without a reason on the line.
+# Re-check the list with:
+#   cargo audit --file src-tauri/Cargo.lock --json | jq '.warnings'
+
+[advisories]
+ignore = [
+  # -- vulnerability -------------------------------------------------------
+  # Marvin Attack: timing side-channel in RSA-OAEP decryption. No upstream
+  # fix exists (rsa 0.10 is still only a release candidate). Our exposure is
+  # low: org keys are decrypted once per sync, over HTTPS to Vaultwarden,
+  # with no oracle reachable by an attacker. Drop this the day `rsa` ships a
+  # constant-time release.
+  "RUSTSEC-2023-0071",
+
+  # -- unmaintained: gtk-rs GTK3 bindings ----------------------------------
+  # Ten crates, one upstream decision: the gtk-rs project stopped
+  # maintaining its GTK3 bindings. They reach us through Tauri's Linux
+  # webview stack, not from our own Cargo.toml, so there is nothing to
+  # migrate on our side until Tauri moves to GTK4.
+  "RUSTSEC-2024-0411", # gdkwayland-sys
+  "RUSTSEC-2024-0412", # gdk
+  "RUSTSEC-2024-0413", # atk
+  "RUSTSEC-2024-0414", # gdkx11-sys
+  "RUSTSEC-2024-0415", # gtk
+  "RUSTSEC-2024-0416", # atk-sys
+  "RUSTSEC-2024-0417", # gdkx11
+  "RUSTSEC-2024-0418", # gdk-sys
+  "RUSTSEC-2024-0419", # gtk3-macros
+  "RUSTSEC-2024-0420", # gtk-sys
+
+  # -- unmaintained: misc transitives --------------------------------------
+  "RUSTSEC-2024-0370", # proc-macro-error, via the derive-macro chain
+  "RUSTSEC-2025-0057", # fxhash
+
+  # -- unmaintained: unic-* ------------------------------------------------
+  # The unic crates are pulled in for IDNA/Unicode handling underneath the
+  # HTTP stack. Unmaintained, but pure lookup-table code with no known
+  # defect.
+  "RUSTSEC-2025-0075", # unic-char-range
+  "RUSTSEC-2025-0080", # unic-common
+  "RUSTSEC-2025-0081", # unic-char-property
+  "RUSTSEC-2025-0098", # unic-ucd-version
+  "RUSTSEC-2025-0100", # unic-ucd-ident
+
+  # -- unsound -------------------------------------------------------------
+  # `!Send` tags crossing a thread boundary via StackSlot. Transitive under
+  # the async runtime; we never construct the affected StackSlot ourselves.
+  "RUSTSEC-2026-0221", # event-listener
+  # Unsound Iterator impls for glib::VariantStrIter. Same GTK3 stack as
+  # above; we do not use VariantStrIter.
+  "RUSTSEC-2024-0429", # glib
+  # Unsound only when a custom logger calls rand::rng() reentrantly. We
+  # install no such logger.
+  "RUSTSEC-2026-0097", # rand
+]
+
+# NOT denied in CI: `yanked`. spin 0.9.8 is yanked and reaches us through
+# ring, and a yanked crate carries no RUSTSEC id — so there is no way to
+# allowlist it here. Adding `--deny yanked` to the CI step would therefore
+# pin the job red permanently rather than tell us anything new. It still
+# shows up as "1 allowed warning found" in the job log. Revisit if ring
+# ever bumps its spin requirement.

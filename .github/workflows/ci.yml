@@ -106,18 +106,33 @@ jobs:
         with:
           tool: cargo-audit
 
-      # RUSTSEC-2023-0071 : Marvin Attack sur le crate `rsa` (timing side-channel
-      # sur le déchiffrement RSA-OAEP). Pas de fix upstream disponible à ce jour.
-      # Notre exposition est faible : déchiffrement d'org keys une fois par sync,
-      # HTTPS vers Vaultwarden, pas d'oracle exposé à un attaquant. À retirer dès
-      # que le crate `rsa` publie une version constant-time (0.10 n'existe
-      # toujours qu'en release candidate).
+      # Les advisories tolérées vivent désormais dans src-tauri/.cargo/audit.toml
+      # (lu depuis le CWD, donc depuis src-tauri grâce au working-directory du
+      # job), une par ligne avec sa justification — y compris RUSTSEC-2023-0071
+      # sur `rsa`, qui était jusqu'ici le seul `--ignore` de cette étape. Le
+      # fichier vaut mieux que le flag pour une raison précise : le flag
+      # n'existait que dans ce workflow, si bien qu'un `cargo audit` lancé à la
+      # main dans src-tauri affichait « 1 vulnerability found! » sur un arbre que
+      # la CI déclarait vert.
+      #
+      # `--deny unmaintained --deny unsound` est la vraie nouveauté. Sans ces
+      # flags, `cargo audit` n'échoue que sur les vulnérabilités : les 20
+      # advisories unmaintained/unsound de l'arbre défilaient sous la forme
+      # « 21 allowed warnings found » et personne ne les regardait. Un nouveau
+      # crate non maintenu se serait fondu dans le lot sans rien déclencher.
+      # Maintenant, tout ce qui n'est pas explicitement listé dans audit.toml
+      # fait rougir le job.
+      #
+      # `yanked` est délibérément absent des `--deny` : spin 0.9.8 est yanked
+      # via ring, et un crate yanked n'a pas d'identifiant RUSTSEC — il est donc
+      # impossible de l'allowlister. Le dénier figerait le job au rouge sans
+      # rien apprendre. Voir la note en fin d'audit.toml.
       #
       # RUSTSEC-2026-0194 / RUSTSEC-2026-0195 (`quick-xml` < 0.41.0) ne sont plus
       # ignorés : `wayland-scanner` 0.31.11 est passé à `quick-xml` ^0.41, donc
       # plus aucune copie vulnérable dans l'arbre.
       - name: cargo audit
-        run: cargo audit --ignore RUSTSEC-2023-0071
+        run: cargo audit --deny unmaintained --deny unsound
 
   frontend:
     name: Frontend (svelte-check)
