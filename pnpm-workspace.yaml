@@ -8,8 +8,22 @@ overrides:
   # three: 1.1.18 and 2.1.4.
   # Do NOT collapse these into `brace-expansion@<5.0.8: ^5.0.8`: 5.x exports
   # `{ expand }` instead of the callable default, so every minimatch <= 6 dies
-  # with "expand is not a function". Only minimatch >= 9.0.6 speaks that API,
-  # and getting there means moving @wdio off v7 — see the follow-up issue.
+  # with "expand is not a function". Only minimatch >= 9.0.6 speaks that API.
+  #
+  # This used to say the way out was "moving @wdio off v7 — see the follow-up
+  # issue". Both halves were wrong: every @wdio/* in the tree is already on
+  # v9, and no such issue was ever opened. The three minimatch lines are all
+  # transitives *underneath* wdio v9, and none of them is ours to move:
+  #   minimatch 3.1.5 <- glob@7 <- rimraf@3 <- puppeteer-core@13.7.0 (2022)
+  #                       <- webdriverio; and <- recursive-readdir <- create-wdio
+  #   minimatch 5.1.9 <- glob@8 <- mocha@10 <- @wdio/mocha-framework;
+  #                       <- filelist <- jake <- ejs <- create-wdio;
+  #                       <- readdir-glob <- archiver <- webdriverio
+  #   minimatch 9.0.9 <- glob@10 <- @wdio/config   (this one would take 5.x)
+  # So there is no upgrade to chase and nothing to track. The floors below
+  # are the fix, not a stopgap. They can go the day webdriverio drops
+  # puppeteer-core@13 and mocha moves off glob@8 — check with
+  # `pnpm why minimatch`, and only then.
   brace-expansion@<1.1.18: ^1.1.18
   brace-expansion@>=2.0.0 <2.1.4: ^2.1.4
   cookie@<0.7.0: ^0.7.0
