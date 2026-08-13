@@ -180,11 +180,20 @@ jobs:
       # `--ignore-registry-errors` per pnpm's own CI guidance: a flaky npm
       # registry must not fail an unrelated build.
       #
-      # To silence a genuinely unactionable advisory, hand-edit
-      # `auditConfig.ignoreCves` in pnpm-workspace.yaml and document why,
-      # mirroring the `--ignore RUSTSEC-...` comment on the cargo audit step.
-      # Config-based ignores keep the exit code honest: a tree with one ignored
-      # and one live finding still fails. Never reach for the CLI flag.
+      # To silence a genuinely unactionable advisory, hand-edit `auditConfig`
+      # in pnpm-workspace.yaml and document why, mirroring the
+      # `--ignore RUSTSEC-...` comment on the cargo audit step. Config-based
+      # ignores keep the exit code honest: a tree with one ignored and one
+      # live finding still fails. Never reach for the CLI flag.
+      #
+      # Prefer `ignoreGhsas` over `ignoreCves`. `ignoreCves` matches only the
+      # `cves` array the npm registry attaches to an advisory, and plenty of
+      # advisories carry none — GHSA-jmr9-qjv8-65gv reaches us with a
+      # `github_advisory_id` and no `cves` at all, so an `ignoreCves` entry
+      # for its CVE-2026-56876 alias silently never matches and the gate
+      # stays red with no hint as to why. Every advisory has a GHSA id.
+      # Confirm what the registry actually carries before adding an entry:
+      #   pnpm audit --json | jq '.advisories[] | {github_advisory_id, cves}'
       - name: pnpm audit (production tree)
         run: pnpm audit --prod --ignore-registry-errors
 

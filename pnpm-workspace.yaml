@@ -35,6 +35,42 @@ overrides:
   uuid@<14.0.0: ^14.0.0
   ws@<8.21.0: ^8.21.0
 
+# Advisories with no reachable fix. Hand-written on purpose: never pass
+# `pnpm audit --ignore <CVE>`, which WRITES here and then exits 0 on every
+# tree (see the long note on the audit steps in .github/workflows/ci.yml).
+# A config ignore keeps the exit code honest — a tree with one ignored and
+# one live finding still fails.
+#
+# Keyed by GHSA, not CVE: this advisory reaches us with no `cves` array at
+# all, so an `ignoreCves` entry would silently never match. See the audit
+# steps in .github/workflows/ci.yml for the full reasoning.
+auditConfig:
+  ignoreGhsas:
+    # GHSA-jmr9-qjv8-65gv / CVE-2026-56876 (high, CVSS 8.1) — extract-zip
+    # does not validate symlink targets, so a malicious archive can write
+    # outside the extraction directory.
+    #
+    # Unfixable, not unpatched-by-us: extract-zip's last release is 2.0.1
+    # (2020-06-10) and the package is unmaintained. The ">=2.0.2" that
+    # `pnpm audit` prints under "Patched versions" is the advisory's
+    # placeholder for a version that was never published — there is no
+    # override that can clear this. Dependabot agrees: the alert carries
+    # `first_patched_version: null` and it opened no PR.
+    #
+    # Exposure is nil on two independent counts:
+    #   1. devDependency only. `pnpm audit --prod` is clean, so no copy of
+    #      extract-zip reaches the shipped Tauri binary.
+    #   2. The code path never runs. All 57 paths land on it through
+    #      @puppeteer/browsers (and puppeteer-core), which uses it to unpack
+    #      *downloaded browser archives*. Our E2E suite spawns tauri-driver
+    #      itself against a locally built binary — tests/e2e/wdio.conf.mjs
+    #      declares no `services` and no @wdio/*-service is installed, so
+    #      wdio is never asked to fetch or unpack a browser.
+    #
+    # Drop this entry the day @wdio/utils stops pulling @puppeteer/browsers,
+    # or extract-zip ships a real fix. Re-check with `pnpm why extract-zip`.
+    - GHSA-jmr9-qjv8-65gv
+
 # pnpm 11 turned "ignored build scripts" from a warning into a hard install
 # error, so the answer has to be recorded explicitly or `pnpm install
 # --frozen-lockfile` exits 1. All three were already unbuilt under pnpm 10 and
