@@ -134,6 +134,15 @@ jobs:
       - name: cargo audit
         run: cargo audit --deny unmaintained --deny unsound
 
+      # The `yanked` category the step above deliberately does not deny (see
+      # the note there). Denying it is impossible without pinning the job red,
+      # so this pins the exact SET of yanked crates instead: the one we know
+      # about passes, anything new fails. Runs from the repo root rather than
+      # src-tauri because the script resolves its own default lockfile path.
+      - name: Yanked crates match the baseline
+        working-directory: .
+        run: ./scripts/check-yanked-crates.sh
+
   frontend:
     name: Frontend (svelte-check)
     runs-on: ubuntu-24.04
@@ -141,6 +150,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # Cheap and dependency-free, so it goes first: if a required check no
+      # longer names a real job, say so before spending ten minutes on the
+      # rest. Lives in this job (rather than one of its own) so it does not
+      # add a sixth check name that would itself have to be required.
+      - name: Required checks still name real jobs
+        run: ./scripts/check-required-checks.sh
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6

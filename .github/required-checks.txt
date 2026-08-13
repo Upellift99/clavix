@@ -1,0 +1,28 @@
+# Status checks required by master's branch protection.
+#
+# This file is the source of truth. Branch protection on GitHub must list
+# exactly these names - re-apply it from here with:
+#
+#   jq -Rn '[inputs | select(startswith("#") or . == "" | not)]' \
+#     .github/required-checks.txt \
+#   | jq '{required_status_checks: {strict: false, contexts: .},
+#          enforce_admins: true, required_pull_request_reviews: null,
+#          restrictions: null, allow_force_pushes: false,
+#          allow_deletions: false}' \
+#   | gh api -X PUT repos/Upellift99/clavix/branches/master/protection --input -
+#
+# WHY THIS FILE EXISTS: a required check is matched by NAME. Rename a job in
+# a workflow and its old name stays required, never reports, and every PR is
+# blocked on a check that can no longer run - with nothing explaining why.
+# scripts/check-required-checks.sh runs in CI and fails the moment a name
+# here stops matching a real job, so the rename breaks loudly and early
+# instead of silently wedging the queue.
+#
+# Renaming a job therefore means: update the workflow, update this file, and
+# re-apply protection with the command above - in the same change.
+
+Rust (fmt + clippy + audit)
+Frontend (svelte-check)
+E2E (Tauri + WebdriverIO)
+Smoke E2E (release build)
+Analyze (javascript-typescript)

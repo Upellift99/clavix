@@ -68,9 +68,15 @@ ignore = [
   "RUSTSEC-2026-0097", # rand
 ]
 
-# NOT denied in CI: `yanked`. spin 0.9.8 is yanked and reaches us through
-# ring, and a yanked crate carries no RUSTSEC id — so there is no way to
-# allowlist it here. Adding `--deny yanked` to the CI step would therefore
-# pin the job red permanently rather than tell us anything new. It still
-# shows up as "1 allowed warning found" in the job log. Revisit if ring
-# ever bumps its spin requirement.
+# NOT denied in CI: `yanked`. A yanked crate carries no RUSTSEC id, so there
+# is no way to allowlist one here, and `--deny yanked` would pin the job red
+# permanently on spin 0.9.8 rather than tell us anything new.
+#
+# That category is not left unwatched, though: scripts/check-yanked-crates.sh
+# pins the exact SET of yanked crates, so a newly-yanked dependency fails CI
+# while the known one does not. Update its baseline, not this file.
+#
+# (An earlier version of this note said spin arrives via `ring`. That was
+# wrong - ring dropped its spin dependency in 0.17. It actually comes from
+# lazy_static 1.5.0's `spin_no_std` feature, pulled in by num-bigint-dig,
+# x509-parser and zxcvbn.)
