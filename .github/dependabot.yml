@@ -14,6 +14,29 @@ updates:
       - rust
     commit-message:
       prefix: "chore(deps-rust)"
+    # 2026-08-17: this job failed wholesale — all five candidate updates
+    # (thiserror, zbus, futures, rusqlite, ctap-hid-fido2) came back
+    # `dependency_file_not_resolvable`, every one of them on the same root
+    # message: "failed to select a version for the requirement
+    # `cpufeatures = ^0.3` (locked to 0.3.0) — candidate versions found
+    # which didn't match: 0.2.17, 0.2.16, ...".
+    #
+    # The repository was not at fault, and it is worth not re-deriving this:
+    # cpufeatures 0.3.0 is neither yanked nor missing (published 2026-02-05,
+    # still the crate's default version), aes 0.9.1 likewise (2026-05-27),
+    # and both have sat in Cargo.lock since 4cc9aa7 (2026-05-09) — content
+    # this very job resolved successfully every Monday through 2026-08-10.
+    # It does not reproduce locally on cargo 1.96, nor under a real 1.84
+    # toolchain, nor with `rust-version` forced down to 1.80, so it is not
+    # MSRV-aware resolution either. Only 0.2.x candidates being visible means
+    # the updater's index view lacked 0.3.0 — its proxy reported 79% cached
+    # calls that run. In short: a stale index cache on Dependabot's side.
+    #
+    # Editing this file makes Dependabot re-check the ecosystem, which is
+    # how the failure above was retried. If it ever comes back with the same
+    # message, do NOT edit Cargo.lock or chase the crate — confirm against
+    # crates.io first, then retry. Rust health while the bot is down is
+    # checked by hand with `cargo audit` (clean at the time of writing).
     # Ignore semver-major bumps for crates that depend on the same
     # `digest 0.10` / `rand_core 0.6` slice as `rsa 0.9` (our stable).
     # Bumping any one of them breaks the other six because `rsa` still
