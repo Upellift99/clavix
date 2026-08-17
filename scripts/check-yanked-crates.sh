@@ -22,12 +22,19 @@ LOCKFILE="${1:-src-tauri/Cargo.lock}"
 
 # name<TAB>version, one per line, sorted. Keep the reason next to each entry.
 #
-# spin 0.9.8: reached through lazy_static 1.5.0's `spin_no_std` feature, which
-# num-bigint-dig, x509-parser and zxcvbn all pull in. Not ours to move, and
-# lazy_static 1.5.0 is already its final release. (It does NOT come from
-# `ring`, which dropped its spin dependency in 0.17.)
+# Empty on purpose, and that is the good outcome: the tree currently has no
+# yanked crate at all. The single entry that used to live here was spin 0.9.8,
+# reached through lazy_static 1.5.0's `spin_no_std` feature (num-bigint-dig,
+# x509-parser and zxcvbn all pull it in) and written off as not ours to move.
+# The 2026-08-17 lockfile refresh moved spin to 0.9.9, which upstream has not
+# yanked, so the entry was removed per the instructions below rather than left
+# to rot — a baseline listing a crate that is no longer yanked would quietly
+# tolerate that exact name/version reappearing.
+#
+# An empty baseline makes this check equivalent to `cargo audit --deny yanked`
+# while still reporting *which* crate appeared, so there is no reason to add
+# that flag to the audit step.
 read -r -d '' BASELINE <<'EOF' || true
-spin	0.9.8
 EOF
 
 # cargo audit's exit code is the *other* gate's business - it is non-zero
