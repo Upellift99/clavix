@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.1](https://github.com/Upellift99/clavix/compare/v0.19.0...v0.19.1) (2026-08-17)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump Tauri on both sides, cargo and npm together ([#272](https://github.com/Upellift99/clavix/issues/272)) ([d0d204a](https://github.com/Upellift99/clavix/commit/d0d204ad2f40e2f8c1de280bbe9b7ad5cea73bbb))
+
 ## [0.19.0](https://github.com/Upellift99/clavix/compare/v0.18.0...v0.19.0) (2026-08-06)
 
 
