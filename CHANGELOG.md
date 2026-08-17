@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.19.1](https://github.com/Upellift99/clavix/compare/v0.19.0...v0.19.1) (2026-08-17)
 
+A maintenance release: nothing here changes what the application does.
+Everything user-facing is identical to 0.19.0 — no IPC, storage or vault
+format changes — so there is no reason to hurry an upgrade.
+
+What it carries is the dependency tree. The Tauri runtime moves 2.11.2 to
+2.11.5 with the npm `@tauri-apps/*` side bumped in step, 140 transitive
+crates are refreshed, and five Rust dependencies land (thiserror, zbus,
+futures, rusqlite, ctap-hid-fido2). The tree gets smaller rather than
+larger: 38 crates leave with no replacement, because tauri-utils 2.9.3
+drops an HTML-parsing stack it no longer needs. It also holds no yanked
+crate for the first time, `spin` having moved to an unyanked 0.9.9.
+
+**Not a security release.** `cargo audit` and `pnpm audit` were clean
+before and after, so nothing here is a fix for a known vulnerability and
+no fleet needs an urgent pull.
+
+One thing to watch on Linux: the tray backend (`tray-icon`) moves 0.23.1
+to 0.24.2 as part of the Tauri bump. Nothing the application calls changed
+shape, but the tray is not something CI can observe — if the icon
+misbehaves in your session, that is the first place to look.
+
 
 ### Miscellaneous Chores
 
