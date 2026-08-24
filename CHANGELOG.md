@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.2](https://github.com/Upellift99/clavix/compare/v0.19.1...v0.19.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* **deps:** raise h2 past RUSTSEC-2026-0258, floor deepmerge-ts at 8 ([#281](https://github.com/Upellift99/clavix/issues/281)) ([9666a78](https://github.com/Upellift99/clavix/commit/9666a78bc579848904fd91701b8cf0c281b01e7a))
+
 ## [0.19.1](https://github.com/Upellift99/clavix/compare/v0.19.0...v0.19.1) (2026-08-17)
 
 A maintenance release: nothing here changes what the application does.
