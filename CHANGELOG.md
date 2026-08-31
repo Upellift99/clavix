@@ -5,6 +5,14 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.3](https://github.com/Upellift99/clavix/compare/v0.19.2...v0.19.3) (2026-08-31)
+
+
+### Bug Fixes
+
+* **ci:** ne plus dupliquer les bundles de release en artefacts ([#284](https://github.com/Upellift99/clavix/issues/284)) ([383fdaf](https://github.com/Upellift99/clavix/commit/383fdaf89166457ab8d2477868fd1a14f183da0e))
+* **deps:** move chacha20 past the yanked 0.10.1 ([#294](https://github.com/Upellift99/clavix/issues/294)) ([93a017d](https://github.com/Upellift99/clavix/commit/93a017d555d5e4bfb709d14c9184659446804a03))
+
 ## [0.19.2](https://github.com/Upellift99/clavix/compare/v0.19.1...v0.19.2) (2026-08-24)
 
 A dependency release. Nothing here changes what the application does —
