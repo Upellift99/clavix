@@ -548,6 +548,10 @@ pub fn build_share_cipher_body(
         "organizationId": target_org_id,
         "folderId": serde_json::Value::Null,
         "favorite": cipher.favorite,
+        // The share PUT has replace semantics and the server clears any
+        // field the body omits, so an absent `reprompt` silently turned off
+        // master-password reprompt on every shared item. Absent means 0.
+        "reprompt": cipher.reprompt.unwrap_or(0),
         "login": login_json,
         "card": card_json,
         "identity": identity_json,
@@ -1086,6 +1090,30 @@ mod tests {
         assert!(c["identity"].is_null());
         assert!(c["sshKey"].is_null());
         assert!(c["notes"].is_null());
+    }
+
+    #[test]
+    fn share_body_preserves_reprompt() {
+        // Regression: `reprompt` was omitted entirely, and the server treats
+        // an omitted field as "clear it" — so sharing an item quietly
+        // dropped its master-password reprompt flag.
+        let source = test_key();
+        let target = other_test_key();
+        let mut cipher = base_cipher(CipherType::Login, &source);
+        cipher.reprompt = Some(1);
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        assert_eq!(body["cipher"]["reprompt"], 1);
+    }
+
+    #[test]
+    fn share_body_defaults_reprompt_to_zero_when_absent() {
+        let source = test_key();
+        let target = other_test_key();
+        let cipher = base_cipher(CipherType::Login, &source); // reprompt: None
+
+        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        assert_eq!(body["cipher"]["reprompt"], 0);
     }
 
     #[test]
