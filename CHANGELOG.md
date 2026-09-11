@@ -7,42 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.21.0](https://github.com/Upellift99/clavix/compare/v0.20.0...v0.21.0) (2026-09-11)
 
-The SSH agent now works on Windows. Until this release it was Unix-only
-— a stub refused to start — so the keys in your vault could not be used
-from a Windows terminal at all.
+The SSH agent now works on Windows. Until this release it was Unix-only — a stub refused to start — so the keys in your vault could not be used from a Windows terminal at all.
 
-There is nothing to configure. Unlocking the vault exposes the keys on
-the two endpoints Windows clients already look for: the
-`\\.\pipe\openssh-ssh-agent` named pipe, which `ssh.exe`, `ssh-add`,
-`git` and every OpenSSH-based tool probe on their own — no environment
-variable involved, no `SSH_AUTH_SOCK` to export — and PuTTY's Pageant
-IPC, so `plink`, `pscp` and `putty -agent` reach the same keys.
-`ssh-add -l` is the check that settles it, and the *Infos* dialog has a
-button to copy it.
+There is nothing to configure. Unlocking the vault exposes the keys on the two endpoints Windows clients already look for: the `\\.\pipe\openssh-ssh-agent` named pipe, which `ssh.exe`, `ssh-add`, `git` and every OpenSSH-based tool probe on their own — no environment variable involved, no `SSH_AUTH_SOCK` to export — and PuTTY's Pageant IPC, so `plink`, `pscp` and `putty -agent` reach the same keys. `ssh-add -l` is the check that settles it, and the *Infos* dialog has a button to copy it.
 
-**The one thing worth knowing**: the pipe has a single owner. If
-Windows' own OpenSSH `ssh-agent` service is running, it holds the pipe,
-and Clavix says so rather than starting half-working — stop that service
-(`Stop-Service ssh-agent` from an elevated PowerShell, and set its
-startup type to Manual if you want it to stay away), then start the
-agent again. Pageant is the friendlier neighbour: when a real Pageant is
-already running, Clavix leaves it alone and serves the pipe only.
+**The one thing worth knowing**: the pipe has a single owner. If Windows' own OpenSSH `ssh-agent` service is running, it holds the pipe, and Clavix says so rather than starting half-working — stop that service (`Stop-Service ssh-agent` from an elevated PowerShell, and set its startup type to Manual if you want it to stay away), then start the agent again. Pageant is the friendlier neighbour: when a real Pageant is already running, Clavix leaves it alone and serves the pipe only.
 
-Underneath, the agent was restructured so that the Unix socket, the
-Windows pipe and the Pageant window share one protocol core — same key
-store, same signature policy, same message handlers on every platform,
-so behaviour cannot drift between transports. Locking or logging out now
-also dismisses any signature confirmation still on screen, on all
-platforms, instead of leaving a prompt with inert buttons over a session
-that is already gone.
+Underneath, the agent was restructured so that the Unix socket, the Windows pipe and the Pageant window share one protocol core — same key store, same signature policy, same message handlers on every platform, so behaviour cannot drift between transports. Locking or logging out now also dismisses any signature confirmation still on screen, on all platforms, instead of leaving a prompt with inert buttons over a session that is already gone.
 
-Nothing changes for Linux and macOS: the socket path, `SSH_AUTH_SOCK`
-and the `IdentityAgent` setup work exactly as before. Windows builds are
-still unsigned, so SmartScreen will warn on the `.msi` and
-`-setup.exe` — code signing remains on the roadmap.
+Nothing changes for Linux and macOS: the socket path, `SSH_AUTH_SOCK` and the `IdentityAgent` setup work exactly as before. Windows builds are still unsigned, so SmartScreen will warn on the `.msi` and `-setup.exe` — code signing remains on the roadmap.
 
 The Windows agent was contributed by @gleox.
-
 
 ### Features
 
