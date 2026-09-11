@@ -193,10 +193,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
-    # Generous while the cache is cold and we have no warm-cache norm to
-    # go on; the ubuntu job needs 25 and Windows link times are worse.
-    # Tighten once a few runs have landed.
-    timeout-minutes: 40
+    # 30, down from the initial 40, on 41 runs of data. Warm runs are
+    # short — median 153s on Windows, 81s on macOS — but the warm norm is
+    # the wrong thing to size this on. Every Cargo.lock bump evicts
+    # Swatinem/rust-cache, and since #318 these are required checks, so a
+    # timeout blocks the merge instead of merely going red. Cold-cache
+    # worst seen: 22m42 (Windows, this job's first run on #313) and 14m16
+    # (macOS); even the v0.21.0 release commit, which changes nothing in
+    # Cargo.lock but the version, cost 13m14 on macOS. 30 keeps ~30% over
+    # the worst observed while still halving the ceiling.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: src-tauri
