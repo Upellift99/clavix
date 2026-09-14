@@ -45,7 +45,7 @@ hmac = "0.12"
 hkdf = "0.12"
 rsa = "0.9"
 sha1 = "0.10"
-dirs = "6"
+dirs = "7"
 rand = "0.8"
 rusqlite = { version = "0.40", features = ["bundled"] }
 parking_lot = "0.12"
