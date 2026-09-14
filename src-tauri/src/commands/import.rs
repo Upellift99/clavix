@@ -127,3 +127,38 @@ fn extract_totp(entry: &EntryRef<'_>) -> String {
     }
     String::new()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Written by KeePassXC 2.7.12 (`keepassxc-cli db-create -t 100`),
+    /// not by the `keepass` crate: AES-256 cipher, AES-KDF, password
+    /// `clavix-kat`, one entry at the root.
+    const KEEPASSXC_AES256: &[u8] = include_bytes!("testdata/keepassxc-aes256.kdbx");
+
+    /// Known-answer test for the `aes` crate under `keepass`. A round
+    /// trip through `keepass` alone would still pass if an `aes` bump
+    /// produced consistently wrong bytes; opening a file sealed by an
+    /// independent implementation cannot. Both the KDF rounds and the
+    /// payload decryption go through AES here.
+    #[test]
+    fn parse_kdbx_opens_a_keepassxc_aes256_database() {
+        let entries = parse_kdbx(KEEPASSXC_AES256.to_vec(), "clavix-kat".into())
+            .expect("the KeePassXC fixture must open");
+
+        assert_eq!(entries.len(), 1);
+        let entry = &entries[0];
+        assert_eq!(entry.title, "KAT Entry");
+        assert_eq!(entry.username, "kat-user");
+        assert_eq!(entry.password, "fixture-secret-0.9.3");
+        assert_eq!(entry.url, "https://kat.example");
+        assert_eq!(entry.group, "");
+    }
+
+    #[test]
+    fn parse_kdbx_rejects_the_wrong_password() {
+        let result = parse_kdbx(KEEPASSXC_AES256.to_vec(), "not-the-password".into());
+        assert!(matches!(result, Err(Error::AuthFailed { .. })));
+    }
+}
