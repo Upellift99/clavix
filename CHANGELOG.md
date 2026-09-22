@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.21.1](https://github.com/Upellift99/clavix/compare/v0.21.0...v0.21.1) (2026-09-22)
 
+A dependency release. Nothing here changes what the application does — no IPC, storage or vault format changes — so 0.21.1 behaves exactly like 0.21.0 in daily use.
+
+**It carries one security fix worth taking, of medium severity.** `rustls`, the TLS implementation underneath `reqwest`, moves 0.23.43 to 0.23.45 for [RUSTSEC-2026-0285](https://rustsec.org/advisories/RUSTSEC-2026-0285): handshake messages were accepted across TLS 1.3 encryption level boundaries, a flaw in the handshake state machine rather than in any cipher. Clavix is a TLS *client*, and this is the stack it uses for every call to your Vaultwarden server, so the code is reachable by anyone who can inject records into that connection — an active attacker on the path, not only a hostile server. RustSec rates it 5.3, and rustls has published no exploit; it is the kind of fix to pick up on your next update rather than an emergency pull, but do pick it up.
+
+The other advisory in this release is **not** a reason to redeploy, and is named only so it does not resurface as a surprise. `devalue` moves 5.9.0 to 5.9.4 for GHSA-9rgm-9g3h-6x36, a denial of service on malformed input. It is SvelteKit's serializer for server-rendered data, and Clavix ships a static bundle with no server, so no `devalue.parse` ever runs on anything at runtime. `pnpm audit --prod` was clean before and after; only the full-tree audit gate had gone red. Nothing that runs on your machine was affected.
+
+Neither package had opened a Dependabot alert: both are transitive under a parent that had not moved, which is exactly the gap the two audit gates in CI exist to close. They did — every pull request went red on 2026-09-21 until this landed.
+
+The same release refreshes the KeePass import library (`keepass` 0.13.25 to 0.14.0, whose only change is an XML-parser bump) and the usual round of test and build tooling. A KDBX fixture written by KeePassXC itself now pins the import path in the test suite ([#330](https://github.com/Upellift99/clavix/issues/330)), so the library bump was checked against a real database rather than assumed to be compatible.
+
 
 ### Bug Fixes
 
