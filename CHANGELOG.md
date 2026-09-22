@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.1](https://github.com/Upellift99/clavix/compare/v0.21.0...v0.21.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **deps:** raise rustls past RUSTSEC-2026-0285 and devalue past GHSA-9rgm-9g3h-6x36 ([#338](https://github.com/Upellift99/clavix/issues/338)) ([2f33b58](https://github.com/Upellift99/clavix/commit/2f33b58ebcd0866f0c3e930a79d5d303c23b9578))
+
 ## [0.21.0](https://github.com/Upellift99/clavix/compare/v0.20.0...v0.21.0) (2026-09-11)
 
 The SSH agent now works on Windows. Until this release it was Unix-only — a stub refused to start — so the keys in your vault could not be used from a Windows terminal at all.
