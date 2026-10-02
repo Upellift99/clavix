@@ -242,7 +242,7 @@ fn reencrypt_cipher(
     let from = item.as_ref().unwrap_or(owner);
 
     let reenc = |s: &str| reencrypt_with_key(s, from, to);
-    let reenc_opt = |s: Option<&str>| -> Result<Option<String>> { s.map(&reenc).transpose() };
+    let reenc_opt = |s: Option<&str>| -> Result<Option<String>> { s.map(reenc).transpose() };
 
     Ok(Cipher {
         id: cipher.id.clone(),
