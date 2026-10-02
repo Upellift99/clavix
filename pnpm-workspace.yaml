@@ -2,6 +2,21 @@
 # Moved here from the `pnpm.overrides` field in package.json, which pnpm 11+
 # no longer reads (see https://pnpm.io/settings).
 overrides:
+  # GHSA-c475-qrg2-pj4r (high) — quadratic-time regex backtracking in the
+  # Unix directory-listing parser of Client.list(). Published 2026-10-01 and
+  # fixed only in 6.2.1, with no 5.x backport. Reached only through
+  # @puppeteer/browsers > proxy-agent > pac-proxy-agent > get-uri under the
+  # wdio chain; get-uri@6.0.5 still declares `basic-ftp: ^5.3.1`, so
+  # Dependabot opens no PR.
+  #
+  # devDependency only — `pnpm audit --prod` is clean — and the code path
+  # never runs: it fetches a PAC file over ftp://, and wdio never downloads a
+  # browser through a proxy here (see the socks entry below).
+  #
+  # Crossing the major is safe: 6.0.0's only breaking change refuses separate
+  # transfer hosts by default (FTP bounce hardening); the API get-uri calls
+  # is unchanged. Scoped to get-uri. Drop it once get-uri requires >= 6.2.1.
+  get-uri>basic-ftp: ^6.2.1
   # GHSA-3jxr-9vmj-r5cp, then GHSA-mh99-v99m-4gvg and GHSA-rgw5-rvv9-x895
   # (the latter bypasses the former's mitigation), backported to both lines
   # the wdio chain pulls in. Floors track the highest patched version of the
