@@ -5,6 +5,14 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.2](https://github.com/Upellift99/clavix/compare/v0.21.1...v0.21.2) (2026-10-03)
+
+
+### Bug Fixes
+
+* **deps-npm:** ignore unfixable braces advisory GHSA-vfj7-8cjw-p6xm ([#353](https://github.com/Upellift99/clavix/issues/353)) ([7003abd](https://github.com/Upellift99/clavix/commit/7003abd70d34d19c36d4a2700a0572fa60d825e8))
+* unblock CI after Rust 1.99 clippy and GHSA-c475-qrg2-pj4r ([#351](https://github.com/Upellift99/clavix/issues/351)) ([bd4b71c](https://github.com/Upellift99/clavix/commit/bd4b71ccbfcba2170771d3b50b783fa1ee789277))
+
 ## [0.21.1](https://github.com/Upellift99/clavix/compare/v0.21.0...v0.21.1) (2026-09-22)
 
 A dependency release. Nothing here changes what the application does — no IPC, storage or vault format changes — so 0.21.1 behaves exactly like 0.21.0 in daily use.
