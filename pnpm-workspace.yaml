@@ -155,6 +155,27 @@ auditConfig:
     # fetches or unpacks a browser. `pnpm audit --prod` remains clean.
     - GHSA-7pqw-9j4j-h8q3
 
+    # GHSA-vfj7-8cjw-p6xm (high) — braces: stack exhaustion through deeply
+    # nested brace patterns. Published 2026-09-18, surfaced by `pnpm audit`
+    # on 2026-10-03.
+    #
+    # Unfixable for the same reason as extract-zip: braces' newest version is
+    # 3.0.3 (2024-05-21), the advisory carries `first_patched_version: null`,
+    # and the ">=3.0.4" under "Patched versions" is a placeholder for a
+    # release that does not exist, so no override can clear it.
+    #
+    # Exposure is nil:
+    #   1. devDependency only; `pnpm audit --prod` is clean.
+    #   2. The single path is chokidar@3 <- mocha@10 <- @wdio/mocha-framework.
+    #      mocha only loads chokidar for `--watch`, and wdio drives mocha
+    #      programmatically without it; even then, the patterns braces would
+    #      expand are our own spec globs, never input.
+    #
+    # Drop this entry once @wdio/mocha-framework moves to mocha >= 12 (which
+    # depends on chokidar ^5, no braces), or braces ships a real fix.
+    # Re-check with `pnpm why braces`.
+    - GHSA-vfj7-8cjw-p6xm
+
 # pnpm 11 turned "ignored build scripts" from a warning into a hard install
 # error, so the answer has to be recorded explicitly or `pnpm install
 # --frozen-lockfile` exits 1. All three were already unbuilt under pnpm 10 and
