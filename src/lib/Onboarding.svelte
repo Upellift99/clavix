@@ -1,6 +1,6 @@
 <script lang="ts">
   import { openUrl } from "@tauri-apps/plugin-opener";
-  import * as m from "$lib/paraglide/messages";
+  import * as m from "#lib/paraglide/messages.js";
 
   const DISCLAIMER_URL = "https://github.com/Upellift99/clavix/blob/master/DISCLAIMER.md";
 

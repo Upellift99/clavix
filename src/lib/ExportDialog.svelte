@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as m from "$lib/paraglide/messages";
-  import { api } from "$lib/api";
+  import * as m from "#lib/paraglide/messages.js";
+  import { api } from "#lib/api.ts";
   import PasswordStrength from "./PasswordStrength.svelte";
   import { formatError } from "./format";
   import { serializeBitwardenCsv, type CsvExportRow } from "./csv";

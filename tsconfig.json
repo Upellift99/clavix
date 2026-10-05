@@ -11,8 +11,8 @@
     "strict": true,
     "moduleResolution": "bundler"
   },
-  // Path aliases, $lib included, are declared in the `alias` option of the
-  // sveltekit() plugin in vite.config.js.
+  // `#lib/*` is a Node subpath import declared in package.json `imports`;
+  // other path aliases go in the `alias` option of sveltekit() in vite.config.js.
   //
   // SvelteKit 3's base config no longer lists files: this reproduces the scope
   // SvelteKit 2 generated (sources, tests, the Vite config).

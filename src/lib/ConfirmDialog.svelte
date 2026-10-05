@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import * as m from "$lib/paraglide/messages";
+  import * as m from "#lib/paraglide/messages.js";
   import type { ConfirmRequest } from "./types";
 
   // Single in-app replacement for `window.confirm`. The native dialog

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import * as m from "$lib/paraglide/messages";
-  import { parseKeepassCsv, type KeepassEntry } from "$lib/csv";
-  import { api } from "$lib/api";
-  import { formatError } from "$lib/format";
-  import { exceedsEncryptedLimit } from "$lib/limits";
-  import { importIdentity } from "$lib/import";
+  import * as m from "#lib/paraglide/messages.js";
+  import { parseKeepassCsv, type KeepassEntry } from "#lib/csv.ts";
+  import { api } from "#lib/api.ts";
+  import { formatError } from "#lib/format.ts";
+  import { exceedsEncryptedLimit } from "#lib/limits.ts";
+  import { importIdentity } from "#lib/import.ts";
   import {
     EMPTY_CARD_FIELDS,
     EMPTY_EDITOR_INITIAL,
@@ -16,7 +16,7 @@
     type FolderSummary,
     type ImportedItem,
     type OrganizationSummary,
-  } from "$lib/types";
+  } from "#lib/types.ts";
 
   let {
     open,

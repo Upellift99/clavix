@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from "$lib/paraglide/messages";
+  import * as m from "#lib/paraglide/messages.js";
   import { providerLabel } from "./format";
 
   const TOTP_PATTERN = "[0-9]{6}";

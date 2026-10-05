@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from "$lib/paraglide/messages";
+  import * as m from "#lib/paraglide/messages.js";
   import Icon from "./Icon.svelte";
   import type { UpdateInfo } from "./types";
 

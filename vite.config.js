@@ -19,9 +19,6 @@ export default defineConfig(async () => ({
     // See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
     sveltekit({
       preprocess: vitePreprocess(),
-      // SvelteKit 3 replaced `$lib` with the `#lib` subpath import; this alias
-      // keeps the existing `$lib/...` imports working without a mass rename.
-      alias: { $lib: "src/lib" },
       adapter: adapter({
         fallback: "index.html",
       }),
