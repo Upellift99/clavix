@@ -1,5 +1,5 @@
 {
-  "extends": "./.svelte-kit/tsconfig.json",
+  "extends": "$app/tsconfig",
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
@@ -11,8 +11,18 @@
     "strict": true,
     "moduleResolution": "bundler"
   },
-  // Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
-  // except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
+  // Path aliases, $lib included, are declared in the `alias` option of the
+  // sveltekit() plugin in vite.config.js.
+  //
+  // SvelteKit 3's base config no longer lists files: this reproduces the scope
+  // SvelteKit 2 generated (sources, tests, the Vite config).
+  "include": [
+    "src",
+    "tests/**/*.js",
+    "tests/**/*.ts",
+    "tests/**/*.svelte",
+    "vite.config.js"
+  ],
   //
   // Tests are excluded from svelte-check so vitest can stay out of the default
   // install footprint; `pnpm test` installs it on demand / CI.
