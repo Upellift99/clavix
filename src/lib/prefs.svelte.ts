@@ -1,4 +1,4 @@
-import { getLocale, setLocale } from "$lib/paraglide/runtime";
+import { getLocale, setLocale } from "#lib/paraglide/runtime.js";
 import type { AutoLockTrigger, Locale, ThemePref } from "./types";
 
 const LOCALE_STORAGE_KEY = "clavix.locale";

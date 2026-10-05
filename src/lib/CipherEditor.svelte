@@ -1,10 +1,10 @@
 <script lang="ts">
-  import * as m from "$lib/paraglide/messages";
-  import QrScanner from "$lib/QrScanner.svelte";
-  import GeneratorDialog from "$lib/GeneratorDialog.svelte";
-  import PasswordStrength from "$lib/PasswordStrength.svelte";
-  import { api } from "$lib/api";
-  import type { Locale, PasswordStrength as Strength, TauriError } from "$lib/types";
+  import * as m from "#lib/paraglide/messages.js";
+  import QrScanner from "#lib/QrScanner.svelte";
+  import GeneratorDialog from "#lib/GeneratorDialog.svelte";
+  import PasswordStrength from "#lib/PasswordStrength.svelte";
+  import { api } from "#lib/api.ts";
+  import type { Locale, PasswordStrength as Strength, TauriError } from "#lib/types.ts";
 
   type FolderSummary = { id: string; name: string };
   type OrganizationSummary = { id: string; name: string };

@@ -1,48 +1,48 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import * as m from "$lib/paraglide/messages";
-  import CipherEditor from "$lib/CipherEditor.svelte";
-  import ImportDialog from "$lib/ImportDialog.svelte";
-  import ExportDialog from "$lib/ExportDialog.svelte";
-  import AuthGate from "$lib/AuthGate.svelte";
-  import Toolbar from "$lib/Toolbar.svelte";
-  import VaultSidebar from "$lib/VaultSidebar.svelte";
-  import CipherList from "$lib/CipherList.svelte";
-  import CipherDetail from "$lib/CipherDetail.svelte";
-  import ClipboardToast from "$lib/ClipboardToast.svelte";
-  import GeneratorDialog from "$lib/GeneratorDialog.svelte";
-  import StatsDialog from "$lib/StatsDialog.svelte";
-  import AuditDialog from "$lib/AuditDialog.svelte";
-  import AboutDialog from "$lib/AboutDialog.svelte";
-  import SshConfirmDialog from "$lib/SshConfirmDialog.svelte";
-  import ConfirmDialog from "$lib/ConfirmDialog.svelte";
-  import RepromptDialog from "$lib/RepromptDialog.svelte";
-  import UpdateBanner from "$lib/UpdateBanner.svelte";
-  import StandaloneBanner from "$lib/StandaloneBanner.svelte";
-  import { ClipboardController, type ClipboardVariant } from "$lib/clipboard.svelte";
-  import { DragController } from "$lib/drag.svelte";
-  import { AuthController } from "$lib/auth.svelte";
-  import { VaultController } from "$lib/vault.svelte";
+  import * as m from "#lib/paraglide/messages.js";
+  import CipherEditor from "#lib/CipherEditor.svelte";
+  import ImportDialog from "#lib/ImportDialog.svelte";
+  import ExportDialog from "#lib/ExportDialog.svelte";
+  import AuthGate from "#lib/AuthGate.svelte";
+  import Toolbar from "#lib/Toolbar.svelte";
+  import VaultSidebar from "#lib/VaultSidebar.svelte";
+  import CipherList from "#lib/CipherList.svelte";
+  import CipherDetail from "#lib/CipherDetail.svelte";
+  import ClipboardToast from "#lib/ClipboardToast.svelte";
+  import GeneratorDialog from "#lib/GeneratorDialog.svelte";
+  import StatsDialog from "#lib/StatsDialog.svelte";
+  import AuditDialog from "#lib/AuditDialog.svelte";
+  import AboutDialog from "#lib/AboutDialog.svelte";
+  import SshConfirmDialog from "#lib/SshConfirmDialog.svelte";
+  import ConfirmDialog from "#lib/ConfirmDialog.svelte";
+  import RepromptDialog from "#lib/RepromptDialog.svelte";
+  import UpdateBanner from "#lib/UpdateBanner.svelte";
+  import StandaloneBanner from "#lib/StandaloneBanner.svelte";
+  import { ClipboardController, type ClipboardVariant } from "#lib/clipboard.svelte.ts";
+  import { DragController } from "#lib/drag.svelte.ts";
+  import { AuthController } from "#lib/auth.svelte.ts";
+  import { VaultController } from "#lib/vault.svelte.ts";
   import {
     DETAIL_HEIGHT_MAX,
     DETAIL_HEIGHT_MIN,
     PrefsController,
     TREE_WIDTH_MAX,
     TREE_WIDTH_MIN,
-  } from "$lib/prefs.svelte";
-  import { api } from "$lib/api";
-  import { setupAutoLock } from "$lib/auto-lock.svelte";
-  import { setupAutoSync } from "$lib/auto-sync.svelte";
-  import { formatError } from "$lib/format";
-  import { startSplitterDrag } from "$lib/splitter";
-  import { makeVaultKeyHandler } from "$lib/keyboard";
+  } from "#lib/prefs.svelte.ts";
+  import { api } from "#lib/api.ts";
+  import { setupAutoLock } from "#lib/auto-lock.svelte.ts";
+  import { setupAutoSync } from "#lib/auto-sync.svelte.ts";
+  import { formatError } from "#lib/format.ts";
+  import { startSplitterDrag } from "#lib/splitter.ts";
+  import { makeVaultKeyHandler } from "#lib/keyboard.ts";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type {
     CipherDetail as CipherDetailData,
     CipherSummary,
     ConfirmFn,
     UpdateInfo,
-  } from "$lib/types";
+  } from "#lib/types.ts";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
   const prefs = new PrefsController();

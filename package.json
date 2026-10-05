@@ -4,6 +4,9 @@
   "description": "Client desktop moderne pour Vaultwarden/Bitwarden",
   "type": "module",
   "packageManager": "pnpm@11.21.0",
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",

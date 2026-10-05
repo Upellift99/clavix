@@ -1,6 +1,6 @@
 <script lang="ts">
   import { openUrl } from "@tauri-apps/plugin-opener";
-  import * as m from "$lib/paraglide/messages";
+  import * as m from "#lib/paraglide/messages.js";
   import { api } from "./api";
   import Icon from "./Icon.svelte";
   import type { Locale, UpdateInfo } from "./types";

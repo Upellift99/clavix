@@ -1,6 +1,6 @@
 <script lang="ts">
-  import * as m from "$lib/paraglide/messages";
-  import { api } from "$lib/api";
+  import * as m from "#lib/paraglide/messages.js";
+  import { api } from "#lib/api.ts";
 
   // The TOTP secret stays in Rust; we ask the backend for the current code
   // once a second. `id` is the cipher id.

@@ -1,4 +1,4 @@
-import * as m from "$lib/paraglide/messages";
+import * as m from "#lib/paraglide/messages.js";
 import type { CipherSummary, StoredAccount } from "./types";
 
 export function formatError(e: unknown): string {
