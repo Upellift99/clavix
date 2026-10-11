@@ -87,7 +87,9 @@ export async function syncAndWaitForRow(name) {
 export async function showAllItems() {
   await browser.waitUntil(
     async () => {
-      if (await (await $(".cipher-row")).isExisting()) return true;
+      // `$$`, not `$`: any number of rows clears the gate, and wdio 10's
+      // strict `$` throws as soon as there is more than one.
+      if ((await $$(".cipher-row").length) > 0) return true;
       const showAll = await $(".empty-state button");
       if (await showAll.isExisting()) {
         await showAll.click();
