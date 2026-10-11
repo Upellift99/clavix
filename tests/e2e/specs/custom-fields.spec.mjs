@@ -189,7 +189,9 @@ describe("Custom fields", () => {
     }
 
     // Touch something else entirely, then save.
-    const favorite = await editor.$(".checkbox-row input[type='checkbox']");
+    // Two checkbox rows: favourite first, then the master-password
+    // reprompt — which must stay off, or the save below changes meaning.
+    const favorite = await editor.$$(".checkbox-row input[type='checkbox']")[0];
     await favorite.click();
     await editor.$('button[type="submit"]').click();
     await editor.waitForExist({ reverse: true, timeout: 20_000 });
