@@ -83,7 +83,7 @@ export const config = {
       // anything else without a vendor prefix is forwarded to the driver as a
       // W3C capability and rejected.
       "wdio:maxInstances": 1,
-      // WebdriverIO v9 negotiates WebDriver BiDi by default, asking for
+      // WebdriverIO (v9 and later) negotiates WebDriver BiDi by default, asking for
       // `webSocketUrl: true` in the session request. tauri-driver proxies to
       // WebKitWebDriver, which implements classic WebDriver only and fails the
       // session on the unknown capability. Pin the session to classic.
