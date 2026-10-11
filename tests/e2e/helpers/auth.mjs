@@ -67,7 +67,12 @@ export async function loginAsSeededUser() {
  * that was never going to appear.
  */
 export async function syncAndWaitForRow(name) {
-  const syncButton = await $(".toolbar .tb-btn");
+  // Sync is the first button of the first toolbar group. Its label moves
+  // with the sync state (sync / resync / syncing), so position is the
+  // stable handle — and `$` must match exactly one element since wdio 10.
+  const syncButton = await $(
+    ".toolbar .tb-group:first-child .tb-btn:first-child",
+  );
   await syncButton.waitForClickable({ timeout: 15_000 });
   await syncButton.click();
   await showAllItems();
