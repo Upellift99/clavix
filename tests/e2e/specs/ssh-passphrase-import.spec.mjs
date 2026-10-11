@@ -34,6 +34,10 @@ import { loginAsSeededUser } from "../helpers/auth.mjs";
 const PASSPHRASE = "test-passphrase-do-not-use";
 const ITEM_NAME_OK = "E2E SSH ▸ encrypted import";
 const ITEM_NAME_ECDSA = "E2E SSH ▸ ecdsa rejection";
+// The cipher-type selector is the first field of the create form. A bare
+// "select" also matches the owner / collection / folder selectors below
+// it, which wdio 10's strict `$` rejects instead of taking the first.
+const TYPE_SELECT = "form > label:first-child select";
 
 // WDIO's `setValue` types a multi-line PEM character-by-character via
 // the WebDriver protocol; the leading `-----BEGIN OPENSSH PRIVATE KEY-----`
@@ -108,7 +112,7 @@ describe("Import an encrypted SSH key", () => {
     // Switch the type selector to "Clé SSH" (kind=5). The visible-text
     // form is the most stable selector — option indices would silently
     // drift if a future cipher type is added.
-    const typeSelect = await editor.$("select");
+    const typeSelect = await editor.$(TYPE_SELECT);
     await typeSelect.selectByVisibleText("🔑 Clé SSH");
 
     const nameInput = await editor.$('input[type="text"][required]');
@@ -235,7 +239,7 @@ describe("Import an encrypted SSH key", () => {
     const editor = await $(".editor-panel");
     await editor.waitForDisplayed({ timeout: 10_000 });
 
-    const typeSelect = await editor.$("select");
+    const typeSelect = await editor.$(TYPE_SELECT);
     await typeSelect.selectByVisibleText("🔑 Clé SSH");
 
     const nameInput = await editor.$('input[type="text"][required]');
