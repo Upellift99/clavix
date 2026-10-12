@@ -305,7 +305,7 @@
   "columns_label": "Columns",
   "columns_chooser_title": "Visible columns",
   "detail_item_id": "Item #{id}",
-  "detail_organization": "Organization: {name}",
+  "detail_location": "Location",
   "detail_section_credentials": "Credentials",
   "detail_section_urls": "URLs",
   "detail_section_security": "Security",

@@ -762,7 +762,9 @@
                 <CipherDetail
                   detail={vault.detail}
                   summaryEntry={vault.detailSummaryEntry}
+                  folders={vault.summary.folders}
                   organizations={vault.summary.organizations}
+                  collections={vault.summary.collections}
                   onCopy={copyToClipboard}
                   onClose={() => vault.closeDetail()}
                   onEdit={async () => {
