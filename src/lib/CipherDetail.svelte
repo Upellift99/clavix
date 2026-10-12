@@ -6,10 +6,13 @@
   import { api } from "./api";
   import { cipherTypeLabel, formatBytes } from "./format";
   import { ATTACHMENT_MAX_BYTES } from "./limits";
+  import { cipherLocations } from "./tree";
   import type {
     CipherDetail,
     CipherSummary,
+    CollectionSummary,
     ConfirmFn,
+    FolderSummary,
     OrganizationSummary,
     PasswordHistoryEntry,
     PasswordStrength as Strength,
@@ -18,7 +21,9 @@
   type Props = {
     detail: CipherDetail;
     summaryEntry: CipherSummary | null;
+    folders: FolderSummary[];
     organizations: OrganizationSummary[];
+    collections: CollectionSummary[];
     onCopy: (value: string, label: string) => Promise<void> | void;
     onClose: () => void;
     onEdit: () => void;
@@ -44,7 +49,9 @@
   let {
     detail,
     summaryEntry,
+    folders,
     organizations,
+    collections,
     onCopy,
     onClose,
     onEdit,
@@ -260,11 +267,7 @@
   });
 
   const isDeleted = $derived(summaryEntry?.deletedDate ?? null);
-  const orgName = $derived(
-    detail.organizationId
-      ? (organizations.find((o) => o.id === detail.organizationId)?.name ?? "?")
-      : null,
-  );
+  const locations = $derived(cipherLocations(detail, folders, organizations, collections));
 
   /**
    * Classify a single character of a revealed password so the CSS can
@@ -380,9 +383,24 @@
 
 <section class="box cipher-detail">
   <header class="detail-header">
-    <div class="detail-title">
-      <span class="badge">{cipherTypeLabel(detail.kind)}</span>
-      <h2>{detail.name}</h2>
+    <div class="detail-heading">
+      <div class="detail-title">
+        <span class="badge">{cipherTypeLabel(detail.kind)}</span>
+        <h2>{detail.name}</h2>
+      </div>
+      <!-- Under the name, not in the footer: two items with the same
+           name differ by nothing else, and the footer is below the fold
+           on anything longer than a bare login. -->
+      <ul class="detail-location" aria-label={m.detail_location()}>
+        {#each locations as location}
+          <li>
+            <Icon name={location.kind === "folder" ? "folder" : "building"} size={12} />
+            {location.segments.join(" › ")}
+          </li>
+        {:else}
+          <li>{m.bulk_no_folder()}</li>
+        {/each}
+      </ul>
     </div>
     <div class="row">
       {#if readOnly}
@@ -718,8 +736,5 @@
 
   <p class="hint detail-footer">
     {m.detail_item_id({ id: detail.id.slice(0, 8) })}
-    {#if orgName}
-      · {m.detail_organization({ name: orgName })}
-    {/if}
   </p>
 </section>

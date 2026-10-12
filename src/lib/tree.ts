@@ -1,4 +1,5 @@
 import type {
+  CipherDetail,
   CipherSummary,
   CollectionSummary,
   FolderSummary,
@@ -257,4 +258,46 @@ export function buildOrgTrees(
     sortTree(root);
     return root;
   });
+}
+
+export type CipherLocation = {
+  kind: "folder" | "collection";
+  /** Path from the top, outermost first. A collection's path starts with
+      its organization. */
+  segments: string[];
+};
+
+/**
+ * Where an item is filed, spelled out for display: its personal folder,
+ * then every collection that holds it. Two items with the same name are
+ * told apart by this and nothing else.
+ *
+ * Ids the vault doesn't know (a folder deleted since the last sync, a
+ * collection the user can't see) are left out rather than shown as "?":
+ * an item whose every id is unknown reads as unfiled, which is how the
+ * sidebar already treats it.
+ */
+export function cipherLocations(
+  cipher: Pick<CipherDetail, "folderId" | "organizationId" | "collectionIds">,
+  folders: FolderSummary[],
+  organizations: OrganizationSummary[],
+  collections: CollectionSummary[],
+): CipherLocation[] {
+  const locations: CipherLocation[] = [];
+
+  const folder = cipher.folderId ? folders.find((f) => f.id === cipher.folderId) : undefined;
+  if (folder) locations.push({ kind: "folder", segments: splitPath(folder.name) });
+
+  const org = cipher.organizationId
+    ? organizations.find((o) => o.id === cipher.organizationId)
+    : undefined;
+  if (org) {
+    const held = collections.filter((c) => cipher.collectionIds.includes(c.id));
+    if (held.length === 0) locations.push({ kind: "collection", segments: [org.name] });
+    for (const c of held) {
+      locations.push({ kind: "collection", segments: [org.name, ...splitPath(c.name)] });
+    }
+  }
+
+  return locations;
 }

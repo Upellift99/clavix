@@ -5,6 +5,7 @@ import {
   buildCipherIndex,
   buildFolderTree,
   buildOrgTrees,
+  cipherLocations,
   collectAllKeys,
   collectCollectionIds,
   collectFolderIds,
@@ -299,5 +300,55 @@ describe("computeCollectionCounts", () => {
     );
     expect(org.itemCount).toBe(42); // org root untouched
     expect(org.children[0].itemCount).toBe(3);
+  });
+});
+
+describe("cipherLocations", () => {
+  const folders = [
+    { id: "f1", name: "Work/Sites/Client A" },
+    { id: "f2", name: "Personal" },
+  ];
+  const organizations = [{ id: "o1", name: "Acme" }];
+  const collections = [
+    { id: "c1", organizationId: "o1", name: "Infra/Prod" },
+    { id: "c2", organizationId: "o1", name: "Shared" },
+  ];
+  const locate = (c: Parameters<typeof cipherLocations>[0]) =>
+    cipherLocations(c, folders, organizations, collections);
+
+  it("spells out a nested folder outermost first", () => {
+    expect(locate({ folderId: "f1", organizationId: null, collectionIds: [] })).toEqual([
+      { kind: "folder", segments: ["Work", "Sites", "Client A"] },
+    ]);
+  });
+
+  it("tells two same-named items apart by their folder", () => {
+    const a = locate({ folderId: "f1", organizationId: null, collectionIds: [] });
+    const b = locate({ folderId: "f2", organizationId: null, collectionIds: [] });
+    expect(a).not.toEqual(b);
+  });
+
+  it("prefixes each collection with its organization", () => {
+    expect(locate({ folderId: null, organizationId: "o1", collectionIds: ["c1", "c2"] })).toEqual([
+      { kind: "collection", segments: ["Acme", "Infra", "Prod"] },
+      { kind: "collection", segments: ["Acme", "Shared"] },
+    ]);
+  });
+
+  it("lists the personal folder before the collections of a shared item", () => {
+    expect(
+      locate({ folderId: "f2", organizationId: "o1", collectionIds: ["c2"] }).map((l) => l.kind),
+    ).toEqual(["folder", "collection"]);
+  });
+
+  it("falls back to the organization alone when no collection is known", () => {
+    expect(locate({ folderId: null, organizationId: "o1", collectionIds: ["gone"] })).toEqual([
+      { kind: "collection", segments: ["Acme"] },
+    ]);
+  });
+
+  it("is empty for an unfiled item or an unknown folder", () => {
+    expect(locate({ folderId: null, organizationId: null, collectionIds: [] })).toEqual([]);
+    expect(locate({ folderId: "gone", organizationId: null, collectionIds: [] })).toEqual([]);
   });
 });

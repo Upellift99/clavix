@@ -37,6 +37,27 @@
   flex-wrap: wrap;
 }
 
+.detail-heading {
+  min-width: 0;
+}
+
+.detail-location {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.9rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.detail-location li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 .detail-header h2 {
   margin: 0;
   font-size: 1.05rem;
@@ -245,6 +266,7 @@
   }
   .notes { color: #d1d5db; }
   .detail-footer { color: #9ca3af; }
+  .detail-location { color: #9ca3af; }
 }
 
 :root.force-dark .detail-header { border-bottom-color: #2e3a52; }
@@ -267,6 +289,7 @@
 }
 :root.force-dark .notes { color: #d1d5db; }
 :root.force-dark .detail-footer { color: #9ca3af; }
+:root.force-dark .detail-location { color: #9ca3af; }
 
 /* ---------------------------------------------------------------------
    Attachments, password history and the "no value" custom field.
