@@ -144,6 +144,12 @@ The socket lives under `/run`, so it disappears on reboot and is
 recreated when Clavix starts. A `Connection refused` on that path means
 Clavix isn't running, not that your config is wrong.
 
+On macOS there is no `$XDG_RUNTIME_DIR`, so the socket falls back to the
+cache directory: `~/Library/Caches/clavix/agent.sock`. Use that path in
+both snippets above (`IdentityAgent ~/Library/Caches/clavix/agent.sock`,
+`export SSH_AUTH_SOCK="$HOME/Library/Caches/clavix/agent.sock"` in
+`~/.zshrc`).
+
 ### Windows
 
 Nothing to set up: there is no `SSH_AUTH_SOCK` story here, and no
