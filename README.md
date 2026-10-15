@@ -372,6 +372,14 @@ clavix/
   targets the cloud's split `api.` / `identity.` endpoints. Cloud login,
   sync and item creation are verified, but it remains alpha: Vaultwarden
   is the primary target and gets the most testing.
+- Release bundles carry a **build provenance attestation** (from
+  releases made after this was added): a Sigstore-signed statement that
+  the file was built by this repository's release workflow from the
+  tagged commit. Check a download with
+  `gh attestation verify <file> --repo Upellift99/clavix`. It proves
+  where the binary came from, not that the code is free of bugs, and it
+  is not OS code signing: macOS Gatekeeper and Windows SmartScreen still
+  warn on first launch.
 - Security review notes live in [SECURITY.md](SECURITY.md),
   [THREAT_MODEL.md](THREAT_MODEL.md), [CRYPTO.md](CRYPTO.md), and
   [AUDIT_SCOPE.md](AUDIT_SCOPE.md).
