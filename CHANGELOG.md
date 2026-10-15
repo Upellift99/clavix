@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.1](https://github.com/Upellift99/clavix/compare/v0.22.0...v0.22.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps-rust:** raise rustls to 0.23.46 past RUSTSEC-2026-0346..0349 ([#376](https://github.com/Upellift99/clavix/issues/376)) ([4c115d3](https://github.com/Upellift99/clavix/commit/4c115d333a614c9eea70d68a50c4dd23ace35103))
+
 ## [0.22.0](https://github.com/Upellift99/clavix/compare/v0.21.2...v0.22.0) (2026-10-12)
 
 
