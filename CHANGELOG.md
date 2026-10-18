@@ -5,6 +5,15 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.2](https://github.com/Upellift99/clavix/compare/v0.22.1...v0.22.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* **api:** survive Vaultwarden 1.37.4 — send encryptedFor, prelogin via identity ([#379](https://github.com/Upellift99/clavix/issues/379)) ([248e4fc](https://github.com/Upellift99/clavix/commit/248e4fcd35c108817b85b14cfcb432a38fc5722a))
+
+  Vaultwarden 1.37.4 (2026-10-05) removed two legacy compatibility paths Clavix relied on. Saving or creating any item failed with `Erreur HTTP 422 : <!DOCTYPE html>… Rocket`, because every cipher write now has to carry `encryptedFor`; and a fresh login would have answered 404, because `/api/accounts/prelogin` is gone (a persisted session hid that half). Both are fixed; Clavix 0.22.1 and older cannot write to a Vaultwarden 1.37.4 or newer, so update if your server has moved.
+
 ## [0.22.1](https://github.com/Upellift99/clavix/compare/v0.22.0...v0.22.1) (2026-10-15)
 
 
