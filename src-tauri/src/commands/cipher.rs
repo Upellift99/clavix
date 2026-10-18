@@ -335,7 +335,7 @@ pub async fn create_login_cipher(
     let (client, access_token, body) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        let body = build_login_cipher_body(&input, &s.user_key)?;
+        let body = build_login_cipher_body(&input, &s.user_key, &s.user_id()?)?;
         (s.client()?.clone(), s.access_token()?.to_string(), body)
     };
     let created = client.create_cipher(&access_token, &body).await?;
@@ -360,7 +360,7 @@ pub async fn update_login_cipher(
     let (client, access_token, body) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
-        let body = build_login_cipher_body(&input, &s.user_key)?;
+        let body = build_login_cipher_body(&input, &s.user_key, &s.user_id()?)?;
         (s.client()?.clone(), s.access_token()?.to_string(), body)
     };
     let updated = client
@@ -398,18 +398,19 @@ pub async fn create_cipher(state: State<'_, AppState>, input: CipherCreateInput)
     let (client, access_token, kind) = {
         let guard = state.session.lock();
         let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        let encrypted_for = s.user_id()?;
         let kind = match input.organization_id.as_deref() {
             Some(org_id) => {
                 let org_key = s.org_keys.get(org_id).ok_or_else(|| Error::Crypto {
                     reason: format!("no key available for organization {org_id}"),
                 })?;
-                let cipher_body = build_cipher_body(&input, org_key)?;
+                let cipher_body = build_cipher_body(&input, org_key, &encrypted_for)?;
                 CreateKind::Org {
                     cipher: cipher_body,
                     collection_ids: input.collection_ids.clone(),
                 }
             }
-            None => CreateKind::Personal(build_cipher_body(&input, &s.user_key)?),
+            None => CreateKind::Personal(build_cipher_body(&input, &s.user_key, &encrypted_for)?),
         };
         (s.client()?.clone(), s.access_token()?.to_string(), kind)
     };
@@ -481,14 +482,16 @@ pub async fn update_cipher(
         // `build_update_cipher_body`, not `build_cipher_body`: the PUT
         // replaces the server's copy wholesale, so the password history
         // has to be carried across explicitly or it is deleted.
+        let encrypted_for = s.user_id()?;
         let mut body = match existing {
             Some(cipher) => build_update_cipher_body(
                 &bound_input,
                 key,
+                &encrypted_for,
                 cipher,
                 &clavix_core::time::now_iso8601(),
             )?,
-            None => build_cipher_body(&bound_input, key)?,
+            None => build_cipher_body(&bound_input, key, &encrypted_for)?,
         };
         if let Some(wrapped) = existing_item_key {
             body.as_object_mut()
@@ -551,7 +554,7 @@ pub async fn duplicate_cipher(
         // its own — `build_cipher_body` encrypts every field with the key
         // we hand it, and no `key` in the body means the server stores the
         // fields exactly that way.
-        let body = build_cipher_body(&input, owner)?;
+        let body = build_cipher_body(&input, owner, &s.user_id()?)?;
         let kind = if cipher.organization_id.is_some() {
             CreateKind::Org {
                 cipher: body,

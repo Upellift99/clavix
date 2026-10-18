@@ -24,6 +24,7 @@ use clavix_core::crypto::{
     derive_master_password_hash, encrypt_buffer, encrypt_cipher_key, encrypt_string, SymmetricKey,
 };
 use clavix_core::models::{CipherCreateInput, LoginInput, LoginResult};
+use clavix_core::services::auth::jwt_subject;
 use clavix_core::services::cipher::build_cipher_body;
 use secrecy::SecretString;
 
@@ -44,6 +45,8 @@ struct Session {
     client: VaultwardenClient,
     access_token: String,
     user_key: SymmetricKey,
+    /// What every cipher body has to carry as `encryptedFor`.
+    user_id: String,
 }
 
 async fn login() -> Session {
@@ -74,10 +77,12 @@ async fn login() -> Session {
         tokens.key.as_deref().expect("login response carries a key"),
     )
     .expect("user key");
+    let user_id = jwt_subject(&tokens.access_token).expect("access token names the user");
     Session {
         client,
         access_token: tokens.access_token.clone(),
         user_key,
+        user_id,
     }
 }
 
@@ -108,7 +113,7 @@ async fn attachment_survives_upload_and_download() {
         fields: vec![],
         reprompt: false,
     };
-    let body = build_cipher_body(&input, &session.user_key).expect("cipher body");
+    let body = build_cipher_body(&input, &session.user_key, &session.user_id).expect("cipher body");
     let cipher = session
         .client
         .create_cipher(&session.access_token, &body)
@@ -299,7 +304,7 @@ async fn fields_reprompt_and_history_survive_a_write() {
         .client
         .create_cipher(
             &session.access_token,
-            &build_cipher_body(&input, &session.user_key).expect("create body"),
+            &build_cipher_body(&input, &session.user_key, &session.user_id).expect("create body"),
         )
         .await
         .expect("create cipher");
@@ -322,6 +327,7 @@ async fn fields_reprompt_and_history_survive_a_write() {
     let body = build_update_cipher_body(
         &input,
         &session.user_key,
+        &session.user_id,
         &created,
         "2026-08-03T10:00:00.000Z",
     )

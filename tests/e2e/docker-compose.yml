@@ -1,6 +1,6 @@
 services:
   vaultwarden:
-    image: vaultwarden/server:1.35.7-alpine
+    image: vaultwarden/server:1.37.4-alpine
     container_name: clavix-e2e-vaultwarden
     environment:
       DOMAIN: http://127.0.0.1:8765
@@ -18,7 +18,11 @@ services:
     tmpfs:
       - /data
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/alive"]
+      # 127.0.0.1, not localhost: since 1.37.x the Alpine image resolves
+      # localhost to ::1 first and Rocket listens on IPv4 only, so the
+      # name-based probe is refused forever and the container never
+      # turns healthy even though the port answers.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/alive"]
       interval: 2s
       timeout: 2s
       retries: 30

@@ -52,6 +52,7 @@ use clavix_core::models::{
     CardInput, CipherCreateInput, IdentityInput, KdfType, LoginInput, LoginResult, SshKeyInput,
     TwoFactorProvider,
 };
+use clavix_core::services::auth::jwt_subject;
 use clavix_core::services::cipher::build_cipher_body;
 
 // Must match PASSWORD_ITERATIONS in tests/e2e/docker-compose.yml. Short
@@ -115,7 +116,6 @@ async fn main() -> Result<()> {
     // --- register on Vaultwarden (idempotent: 400 = user already exists) ---
     let http = reqwest::Client::new();
     let base = server_url.trim_end_matches('/');
-    let register_url = format!("{base}/identity/accounts/register");
     let body = json!({
         "email": email,
         "name": "E2E User",
@@ -130,16 +130,7 @@ async fn main() -> Result<()> {
         "kdfIterations": KDF_ITERATIONS,
         "referenceData": null,
     });
-    let resp = http.post(&register_url).json(&body).send().await?;
-    let status = resp.status();
-    if !status.is_success() && status.as_u16() != 400 {
-        let text = resp.text().await.unwrap_or_default();
-        return Err(Error::HttpStatus {
-            status: status.as_u16(),
-            message: format!("register: {text}"),
-        });
-    }
-    eprintln!("[seed] registered {email} on {base} ({status})");
+    register_account(&http, base, &email, "E2E User", body).await?;
 
     // --- login via the real client to pick up access_token + server-stored key ---
     let client = VaultwardenClient::new(&server_url)?;
@@ -300,7 +291,6 @@ async fn seed_two_factor_account(
         .map_err(|e| crypto_err(format!("export 2FA user RSA public key: {e}")))?;
     let public_key_b64 = STANDARD.encode(public_key_spki.as_bytes());
 
-    let register_url = format!("{base}/identity/accounts/register");
     let body = json!({
         "email": TWO_FA_EMAIL,
         "name": "E2E 2FA User",
@@ -315,16 +305,7 @@ async fn seed_two_factor_account(
         "kdfIterations": KDF_ITERATIONS,
         "referenceData": null,
     });
-    let resp = http.post(&register_url).json(&body).send().await?;
-    let status = resp.status();
-    if !status.is_success() && status.as_u16() != 400 {
-        let text = resp.text().await.unwrap_or_default();
-        return Err(Error::HttpStatus {
-            status: status.as_u16(),
-            message: format!("register 2FA user: {text}"),
-        });
-    }
-    eprintln!("[seed] registered {TWO_FA_EMAIL} on {base} ({status})");
+    register_account(http, base, TWO_FA_EMAIL, "E2E 2FA User", body).await?;
 
     let client = VaultwardenClient::new(server_url)?;
     let device = DeviceInfo {
@@ -651,7 +632,7 @@ async fn seed_personal(
     user_key: &SymmetricKey,
     input: CipherCreateInput,
 ) -> Result<String> {
-    let body = build_cipher_body(&input, user_key)?;
+    let body = build_cipher_body(&input, user_key, &user_id_of(access_token)?)?;
     let cipher = client.create_cipher(access_token, &body).await?;
     Ok(cipher.id)
 }
@@ -665,13 +646,76 @@ async fn seed_org_cipher(
     collection_ids: &[String],
 ) -> Result<String> {
     input.organization_id = Some(org_id.into());
-    let cipher_body = build_cipher_body(&input, org_key)?;
+    let cipher_body = build_cipher_body(&input, org_key, &user_id_of(access_token)?)?;
     let wrapped = json!({
         "cipher": cipher_body,
         "collectionIds": collection_ids,
     });
     let cipher = client.create_org_cipher(access_token, &wrapped).await?;
     Ok(cipher.id)
+}
+
+/// Create an account the way the web vault does since Vaultwarden 1.37:
+/// ask for an email-verification token first, then finish the
+/// registration with it. With no SMTP configured (the E2E container) the
+/// first call hands the token straight back instead of mailing it.
+///
+/// A server that still answers 404 on that first call predates the flow,
+/// so the legacy single-shot `register` endpoint is used instead; the
+/// seed stays runnable against whatever a developer has at hand.
+///
+/// Idempotent either way: an account that already exists comes back as
+/// 400 ("user already exists") from the final call, which is fine.
+async fn register_account(
+    http: &reqwest::Client,
+    base: &str,
+    email: &str,
+    name: &str,
+    mut body: Value,
+) -> Result<()> {
+    let verify_url = format!("{base}/identity/accounts/register/send-verification-email");
+    let verify = http
+        .post(&verify_url)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .json(&json!({ "email": email, "name": name }))
+        .send()
+        .await?;
+    let register_url = match verify.status().as_u16() {
+        404 => format!("{base}/identity/accounts/register"),
+        status if verify.status().is_success() => {
+            let token: String = verify.json().await.map_err(|e| Error::InvalidResponse {
+                reason: format!("register verification token ({status}): {e}"),
+            })?;
+            body["emailVerificationToken"] = json!(token);
+            format!("{base}/identity/accounts/register/finish")
+        }
+        status => {
+            let text = verify.text().await.unwrap_or_default();
+            return Err(Error::HttpStatus {
+                status,
+                message: format!("register {email}, verification step: {text}"),
+            });
+        }
+    };
+
+    let resp = http.post(&register_url).json(&body).send().await?;
+    let status = resp.status();
+    if !status.is_success() && status.as_u16() != 400 {
+        let text = resp.text().await.unwrap_or_default();
+        return Err(Error::HttpStatus {
+            status: status.as_u16(),
+            message: format!("register {email}: {text}"),
+        });
+    }
+    eprintln!("[seed] registered {email} on {base} ({status})");
+    Ok(())
+}
+
+/// The `encryptedFor` value for a write made with `access_token`.
+fn user_id_of(access_token: &str) -> Result<String> {
+    jwt_subject(access_token).ok_or_else(|| Error::AuthFailed {
+        message: "access token carries no user id (missing `sub` claim)".into(),
+    })
 }
 
 // --- CipherCreateInput factories ------------------------------------

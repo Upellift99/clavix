@@ -322,6 +322,7 @@ pub async fn share_cipher_to_collection(
             target_key,
             &target_org_id,
             std::slice::from_ref(&collection_id),
+            &session.user_id()?,
         )?;
 
         (
