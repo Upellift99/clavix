@@ -146,9 +146,18 @@ fn encrypt_fields(
         .collect()
 }
 
+/// The request body for a cipher write, encrypted under `key`.
+///
+/// `encrypted_for` is the id of the signed-in user (`Session::user_id`),
+/// whatever key the item itself is written with — an org item is still
+/// encrypted *for* the person saving it. Vaultwarden 1.37.4 made the
+/// field mandatory on every cipher write and checks it against the
+/// bearer token; a body without it never reaches the handler and comes
+/// back as Rocket's bare HTML 422 page.
 pub fn build_cipher_body(
     input: &CipherCreateInput,
     key: &SymmetricKey,
+    encrypted_for: &str,
 ) -> Result<serde_json::Value> {
     let name_enc = encrypt_string(&input.name, key)?;
     let notes_enc = enc_opt_raw(input.notes.as_deref(), key)?;
@@ -160,6 +169,7 @@ pub fn build_cipher_body(
         "folderId": input.folder_id,
         "favorite": input.favorite,
         "organizationId": input.organization_id,
+        "encryptedFor": encrypted_for,
         "fields": encrypt_fields(&input.fields, key)?,
         "reprompt": u8::from(input.reprompt),
     });
@@ -210,12 +220,13 @@ pub fn build_cipher_body(
 pub fn build_login_cipher_body(
     input: &CipherCreateInput,
     key: &SymmetricKey,
+    encrypted_for: &str,
 ) -> Result<serde_json::Value> {
     // Force Login type so an older frontend that omits `cipher_type`
     // still ends up creating a Login.
     let mut input = input.clone();
     input.cipher_type = 1;
-    build_cipher_body(&input, key)
+    build_cipher_body(&input, key, encrypted_for)
 }
 
 /// The body for an update (PUT /ciphers/{id}), which is `build_cipher_body`
@@ -237,10 +248,11 @@ pub fn build_login_cipher_body(
 pub fn build_update_cipher_body(
     input: &CipherCreateInput,
     key: &SymmetricKey,
+    encrypted_for: &str,
     existing: &Cipher,
     now: &str,
 ) -> Result<serde_json::Value> {
-    let mut body = build_cipher_body(input, key)?;
+    let mut body = build_cipher_body(input, key, encrypted_for)?;
 
     let mut history: Vec<serde_json::Value> = existing
         .password_history
@@ -397,13 +409,15 @@ pub fn validate_move_to_collection(
 /// encrypted field of `cipher` from `source_key` to `target_key` and
 /// returns a JSON value ready to hand to the API client. `folderId` is
 /// intentionally dropped — a folder is personal by nature and does not
-/// follow the cipher into the target organization.
+/// follow the cipher into the target organization. `encrypted_for` is the
+/// signed-in user's id, see [`build_cipher_body`].
 pub fn build_share_cipher_body(
     cipher: &Cipher,
     source_key: &SymmetricKey,
     target_key: &SymmetricKey,
     target_org_id: &str,
     collection_ids: &[String],
+    encrypted_for: &str,
 ) -> Result<serde_json::Value> {
     // An item with its own key moves without touching its fields: they are
     // encrypted under the item key, which travels with the item. Only the
@@ -546,6 +560,7 @@ pub fn build_share_cipher_body(
         "name": name,
         "notes": notes,
         "organizationId": target_org_id,
+        "encryptedFor": encrypted_for,
         "folderId": serde_json::Value::Null,
         "favorite": cipher.favorite,
         // The share PUT has replace semantics and the server clears any
@@ -702,8 +717,15 @@ mod tests {
             }]),
         });
 
-        let body =
-            build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let body = build_share_cipher_body(
+            &cipher,
+            &user,
+            &org,
+            "org-1",
+            &["col-1".into()],
+            "user-uuid",
+        )
+        .unwrap();
         let c = &body["cipher"];
 
         // The wrapped key travels, rewrapped under the org key, and unwraps
@@ -732,8 +754,15 @@ mod tests {
         let org = other_test_key();
         let cipher = base_cipher(CipherType::Login, &user);
 
-        let body =
-            build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let body = build_share_cipher_body(
+            &cipher,
+            &user,
+            &org,
+            "org-1",
+            &["col-1".into()],
+            "user-uuid",
+        )
+        .unwrap();
         let c = &body["cipher"];
 
         assert!(c["key"].is_null());
@@ -774,8 +803,15 @@ mod tests {
             password: Some(encrypt_string("old-pass", &user).unwrap()),
         }]);
 
-        let body =
-            build_share_cipher_body(&cipher, &user, &org, "org-1", &["col-1".into()]).unwrap();
+        let body = build_share_cipher_body(
+            &cipher,
+            &user,
+            &org,
+            "org-1",
+            &["col-1".into()],
+            "user-uuid",
+        )
+        .unwrap();
         let c = &body["cipher"];
 
         let f = &c["fields"][0];
@@ -806,7 +842,7 @@ mod tests {
             uris: vec!["https://example.com".into(), "".into()],
             totp: None,
         });
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         assert_eq!(body["type"], 1);
         assert!(body["name"].as_str().unwrap().starts_with("2."));
         let login = &body["login"];
@@ -823,7 +859,7 @@ mod tests {
     fn secure_note_body_carries_sub_type_and_no_login() {
         let mut input = base_input();
         input.cipher_type = 2;
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         assert_eq!(body["type"], 2);
         assert_eq!(body["secureNote"]["type"], 0);
         assert!(body.get("login").is_none());
@@ -841,7 +877,7 @@ mod tests {
             exp_year: Some("2030".into()),
             code: Some("123".into()),
         });
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         let card = &body["card"];
         assert!(card["cardholderName"].as_str().unwrap().starts_with("2."));
         assert!(card["number"].as_str().unwrap().starts_with("2."));
@@ -858,7 +894,7 @@ mod tests {
             email: Some("a@example.com".into()),
             ..Default::default()
         });
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         let id = &body["identity"];
         assert!(id["firstName"].as_str().unwrap().starts_with("2."));
         assert!(id["lastName"].as_str().unwrap().starts_with("2."));
@@ -875,7 +911,7 @@ mod tests {
             public_key: Some("ssh-ed25519 AAAA".into()),
             key_fingerprint: Some("SHA256:xxx".into()),
         });
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         let ssh = &body["sshKey"];
         assert!(ssh["privateKey"].as_str().unwrap().starts_with("2."));
         assert!(ssh["publicKey"].as_str().unwrap().starts_with("2."));
@@ -886,7 +922,7 @@ mod tests {
         let mut input = base_input();
         input.cipher_type = 2;
         input.organization_id = Some("org-uuid".into());
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         assert_eq!(body["organizationId"], "org-uuid");
     }
 
@@ -895,7 +931,7 @@ mod tests {
         let mut input = base_input();
         input.cipher_type = 1; // says Login, but no login field
         input.login = None;
-        let err = build_cipher_body(&input, &test_key()).unwrap_err();
+        let err = build_cipher_body(&input, &test_key(), "user-uuid").unwrap_err();
         assert!(matches!(err, Error::Storage { .. }));
     }
 
@@ -903,7 +939,7 @@ mod tests {
     fn unsupported_cipher_type_errors_out() {
         let mut input = base_input();
         input.cipher_type = 99;
-        let err = build_cipher_body(&input, &test_key()).unwrap_err();
+        let err = build_cipher_body(&input, &test_key(), "user-uuid").unwrap_err();
         assert!(matches!(err, Error::Storage { .. }));
     }
 
@@ -912,7 +948,7 @@ mod tests {
         let mut input = base_input();
         input.cipher_type = 2;
         input.notes = Some("  a multi-line\nnote\n".into());
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         assert!(body["notes"].as_str().unwrap().starts_with("2."));
     }
 
@@ -926,11 +962,11 @@ mod tests {
         let mut input = base_input();
         input.cipher_type = 2;
         input.notes = Some(String::new());
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         assert!(body["notes"].is_null());
 
         input.notes = None;
-        let body = build_cipher_body(&input, &test_key()).unwrap();
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
         assert!(body["notes"].is_null());
     }
 
@@ -946,7 +982,9 @@ mod tests {
         let cipher = base_cipher(CipherType::SecureNote, &source);
         assert!(cipher.folder_id.is_some());
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "target-org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "target-org", &[], "user-uuid")
+                .unwrap();
         assert!(body["cipher"]["folderId"].is_null());
     }
 
@@ -961,7 +999,9 @@ mod tests {
         let target = other_test_key();
         let cipher = base_cipher(CipherType::SecureNote, &source);
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "target-org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "target-org", &[], "user-uuid")
+                .unwrap();
         let name = body["cipher"]["name"].as_str().unwrap();
 
         assert_eq!(decrypt_name(name, &target).unwrap(), "My item");
@@ -984,6 +1024,7 @@ mod tests {
             &target,
             "target-org",
             &["coll-a".into(), "coll-b".into()],
+            "user-uuid",
         )
         .unwrap();
 
@@ -1001,7 +1042,8 @@ mod tests {
         let mut cipher = base_cipher(CipherType::Card, &source);
         cipher.favorite = true;
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         assert_eq!(body["cipher"]["type"], CipherType::Card as u8);
         assert_eq!(body["cipher"]["favorite"], true);
     }
@@ -1025,7 +1067,8 @@ mod tests {
             ]),
         });
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         let login = &body["cipher"]["login"];
         assert_eq!(
             decrypt_name(login["username"].as_str().unwrap(), &target).unwrap(),
@@ -1064,7 +1107,8 @@ mod tests {
             key_fingerprint: None,
         });
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         let ssh = &body["cipher"]["sshKey"];
         assert_eq!(
             decrypt_name(ssh["privateKey"].as_str().unwrap(), &target).unwrap(),
@@ -1083,7 +1127,8 @@ mod tests {
         let target = other_test_key();
         let cipher = base_cipher(CipherType::SecureNote, &source);
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         let c = &body["cipher"];
         assert!(c["login"].is_null());
         assert!(c["card"].is_null());
@@ -1102,7 +1147,8 @@ mod tests {
         let mut cipher = base_cipher(CipherType::Login, &source);
         cipher.reprompt = Some(1);
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         assert_eq!(body["cipher"]["reprompt"], 1);
     }
 
@@ -1112,7 +1158,8 @@ mod tests {
         let target = other_test_key();
         let cipher = base_cipher(CipherType::Login, &source); // reprompt: None
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         assert_eq!(body["cipher"]["reprompt"], 0);
     }
 
@@ -1127,7 +1174,8 @@ mod tests {
         let mut cipher = base_cipher(CipherType::SecureNote, &source);
         cipher.notes = Some(encrypt_string("recovery codes", &source).unwrap());
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         let c = &body["cipher"];
 
         assert_eq!(c["type"], 2);
@@ -1149,7 +1197,8 @@ mod tests {
         let mut cipher = base_cipher(CipherType::Login, &source);
         cipher.login = None; // the shape the server would reject
 
-        let err = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap_err();
+        let err = build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid")
+            .unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("login"), "unexpected error: {msg}");
     }
@@ -1167,7 +1216,7 @@ mod tests {
             (CipherType::SshKey, "sshKey"),
         ] {
             let cipher = base_cipher(kind, &source);
-            let body = build_share_cipher_body(&cipher, &source, &target, "org", &[])
+            let body = build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid")
                 .unwrap_or_else(|e| panic!("{kind:?} failed to build: {e}"));
             assert!(
                 !body["cipher"][key].is_null(),
@@ -1183,7 +1232,8 @@ mod tests {
         let mut cipher = base_cipher(CipherType::SecureNote, &source);
         cipher.notes = Some(encrypt_string("line 1\nline 2\n", &source).unwrap());
 
-        let body = build_share_cipher_body(&cipher, &source, &target, "org", &[]).unwrap();
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
         assert_eq!(
             decrypt_name(body["cipher"]["notes"].as_str().unwrap(), &target).unwrap(),
             "line 1\nline 2\n"
@@ -1199,7 +1249,8 @@ mod tests {
         let wrong = other_test_key();
         let cipher = base_cipher(CipherType::SecureNote, &source);
 
-        let err = build_share_cipher_body(&cipher, &wrong, &target, "org", &[]).unwrap_err();
+        let err =
+            build_share_cipher_body(&cipher, &wrong, &target, "org", &[], "user-uuid").unwrap_err();
         assert!(matches!(
             err,
             crate::error::Error::Crypto { .. } | crate::error::Error::InvalidResponse { .. }
@@ -1250,7 +1301,7 @@ mod tests {
                 linked_id: None,
             },
         ];
-        let body = build_cipher_body(&input, &key).unwrap();
+        let body = build_cipher_body(&input, &key, "user-uuid").unwrap();
 
         let first = &body["fields"][0];
         assert_eq!(first["type"], 0);
@@ -1278,9 +1329,60 @@ mod tests {
         let key = test_key();
         let mut input = base_input();
         input.cipher_type = 2;
-        assert_eq!(build_cipher_body(&input, &key).unwrap()["reprompt"], 0);
+        assert_eq!(
+            build_cipher_body(&input, &key, "user-uuid").unwrap()["reprompt"],
+            0
+        );
         input.reprompt = true;
-        assert_eq!(build_cipher_body(&input, &key).unwrap()["reprompt"], 1);
+        assert_eq!(
+            build_cipher_body(&input, &key, "user-uuid").unwrap()["reprompt"],
+            1
+        );
+    }
+
+    // ============ encryptedFor ============
+
+    // Vaultwarden 1.37.4 rejects any cipher write whose body lacks
+    // `encryptedFor` before the handler even runs (a bare Rocket 422), and
+    // then checks the value against the bearer token. Every body builder
+    // must therefore name the signed-in user, including the org and share
+    // paths where the *key* is not the user's.
+
+    #[test]
+    fn create_body_names_the_user_it_is_encrypted_for() {
+        let mut input = base_input();
+        input.cipher_type = 2;
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
+        assert_eq!(body["encryptedFor"], "user-uuid");
+
+        input.organization_id = Some("org-uuid".into());
+        let body = build_cipher_body(&input, &test_key(), "user-uuid").unwrap();
+        assert_eq!(body["encryptedFor"], "user-uuid", "org items too");
+    }
+
+    #[test]
+    fn update_body_names_the_user_it_is_encrypted_for() {
+        let key = test_key();
+        let cipher = base_cipher(CipherType::Login, &key);
+        let body = build_update_cipher_body(
+            &login_input_with_password("pw"),
+            &key,
+            "user-uuid",
+            &cipher,
+            "2026-08-03T10:00:00.000Z",
+        )
+        .unwrap();
+        assert_eq!(body["encryptedFor"], "user-uuid");
+    }
+
+    #[test]
+    fn share_body_names_the_user_it_is_encrypted_for() {
+        let source = test_key();
+        let target = test_key();
+        let cipher = base_cipher(CipherType::SecureNote, &source);
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
+        assert_eq!(body["cipher"]["encryptedFor"], "user-uuid");
     }
 
     // ============ build_update_cipher_body ============
@@ -1321,6 +1423,7 @@ mod tests {
         let body = build_update_cipher_body(
             &login_input_with_password("same"),
             &key,
+            "user-uuid",
             &cipher,
             "2026-08-03T10:00:00.000Z",
         )
@@ -1342,6 +1445,7 @@ mod tests {
         let body = build_update_cipher_body(
             &login_input_with_password("new-pass"),
             &key,
+            "user-uuid",
             &cipher,
             "2026-08-03T10:00:00.000Z",
         )
@@ -1367,6 +1471,7 @@ mod tests {
         let body = build_update_cipher_body(
             &login_input_with_password("steady"),
             &key,
+            "user-uuid",
             &cipher,
             "2026-08-03T10:00:00.000Z",
         )
@@ -1390,6 +1495,7 @@ mod tests {
         let body = build_update_cipher_body(
             &login_input_with_password("rotated"),
             &key,
+            "user-uuid",
             &cipher,
             "2026-08-03T10:00:00.000Z",
         )
@@ -1420,8 +1526,14 @@ mod tests {
             value: Some("4242".into()),
             linked_id: None,
         }];
-        let body =
-            build_update_cipher_body(&input, &key, &cipher, "2026-08-03T10:00:00.000Z").unwrap();
+        let body = build_update_cipher_body(
+            &input,
+            &key,
+            "user-uuid",
+            &cipher,
+            "2026-08-03T10:00:00.000Z",
+        )
+        .unwrap();
         assert_eq!(
             decrypt_name(body["fields"][0]["value"].as_str().unwrap(), &key).unwrap(),
             "4242"
@@ -1470,7 +1582,7 @@ mod tests {
         }]);
 
         let input = cipher_to_create_input(&cipher, &key).unwrap();
-        let body = build_cipher_body(&input, &key).unwrap();
+        let body = build_cipher_body(&input, &key, "user-uuid").unwrap();
         assert!(body.get("passwordHistory").is_none());
     }
 

@@ -56,6 +56,18 @@ ignore = [
   "RUSTSEC-2025-0098", # unic-ucd-version
   "RUSTSEC-2025-0100", # unic-ucd-ident
 
+  # -- unmaintained: zbus 5 split crates ------------------------------------
+  # zbus 6.0.0 (2026-10-16) folded zvariant, zvariant_derive and zbus_names
+  # into the main crate and declared the standalone ones unmaintained the
+  # same day (z-galaxy/zbus#2043). Nothing is wrong with the code: the last
+  # 5.x line is exactly what zbus 6 ships, under a new path. They stay in
+  # our lockfile through tauri-plugin-opener and tauri-plugin-single-instance,
+  # which both still require zbus ^5.9; moving our own zbus to 6 would not
+  # remove them. Drop these three the day both plugins depend on zbus 6.
+  "RUSTSEC-2026-0370", # zvariant
+  "RUSTSEC-2026-0371", # zbus_names
+  "RUSTSEC-2026-0372", # zvariant_derive
+
   # -- unsound -------------------------------------------------------------
   # `!Send` tags crossing a thread boundary via StackSlot. Transitive under
   # the async runtime; we never construct the affected StackSlot ourselves.

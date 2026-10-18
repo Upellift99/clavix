@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use parking_lot::Mutex;
 use rsa::RsaPrivateKey;
 use secrecy::SecretString;
@@ -14,6 +15,27 @@ use crate::error::{Error, Result};
 use crate::models::{Prelogin, TokenSet};
 use crate::session::{PendingTwoFactor, Session, SessionOrigin, PENDING_2FA_TTL_SECS};
 use crate::store::{self, PersistedSession};
+
+/// The `sub` claim of a JWT, without verifying it.
+///
+/// Bitwarden and Vaultwarden both put the user's id there, and it is the
+/// id the server compares a cipher's `encryptedFor` against. Not
+/// verifying is deliberate: the token was issued by the server we are
+/// about to send it back to, and that server verifies it on every
+/// request — a forged `sub` buys nothing here, it only makes the next
+/// request fail. `None` for anything that does not parse as a JWT with
+/// a string `sub`.
+pub fn jwt_subject(token: &str) -> Option<String> {
+    let payload = token.split('.').nth(1)?;
+    // RFC 7515 base64url without padding; be lenient about a padded one.
+    let bytes = URL_SAFE_NO_PAD.decode(payload.trim_end_matches('=')).ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    claims
+        .get("sub")?
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+}
 
 /// The two slots these functions operate on. They used to take the
 /// desktop crate's whole `AppState`, which is what kept this module from
@@ -368,6 +390,47 @@ mod tests {
 
         let err = recover_refresh_token(&p, &key).unwrap_err();
         assert!(matches!(err, Error::Storage { .. }));
+    }
+
+    fn jwt_with_payload(payload: &str) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+        format!(
+            "{}.{}.sig",
+            URL_SAFE_NO_PAD.encode(br#"{"alg":"HS256","typ":"JWT"}"#),
+            URL_SAFE_NO_PAD.encode(payload.as_bytes())
+        )
+    }
+
+    #[test]
+    fn jwt_subject_reads_the_sub_claim() {
+        let token = jwt_with_payload(
+            r#"{"nbf":1,"exp":2,"iss":"http://vw/|login","sub":"3f1a4b1e-0000-4000-8000-000000000001","premium":true}"#,
+        );
+        assert_eq!(
+            jwt_subject(&token).as_deref(),
+            Some("3f1a4b1e-0000-4000-8000-000000000001")
+        );
+    }
+
+    #[test]
+    fn jwt_subject_tolerates_a_padded_payload() {
+        use base64::{engine::general_purpose::URL_SAFE, Engine as _};
+        let token = format!("h.{}.s", URL_SAFE.encode(br#"{"sub":"u"}"#));
+        assert!(
+            token.split('.').nth(1).unwrap().ends_with('='),
+            "test premise"
+        );
+        assert_eq!(jwt_subject(&token).as_deref(), Some("u"));
+    }
+
+    #[test]
+    fn jwt_subject_is_none_for_garbage_or_a_missing_claim() {
+        assert_eq!(jwt_subject(""), None);
+        assert_eq!(jwt_subject("not-a-jwt"), None);
+        assert_eq!(jwt_subject("a.!!!.c"), None);
+        assert_eq!(jwt_subject(&jwt_with_payload(r#"{"exp":2}"#)), None);
+        assert_eq!(jwt_subject(&jwt_with_payload(r#"{"sub":""}"#)), None);
+        assert_eq!(jwt_subject(&jwt_with_payload(r#"{"sub":42}"#)), None);
     }
 
     #[test]

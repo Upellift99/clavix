@@ -89,6 +89,21 @@ impl Session {
     pub fn is_writable(&self) -> bool {
         self.origin.is_writable() && self.tokens.is_some()
     }
+
+    /// The signed-in user's id, as the server knows it.
+    ///
+    /// Every cipher write has to name it (`encryptedFor`), and the server
+    /// checks it against the bearer of the request. It is read from the
+    /// access token's `sub` claim rather than kept as a separate field:
+    /// the token is the one thing a writable session always has, it is
+    /// issued by the same server that will check the claim, and it
+    /// cannot drift from the account the way a value copied at login
+    /// could after a token refresh or a session restore.
+    pub fn user_id(&self) -> Result<String> {
+        crate::services::auth::jwt_subject(self.access_token()?).ok_or_else(|| Error::AuthFailed {
+            message: "access token carries no user id (missing `sub` claim)".into(),
+        })
+    }
 }
 
 /// Material derived during the `login` step that has to survive until
