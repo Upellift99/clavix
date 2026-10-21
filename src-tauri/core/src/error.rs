@@ -18,6 +18,14 @@ pub enum Error {
     #[error("HTTP error {status}: {message}")]
     HttpStatus { status: u16, message: String },
 
+    /// The server answered with an HTML page instead of an API payload:
+    /// a reverse proxy or an authentication portal in front of the
+    /// server intercepted the request (an expired portal session, an IP
+    /// allow-list, a maintenance page). `title` is the page's `<title>`,
+    /// the only line of it worth showing.
+    #[error("HTTP error {status}: the server returned a web page{}", .title.as_deref().map(|t| format!(" ({t})")).unwrap_or_default())]
+    HtmlResponse { status: u16, title: Option<String> },
+
     #[error("Authentication failed: {message}")]
     AuthFailed { message: String },
 
@@ -264,6 +272,10 @@ impl Serialize for Error {
             Error::HttpStatus { status, message } => (
                 "http_status",
                 serde_json::json!({ "status": status, "message": message }),
+            ),
+            Error::HtmlResponse { status, title } => (
+                "html_response",
+                serde_json::json!({ "status": status, "title": title }),
             ),
             Error::AuthFailed { message } => {
                 // Classify the message against known Vaultwarden /

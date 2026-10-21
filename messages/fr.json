@@ -387,6 +387,8 @@
   "err_network": "Erreur réseau : {cause}",
   "err_invalid_response": "Réponse serveur invalide : {reason}",
   "err_http_status": "Erreur HTTP {status} : {message}",
+  "err_html_response_titled": "Le serveur a renvoyé une page web au lieu d'une réponse API (HTTP {status} : « {title} »). Un proxy ou un portail d'authentification placé devant le serveur bloque probablement la requête.",
+  "err_html_response": "Le serveur a renvoyé une page web au lieu d'une réponse API (HTTP {status}). Un proxy ou un portail d'authentification placé devant le serveur bloque probablement la requête.",
   "err_auth_failed": "Échec d'authentification : {message}",
   "err_auth_invalid_credentials": "Email ou mot de passe incorrect.",
   "err_auth_two_factor_invalid": "Le code 2FA est invalide ou expiré — réessayez.",

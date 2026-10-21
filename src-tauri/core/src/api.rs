@@ -97,13 +97,8 @@ impl VaultwardenClient {
             .send()
             .await?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
 
         response
@@ -141,6 +136,7 @@ impl VaultwardenClient {
 
         let response = self.http.post(url).form(&form).send().await?;
         let status = response.status();
+        let content_type = content_type_of(&response);
         let body = response.bytes().await?;
 
         if status.is_success() {
@@ -157,22 +153,18 @@ impl VaultwardenClient {
             }
         }
 
-        Err(Error::HttpStatus {
-            status: status.as_u16(),
-            message: String::from_utf8_lossy(&body).into_owned(),
-        })
+        Err(http_error_from_parts(
+            status.as_u16(),
+            content_type.as_deref(),
+            &body,
+        ))
     }
 
     pub async fn restore_cipher(&self, access_token: &str, cipher_id: &str) -> Result<()> {
         let url = self.api_endpoint(&format!("ciphers/{cipher_id}/restore"))?;
         let response = self.http.put(url).bearer_auth(access_token).send().await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -190,14 +182,10 @@ impl VaultwardenClient {
             .json(body)
             .send()
             .await?;
-        let status = response.status();
-        let bytes = response.bytes().await?;
-        if !status.is_success() {
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: String::from_utf8_lossy(&bytes).into_owned(),
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
+        let bytes = response.bytes().await?;
         serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
             reason: e.to_string(),
         })
@@ -219,14 +207,10 @@ impl VaultwardenClient {
             .json(body)
             .send()
             .await?;
-        let status = response.status();
-        let bytes = response.bytes().await?;
-        if !status.is_success() {
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: String::from_utf8_lossy(&bytes).into_owned(),
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
+        let bytes = response.bytes().await?;
         serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
             reason: e.to_string(),
         })
@@ -246,14 +230,10 @@ impl VaultwardenClient {
             .json(body)
             .send()
             .await?;
-        let status = response.status();
-        let bytes = response.bytes().await?;
-        if !status.is_success() {
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: String::from_utf8_lossy(&bytes).into_owned(),
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
+        let bytes = response.bytes().await?;
         serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
             reason: e.to_string(),
         })
@@ -266,13 +246,8 @@ impl VaultwardenClient {
     pub async fn soft_delete_cipher(&self, access_token: &str, cipher_id: &str) -> Result<()> {
         let url = self.api_endpoint(&format!("ciphers/{cipher_id}/delete"))?;
         let response = self.http.put(url).bearer_auth(access_token).send().await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -289,13 +264,8 @@ impl VaultwardenClient {
             .bearer_auth(access_token)
             .send()
             .await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -321,14 +291,10 @@ impl VaultwardenClient {
             .json(body)
             .send()
             .await?;
-        let status = response.status();
-        let bytes = response.bytes().await?;
-        if !status.is_success() {
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: String::from_utf8_lossy(&bytes).into_owned(),
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
+        let bytes = response.bytes().await?;
         serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
             reason: e.to_string(),
         })
@@ -364,13 +330,8 @@ impl VaultwardenClient {
             .multipart(form)
             .send()
             .await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -401,14 +362,10 @@ impl VaultwardenClient {
             request = request.bearer_auth(access_token);
         }
         let response = request.send().await?;
-        let status = response.status();
-        let bytes = response.bytes().await?;
-        if !status.is_success() {
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: String::from_utf8_lossy(&bytes).into_owned(),
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
+        let bytes = response.bytes().await?;
         Ok(bytes.to_vec())
     }
 
@@ -425,13 +382,8 @@ impl VaultwardenClient {
             .bearer_auth(access_token)
             .send()
             .await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -455,13 +407,8 @@ impl VaultwardenClient {
             .send()
             .await?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -481,13 +428,8 @@ impl VaultwardenClient {
             .send()
             .await?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -507,14 +449,10 @@ impl VaultwardenClient {
             .json(&json!({ "name": encrypted_name }))
             .send()
             .await?;
-        let status = response.status();
-        let bytes = response.bytes().await?;
-        if !status.is_success() {
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: String::from_utf8_lossy(&bytes).into_owned(),
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
+        let bytes = response.bytes().await?;
         serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
             reason: e.to_string(),
         })
@@ -531,13 +469,8 @@ impl VaultwardenClient {
             .bearer_auth(access_token)
             .send()
             .await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -557,13 +490,8 @@ impl VaultwardenClient {
             .send()
             .await?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -583,13 +511,8 @@ impl VaultwardenClient {
             .send()
             .await?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
         Ok(())
     }
@@ -598,13 +521,8 @@ impl VaultwardenClient {
         let url = self.api_endpoint("sync")?;
         let response = self.http.get(url).bearer_auth(access_token).send().await?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(Error::HttpStatus {
-                status: status.as_u16(),
-                message: body,
-            });
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
         }
 
         response
@@ -662,6 +580,7 @@ impl VaultwardenClient {
 
         let response = self.http.post(url).form(&form).send().await?;
         let status = response.status();
+        let content_type = content_type_of(&response);
         let body = response.bytes().await?;
 
         if status.is_success() {
@@ -700,14 +619,124 @@ impl VaultwardenClient {
             }
         }
 
-        Err(Error::HttpStatus {
-            status: status.as_u16(),
-            message: String::from_utf8_lossy(&body).into_owned(),
-        })
+        Err(http_error_from_parts(
+            status.as_u16(),
+            content_type.as_deref(),
+            &body,
+        ))
     }
 }
 
-fn extract_auth_error_message(value: &serde_json::Value) -> String {
+/// Longest raw error body kept in a message. Anything past this is a
+/// stack trace or a page of markup, not something a dialog should show.
+const ERROR_BODY_MAX_CHARS: usize = 300;
+
+/// Longest `<title>` kept from an HTML error page.
+const HTML_TITLE_MAX_CHARS: usize = 120;
+
+/// The `Content-Type` of a response, if it has a readable one.
+fn content_type_of(response: &reqwest::Response) -> Option<String> {
+    response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string)
+}
+
+/// Turn a failed response into the error a human can read in a dialog.
+///
+/// Consumes the response: the body is what decides between a Vaultwarden
+/// JSON error (its `message` is the useful part), an HTML page served by
+/// whatever sits in front of the server (only its `<title>` is worth
+/// showing), and a raw text body (kept, but truncated).
+async fn http_error(response: reqwest::Response) -> Error {
+    let status = response.status().as_u16();
+    let content_type = content_type_of(&response);
+    let body = response
+        .bytes()
+        .await
+        .map(|b| b.to_vec())
+        .unwrap_or_default();
+    http_error_from_parts(status, content_type.as_deref(), &body)
+}
+
+/// Same as [`http_error`] for callers that already consumed the body.
+fn http_error_from_parts(status: u16, content_type: Option<&str>, body: &[u8]) -> Error {
+    let text = String::from_utf8_lossy(body);
+    let text = text.trim();
+
+    if looks_like_html(content_type, text) {
+        return Error::HtmlResponse {
+            status,
+            title: html_title(text),
+        };
+    }
+
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(text) {
+        if let Some(message) = json_error_message(&value) {
+            return Error::HttpStatus { status, message };
+        }
+    }
+
+    Error::HttpStatus {
+        status,
+        message: truncate_chars(text, ERROR_BODY_MAX_CHARS),
+    }
+}
+
+/// An HTML body is one the server labels as such, or one that opens like
+/// a document: a proxy error page often comes with no `Content-Type`.
+fn looks_like_html(content_type: Option<&str>, body: &str) -> bool {
+    if content_type.is_some_and(|ct| ct.to_ascii_lowercase().contains("text/html")) {
+        return true;
+    }
+    let head = body.as_bytes();
+    ["<!doctype", "<html"].iter().any(|tag| {
+        head.len() >= tag.len() && head[..tag.len()].eq_ignore_ascii_case(tag.as_bytes())
+    })
+}
+
+/// The trimmed text of the first `<title>` element, whitespace collapsed
+/// and the common entities decoded. `None` when the page has no title or
+/// an empty one.
+fn html_title(body: &str) -> Option<String> {
+    // ASCII lowercasing keeps byte offsets stable, so indices found in the
+    // lowered copy index the original.
+    let lower = body.to_ascii_lowercase();
+    let open = lower.find("<title")?;
+    let after_tag = open + lower[open..].find('>')? + 1;
+    let close = after_tag + lower[after_tag..].find("</title")?;
+    let raw = &body[after_tag..close];
+    let decoded = raw
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&nbsp;", " ");
+    let collapsed = decoded.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.is_empty() {
+        None
+    } else {
+        Some(truncate_chars(&collapsed, HTML_TITLE_MAX_CHARS))
+    }
+}
+
+/// `s` cut to `max` characters, with an ellipsis when something was cut.
+fn truncate_chars(s: &str, max: usize) -> String {
+    let mut chars = s.chars();
+    let kept: String = chars.by_ref().take(max).collect();
+    if chars.next().is_some() {
+        format!("{kept}…")
+    } else {
+        kept
+    }
+}
+
+/// The human-readable message inside a Vaultwarden / Bitwarden JSON error
+/// body, trying each of the shapes the servers have used. `None` when the
+/// body carries no such message.
+fn json_error_message(value: &serde_json::Value) -> Option<String> {
     let string_candidates = [
         value.get("message"),
         value.get("errorModel").and_then(|m| m.get("message")),
@@ -719,7 +748,7 @@ fn extract_auth_error_message(value: &serde_json::Value) -> String {
         if let Some(s) = candidate.and_then(|v| v.as_str()) {
             let trimmed = s.trim();
             if !trimmed.is_empty() {
-                return trimmed.to_string();
+                return Some(trimmed.to_string());
             }
         }
     }
@@ -735,7 +764,7 @@ fn extract_auth_error_message(value: &serde_json::Value) -> String {
             .map(str::to_string)
             .collect();
         if !messages.is_empty() {
-            return messages.join("; ");
+            return Some(messages.join("; "));
         }
     }
 
@@ -744,8 +773,11 @@ fn extract_auth_error_message(value: &serde_json::Value) -> String {
         .and_then(|v| v.as_str())
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .unwrap_or("auth_error")
-        .to_string()
+        .map(str::to_string)
+}
+
+fn extract_auth_error_message(value: &serde_json::Value) -> String {
+    json_error_message(value).unwrap_or_else(|| "auth_error".to_string())
 }
 
 fn extract_two_factor_providers(value: &serde_json::Value) -> Option<Vec<TwoFactorProvider>> {
@@ -1061,5 +1093,74 @@ mod tests {
         // and that it doesn't return empty garbage.
         let s = extract_auth_error_message(&v);
         assert!(!s.is_empty());
+    }
+
+    #[test]
+    fn http_error_reduces_an_html_page_to_its_title() {
+        // A login portal or reverse proxy answering for the server. The
+        // page is a few kilobytes of markup; only the title is shown.
+        let page = "<!doctype html>\n<html lang=\"fr\"><head><meta charset=\"utf-8\" />\n\
+            <title>\n  Page indisponible &mdash; 401 &amp; co  \n</title>\
+            <style>body { margin: 0; }</style></head><body>...</body></html>";
+        match http_error_from_parts(401, Some("text/html; charset=utf-8"), page.as_bytes()) {
+            Error::HtmlResponse { status, title } => {
+                assert_eq!(status, 401);
+                assert_eq!(title.as_deref(), Some("Page indisponible &mdash; 401 & co"));
+            }
+            other => panic!("expected HtmlResponse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn http_error_detects_html_without_a_content_type() {
+        let page = "  <HTML><HEAD></HEAD><BODY>Forbidden</BODY></HTML>";
+        match http_error_from_parts(403, None, page.as_bytes()) {
+            Error::HtmlResponse {
+                status: 403,
+                title: None,
+            } => {}
+            other => panic!("expected an untitled HtmlResponse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn http_error_keeps_the_vaultwarden_json_message() {
+        let body = r#"{"message":"Cipher doesn't exist","object":"error","validationErrors":{"":["Cipher doesn't exist"]}}"#;
+        match http_error_from_parts(404, Some("application/json"), body.as_bytes()) {
+            Error::HttpStatus { status, message } => {
+                assert_eq!(status, 404);
+                assert_eq!(message, "Cipher doesn't exist");
+            }
+            other => panic!("expected HttpStatus, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn http_error_truncates_a_raw_text_body() {
+        let body = "x".repeat(ERROR_BODY_MAX_CHARS + 50);
+        match http_error_from_parts(502, Some("text/plain"), body.as_bytes()) {
+            Error::HttpStatus { message, .. } => {
+                assert_eq!(message.chars().count(), ERROR_BODY_MAX_CHARS + 1);
+                assert!(message.ends_with('…'));
+            }
+            other => panic!("expected HttpStatus, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn http_error_passes_a_short_text_body_through() {
+        match http_error_from_parts(500, None, b"  upstream timed out  ") {
+            Error::HttpStatus { message, .. } => assert_eq!(message, "upstream timed out"),
+            other => panic!("expected HttpStatus, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn http_error_json_without_a_message_falls_back_to_the_raw_body() {
+        let body = r#"{"object":"error"}"#;
+        match http_error_from_parts(500, Some("application/json"), body.as_bytes()) {
+            Error::HttpStatus { message, .. } => assert_eq!(message, body),
+            other => panic!("expected HttpStatus, got {other:?}"),
+        }
     }
 }
