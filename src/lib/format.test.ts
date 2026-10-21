@@ -5,6 +5,7 @@ import {
   computeSessionStatus,
   extractDomain,
   faviconUrl,
+  formatError,
   mask,
   providerLabel,
   SESSION_FRESH_MS,
@@ -164,5 +165,36 @@ describe("computeSessionStatus", () => {
         freshMs: 60_000,
       }),
     ).toBe("stale");
+  });
+});
+
+describe("formatError", () => {
+  it("explains an HTML page served in place of the API, with its title", () => {
+    const msg = formatError({
+      code: "html_response",
+      message: "HTTP error 401: the server returned a web page (Page indisponible — 401)",
+      data: { status: 401, title: "Page indisponible — 401" },
+    });
+    expect(msg).toContain("401");
+    expect(msg).toContain("Page indisponible — 401");
+    expect(msg).not.toContain("<html");
+  });
+  it("still explains an untitled HTML page", () => {
+    const msg = formatError({
+      code: "html_response",
+      message: "HTTP error 403: the server returned a web page",
+      data: { status: 403, title: null },
+    });
+    expect(msg).toContain("403");
+    expect(msg).not.toContain("null");
+  });
+  it("keeps the plain HTTP error for a JSON API error", () => {
+    const msg = formatError({
+      code: "http_status",
+      message: "HTTP error 404: Cipher doesn't exist",
+      data: { status: 404, message: "Cipher doesn't exist" },
+    });
+    expect(msg).toContain("404");
+    expect(msg).toContain("Cipher doesn't exist");
   });
 });

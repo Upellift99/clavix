@@ -119,7 +119,7 @@
   /** HTTP status behind a Tauri error, or null if it wasn't an HTTP one. */
   function httpStatusOf(e: unknown): number | null {
     const err = e as { code?: string; data?: { status?: unknown } };
-    if (err?.code !== "http_status") return null;
+    if (err?.code !== "http_status" && err?.code !== "html_response") return null;
     const status = Number(err.data?.status);
     return Number.isFinite(status) ? status : null;
   }

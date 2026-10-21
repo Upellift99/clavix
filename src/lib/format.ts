@@ -16,6 +16,14 @@ export function formatError(e: unknown): string {
       return m.err_invalid_response({ reason: str(data.reason) });
     case "http_status":
       return m.err_http_status({ status: str(data.status), message: str(data.message) });
+    case "html_response": {
+      // A proxy or a login portal answered in place of the server. The
+      // Rust side already reduced the page to its <title>, if it had one.
+      const title = str(data.title);
+      return title
+        ? m.err_html_response_titled({ status: str(data.status), title })
+        : m.err_html_response({ status: str(data.status) });
+    }
     case "auth_failed": {
       // The Rust side classifies known Vaultwarden patterns into a
       // stable `reason` code (see `error::classify_auth_message`).
