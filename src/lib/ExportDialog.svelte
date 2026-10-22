@@ -393,7 +393,11 @@
           disabled={exporting ||
             (format === "encrypted" ? !encryptedReady : targetCount === 0)}
         >
-          {exporting ? m.export_running() : m.export_action()}
+          {exporting
+            ? m.export_running()
+            : format === "encrypted"
+              ? m.export_action_encrypted()
+              : m.export_action()}
         </button>
       </div>
     </div>

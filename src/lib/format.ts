@@ -184,11 +184,11 @@ export function providerLabel(p: number): string {
 
 export function cipherTypeLabel(k: number): string {
   switch (k) {
-    case 1: return "Login";
-    case 2: return "Note";
-    case 3: return "Carte";
-    case 4: return "Identité";
-    case 5: return "Clé SSH";
+    case 1: return m.type_login();
+    case 2: return m.type_note();
+    case 3: return m.type_card();
+    case 4: return m.type_identity();
+    case 5: return m.type_ssh_key();
     default: return `Type ${k}`;
   }
 }

@@ -6,7 +6,7 @@
   import { cipherTypeIconName, cipherTypeLabel, faviconUrl } from "./format";
   import type { DragController } from "./drag.svelte";
   import type { CipherListColumns } from "./prefs.svelte";
-  import type { CipherSummary, SortKey, StoredAccount } from "./types";
+  import type { CipherSummary, Locale, SortKey, StoredAccount } from "./types";
 
   type Props = {
     items: CipherSummary[];
@@ -16,6 +16,7 @@
     gated: boolean;
     onShowAll: () => void;
     selectedId: string | null;
+    currentLocale: Locale;
     sortKey: SortKey;
     sortAsc: boolean;
     storedAccount: StoredAccount | null;
@@ -55,6 +56,7 @@
     gated,
     onShowAll,
     selectedId,
+    currentLocale,
     sortKey,
     sortAsc,
     storedAccount,
@@ -78,6 +80,8 @@
     onBulkRestore,
     readOnly = false,
   }: Props = $props();
+
+  const numberLocale = $derived(currentLocale === "fr" ? "fr-FR" : "en-US");
 
   // Anchor for Shift-click ranges: the last row clicked without Shift.
   // Kept as an id rather than an index so a re-filter can't silently
@@ -279,10 +283,10 @@
 
 <section class="list-pane">
   <h3>
-    Items
+    {m.items_title()}
     <!-- Kept on one line: a newline before `)` renders as a stray space,
          which showed up as "(3 319 )" whenever nothing narrowed the list. -->
-    <small>({items.length.toLocaleString("fr-FR")}{#if hasNarrowing}/{totalCount.toLocaleString("fr-FR")}{/if})</small>
+    <small>({items.length.toLocaleString(numberLocale)}{#if hasNarrowing}/{totalCount.toLocaleString(numberLocale)}{/if})</small>
   </h3>
   <div class="search-row">
     <input
@@ -296,7 +300,7 @@
     />
     {#if search.trim()}
       <button type="button" class="secondary small" onclick={() => (search = "")}>
-        Effacer
+        {m.items_search_clear()}
       </button>
     {/if}
   </div>
@@ -359,23 +363,19 @@
     <div class="empty-state" role="status">
       {#if search.trim()}
         <Icon name="search" size={40} class="empty-icon" />
-        <p class="empty-title">Aucun résultat</p>
-        <p class="empty-body">
-          Aucun item ne correspond à « {search} ».
-        </p>
+        <p class="empty-title">{m.items_empty_search_title()}</p>
+        <p class="empty-body">{m.items_empty_search({ query: search })}</p>
         <button
           type="button"
           class="secondary small"
           onclick={() => (search = "")}
         >
-          Effacer la recherche
+          {m.items_search_clear()}
         </button>
       {:else}
         <Icon name="folder" size={40} class="empty-icon" />
-        <p class="empty-title">Ce dossier est vide</p>
-        <p class="empty-body">
-          Crée un nouvel item ou importe ton coffre KeePassXC depuis la barre d'outils.
-        </p>
+        <p class="empty-title">{m.items_empty_folder_title()}</p>
+        <p class="empty-body">{m.items_empty_folder_body()}</p>
       {/if}
     </div>
   {:else}
@@ -501,7 +501,7 @@
                 </span>
                 <span class="col-name" title={c.name}>
                   {c.name}
-                  {#if c.favorite}<span class="star" title="Favori"><Icon name="star" size={12} /></span>{/if}
+                  {#if c.favorite}<span class="star" title={m.items_favorite()}><Icon name="star" size={12} /></span>{/if}
                 </span>
                 {#if visibleColumns.username}
                   <span class="col-username" title={c.username ?? ""}>

@@ -52,6 +52,7 @@ function mount(overrides: Record<string, unknown> = {}) {
       gated: false,
       onShowAll: vi.fn(),
       selectedId: null,
+      currentLocale: "fr" as const,
       sortKey: "name" as const,
       sortAsc: true,
       storedAccount: null,

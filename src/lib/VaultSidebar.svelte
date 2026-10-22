@@ -378,7 +378,7 @@
           type="button"
           class="tree-toggle"
           onclick={() => onToggleExpanded(node.key)}
-          aria-label={expanded.has(node.key) ? "Réduire" : "Déplier"}
+          aria-label={expanded.has(node.key) ? m.tree_collapse() : m.tree_expand()}
         >
           <Icon name={expanded.has(node.key) ? "chevron-down" : "chevron-right"} size={12} />
         </button>
@@ -442,7 +442,7 @@
           type="button"
           class="tree-toggle"
           onclick={() => onToggleExpanded(node.key)}
-          aria-label={expanded.has(node.key) ? "Réduire" : "Déplier"}
+          aria-label={expanded.has(node.key) ? m.tree_collapse() : m.tree_expand()}
         >
           <Icon name={expanded.has(node.key) ? "chevron-down" : "chevron-right"} size={12} />
         </button>

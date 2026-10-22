@@ -5,6 +5,7 @@
   import PasswordStrength from "./PasswordStrength.svelte";
   import { api } from "./api";
   import { cipherTypeLabel, formatBytes } from "./format";
+  import type { ClipboardKind } from "./clipboard.svelte";
   import { ATTACHMENT_MAX_BYTES } from "./limits";
   import { cipherLocations } from "./tree";
   import type {
@@ -24,7 +25,7 @@
     folders: FolderSummary[];
     organizations: OrganizationSummary[];
     collections: CollectionSummary[];
-    onCopy: (value: string, label: string) => Promise<void> | void;
+    onCopy: (value: string, kind: ClipboardKind, label?: string) => Promise<void> | void;
     onClose: () => void;
     onEdit: () => void;
     onRestore: (id: string) => void;
@@ -138,10 +139,10 @@
 
   /** Copy a secret field, fetching it first if needed (kept out of long-lived
       state — only touched transiently for the copy). */
-  async function copyField(field: string, label: string) {
+  async function copyField(field: string, kind: ClipboardKind, label?: string) {
     if (!(await passReprompt())) return;
     const value = await revealValue(field);
-    if (value) await onCopy(value, label);
+    if (value) await onCopy(value, kind, label);
   }
 
   /** Reveal-toggle a secret field: fetch it before showing. */
@@ -289,23 +290,23 @@
     const id = detail.identity;
     if (!id) return [];
     return [
-      ["Titre", id.title],
-      ["Prénom", id.firstName],
-      ["Deuxième prénom", id.middleName],
-      ["Nom", id.lastName],
-      ["Entreprise", id.company],
-      ["Adresse 1", id.address1],
-      ["Adresse 2", id.address2],
-      ["Adresse 3", id.address3],
-      ["Ville", id.city],
-      ["Département/État", id.state],
-      ["Code postal", id.postalCode],
-      ["Pays", id.country],
-      ["Email", id.email],
-      ["Téléphone", id.phone],
-      ["Identifiant", id.username],
-      ["N° passeport", id.passportNumber],
-      ["N° permis", id.licenseNumber],
+      [m.detail_identity_title(), id.title],
+      [m.detail_identity_first_name(), id.firstName],
+      [m.detail_identity_middle_name(), id.middleName],
+      [m.detail_identity_last_name(), id.lastName],
+      [m.detail_identity_company(), id.company],
+      [m.detail_identity_address1(), id.address1],
+      [m.detail_identity_address2(), id.address2],
+      [m.detail_identity_address3(), id.address3],
+      [m.detail_identity_city(), id.city],
+      [m.detail_identity_state(), id.state],
+      [m.detail_identity_postal_code(), id.postalCode],
+      [m.detail_identity_country(), id.country],
+      [m.detail_identity_email(), id.email],
+      [m.detail_identity_phone(), id.phone],
+      [m.detail_identity_username(), id.username],
+      [m.detail_identity_passport(), id.passportNumber],
+      [m.detail_identity_license(), id.licenseNumber],
     ];
   });
 </script>
@@ -318,7 +319,7 @@
   populated for the current cipher type.
 -->
 
-{#snippet plainField(label: string, value: string, copyAs?: string)}
+{#snippet plainField(label: string, value: string, copyAs: ClipboardKind = "field")}
   <div class="detail-field" role="group">
     <dt>{label}</dt>
     <dd>
@@ -328,7 +329,7 @@
         class="icon-btn"
         title={m.action_copy()}
         aria-label={m.action_copy()}
-        onclick={() => onCopy(value, copyAs ?? label.toLowerCase())}
+        onclick={() => onCopy(value, copyAs, label)}
       >
         <Icon name="copy" size={14} />
       </button>
@@ -341,7 +342,7 @@
   field: string,
   shown: boolean,
   toggle: () => void,
-  copyAs: string,
+  copyAs: ClipboardKind,
   options?: { masked?: string; renderShown?: "default" | "password" | "ssh" }
 )}
   {@const value = revealed[field] ?? ""}
@@ -373,7 +374,7 @@
         class="icon-btn primary"
         title={m.action_copy()}
         aria-label={m.action_copy()}
-        onclick={() => copyField(field, copyAs)}
+        onclick={() => copyField(field, copyAs, label)}
       >
         <Icon name="copy" size={14} />
       </button>
@@ -445,7 +446,7 @@
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_credentials()}</h3>
       {#if detail.login.username}
-        {@render plainField(m.detail_field_username(), detail.login.username, "identifiant")}
+        {@render plainField(m.detail_field_username(), detail.login.username, "username")}
       {/if}
       {#if detail.login.hasPassword}
         {@render secretField(
@@ -453,7 +454,7 @@
           "password",
           showPassword,
           () => toggleSecret("password", showPassword, (v) => (showPassword = v)),
-          "mot de passe",
+          "password",
           { renderShown: "password" }
         )}
         {#if strength}
@@ -472,7 +473,7 @@
             ? `${m.detail_field_url_one()} ${i + 1}`
             : m.detail_field_url_one(),
           u,
-          "URL"
+          "url"
         )}
       {/each}
     </section>
@@ -486,7 +487,7 @@
         <dd>
           <TotpField
             id={detail.id}
-            onCopy={(code) => onCopy(code, m.detail_field_totp())}
+            onCopy={(code) => onCopy(code, "totp")}
           />
         </dd>
       </div>
@@ -497,7 +498,7 @@
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_card()}</h3>
       {#if detail.card.cardholderName}
-        {@render plainField(m.detail_field_cardholder(), detail.card.cardholderName, "titulaire")}
+        {@render plainField(m.detail_field_cardholder(), detail.card.cardholderName)}
       {/if}
       {#if detail.card.brand}
         <div class="detail-field" role="group">
@@ -511,7 +512,7 @@
           "cardNumber",
           showCardNumber,
           () => toggleSecret("cardNumber", showCardNumber, (v) => (showCardNumber = v)),
-          "numéro de carte",
+          "cardNumber",
           { masked: "•••• •••• •••• ••••" }
         )}
       {/if}
@@ -531,7 +532,7 @@
           "cardCode",
           showCardCode,
           () => toggleSecret("cardCode", showCardCode, (v) => (showCardCode = v)),
-          "CVV",
+          "securityCode",
           { masked: "•••" }
         )}
       {/if}
@@ -552,7 +553,7 @@
           "ssn",
           showSsn,
           () => toggleSecret("ssn", showSsn, (v) => (showSsn = v)),
-          "NIR",
+          "field",
           { masked: "•••••••••" }
         )}
       {/if}
@@ -563,7 +564,7 @@
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_ssh()}</h3>
       {#if detail.sshKey.keyFingerprint}
-        {@render plainField(m.detail_field_fingerprint(), detail.sshKey.keyFingerprint, "empreinte")}
+        {@render plainField(m.detail_field_fingerprint(), detail.sshKey.keyFingerprint)}
       {/if}
       {#if detail.sshKey.publicKey}
         <div class="detail-field" role="group">
@@ -575,7 +576,7 @@
               class="icon-btn"
               title={m.action_copy()}
               aria-label={m.action_copy()}
-              onclick={() => onCopy(detail.sshKey!.publicKey!, "clé publique")}
+              onclick={() => onCopy(detail.sshKey!.publicKey!, "publicKey")}
             >
               <Icon name="copy" size={14} />
             </button>
@@ -588,7 +589,7 @@
           "sshPrivateKey",
           showSshPrivate,
           () => toggleSecret("sshPrivateKey", showSshPrivate, (v) => (showSshPrivate = v)),
-          "clé privée",
+          "privateKey",
           { masked: m.detail_field_private_key_hidden(), renderShown: "ssh" }
         )}
       {/if}
@@ -606,7 +607,7 @@
             `custom:${index}`,
             shownFields.has(index),
             () => toggleCustomField(index),
-            label.toLowerCase()
+            "field"
           )}
         {:else if field.kind === 2}
           <div class="detail-field" role="group">
@@ -713,7 +714,7 @@
                   class="icon-btn"
                   title={m.action_copy()}
                   aria-label={m.action_copy()}
-                  onclick={() => onCopy(entry.password, "mot de passe")}
+                  onclick={() => onCopy(entry.password, "password")}
                 >
                   <Icon name="copy" size={14} />
                 </button>

@@ -1,19 +1,46 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
-  import type { ClipboardController } from "./clipboard.svelte";
+  import type { ClipboardController, ClipboardKind } from "./clipboard.svelte";
 
   type Props = {
     clipboard: ClipboardController;
   };
 
   let { clipboard }: Props = $props();
+
+  function kindLabel(kind: ClipboardKind, label: string | null): string {
+    switch (kind) {
+      case "password":
+        return m.clipboard_kind_password();
+      case "username":
+        return m.clipboard_kind_username();
+      case "totp":
+        return m.clipboard_kind_totp();
+      case "url":
+        return m.clipboard_kind_url();
+      case "publicKey":
+        return m.clipboard_kind_public_key();
+      case "privateKey":
+        return m.clipboard_kind_private_key();
+      case "cardNumber":
+        return m.clipboard_kind_card_number();
+      case "securityCode":
+        return m.clipboard_kind_security_code();
+      case "command":
+        return m.clipboard_kind_command();
+      case "sshSock":
+        return m.clipboard_kind_ssh_sock();
+      case "field":
+        return label ?? "";
+    }
+  }
 </script>
 
 {#if clipboard.secondsLeft !== null}
   <aside class="clipboard-toast variant-{clipboard.variant}" role="status">
     <span>
       {m.clipboard_toast({
-        label: clipboard.label ?? "",
+        label: kindLabel(clipboard.kind, clipboard.label),
         seconds: String(clipboard.secondsLeft),
       })}
     </span>
