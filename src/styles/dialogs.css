@@ -377,6 +377,57 @@
   color: var(--danger-text);
 }
 
+/* Preferences dialog: one tab strip, one panel at a time. The tabs are
+   plain buttons styled as an underline strip so the primary-button
+   default from base.css does not paint five blue pills in a row. */
+.prefs-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  margin: 0 0 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.prefs-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: -1px;
+  padding: 0.45rem 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.prefs-tab:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--hover-soft);
+  filter: none;
+}
+
+.prefs-tab[aria-selected="true"] {
+  color: var(--accent-text);
+  border-bottom-color: var(--primary);
+}
+
+.prefs-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.prefs-panel > h3:first-child {
+  margin-top: 0;
+}
+
+/* base.css stacks every label vertically; a checkbox wants its text
+   beside it. */
+.ssh-agent-autostart {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Shared modal-dialog shell for ImportDialog and ExportDialog. These used
    to live only in ImportDialog's scoped <style>, so ExportDialog referenced
    `.import-backdrop`/`.import-panel` with no styles behind them and rendered

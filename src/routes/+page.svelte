@@ -12,8 +12,8 @@
   import ClipboardToast from "#lib/ClipboardToast.svelte";
   import GeneratorDialog from "#lib/GeneratorDialog.svelte";
   import StatsDialog from "#lib/StatsDialog.svelte";
+  import PreferencesDialog from "#lib/PreferencesDialog.svelte";
   import AuditDialog from "#lib/AuditDialog.svelte";
-  import AboutDialog from "#lib/AboutDialog.svelte";
   import SshConfirmDialog from "#lib/SshConfirmDialog.svelte";
   import ConfirmDialog from "#lib/ConfirmDialog.svelte";
   import RepromptDialog from "#lib/RepromptDialog.svelte";
@@ -61,7 +61,7 @@
   let searchInput: HTMLInputElement | null = null;
   let statsDialog = $state<{ open: () => Promise<void> } | null>(null);
   let auditDialog = $state<{ open: () => void } | null>(null);
-  let aboutDialog = $state<{ open: () => Promise<void> } | null>(null);
+  let preferencesDialog = $state<{ open: () => Promise<void> } | null>(null);
   let generatorDialog = $state<{ open: () => void } | null>(null);
   let confirmDialog = $state<{ ask: ConfirmFn } | null>(null);
   let repromptDialog = $state<{ ask: (name: string) => Promise<boolean> } | null>(null);
@@ -738,8 +738,8 @@
         onOpenExport={() => (exportOpen = true)}
         onOpenGenerator={() => generatorDialog?.open()}
         onOpenAudit={() => auditDialog?.open()}
+        onOpenPreferences={() => preferencesDialog?.open()}
         onOpenStats={() => statsDialog?.open()}
-        onOpenAbout={() => aboutDialog?.open()}
       />
 
       {#if vault.summary}
@@ -969,40 +969,43 @@
     bind:this={statsDialog}
     summary={vault.summary}
     currentLocale={prefs.currentLocale}
-    themePref={prefs.themePref}
-    autoLockMinutes={prefs.autoLockMinutes}
-    autoLockTrigger={prefs.autoLockTrigger}
-    closeToTray={prefs.closeToTray}
-    minimizeToTray={prefs.minimizeToTray}
-    hideDockOnTray={prefs.hideDockOnTray}
-    requireNarrowing={prefs.requireNarrowing}
-    toolbarAlign={prefs.toolbarAlign}
-    autoSyncMinutes={prefs.autoSyncMinutes}
-    sshAgentConfirm={prefs.sshAgentConfirm}
-    sshAgentAutoStart={prefs.sshAgentAutoStart}
-    onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
-    onApplyTheme={(t) => prefs.applyTheme(t)}
-    onApplyAutoLock={(trigger, min) => prefs.setAutoLock(trigger, min)}
-    onApplyCloseToTray={(v) => prefs.setCloseToTray(v)}
-    onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
-    onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
-    onApplyRequireNarrowing={(v) => prefs.setRequireNarrowing(v)}
-    onApplyToolbarAlign={(v) => prefs.setToolbarAlign(v)}
-    onApplyAutoSyncMinutes={(v) => prefs.setAutoSyncMinutes(v)}
-    onApplySshAgentConfirm={(v) => prefs.setSshAgentConfirm(v)}
-    onApplySshAgentAutoStart={(v) => prefs.setSshAgentAutoStart(v)}
-    onCopySocketPath={copySshAgentSocket}
-    onCopyShellCommand={copyShellCommand}
   />
 {/if}
+
+<PreferencesDialog
+  bind:this={preferencesDialog}
+  currentLocale={prefs.currentLocale}
+  themePref={prefs.themePref}
+  autoLockMinutes={prefs.autoLockMinutes}
+  autoLockTrigger={prefs.autoLockTrigger}
+  closeToTray={prefs.closeToTray}
+  minimizeToTray={prefs.minimizeToTray}
+  hideDockOnTray={prefs.hideDockOnTray}
+  requireNarrowing={prefs.requireNarrowing}
+  toolbarAlign={prefs.toolbarAlign}
+  autoSyncMinutes={prefs.autoSyncMinutes}
+  sshAgentConfirm={prefs.sshAgentConfirm}
+  sshAgentAutoStart={prefs.sshAgentAutoStart}
+  onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
+  onApplyTheme={(t) => prefs.applyTheme(t)}
+  onApplyAutoLock={(trigger, min) => prefs.setAutoLock(trigger, min)}
+  onApplyCloseToTray={(v) => prefs.setCloseToTray(v)}
+  onApplyMinimizeToTray={(v) => prefs.setMinimizeToTray(v)}
+  onApplyHideDockOnTray={(v) => prefs.setHideDockOnTray(v)}
+  onApplyRequireNarrowing={(v) => prefs.setRequireNarrowing(v)}
+  onApplyToolbarAlign={(v) => prefs.setToolbarAlign(v)}
+  onApplyAutoSyncMinutes={(v) => prefs.setAutoSyncMinutes(v)}
+  onApplySshAgentConfirm={(v) => prefs.setSshAgentConfirm(v)}
+  onApplySshAgentAutoStart={(v) => prefs.setSshAgentAutoStart(v)}
+  onCopySocketPath={copySshAgentSocket}
+  onCopyShellCommand={copyShellCommand}
+/>
 
 <AuditDialog
   bind:this={auditDialog}
   currentLocale={prefs.currentLocale}
   onJumpToCipher={(id) => vault.jumpToCipher(id)}
 />
-
-<AboutDialog bind:this={aboutDialog} currentLocale={prefs.currentLocale} />
 
 <!-- Always mounted: the SSH agent can request a signature confirmation
      at any time, including while the vault view is up or hidden. -->

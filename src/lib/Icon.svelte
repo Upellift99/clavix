@@ -28,8 +28,9 @@
     | "upload" // export
     | "dice" // generator
     | "shield" // audit
-    | "info" // stats / infos
-    | "arrow-up-circle" // about / check for updates
+    | "info" // vault infos / about
+    | "settings" // preferences
+    | "arrow-up-circle" // check for updates
     | "edit" // edit cipher
     | "eye" // reveal field
     | "eye-off" // hide field
@@ -148,6 +149,16 @@
     <circle cx="12" cy="12" r="10" />
     <line x1="12" y1="16" x2="12" y2="12" />
     <line x1="12" y1="8" x2="12.01" y2="8" />
+  {:else if name === "settings"}
+    <line x1="21" y1="4" x2="14" y2="4" />
+    <line x1="10" y1="4" x2="3" y2="4" />
+    <line x1="21" y1="12" x2="12" y2="12" />
+    <line x1="8" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="20" x2="16" y2="20" />
+    <line x1="12" y1="20" x2="3" y2="20" />
+    <line x1="14" y1="2" x2="14" y2="6" />
+    <line x1="8" y1="10" x2="8" y2="14" />
+    <line x1="16" y1="18" x2="16" y2="22" />
   {:else if name === "arrow-up-circle"}
     <circle cx="12" cy="12" r="10" />
     <path d="M8 12l4-4 4 4" />
