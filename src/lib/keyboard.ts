@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import type { ClipboardKind } from "./clipboard.svelte";
 import type { CipherDetail, CipherSummary } from "./types";
 
 function isTypingContext(): boolean {
@@ -23,7 +24,7 @@ export type VaultKeyDeps = {
   getSearchInput: () => HTMLInputElement | null;
   closeDetail: () => void;
   lock: () => Promise<void> | void;
-  copy: (value: string, label: string) => Promise<void> | void;
+  copy: (value: string, kind: ClipboardKind) => Promise<void> | void;
   /** Reveal the password for a cipher id on demand (kept out of `detail`).
    *  Resolves to "" when the item has none or the reprompt was refused. */
   getPassword: (cipherId: string) => Promise<string>;
@@ -125,7 +126,7 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
       event.preventDefault();
       try {
         const password = await deps.getPassword(target.id);
-        if (password) await deps.copy(password, "mot de passe");
+        if (password) await deps.copy(password, "password");
       } catch (e) {
         deps.onError(e);
       }
@@ -133,14 +134,14 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
     }
     if (key === "b" && target.username) {
       event.preventDefault();
-      await deps.copy(target.username, "identifiant");
+      await deps.copy(target.username, "username");
       return;
     }
     if (key === "t" && target.mayHaveTotp) {
       event.preventDefault();
       try {
         const code = await deps.getTotpCode(target.id);
-        if (code) await deps.copy(code, "code TOTP");
+        if (code) await deps.copy(code, "totp");
       } catch (e) {
         deps.onError(e);
       }

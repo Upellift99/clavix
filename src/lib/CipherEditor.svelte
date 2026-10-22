@@ -5,6 +5,7 @@
   import PasswordStrength from "#lib/PasswordStrength.svelte";
   import { api } from "#lib/api.ts";
   import { trapFocus } from "#lib/focus.ts";
+  import type { ClipboardKind } from "#lib/clipboard.svelte.ts";
   import type { Locale, PasswordStrength as Strength, TauriError } from "#lib/types.ts";
 
   type FolderSummary = { id: string; name: string };
@@ -144,7 +145,7 @@
     onSubmit: (payload: SubmitPayload) => Promise<void>;
     /** Copy from the generator dialog goes through the page's clipboard
         controller (auto-clear, toast) rather than a bare writeText. */
-    onCopy: (value: string, label: string) => void;
+    onCopy: (value: string, kind: ClipboardKind) => void;
   } = $props();
 
   let cipherType = $state<CipherKind>(1);
@@ -893,7 +894,7 @@
   <GeneratorDialog
     bind:this={generatorDialog}
     {currentLocale}
-    onCopy={(value) => onCopy(value, "mot de passe")}
+    onCopy={(value) => onCopy(value, "password")}
     onUse={useGeneratedPassword}
   />
 {/if}

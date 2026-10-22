@@ -19,7 +19,7 @@
   import RepromptDialog from "#lib/RepromptDialog.svelte";
   import UpdateBanner from "#lib/UpdateBanner.svelte";
   import StandaloneBanner from "#lib/StandaloneBanner.svelte";
-  import { ClipboardController, type ClipboardVariant } from "#lib/clipboard.svelte.ts";
+  import { ClipboardController, type ClipboardKind } from "#lib/clipboard.svelte.ts";
   import { DragController } from "#lib/drag.svelte.ts";
   import { AuthController } from "#lib/auth.svelte.ts";
   import { VaultController } from "#lib/vault.svelte.ts";
@@ -289,20 +289,12 @@
     }
   }
 
-  // Tint the clipboard toast by what was copied. Nearly every copy funnels
-  // through here, so deriving the kind from the label keeps the call sites
-  // untouched; anything unrecognised (URLs, SSH socket, …) stays the default.
-  function clipboardVariant(label: string): ClipboardVariant {
-    const l = label.toLowerCase();
-    if (l.includes("passe") || l.includes("password")) return "password";
-    if (l.includes("totp") || l.includes("otp")) return "totp";
-    if (l.includes("identifiant") || l.includes("username")) return "username";
-    return "default";
-  }
-
-  async function copyToClipboard(value: string, label: string) {
+  // Every copy funnels through here. The kind names what was copied for
+  // the toast (localised there) and picks its tint; `label` only matters
+  // for the generic `field` kind.
+  async function copyToClipboard(value: string, kind: ClipboardKind, label?: string) {
     try {
-      await clipboard.copy(value, label, clipboardVariant(label));
+      await clipboard.copy(value, kind, label);
     } catch (e) {
       vault.error = formatError(e);
     }
@@ -409,7 +401,7 @@
   async function copyMenuUsername() {
     const username = menuDetail?.login?.username ?? menuCipher?.username;
     closeRowMenu();
-    if (username) await copyToClipboard(username, "identifiant");
+    if (username) await copyToClipboard(username, "username");
   }
 
   async function copyMenuPassword() {
@@ -421,7 +413,7 @@
     if (!(await requireReprompt(detail))) return;
     try {
       const password = await api.revealField(id, "password");
-      if (password) await copyToClipboard(password, "mot de passe");
+      if (password) await copyToClipboard(password, "password");
     } catch (e) {
       vault.error = formatError(e);
     }
@@ -436,7 +428,7 @@
     if (!(await requireReprompt(detail))) return;
     try {
       const { code } = await api.totpCode(id);
-      await copyToClipboard(code, "code TOTP");
+      await copyToClipboard(code, "totp");
     } catch (e) {
       vault.error = formatError(e);
     }
@@ -482,13 +474,13 @@
   }
 
   async function copySshAgentSocket(socketPath: string) {
-    await copyToClipboard(`export SSH_AUTH_SOCK=${socketPath}`, "SSH_AUTH_SOCK");
+    await copyToClipboard(`export SSH_AUTH_SOCK=${socketPath}`, "sshSock");
   }
 
   // Copies a shell command verbatim — unlike copySshAgentSocket, which
   // wraps its argument in an `export` assignment.
   async function copyShellCommand(command: string) {
-    await copyToClipboard(command, "commande");
+    await copyToClipboard(command, "command");
   }
 
   async function lockAndReset() {
@@ -801,6 +793,7 @@
                 gated={listGated}
                 onShowAll={() => (showAllOnce = true)}
                 selectedId={vault.detail?.id ?? null}
+                currentLocale={prefs.currentLocale}
                 sortKey={vault.sortKey}
                 sortAsc={vault.sortAsc}
                 storedAccount={auth.storedAccount}
@@ -968,7 +961,7 @@
 <GeneratorDialog
   bind:this={generatorDialog}
   currentLocale={prefs.currentLocale}
-  onCopy={(value) => copyToClipboard(value, m.detail_field_password())}
+  onCopy={(value) => copyToClipboard(value, "password")}
 />
 
 {#if vault.summary}

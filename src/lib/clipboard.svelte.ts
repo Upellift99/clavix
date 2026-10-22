@@ -2,25 +2,63 @@ import { clear as clearClipboard, writeText } from "@tauri-apps/plugin-clipboard
 
 export const CLIPBOARD_CLEAR_SECONDS = 30;
 
-/** Copied-value kind, used to tint the clipboard toast. */
+/**
+ * What was copied. The toast names it (through a message key, so it
+ * follows the locale) and tints itself from it. `field` is the generic
+ * case, for a custom field or an identity row: the caller hands over
+ * the already-localised label it shows on screen.
+ */
+export type ClipboardKind =
+  | "password"
+  | "username"
+  | "totp"
+  | "url"
+  | "publicKey"
+  | "privateKey"
+  | "cardNumber"
+  | "securityCode"
+  | "command"
+  | "sshSock"
+  | "field";
+
+/** Toast tint, derived from the kind. */
 export type ClipboardVariant = "password" | "username" | "totp" | "default";
+
+export function clipboardVariant(kind: ClipboardKind): ClipboardVariant {
+  switch (kind) {
+    case "password":
+    case "privateKey":
+    case "cardNumber":
+    case "securityCode":
+      return "password";
+    case "username":
+      return "username";
+    case "totp":
+      return "totp";
+    default:
+      return "default";
+  }
+}
 
 export class ClipboardController {
   secondsLeft = $state<number | null>(null);
+  kind = $state<ClipboardKind>("field");
+  /** Localised label, only meaningful when `kind` is `field`. */
   label = $state<string | null>(null);
   variant = $state<ClipboardVariant>("default");
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private interval: ReturnType<typeof setInterval> | null = null;
 
-  async copy(value: string, label: string, variant: ClipboardVariant = "default"): Promise<void> {
+  async copy(value: string, kind: ClipboardKind, label?: string): Promise<void> {
     await writeText(value);
-    this.scheduleClear(label, variant);
+    this.scheduleClear(kind, label);
   }
 
-  scheduleClear(label: string, variant: ClipboardVariant = "default") {
+  scheduleClear(kind: ClipboardKind, label?: string) {
     this.clearTimers();
-    this.label = label;
-    this.variant = variant;
+    this.kind = kind;
+    this.label = label ?? null;
+    this.variant = clipboardVariant(kind);
     this.secondsLeft = CLIPBOARD_CLEAR_SECONDS;
     this.interval = setInterval(() => {
       if (this.secondsLeft !== null && this.secondsLeft > 0) {
@@ -33,9 +71,7 @@ export class ClipboardController {
       } catch {
         // best-effort
       }
-      this.secondsLeft = null;
-      this.label = null;
-      this.variant = "default";
+      this.reset();
       this.clearTimers();
     }, CLIPBOARD_CLEAR_SECONDS * 1000);
   }
@@ -47,13 +83,18 @@ export class ClipboardController {
     } catch {
       // best-effort
     }
-    this.secondsLeft = null;
-    this.label = null;
-    this.variant = "default";
+    this.reset();
   }
 
   dispose() {
     this.clearTimers();
+  }
+
+  private reset() {
+    this.secondsLeft = null;
+    this.kind = "field";
+    this.label = null;
+    this.variant = "default";
   }
 
   private clearTimers() {
