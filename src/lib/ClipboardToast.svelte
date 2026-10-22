@@ -25,20 +25,22 @@
 
 <style>
   .clipboard-toast {
-    /* Accent tints by copied kind (set via the variant-* classes). */
+    /* Accent tints by copied kind (set via the variant-* classes). The
+       toast is a solid dark pill in both themes, so these are not
+       themed: each one already reads on a light or a dark page. */
     --toast-accent: #1e3a8a;
     position: fixed;
     bottom: 1rem;
     left: 50%;
     transform: translateX(-50%);
     background: var(--toast-accent);
-    color: #fff;
+    color: var(--on-primary);
     padding: 0.6rem 1rem;
     border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-popover);
     z-index: 1000;
   }
 
@@ -56,9 +58,9 @@
   }
 
   .clipboard-toast button.secondary {
-    background: #fff;
+    background: var(--on-primary);
     color: var(--toast-accent);
-    border-color: #fff;
+    border-color: var(--on-primary);
     cursor: pointer;
     font: inherit;
     border-radius: 6px;

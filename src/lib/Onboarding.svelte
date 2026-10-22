@@ -43,20 +43,21 @@
     margin-top: 1.5rem;
     padding: 1rem 1.25rem;
     border-radius: 10px;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-card);
   }
 
   .box.onboarding h3 {
     margin-top: 1rem;
     font-size: 0.9rem;
-    color: #444;
+    color: var(--text-label);
   }
 
   .box.onboarding ul {
     margin: 0.25rem 0 0.75rem;
     padding-left: 1.25rem;
-    color: #333;
+    color: var(--text-secondary);
   }
 
   .box.onboarding ul li {
@@ -76,8 +77,9 @@
     margin: 1rem 0 0.25rem;
     padding: 0.85rem 1rem;
     border-radius: 8px;
-    background: #fff8e1;
-    border-left: 4px solid #d6a400;
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    border: 1px solid var(--warning-border);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -86,12 +88,12 @@
 
   .callout strong {
     font-weight: 600;
-    color: #6a5000;
+    color: var(--warning-text);
   }
 
   .callout p {
     margin: 0;
-    color: #4a3a00;
+    color: var(--warning-text);
     font-size: 0.9rem;
   }
 
@@ -108,9 +110,9 @@
 
   button {
     cursor: pointer;
-    background: #396cd8;
-    color: #fff;
-    border: 1px solid #396cd8;
+    background: var(--primary);
+    color: var(--on-primary);
+    border: 1px solid var(--primary);
     border-radius: 6px;
     padding: 0.55rem 0.8rem;
     font: inherit;
@@ -118,9 +120,9 @@
   }
 
   button.secondary {
-    background: #fff;
-    color: #333;
-    border-color: #d0d0d0;
+    background: var(--surface);
+    color: var(--text-secondary);
+    border-color: var(--border-input);
   }
 
   button:hover {

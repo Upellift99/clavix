@@ -1,0 +1,311 @@
+/*
+ * Colour tokens. Every colour in the app resolves to one of these, so a
+ * theme is a single block of values rather than a dark override hand-
+ * written next to each rule (that is how the onboarding screen shipped
+ * white-on-white in dark mode: one scoped `.box` had no dark twin).
+ *
+ * Light values live on `:root`. The dark values are written twice, in
+ * two blocks that must stay byte-identical (tokens.test.ts checks):
+ *   - under `@media (prefers-color-scheme: dark)` for the system theme,
+ *     skipped when the user forced light in Préférences (`.force-light`);
+ *   - under `:root.force-dark` for the in-app "Dark" choice on a light
+ *     system.
+ * CSS has no way to share a declaration block between the two, and an
+ * inline bootstrap script that could pick the class before paint is
+ * ruled out by the hash-mode CSP, so the duplication is the price of a
+ * flash-free dark start.
+ *
+ * Naming: surfaces, text, borders, then the accent/state families. Values
+ * are the colours the app already used; this file changes where they
+ * are written, not what they are.
+ */
+:root {
+  /* Surfaces */
+  --bg: #f6f6f6;
+  --surface: #fff;
+  --surface-pane: #fff;
+  --surface-raised: #fff;
+  --surface-accent: #fff;
+  --surface-header: #fafafa;
+  --surface-inset: #f3f4f6;
+  --surface-code: #eee;
+  --backdrop: rgba(0, 0, 0, 0.35);
+
+  /* Text */
+  --text: #0f0f0f;
+  --text-secondary: #333;
+  --text-label: #444;
+  --text-muted: #555;
+  --text-data-muted: #4a4a4a;
+  --text-faint: #6b7280;
+  --text-disabled: #9ca3af;
+  --on-primary: #fff;
+
+  /* Borders */
+  --border: #e5e5e5;
+  --border-input: #d0d0d0;
+  --border-accent: #d6e0ee;
+  --border-soft: #eee;
+
+  /* Primary */
+  --primary: #396cd8;
+  --primary-hover-bg: #dde9f8;
+  --primary-hover-border: #b6cdec;
+  --primary-active-bg: #cfe0f5;
+  --accent-text: #1e3a8a;
+  --link: #1f4db0;
+  --link-hover: #0f307a;
+  --focus-ring: #396cd8;
+  --focus-shadow: rgba(57, 108, 216, 0.15);
+
+  /* Selection: list rows, tree nodes, menus */
+  --row-zebra: #eaf2fc;
+  --row-hover: #b3d2f0;
+  --row-hover-zebra: #a3c6ec;
+  --row-selected: #6ea3df;
+  --row-selected-text: #0a1f47;
+  --row-ticked: #d9e9fb;
+  --row-ticked-hover: #c2dbf6;
+  --row-tick-bar: #2563eb;
+  --hover-tint: #cfe0f5;
+  --hover-soft: #eef2fa;
+  --accent-soft-bg: #eef5fd;
+  --splitter-hover: #dbeafe;
+  --splitter-line: #3b82f6;
+  --droppable-outline: #c5d6ff;
+  --rename-border: #98c2ff;
+  --badge-bg: #eef2ff;
+  --badge-text: #3751c4;
+  --kbd-text: #8a8f98;
+  --kbd-bg: #f1f3f7;
+  --kbd-border: #e2e5eb;
+
+  /* Password character classes (KeePassXC convention) */
+  --password-digit: #1d4ed8;
+  --password-symbol: #b91c1c;
+
+  /* Danger / error */
+  --danger: #b91c1c;
+  --danger-text: #b9301a;
+  --error-bg: #fdecec;
+  --error-text: #7a1d1d;
+  --error-border: #d63a3a;
+
+  /* Warning / amber */
+  --warning-text: #7a3b00;
+  --warning-bg: #fff5e0;
+  --warning-border: #f0c674;
+  --star: #f0a500;
+  --drop-bg: #fde68a;
+  --drop-text: #78350f;
+  --drop-outline: #f59e0b;
+
+  /* Success */
+  --success-text: #18683a;
+
+  /* Status dot */
+  --status-fresh: #22c55e;
+  --status-busy: #f59e0b;
+  --status-offline: #ef4444;
+  --status-unknown: #9ca3af;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-menu: 0 6px 24px rgba(0, 0, 0, 0.16);
+  --shadow-dialog: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* DARK-TOKENS-BEGIN */
+@media (prefers-color-scheme: dark) {
+  :root:not(.force-light) {
+    --bg: #1e1e1e;
+    --surface: #2b2b2b;
+    --surface-pane: #232323;
+    --surface-raised: #2a2a2a;
+    --surface-accent: #232b3a;
+    --surface-header: #1f1f1f;
+    --surface-inset: #1e1e1e;
+    --surface-code: #333;
+    --backdrop: rgba(0, 0, 0, 0.5);
+
+    --text: #f6f6f6;
+    --text-secondary: #ddd;
+    --text-label: #ccc;
+    --text-muted: #a3a3a3;
+    --text-data-muted: #b8b8b8;
+    --text-faint: #9ca3af;
+    --text-disabled: #6b7280;
+    --on-primary: #fff;
+
+    --border: #333;
+    --border-input: #3a3a3a;
+    --border-accent: #2e3a52;
+    --border-soft: #333;
+
+    --primary: #396cd8;
+    --primary-hover-bg: #2c3a55;
+    --primary-hover-border: #3b4f72;
+    --primary-active-bg: #364871;
+    --accent-text: #aabaff;
+    --link: #8fb0ff;
+    --link-hover: #aabaff;
+    --focus-ring: #8fb0ff;
+    --focus-shadow: rgba(143, 176, 255, 0.25);
+
+    --row-zebra: #1d2738;
+    --row-hover: #3b4f78;
+    --row-hover-zebra: #44598a;
+    --row-selected: #4467b0;
+    --row-selected-text: #e6efff;
+    --row-ticked: #1e3556;
+    --row-ticked-hover: #274672;
+    --row-tick-bar: #60a5fa;
+    --hover-tint: #2c3a55;
+    --hover-soft: #2c3a55;
+    --accent-soft-bg: #1b2434;
+    --splitter-hover: #1e3a8a;
+    --splitter-line: #60a5fa;
+    --droppable-outline: #3b4f72;
+    --rename-border: #4467b0;
+    --badge-bg: #1f2a54;
+    --badge-text: #aabaff;
+    --kbd-text: #9aa0aa;
+    --kbd-bg: #33383f;
+    --kbd-border: #454b54;
+
+    --password-digit: #93c5fd;
+    --password-symbol: #fca5a5;
+
+    --danger: #b91c1c;
+    --danger-text: #ffb4a8;
+    --error-bg: #3a2020;
+    --error-text: #ff8a8a;
+    --error-border: #d63a3a;
+
+    --warning-text: #f0c070;
+    --warning-bg: #3a2f1a;
+    --warning-border: #6b5520;
+    --star: #f0a500;
+    --drop-bg: #fde68a;
+    --drop-text: #78350f;
+    --drop-outline: #f59e0b;
+
+    --success-text: #6ecf9a;
+
+    --status-fresh: #22c55e;
+    --status-busy: #f59e0b;
+    --status-offline: #ef4444;
+    --status-unknown: #9ca3af;
+
+    --shadow-sm: none;
+    --shadow-card: none;
+    --shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-menu: 0 6px 24px rgba(0, 0, 0, 0.5);
+    --shadow-dialog: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root.force-dark {
+    --bg: #1e1e1e;
+    --surface: #2b2b2b;
+    --surface-pane: #232323;
+    --surface-raised: #2a2a2a;
+    --surface-accent: #232b3a;
+    --surface-header: #1f1f1f;
+    --surface-inset: #1e1e1e;
+    --surface-code: #333;
+    --backdrop: rgba(0, 0, 0, 0.5);
+
+    --text: #f6f6f6;
+    --text-secondary: #ddd;
+    --text-label: #ccc;
+    --text-muted: #a3a3a3;
+    --text-data-muted: #b8b8b8;
+    --text-faint: #9ca3af;
+    --text-disabled: #6b7280;
+    --on-primary: #fff;
+
+    --border: #333;
+    --border-input: #3a3a3a;
+    --border-accent: #2e3a52;
+    --border-soft: #333;
+
+    --primary: #396cd8;
+    --primary-hover-bg: #2c3a55;
+    --primary-hover-border: #3b4f72;
+    --primary-active-bg: #364871;
+    --accent-text: #aabaff;
+    --link: #8fb0ff;
+    --link-hover: #aabaff;
+    --focus-ring: #8fb0ff;
+    --focus-shadow: rgba(143, 176, 255, 0.25);
+
+    --row-zebra: #1d2738;
+    --row-hover: #3b4f78;
+    --row-hover-zebra: #44598a;
+    --row-selected: #4467b0;
+    --row-selected-text: #e6efff;
+    --row-ticked: #1e3556;
+    --row-ticked-hover: #274672;
+    --row-tick-bar: #60a5fa;
+    --hover-tint: #2c3a55;
+    --hover-soft: #2c3a55;
+    --accent-soft-bg: #1b2434;
+    --splitter-hover: #1e3a8a;
+    --splitter-line: #60a5fa;
+    --droppable-outline: #3b4f72;
+    --rename-border: #4467b0;
+    --badge-bg: #1f2a54;
+    --badge-text: #aabaff;
+    --kbd-text: #9aa0aa;
+    --kbd-bg: #33383f;
+    --kbd-border: #454b54;
+
+    --password-digit: #93c5fd;
+    --password-symbol: #fca5a5;
+
+    --danger: #b91c1c;
+    --danger-text: #ffb4a8;
+    --error-bg: #3a2020;
+    --error-text: #ff8a8a;
+    --error-border: #d63a3a;
+
+    --warning-text: #f0c070;
+    --warning-bg: #3a2f1a;
+    --warning-border: #6b5520;
+    --star: #f0a500;
+    --drop-bg: #fde68a;
+    --drop-text: #78350f;
+    --drop-outline: #f59e0b;
+
+    --success-text: #6ecf9a;
+
+    --status-fresh: #22c55e;
+    --status-busy: #f59e0b;
+    --status-offline: #ef4444;
+    --status-unknown: #9ca3af;
+
+    --shadow-sm: none;
+    --shadow-card: none;
+    --shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-menu: 0 6px 24px rgba(0, 0, 0, 0.5);
+    --shadow-dialog: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+/* DARK-TOKENS-END */
+
+/* Form controls and the caret follow the theme too; without this a dark
+   page keeps a light-grey native checkbox, scrollbar and date picker. */
+:root {
+  color-scheme: light;
+  accent-color: var(--primary);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.force-light) {
+    color-scheme: dark;
+  }
+}
+:root.force-dark {
+  color-scheme: dark;
+}

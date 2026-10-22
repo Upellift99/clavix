@@ -179,7 +179,7 @@
     padding: 1.25rem 1.4rem;
   }
   .ssh-confirm-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--backdrop);
   }
   .ssh-confirm-dialog h2 {
     margin: 0 0 0.5rem;
@@ -187,7 +187,7 @@
   }
   .ssh-confirm-body {
     margin: 0 0 0.85rem;
-    color: #555;
+    color: var(--text-muted);
     font-size: 0.9rem;
   }
   .ssh-confirm-key {
@@ -198,45 +198,28 @@
     font-size: 0.9rem;
   }
   .ssh-confirm-key dt {
-    color: #777;
+    color: var(--text-muted);
   }
   .ssh-confirm-key dd {
     margin: 0;
     word-break: break-all;
   }
   .ssh-confirm-algo {
-    color: #777;
+    color: var(--text-muted);
     font-size: 0.85em;
   }
   .ssh-confirm-caller-unknown {
-    color: #777;
+    color: var(--text-muted);
     font-style: italic;
   }
   .ssh-confirm-caller-hint {
     margin: -0.5rem 0 1rem;
-    color: #777;
+    color: var(--text-muted);
     font-size: 0.8rem;
   }
   .ssh-confirm-actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.6rem;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .ssh-confirm-body,
-    .ssh-confirm-key dt,
-    .ssh-confirm-algo,
-    .ssh-confirm-caller-unknown,
-    .ssh-confirm-caller-hint {
-      color: #aaa;
-    }
-  }
-  :global(:root.force-dark) .ssh-confirm-body,
-  :global(:root.force-dark) .ssh-confirm-key dt,
-  :global(:root.force-dark) .ssh-confirm-algo,
-  :global(:root.force-dark) .ssh-confirm-caller-unknown,
-  :global(:root.force-dark) .ssh-confirm-caller-hint {
-    color: #aaa;
   }
 </style>

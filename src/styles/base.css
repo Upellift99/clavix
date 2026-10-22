@@ -6,8 +6,8 @@
   font-feature-settings: "cv11", "ss01", "ss03";
   font-size: 16px;
   line-height: 1.45;
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: var(--text);
+  background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -20,6 +20,11 @@ body {
 
 body {
   overflow: hidden;
+}
+
+::selection {
+  background: var(--row-selected);
+  color: var(--row-selected-text);
 }
 
 .container {
@@ -78,13 +83,13 @@ h3 {
   margin: 0.75rem 0 0.35rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #444;
+  color: var(--text-label);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
 h3 small {
-  color: #555;
+  color: var(--text-muted);
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
@@ -92,7 +97,7 @@ h3 small {
 
 .subtitle {
   margin: 0 0 1.25rem;
-  color: #555;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -124,10 +129,10 @@ form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: #fff;
+  background: var(--surface);
   padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 label {
@@ -135,7 +140,7 @@ label {
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.85rem;
-  color: #333;
+  color: var(--text-secondary);
 }
 
 input,
@@ -145,8 +150,9 @@ textarea {
   font: inherit;
   padding: 0.4rem 0.6rem;
   border-radius: 5px;
-  border: 1px solid #d0d0d0;
-  background: #fff;
+  border: 1px solid var(--border-input);
+  background: var(--surface);
+  color: var(--text);
 }
 
 input,
@@ -154,31 +160,41 @@ textarea {
   font-family: var(--font-data);
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint);
+}
+
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: #396cd8;
-  box-shadow: 0 0 0 2px rgba(57, 108, 216, 0.15);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--focus-shadow);
 }
 
 button {
   cursor: pointer;
-  background: #396cd8;
-  color: #fff;
-  border-color: #396cd8;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
   font-weight: 500;
   font-family: var(--font-ui);
 }
 
 button.secondary {
-  background: #fff;
-  color: #333;
-  border-color: #d0d0d0;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-color: var(--border-input);
 }
 
 button:hover:not(:disabled) {
   filter: brightness(0.95);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 button:disabled {
@@ -210,16 +226,17 @@ button.info-button {
   margin-top: 0.75rem;
   padding: 0.6rem 0.85rem;
   border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .box.error {
-  border-left: 3px solid #d63a3a;
+  border: 1px solid var(--error-border);
+  background: var(--error-bg);
 }
 
 .box.error pre {
-  color: #7a1d1d;
+  color: var(--error-text);
   white-space: pre-wrap;
   margin: 0;
 }
@@ -227,7 +244,7 @@ button.info-button {
 .hint {
   margin: 0.4rem 0 0;
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-muted);
 }
 
 dl {
@@ -239,7 +256,7 @@ dl {
 
 dt {
   font-weight: 600;
-  color: #444;
+  color: var(--text-label);
   font-size: 0.85rem;
 }
 
@@ -251,7 +268,7 @@ dd {
 
 pre {
   font-size: 0.78rem;
-  background: #f1f1f1;
+  background: var(--surface-inset);
   padding: 0.4rem 0.5rem;
   border-radius: 5px;
   overflow-x: auto;
@@ -259,7 +276,7 @@ pre {
 }
 
 code {
-  background: #eee;
+  background: var(--surface-code);
   padding: 0.08rem 0.3rem;
   border-radius: 3px;
   font-size: 0.85em;
@@ -286,8 +303,8 @@ code {
 .badge {
   display: inline-block;
   padding: 0.03rem 0.35rem;
-  background: #eef2ff;
-  color: #3751c4;
+  background: var(--badge-bg);
+  color: var(--badge-text);
   border-radius: 3px;
   font-size: 0.7rem;
   font-weight: 500;
@@ -296,7 +313,7 @@ code {
 }
 
 .star {
-  color: #f0a500;
+  color: var(--star);
 }
 
 .search-row {
@@ -308,65 +325,3 @@ code {
 .search {
   flex: 1;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #1e1e1e;
-  }
-  .subtitle,
-  h3 small,
-  .hint { color: #aaa; }
-  h3 { color: #ccc; }
-  form,
-  .box { background: #2b2b2b; box-shadow: none; }
-  label { color: #ccc; }
-  input,
-  button,
-  select,
-  textarea { background: #1e1e1e; color: #f6f6f6; border-color: #3a3a3a; }
-  button { background: #396cd8; border-color: #396cd8; }
-  button.secondary { background: #2b2b2b; color: #ddd; border-color: #3a3a3a; }
-  dt { color: #ccc; }
-  .box.error pre { color: #ff8a8a; }
-  pre { background: #181818; }
-  code { background: #333; }
-  .badge { background: #1f2a54; color: #aabaff; }
-}
-
-/*
- * The user-toggled `force-dark` rules used to be written as
- * `:root.force-dark <tag>` (specificity 0,2,1), which silently beat
- * Svelte-scoped component overrides like `.tb-btn { background:
- * transparent }` (0,2,0). The `@media (prefers-color-scheme: dark)`
- * block above is just `<tag>` (0,0,1), so system-dark mode worked,
- * but flipping the in-app theme to "Dark" left every styled <button>
- * (toolbar, cipher rows, column headers, sidebar nodes, copy icons)
- * painted in the global primary blue.
- *
- * Wrap the ancestor in :where() so all the rules below collapse to
- * the same specificity as the @media block (0,0,1 / 0,1,1) and
- * scoped component overrides win as they always have in light mode.
- */
-:where(:root.force-dark) {
-  color: #f6f6f6;
-  background-color: #1e1e1e;
-}
-:where(:root.force-dark) .subtitle,
-:where(:root.force-dark) h3 small,
-:where(:root.force-dark) .hint { color: #aaa; }
-:where(:root.force-dark) h3 { color: #ccc; }
-:where(:root.force-dark) form,
-:where(:root.force-dark) .box { background: #2b2b2b; box-shadow: none; }
-:where(:root.force-dark) label { color: #ccc; }
-:where(:root.force-dark) input,
-:where(:root.force-dark) button,
-:where(:root.force-dark) select,
-:where(:root.force-dark) textarea { background: #1e1e1e; color: #f6f6f6; border-color: #3a3a3a; }
-:where(:root.force-dark) button { background: #396cd8; border-color: #396cd8; }
-:where(:root.force-dark) button.secondary { background: #2b2b2b; color: #ddd; border-color: #3a3a3a; }
-:where(:root.force-dark) dt { color: #ccc; }
-:where(:root.force-dark) .box.error pre { color: #ff8a8a; }
-:where(:root.force-dark) pre { background: #181818; }
-:where(:root.force-dark) code { background: #333; }
-:where(:root.force-dark) .badge { background: #1f2a54; color: #aabaff; }

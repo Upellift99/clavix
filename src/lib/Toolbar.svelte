@@ -236,8 +236,8 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.3rem 0.5rem;
-    background: #fff;
-    border: 1px solid #d6e0ee;
+    background: var(--surface-accent);
+    border: 1px solid var(--border-accent);
     border-radius: 6px;
     flex: 0 0 auto;
   }
@@ -275,7 +275,7 @@
   .tb-divider {
     width: 1px;
     height: 1.4rem;
-    background: #d6e0ee;
+    background: var(--border-accent);
     margin: 0 0.2rem;
     flex: 0 0 auto;
   }
@@ -298,13 +298,13 @@
   }
 
   .tb-btn:hover:not(:disabled) {
-    background: #dde9f8;
-    border-color: #b6cdec;
+    background: var(--primary-hover-bg);
+    border-color: var(--primary-hover-border);
     filter: none;
   }
 
   .tb-btn:active:not(:disabled) {
-    background: #cfe0f5;
+    background: var(--primary-active-bg);
   }
 
   .tb-btn:disabled {
@@ -313,7 +313,7 @@
   }
 
   .tb-btn:focus-visible {
-    outline: 2px solid #396cd8;
+    outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
   }
 
@@ -323,7 +323,7 @@
     align-items: center;
     gap: 0.4rem;
     font-size: 0.78rem;
-    color: #555;
+    color: var(--text-muted);
     padding-right: 0.2rem;
   }
 
@@ -341,24 +341,28 @@
       box-shadow 150ms ease;
   }
 
+  /* The halo is the dot's own colour at 20% alpha. The status colours
+     are the same in both themes, so the rgba values are not themed; they
+     stay literal because there is no colour-mix in the supported
+     WebViews to derive them from the token. */
   .tb-dot--fresh {
-    background: #22c55e;
+    background: var(--status-fresh);
     box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
   }
   .tb-dot--syncing {
-    background: #f59e0b;
+    background: var(--status-busy);
     box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
   }
   .tb-dot--stale {
-    background: #f59e0b;
+    background: var(--status-busy);
     box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
   }
   .tb-dot--offline {
-    background: #ef4444;
+    background: var(--status-offline);
     box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
   }
   .tb-dot--unknown {
-    background: #9ca3af;
+    background: var(--status-unknown);
     box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.2);
   }
 
@@ -370,30 +374,4 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
   }
-
-  @media (prefers-color-scheme: dark) {
-    .toolbar {
-      background: #232b3a;
-      border-color: #2e3a52;
-    }
-    .tb-divider { background: #2e3a52; }
-    .tb-btn:hover:not(:disabled) {
-      background: #2c3a55;
-      border-color: #3b4f72;
-    }
-    .tb-btn:active:not(:disabled) { background: #364871; }
-    .tb-status { color: #aab; }
-  }
-
-  :global(:root.force-dark) .toolbar {
-    background: #232b3a;
-    border-color: #2e3a52;
-  }
-  :global(:root.force-dark) .tb-divider { background: #2e3a52; }
-  :global(:root.force-dark) .tb-btn:hover:not(:disabled) {
-    background: #2c3a55;
-    border-color: #3b4f72;
-  }
-  :global(:root.force-dark) .tb-btn:active:not(:disabled) { background: #364871; }
-  :global(:root.force-dark) .tb-status { color: #aab; }
 </style>

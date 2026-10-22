@@ -114,17 +114,15 @@
 </div>
 
 <style>
-  /* Band colours are declared once as custom properties and re-stated
-     per theme below. Both dark blocks are required: the @media one for
-     the system preference, the :where(:root.force-dark) one for the
-     in-app theme toggle — see the comment at base.css:337-350. */
+  /* The weak/fair/good band colours are a graded scale of their own: no
+     shared token carries that exact red-amber-blue sequence, so they stay
+     local and are re-tinted for dark below, in the same two blocks as
+     tokens.css (system preference minus "force light", then the in-app
+     "Dark" choice). The strong band is the shared success colour. */
   .strength {
-    --strength-track: #e5e7eb;
     --strength-weak: #b91c1c;
     --strength-fair: #b45309;
     --strength-good: #1d4ed8;
-    --strength-strong: #18683a;
-    --strength-muted: #555;
     margin: 0.3rem 0 0;
   }
 
@@ -136,7 +134,7 @@
 
   .strength-seg {
     flex: 1;
-    background: var(--strength-track);
+    background: var(--border);
     border-radius: 2px;
     transition: background 120ms ease-out;
   }
@@ -151,7 +149,7 @@
     background: var(--strength-good);
   }
   .strength[data-band="strong"] .strength-seg.on {
-    background: var(--strength-strong);
+    background: var(--success-text);
   }
 
   .strength-text {
@@ -176,11 +174,11 @@
     color: var(--strength-good);
   }
   .strength[data-band="strong"] .strength-verdict {
-    color: var(--strength-strong);
+    color: var(--success-text);
   }
 
   .strength-detail {
-    color: var(--strength-muted);
+    color: var(--text-muted);
     font-variant-numeric: tabular-nums;
   }
 
@@ -191,22 +189,16 @@
   }
 
   @media (prefers-color-scheme: dark) {
-    .strength {
-      --strength-track: #3a3a3a;
+    :global(:root:not(.force-light)) .strength {
       --strength-weak: #ff8a8a;
       --strength-fair: #e0a458;
       --strength-good: #8fb0ff;
-      --strength-strong: #6ecf9a;
-      --strength-muted: #aaa;
     }
   }
 
-  :where(:root.force-dark) .strength {
-    --strength-track: #3a3a3a;
+  :global(:root.force-dark) .strength {
     --strength-weak: #ff8a8a;
     --strength-fair: #e0a458;
     --strength-good: #8fb0ff;
-    --strength-strong: #6ecf9a;
-    --strength-muted: #aaa;
   }
 </style>

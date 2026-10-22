@@ -26,7 +26,7 @@
   align-items: flex-start;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 0.6rem;
 }
 
@@ -49,7 +49,7 @@
   padding: 0;
   list-style: none;
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--text-faint);
 }
 
 .detail-location li {
@@ -74,9 +74,9 @@
 }
 
 .detail-header .danger {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-primary);
 }
 .detail-header .danger:hover:not(:disabled) {
   filter: brightness(0.95);
@@ -99,7 +99,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--text-faint);
   margin: 0 0 0.4rem;
   padding-bottom: 0.2rem;
 }
@@ -114,7 +114,7 @@
 
 .detail-field dt {
   font-weight: 500;
-  color: #555;
+  color: var(--text-muted);
   font-size: 0.82rem;
 }
 
@@ -158,11 +158,11 @@
    what looked like a long letter run actually has a digit buried
    inside it. Letters keep the default body colour. */
 .password .ch-digit {
-  color: #1d4ed8;
+  color: var(--password-digit);
   font-weight: 600;
 }
 .password .ch-symbol {
-  color: #b91c1c;
+  color: var(--password-symbol);
   font-weight: 600;
 }
 
@@ -173,7 +173,7 @@
 .icon-btn {
   background: transparent;
   border: 1px solid transparent;
-  color: #4a4a4a;
+  color: var(--text-data-muted);
   width: 1.7rem;
   height: 1.7rem;
   padding: 0;
@@ -186,19 +186,19 @@
   flex: 0 0 auto;
 }
 .icon-btn:hover:not(:disabled) {
-  background: #dde9f8;
-  border-color: #b6cdec;
-  color: #1d4ed8;
+  background: var(--primary-hover-bg);
+  border-color: var(--primary-hover-border);
+  color: var(--accent-text);
 }
 .icon-btn:active:not(:disabled) {
-  background: #cfe0f5;
+  background: var(--primary-active-bg);
 }
 .icon-btn:focus-visible {
-  outline: 2px solid #396cd8;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 .icon-btn.primary:hover:not(:disabled) {
-  background: #cfe0f5;
+  background: var(--primary-active-bg);
 }
 
 .notes {
@@ -206,7 +206,7 @@
   white-space: pre-wrap;
   font-size: 0.88rem;
   font-family: var(--font-data);
-  color: #333;
+  color: var(--text-secondary);
 }
 
 .ssh-key {
@@ -217,8 +217,8 @@
   max-height: 10rem;
   overflow-y: auto;
   font-size: 0.78rem;
-  background: #f6f8fb;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.4rem 0.5rem;
 }
@@ -226,7 +226,7 @@
 .detail-footer {
   margin-top: 0.6rem;
   font-size: 0.72rem;
-  color: #6b7280;
+  color: var(--text-faint);
 }
 
 @media (max-width: 720px) {
@@ -238,58 +238,6 @@
     margin-left: 0;
   }
 }
-
-@media (prefers-color-scheme: dark) {
-  .detail-header { border-bottom-color: #2e3a52; }
-  .detail-section-title { color: #9ca3af; }
-  .detail-field dt { color: #b8b8b8; }
-  .icon-btn {
-    color: #aab;
-  }
-  .icon-btn:hover:not(:disabled) {
-    background: #2c3a55;
-    border-color: #3b4f72;
-    color: #aabaff;
-  }
-  .icon-btn:active:not(:disabled) {
-    background: #364871;
-  }
-  .icon-btn.primary:hover:not(:disabled) {
-    background: #3b4f72;
-  }
-  .password .ch-digit { color: #93c5fd; }
-  .password .ch-symbol { color: #fca5a5; }
-  .ssh-key {
-    background: #1d2738;
-    border-color: #2e3a52;
-    color: #cfdcff;
-  }
-  .notes { color: #d1d5db; }
-  .detail-footer { color: #9ca3af; }
-  .detail-location { color: #9ca3af; }
-}
-
-:root.force-dark .detail-header { border-bottom-color: #2e3a52; }
-:root.force-dark .detail-section-title { color: #9ca3af; }
-:root.force-dark .detail-field dt { color: #b8b8b8; }
-:root.force-dark .icon-btn { color: #aab; }
-:root.force-dark .icon-btn:hover:not(:disabled) {
-  background: #2c3a55;
-  border-color: #3b4f72;
-  color: #aabaff;
-}
-:root.force-dark .icon-btn:active:not(:disabled) { background: #364871; }
-:root.force-dark .icon-btn.primary:hover:not(:disabled) { background: #3b4f72; }
-:root.force-dark .password .ch-digit { color: #93c5fd; }
-:root.force-dark .password .ch-symbol { color: #fca5a5; }
-:root.force-dark .ssh-key {
-  background: #1d2738;
-  border-color: #2e3a52;
-  color: #cfdcff;
-}
-:root.force-dark .notes { color: #d1d5db; }
-:root.force-dark .detail-footer { color: #9ca3af; }
-:root.force-dark .detail-location { color: #9ca3af; }
 
 /* ---------------------------------------------------------------------
    Attachments, password history and the "no value" custom field.
@@ -315,7 +263,7 @@
 }
 
 .attachment-size {
-  color: #6b7280;
+  color: var(--text-faint);
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
@@ -337,7 +285,7 @@
 }
 
 .value.muted {
-  color: #9ca3af;
+  color: var(--text-disabled);
 }
 
 /* Keeps the file input in the accessibility tree (the button forwards
@@ -353,11 +301,3 @@
   white-space: nowrap;
   border: 0;
 }
-
-@media (prefers-color-scheme: dark) {
-  .attachment-size { color: #9aa0aa; }
-  .value.muted { color: #7b8190; }
-}
-
-:root.force-dark .attachment-size { color: #9aa0aa; }
-:root.force-dark .value.muted { color: #7b8190; }

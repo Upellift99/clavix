@@ -270,6 +270,7 @@
           onchange={(e) => onApplyTheme((e.currentTarget as HTMLSelectElement).value as ThemePref)}
         >
           <option value="auto">{m.settings_theme_auto()}</option>
+          <option value="light">{m.settings_theme_light()}</option>
           <option value="dark">{m.settings_theme_dark()}</option>
         </select>
       </dd>

@@ -402,8 +402,8 @@
 
 <style>
   .export-warning {
-    background: #fef3c7;
-    color: #7a3b00;
+    background: var(--warning-bg);
+    color: var(--warning-text);
     padding: 0.5rem 0.7rem;
     border-radius: 6px;
     margin: 0.4rem 0 0.6rem;
@@ -411,7 +411,7 @@
   }
 
   .export-fieldset {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0.5rem 0.7rem;
     margin: 0.5rem 0;

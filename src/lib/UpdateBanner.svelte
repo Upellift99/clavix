@@ -42,14 +42,14 @@
     margin-top: 0.75rem;
     padding: 0.55rem 0.85rem;
     border-radius: 8px;
-    background: #eff6ff;
-    border-left: 3px solid #3b82f6;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    background: var(--accent-soft-bg);
+    border: 1px solid var(--border-accent);
+    box-shadow: var(--shadow-sm);
   }
 
   .update-icon {
     display: inline-flex;
-    color: #2563eb;
+    color: var(--link);
     flex-shrink: 0;
   }
 
@@ -67,7 +67,7 @@
 
   .update-text span {
     font-size: 0.82rem;
-    color: #475569;
+    color: var(--text-faint);
   }
 
   .update-actions {
@@ -75,29 +75,5 @@
     align-items: center;
     gap: 0.35rem;
     flex-shrink: 0;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .update-banner {
-      background: #1e293b;
-      box-shadow: none;
-    }
-    .update-icon {
-      color: #60a5fa;
-    }
-    .update-text span {
-      color: #94a3b8;
-    }
-  }
-
-  :where(:root.force-dark) .update-banner {
-    background: #1e293b;
-    box-shadow: none;
-  }
-  :where(:root.force-dark) .update-icon {
-    color: #60a5fa;
-  }
-  :where(:root.force-dark) .update-text span {
-    color: #94a3b8;
   }
 </style>
