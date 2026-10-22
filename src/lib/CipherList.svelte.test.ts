@@ -44,6 +44,8 @@ async function flush() {
 function mount(overrides: Record<string, unknown> = {}) {
   const onOpenCipher = vi.fn();
   const onClearSelection = vi.fn();
+  const onCreateItem = vi.fn();
+  const onOpenImport = vi.fn();
   const { container } = render(CipherList, {
     props: {
       items: ITEMS,
@@ -74,12 +76,14 @@ function mount(overrides: Record<string, unknown> = {}) {
       onBulkMove: vi.fn(),
       onBulkDelete: vi.fn(),
       onBulkRestore: vi.fn(),
+      onCreateItem,
+      onOpenImport,
       ...overrides,
     },
   });
   const search = container.querySelector("input[type='search']") as HTMLInputElement;
   const rows = () => Array.from(container.querySelectorAll<HTMLButtonElement>(".cipher-row"));
-  return { container, search, rows, onOpenCipher, onClearSelection };
+  return { container, search, rows, onOpenCipher, onClearSelection, onCreateItem, onOpenImport };
 }
 
 function key(target: Element, k: string) {
@@ -158,6 +162,24 @@ describe("CipherList keyboard flow", () => {
     key(search, "Enter");
     await flush();
     expect(onOpenCipher).not.toHaveBeenCalled();
+  });
+
+  it("offers import and create on a brand-new vault", async () => {
+    const { container, onCreateItem, onOpenImport } = mount({ items: [], totalCount: 0 });
+    await flush();
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>(".empty-actions button"));
+    expect(buttons).toHaveLength(2);
+    buttons[0].click();
+    buttons[1].click();
+    expect(onOpenImport).toHaveBeenCalledTimes(1);
+    expect(onCreateItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the first-run actions when the vault is read-only", async () => {
+    const { container } = mount({ items: [], totalCount: 0, readOnly: true });
+    await flush();
+    expect(container.querySelector(".empty-actions")).toBeNull();
+    expect(container.querySelector(".empty-title")?.textContent).toContain("vide");
   });
 
   it("names every row so truncated titles still read in full", async () => {
