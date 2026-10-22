@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
+  import { tick } from "svelte";
   import Icon from "./Icon.svelte";
 
   // A password field with a reveal toggle sitting inside its right edge.
@@ -11,16 +12,21 @@
     required = false,
     disabled = false,
     autocomplete = "current-password",
+    autofocus = false,
     id = undefined,
     placeholder = undefined,
+    ariaLabel = undefined,
     onEnter = undefined,
   }: {
     value: string;
     required?: boolean;
     disabled?: boolean;
     autocomplete?: AutoFill | "off";
+    /** Take focus as soon as the field is mounted. */
+    autofocus?: boolean;
     id?: string;
     placeholder?: string;
+    ariaLabel?: string;
     /** Called when Enter is pressed in the field. Lets a field that is
      *  not inside a <form> (e.g. the Yubikey PIN) trigger its action on
      *  Enter without giving up the reveal toggle. */
@@ -28,17 +34,29 @@
   } = $props();
 
   let revealed = $state(false);
+  let input = $state<HTMLInputElement | null>(null);
+
+  /** Move focus into the field (used after a failed attempt). */
+  export function focus() {
+    input?.focus();
+  }
+
+  $effect(() => {
+    if (autofocus) void tick().then(() => input?.focus());
+  });
 </script>
 
 <div class="password-input">
   <input
     {id}
+    bind:this={input}
     type={revealed ? "text" : "password"}
     bind:value
     {required}
     {disabled}
     {autocomplete}
     {placeholder}
+    aria-label={ariaLabel}
     onkeydown={(event) => {
       if (event.key === "Enter" && onEnter && !disabled) {
         event.preventDefault();
@@ -54,7 +72,6 @@
     title={revealed ? m.action_hide() : m.action_show()}
     aria-label={revealed ? m.action_hide() : m.action_show()}
     aria-pressed={revealed}
-    tabindex="-1"
   >
     <Icon name={revealed ? "eye-off" : "eye"} size={16} />
   </button>
@@ -101,9 +118,15 @@
     border-radius: 4px;
   }
 
-  .reveal:hover:not(:disabled) {
+  .reveal:hover:not(:disabled),
+  .reveal:focus-visible {
     color: #163b8a;
     background: #eef3ff;
+  }
+
+  .reveal:focus-visible {
+    outline: 2px solid #396cd8;
+    outline-offset: 1px;
   }
 
   .reveal:disabled {

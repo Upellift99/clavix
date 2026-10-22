@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import * as m from "#lib/paraglide/messages.js";
   import Icon from "./Icon.svelte";
+  import { focusOnMount } from "./focus";
   import { cipherTypeIconName, cipherTypeLabel, faviconUrl } from "./format";
   import type { DragController } from "./drag.svelte";
   import type { CipherListColumns } from "./prefs.svelte";
@@ -175,6 +177,93 @@
     };
   });
 
+  // ---- keyboard navigation --------------------------------------------
+  // Roving tabindex: exactly one row is reachable by Tab (the one the
+  // detail panel shows, else the last one focused, else the first), and
+  // the arrow keys move between the others. Rows are virtualised, so
+  // moving focus may first have to scroll the target into the window.
+  let focusedId = $state<string | null>(null);
+
+  const tabStopId = $derived.by(() => {
+    if (focusedId !== null && items.some((i) => i.id === focusedId)) return focusedId;
+    if (selectedId !== null && items.some((i) => i.id === selectedId)) return selectedId;
+    return items[0]?.id ?? null;
+  });
+
+  function rowButton(id: string): HTMLButtonElement | null {
+    const rows = listScrollEl?.querySelectorAll<HTMLButtonElement>(".cipher-row") ?? [];
+    for (const row of rows) if (row.dataset.id === id) return row;
+    return null;
+  }
+
+  async function focusRow(index: number) {
+    if (items.length === 0) return;
+    const clamped = Math.max(0, Math.min(items.length - 1, index));
+    const id = items[clamped].id;
+    focusedId = id;
+    if (listScrollEl) {
+      const top = clamped * ROW_HEIGHT;
+      const bottom = top + ROW_HEIGHT;
+      if (top < listScrollEl.scrollTop) listScrollEl.scrollTop = top;
+      else if (bottom > listScrollEl.scrollTop + listViewportHeight) {
+        listScrollEl.scrollTop = bottom - listViewportHeight;
+      }
+      listScrollTop = listScrollEl.scrollTop;
+    }
+    await tick();
+    rowButton(id)?.focus();
+  }
+
+  function onSearchKeydown(event: KeyboardEvent) {
+    if (gated || items.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      const start = tabStopId === null ? 0 : items.findIndex((i) => i.id === tabStopId);
+      void focusRow(Math.max(0, start));
+    } else if (event.key === "Enter") {
+      // Type, Enter, Ctrl+C: the first match opens and takes focus so
+      // the copy shortcuts have a target without a mouse.
+      event.preventDefault();
+      if (selectedIds.size > 0) onClearSelection();
+      onOpenCipher(items[0].id);
+      void focusRow(0);
+    }
+  }
+
+  function onRowKeydown(event: KeyboardEvent, index: number) {
+    const page = Math.max(1, Math.floor(listViewportHeight / ROW_HEIGHT) - 1);
+    let next: number;
+    switch (event.key) {
+      case "ArrowDown":
+        next = index + 1;
+        break;
+      case "ArrowUp":
+        if (index === 0) {
+          event.preventDefault();
+          searchInputEl?.focus();
+          return;
+        }
+        next = index - 1;
+        break;
+      case "Home":
+        next = 0;
+        break;
+      case "End":
+        next = items.length - 1;
+        break;
+      case "PageDown":
+        next = index + page;
+        break;
+      case "PageUp":
+        next = index - page;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    void focusRow(next);
+  }
+
   function onCipherDragStart(event: DragEvent, cipherId: string) {
     drag.startCipher(cipherId);
     if (event.dataTransfer) {
@@ -200,6 +289,8 @@
       type="search"
       bind:value={search}
       bind:this={searchInputEl}
+      use:focusOnMount
+      onkeydown={onSearchKeydown}
       placeholder={m.items_search_placeholder()}
       class="search"
     />
@@ -375,6 +466,10 @@
                 class:hide-username={!visibleColumns.username}
                 class:hide-uri={!visibleColumns.uri}
                 aria-pressed={selectedIds.has(c.id)}
+                data-id={c.id}
+                tabindex={tabStopId === c.id ? 0 : -1}
+                onfocus={() => (focusedId = c.id)}
+                onkeydown={(e) => onRowKeydown(e, virtualWindow.start + i)}
                 onclick={(e) => onRowClick(e, c)}
                 ondblclick={() => onEditCipher(c.id)}
                 oncontextmenu={(e) => onRowContextMenu(e, c)}
@@ -404,7 +499,7 @@
                     </span>
                   {/if}
                 </span>
-                <span class="col-name">
+                <span class="col-name" title={c.name}>
                   {c.name}
                   {#if c.favorite}<span class="star" title="Favori"><Icon name="star" size={12} /></span>{/if}
                 </span>

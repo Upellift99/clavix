@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
   import { providerLabel } from "./format";
+  import { focusOnMount } from "./focus";
 
   const TOTP_PATTERN = "[0-9]{6}";
   const YUBIKEY_OTP_LENGTH = 44;
@@ -66,6 +67,7 @@
         <input
           type="text"
           bind:value={totpCode}
+          use:focusOnMount
           inputmode="numeric"
           pattern={TOTP_PATTERN}
           maxlength="6"
@@ -80,6 +82,7 @@
           type="text"
           value={yubikeyOtp}
           oninput={onYubikeyInput}
+          use:focusOnMount
           inputmode="text"
           maxlength={YUBIKEY_OTP_LENGTH}
           autocomplete="off"

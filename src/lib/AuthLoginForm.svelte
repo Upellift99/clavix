@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import * as m from "#lib/paraglide/messages.js";
   import PasswordInput from "./PasswordInput.svelte";
 
@@ -41,6 +42,17 @@
     else if (next === "eu") serverUrl = BW_EU;
     else serverUrl = savedSelfHosted;
   }
+
+  // First keystroke goes to the first field still missing: a returning
+  // user with server and e-mail remembered lands straight on the password.
+  let serverInput = $state<HTMLInputElement | null>(null);
+  let emailInput = $state<HTMLInputElement | null>(null);
+  let passwordField = $state<{ focus: () => void } | null>(null);
+  onMount(() => {
+    if (region === "selfhosted" && !serverUrl) serverInput?.focus();
+    else if (!email) emailInput?.focus();
+    else passwordField?.focus();
+  });
 </script>
 
 <form onsubmit={onSubmit}>
@@ -59,7 +71,7 @@
   {#if region === "selfhosted"}
     <label>
       {m.form_server()}
-      <input type="url" bind:value={serverUrl} required {disabled} />
+      <input type="url" bind:this={serverInput} bind:value={serverUrl} required {disabled} />
     </label>
   {:else}
     <p class="hint region-note">{m.region_cloud_experimental()}</p>
@@ -68,6 +80,7 @@
     {m.form_email()}
     <input
       type="email"
+      bind:this={emailInput}
       bind:value={email}
       placeholder={m.form_email_placeholder()}
       required
@@ -76,7 +89,7 @@
   </label>
   <label>
     {m.form_master_password()}
-    <PasswordInput bind:value={password} required {disabled} />
+    <PasswordInput bind:this={passwordField} bind:value={password} required {disabled} />
   </label>
   <button type="submit" {disabled}>
     {disabled ? m.action_signing_in() : m.action_sign_in()}

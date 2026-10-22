@@ -28,6 +28,16 @@
     onYubikey,
     onSwitchAccount,
   }: Props = $props();
+
+  let passwordField = $state<{ focus: () => void } | null>(null);
+
+  // A failed unlock re-enables the form with the field emptied; put the
+  // caret back so the retry starts with typing, not with a click.
+  let wasDisabled = false;
+  $effect(() => {
+    if (wasDisabled && !disabled) passwordField?.focus();
+    wasDisabled = disabled;
+  });
 </script>
 
 <section class="box">
@@ -38,7 +48,7 @@
   <form onsubmit={onSubmit}>
     <label>
       {m.form_master_password()}
-      <PasswordInput bind:value={password} required {disabled} />
+      <PasswordInput bind:this={passwordField} bind:value={password} required {disabled} autofocus />
     </label>
     <div class="row">
       <button type="button" class="secondary" onclick={onSwitchAccount}>{m.action_logout()}</button>

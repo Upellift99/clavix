@@ -237,6 +237,11 @@
   opacity: 0.5;
 }
 
+.cipher-row:focus-visible {
+  outline: 2px solid #396cd8;
+  outline-offset: -2px;
+}
+
 /* Multi-selection (Ctrl/Shift-click). Deliberately a different visual
    register from `.selected`, which means "this is the item the detail
    panel is showing" — a row can be both at once. A left bar plus a
@@ -463,8 +468,10 @@
   color: inherit;
 }
 
-.ctx-menu button:hover {
+.ctx-menu button:hover,
+.ctx-menu button:focus-visible {
   background: #eef2fa;
+  outline: none;
 }
 
 .ctx-menu button.danger {
@@ -508,7 +515,8 @@
   .cipher-row.zebra.ticked:hover { background: #274672; }
   .selection-bar { background: #1b2434; border-color: #2e3a52; }
   .ctx-menu { background: #2a2a2a; border-color: #444; }
-  .ctx-menu button:hover { background: #2c3a55; }
+  .ctx-menu button:hover,
+  .ctx-menu button:focus-visible { background: #2c3a55; }
   .ctx-menu button.danger { color: #ffb4a8; }
   .ctx-menu button.danger:hover { background: #5a2222; }
   .ctx-sep { background: #444; }

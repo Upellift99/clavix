@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import jsQR from "jsqr";
   import * as m from "#lib/paraglide/messages.js";
+  import { trapFocus } from "./focus";
 
   let {
     open,
@@ -117,6 +118,7 @@
       aria-modal="true"
       aria-labelledby="qr-title"
       tabindex="-1"
+      use:trapFocus
     >
       <header class="qr-header">
         <h2 id="qr-title">{m.qr_title()}</h2>

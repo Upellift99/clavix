@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import * as m from "#lib/paraglide/messages.js";
   import {
     computeSessionStatus,
@@ -79,6 +79,14 @@
       case "unknown":
         return m.session_status_unknown();
     }
+  });
+
+  // Screen readers hear the status only when it changes kind (syncing,
+  // fresh, stale, offline), not every minute when "il y a N min" ticks.
+  let announced = $state("");
+  $effect(() => {
+    void status;
+    announced = untrack(() => statusLabel);
   });
 
   let syncTitle = $derived(
@@ -211,13 +219,14 @@
   </div>
 
   <!-- Session indicator, right-aligned in both modes -->
-  <div class="tb-status" aria-live="polite">
+  <div class="tb-status">
     <span
       class="tb-dot tb-dot--{status}"
       class:pulse={status === "syncing"}
       aria-hidden="true"
     ></span>
-    <span class="tb-status-label">{statusLabel}</span>
+    <span class="tb-status-label" aria-hidden="true">{statusLabel}</span>
+    <span class="visually-hidden" aria-live="polite">{announced}</span>
   </div>
 </nav>
 
