@@ -334,6 +334,13 @@
   max-width: 28rem;
   line-height: 1.4;
 }
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
 
 .cipher-icon {
   display: inline-flex;

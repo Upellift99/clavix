@@ -47,6 +47,9 @@
     /** Vault opened without a server: the bulk actions that write are
         dropped, leaving selection and copy intact. */
     readOnly?: boolean;
+    /** First-run empty state actions; hidden when read-only. */
+    onCreateItem: () => void;
+    onOpenImport: () => void;
   };
 
   let {
@@ -79,6 +82,8 @@
     onBulkDelete,
     onBulkRestore,
     readOnly = false,
+    onCreateItem,
+    onOpenImport,
   }: Props = $props();
 
   const numberLocale = $derived(currentLocale === "fr" ? "fr-FR" : "en-US");
@@ -361,7 +366,20 @@
     </div>
   {:else if items.length === 0}
     <div class="empty-state" role="status">
-      {#if search.trim()}
+      {#if totalCount === 0}
+        <!-- A brand-new vault, or a first sync still in flight. The
+             migrant's first move is the import, so it gets the primary
+             button; the toolbar glyphs alone do not say where it is. -->
+        <Icon name="key" size={40} class="empty-icon" />
+        <p class="empty-title">{m.items_first_run_title()}</p>
+        <p class="empty-body">{m.items_first_run_body()}</p>
+        {#if !readOnly}
+          <div class="empty-actions">
+            <button type="button" onclick={onOpenImport}>{m.items_first_run_import()}</button>
+            <button type="button" class="secondary" onclick={onCreateItem}>{m.action_new_item()}</button>
+          </div>
+        {/if}
+      {:else if search.trim()}
         <Icon name="search" size={40} class="empty-icon" />
         <p class="empty-title">{m.items_empty_search_title()}</p>
         <p class="empty-body">{m.items_empty_search({ query: search })}</p>

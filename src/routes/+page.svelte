@@ -240,7 +240,8 @@
     prefs.requireNarrowing &&
       !showAllOnce &&
       !vault.hasNarrowing &&
-      vault.quickFilter === "all",
+      vault.quickFilter === "all" &&
+      (vault.summary?.ciphers.length ?? 0) > 0,
   );
 
   auth.on(async (event) => {
@@ -744,127 +745,127 @@
 
       {#if vault.summary}
         <section class="vault-section">
-          {#if vault.summary.ciphers.length > 0}
-            <div class="vault-layout" style="--tree-width: {prefs.treeWidth}px;">
-              <VaultSidebar
-                summary={vault.summary}
-                folderTree={vault.folderTree}
-                orgTrees={vault.orgTrees}
-                cipherIndex={vault.cipherIndex}
-                expanded={vault.expanded}
-                selectedKey={vault.selectedKey}
-                quickFilter={vault.quickFilter}
-                currentLocale={prefs.currentLocale}
-                {drag}
-                onSelectQuickFilter={(f) => vault.selectQuickFilter(f)}
-                onSelectNode={(k) => vault.selectNode(k)}
-                onToggleExpanded={(k) => vault.toggleExpanded(k)}
-                onExpandAll={() => vault.expandAllNodes()}
-                onCollapseAll={() => vault.collapseAllNodes()}
-                onMoveCipherToFolder={(id, fid) => vault.moveCipherToFolder(id, fid)}
-                onMoveCipherToCollection={(id, cid) => vault.moveCipherToCollection(id, cid)}
-                onMoveFolderPath={(s, t) => vault.performFolderMove(s, t)}
-                onDeleteFolder={(ids) => vault.deleteFolder(ids)}
-                {confirm}
-                onRenameFolder={(src, dst) => vault.renameFolderPath(src, dst)}
-              />
+          <div class="vault-layout" style="--tree-width: {prefs.treeWidth}px;">
+            <VaultSidebar
+              summary={vault.summary}
+              folderTree={vault.folderTree}
+              orgTrees={vault.orgTrees}
+              cipherIndex={vault.cipherIndex}
+              expanded={vault.expanded}
+              selectedKey={vault.selectedKey}
+              quickFilter={vault.quickFilter}
+              currentLocale={prefs.currentLocale}
+              {drag}
+              onSelectQuickFilter={(f) => vault.selectQuickFilter(f)}
+              onSelectNode={(k) => vault.selectNode(k)}
+              onToggleExpanded={(k) => vault.toggleExpanded(k)}
+              onExpandAll={() => vault.expandAllNodes()}
+              onCollapseAll={() => vault.collapseAllNodes()}
+              onMoveCipherToFolder={(id, fid) => vault.moveCipherToFolder(id, fid)}
+              onMoveCipherToCollection={(id, cid) => vault.moveCipherToCollection(id, cid)}
+              onMoveFolderPath={(s, t) => vault.performFolderMove(s, t)}
+              onDeleteFolder={(ids) => vault.deleteFolder(ids)}
+              {confirm}
+              onRenameFolder={(src, dst) => vault.renameFolderPath(src, dst)}
+            />
 
-              <!-- A focusable separator is the WAI-ARIA window-splitter
-                   pattern; the lint only knows the static one. -->
-              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-              <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-              <div
-                class="splitter"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={m.a11y_resize_tree()}
-                aria-valuemin={TREE_WIDTH_MIN}
-                aria-valuemax={TREE_WIDTH_MAX}
-                aria-valuenow={prefs.treeWidth}
-                tabindex="0"
-                onmousedown={onSplitterMouseDown}
-                onkeydown={onSplitterKeydown}
-              ></div>
+            <!-- A focusable separator is the WAI-ARIA window-splitter
+                 pattern; the lint only knows the static one. -->
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div
+              class="splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={m.a11y_resize_tree()}
+              aria-valuemin={TREE_WIDTH_MIN}
+              aria-valuemax={TREE_WIDTH_MAX}
+              aria-valuenow={prefs.treeWidth}
+              tabindex="0"
+              onmousedown={onSplitterMouseDown}
+              onkeydown={onSplitterKeydown}
+            ></div>
 
-              <CipherList
-                items={vault.filteredCiphers}
-                totalCount={vault.summary.ciphers.length}
-                hasNarrowing={vault.hasNarrowing}
-                gated={listGated}
-                onShowAll={() => (showAllOnce = true)}
-                selectedId={vault.detail?.id ?? null}
-                currentLocale={prefs.currentLocale}
-                sortKey={vault.sortKey}
-                sortAsc={vault.sortAsc}
-                storedAccount={auth.storedAccount}
-                visibleColumns={prefs.visibleColumns}
-                {drag}
-                onOpenCipher={(id) => vault.openCipher(id)}
-                onEditCipher={(id) =>
-                  auth.isReadOnly ? undefined : vault.openEditorFor(id, requireReprompt)}
-                onRowContextMenu={openRowMenu}
-                onToggleSort={(k) => vault.toggleSort(k)}
-                onToggleColumn={(k, v) => prefs.setVisibleColumn(k, v)}
-                onSearchInputRef={(el) => (searchInput = el)}
-                bind:search={vault.search}
-                {selectedIds}
-                onToggleSelection={toggleSelection}
-                onSetSelection={setSelection}
-                onClearSelection={clearSelection}
+            <CipherList
+              items={vault.filteredCiphers}
+              totalCount={vault.summary.ciphers.length}
+              hasNarrowing={vault.hasNarrowing}
+              gated={listGated}
+              onShowAll={() => (showAllOnce = true)}
+              selectedId={vault.detail?.id ?? null}
+              currentLocale={prefs.currentLocale}
+              sortKey={vault.sortKey}
+              sortAsc={vault.sortAsc}
+              storedAccount={auth.storedAccount}
+              visibleColumns={prefs.visibleColumns}
+              {drag}
+              onOpenCipher={(id) => vault.openCipher(id)}
+              onEditCipher={(id) =>
+                auth.isReadOnly ? undefined : vault.openEditorFor(id, requireReprompt)}
+              onRowContextMenu={openRowMenu}
+              onToggleSort={(k) => vault.toggleSort(k)}
+              onToggleColumn={(k, v) => prefs.setVisibleColumn(k, v)}
+              onSearchInputRef={(el) => (searchInput = el)}
+              bind:search={vault.search}
+              {selectedIds}
+              onToggleSelection={toggleSelection}
+              onSetSelection={setSelection}
+              onClearSelection={clearSelection}
+              folders={vault.summary.folders}
+              {trashView}
+              onBulkMove={bulkMove}
+              onBulkDelete={bulkDelete}
+              onBulkRestore={bulkRestore}
+              readOnly={auth.isReadOnly}
+              onCreateItem={() => vault.openCreateEditor()}
+              onOpenImport={() => (importOpen = true)}
+            />
+          </div>
+
+          {#if vault.detailLoading}
+            <section class="box">
+              <p class="hint">{m.detail_decrypting()}</p>
+            </section>
+          {/if}
+
+          {#if vault.detail}
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div
+              class="detail-splitter"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label={m.a11y_resize_detail()}
+              aria-valuemin={DETAIL_HEIGHT_MIN}
+              aria-valuemax={DETAIL_HEIGHT_MAX}
+              aria-valuenow={prefs.detailHeight}
+              tabindex="0"
+              onmousedown={onDetailSplitterMouseDown}
+              onkeydown={onDetailSplitterKeydown}
+            ></div>
+            <div class="detail-pane" style="height: {prefs.detailHeight}px;">
+              <CipherDetail
+                detail={vault.detail}
+                summaryEntry={vault.detailSummaryEntry}
                 folders={vault.summary.folders}
-                {trashView}
-                onBulkMove={bulkMove}
-                onBulkDelete={bulkDelete}
-                onBulkRestore={bulkRestore}
+                organizations={vault.summary.organizations}
+                collections={vault.summary.collections}
+                onCopy={copyToClipboard}
+                onClose={() => vault.closeDetail()}
+                onEdit={async () => {
+                  if (await requireReprompt(vault.detail)) await vault.openEditEditor();
+                }}
+                onRestore={(id) => vault.restoreCipher(id)}
+                onSoftDelete={(id) => confirmSoftDelete(id, vault.detail?.name ?? "")}
+                onDeleteForever={(id) => confirmDeleteForever(id, vault.detail?.name ?? "")}
+                onDuplicate={confirmDuplicate}
+                onReprompt={() => requireReprompt(vault.detail)}
+                {confirm}
+                onError={(e) => (vault.error = formatError(e))}
+                onRefresh={(id) => vault.openCipher(id)}
                 readOnly={auth.isReadOnly}
               />
             </div>
-
-            {#if vault.detailLoading}
-              <section class="box">
-                <p class="hint">{m.detail_decrypting()}</p>
-              </section>
-            {/if}
-
-            {#if vault.detail}
-              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-              <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-              <div
-                class="detail-splitter"
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label={m.a11y_resize_detail()}
-                aria-valuemin={DETAIL_HEIGHT_MIN}
-                aria-valuemax={DETAIL_HEIGHT_MAX}
-                aria-valuenow={prefs.detailHeight}
-                tabindex="0"
-                onmousedown={onDetailSplitterMouseDown}
-                onkeydown={onDetailSplitterKeydown}
-              ></div>
-              <div class="detail-pane" style="height: {prefs.detailHeight}px;">
-                <CipherDetail
-                  detail={vault.detail}
-                  summaryEntry={vault.detailSummaryEntry}
-                  folders={vault.summary.folders}
-                  organizations={vault.summary.organizations}
-                  collections={vault.summary.collections}
-                  onCopy={copyToClipboard}
-                  onClose={() => vault.closeDetail()}
-                  onEdit={async () => {
-                    if (await requireReprompt(vault.detail)) await vault.openEditEditor();
-                  }}
-                  onRestore={(id) => vault.restoreCipher(id)}
-                  onSoftDelete={(id) => confirmSoftDelete(id, vault.detail?.name ?? "")}
-                  onDeleteForever={(id) => confirmDeleteForever(id, vault.detail?.name ?? "")}
-                  onDuplicate={confirmDuplicate}
-                  onReprompt={() => requireReprompt(vault.detail)}
-                  {confirm}
-                  onError={(e) => (vault.error = formatError(e))}
-                  onRefresh={(id) => vault.openCipher(id)}
-                  readOnly={auth.isReadOnly}
-                />
-              </div>
-            {/if}
           {/if}
         </section>
       {/if}
