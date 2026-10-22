@@ -3,6 +3,7 @@
   import * as m from "#lib/paraglide/messages.js";
   import { api } from "./api";
   import { formatError } from "./format";
+  import PasswordInput from "./PasswordInput.svelte";
 
   // The master-password gate for items flagged with Bitwarden's
   // "reprompt". Verification is local (`verify_master_password` derives
@@ -19,7 +20,7 @@
   let password = $state("");
   let error = $state<string | null>(null);
   let checking = $state(false);
-  let input = $state<HTMLInputElement | null>(null);
+  let input = $state<{ focus: () => void } | null>(null);
   let resolver: ((ok: boolean) => void) | null = null;
   let seq = 0;
 
@@ -81,13 +82,11 @@
     <h2>{m.reprompt_title()}</h2>
     <p class="reprompt-body">{m.reprompt_body({ name: itemName })}</p>
     <form onsubmit={submit}>
-      <input
+      <PasswordInput
         bind:this={input}
         bind:value={password}
-        type="password"
-        autocomplete="current-password"
         placeholder={m.reprompt_placeholder()}
-        aria-label={m.reprompt_placeholder()}
+        ariaLabel={m.reprompt_placeholder()}
       />
       {#if error}
         <p class="reprompt-error">{error}</p>
@@ -124,12 +123,6 @@
     color: #555;
     font-size: 0.9rem;
     overflow-wrap: anywhere;
-  }
-  .reprompt-dialog input {
-    width: 100%;
-    font: inherit;
-    padding: 0.4rem 0.5rem;
-    box-sizing: border-box;
   }
   .reprompt-error {
     margin: 0.5rem 0 0;

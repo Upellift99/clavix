@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import * as m from "#lib/paraglide/messages.js";
   import CipherEditor from "#lib/CipherEditor.svelte";
   import ImportDialog from "#lib/ImportDialog.svelte";
@@ -98,10 +98,14 @@
     return ok;
   }
 
+  /** The decrypted detail for an id, reusing the open panel's copy. */
+  async function loadDetail(id: string): Promise<CipherDetailData> {
+    return vault.detail?.id === id ? vault.detail : await api.getCipher(id);
+  }
+
   /** Gate for a cipher we only know by id — resolves the loaded detail. */
   async function requireRepromptForId(id: string): Promise<boolean> {
-    const detail = vault.detail?.id === id ? vault.detail : await api.getCipher(id);
-    return requireReprompt(detail);
+    return requireReprompt(await loadDetail(id));
   }
 
   async function confirmSoftDelete(id: string, name: string) {
@@ -315,9 +319,12 @@
   let menuX = $state(0);
   let menuY = $state(0);
   let menuEl = $state<HTMLDivElement | null>(null);
+  // The row the menu came from, so closing hands focus back to it.
+  let menuReturnEl: HTMLElement | null = null;
 
   function openRowMenu(event: MouseEvent, cipher: CipherSummary) {
     event.preventDefault();
+    menuReturnEl = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     menuCipher = cipher;
     menuDetail = vault.detail?.id === cipher.id ? vault.detail : null;
     menuX = event.clientX;
@@ -326,6 +333,40 @@
     if (!menuDetail && cipher.kind === 1) {
       void loadMenuDetail(cipher.id);
     }
+    void tick().then(() => menuItems()[0]?.focus());
+  }
+
+  function menuItems(): HTMLButtonElement[] {
+    return Array.from(menuEl?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+  }
+
+  function onMenuKeydown(event: KeyboardEvent) {
+    const items = menuItems();
+    if (items.length === 0) return;
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    let next: number;
+    switch (event.key) {
+      case "ArrowDown":
+        next = (current + 1) % items.length;
+        break;
+      case "ArrowUp":
+        next = current <= 0 ? items.length - 1 : current - 1;
+        break;
+      case "Home":
+        next = 0;
+        break;
+      case "End":
+        next = items.length - 1;
+        break;
+      case "Tab":
+        // A menu is a single tab stop; leaving it closes it.
+        closeRowMenu();
+        return;
+      default:
+        return;
+    }
+    event.preventDefault();
+    items[next].focus();
   }
 
   async function loadMenuDetail(id: string) {
@@ -341,8 +382,11 @@
   }
 
   function closeRowMenu() {
+    const wasOpen = menuCipher !== null;
     menuCipher = null;
     menuDetail = null;
+    if (wasOpen && menuReturnEl?.isConnected) menuReturnEl.focus();
+    menuReturnEl = null;
   }
 
   // Tug the menu back inside the viewport once laid out, so a right-click
@@ -475,6 +519,31 @@
     });
   }
 
+  // Keyboard resize for the two splitters, one notch per arrow press.
+  const SPLITTER_STEP = 16;
+
+  function onSplitterKeydown(event: KeyboardEvent) {
+    const delta =
+      event.key === "ArrowLeft" ? -SPLITTER_STEP : event.key === "ArrowRight" ? SPLITTER_STEP : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    prefs.treeWidth = Math.min(TREE_WIDTH_MAX, Math.max(TREE_WIDTH_MIN, prefs.treeWidth + delta));
+    prefs.persistTreeWidth();
+  }
+
+  function onDetailSplitterKeydown(event: KeyboardEvent) {
+    // The detail pane grows upward, so ArrowUp makes it taller.
+    const delta =
+      event.key === "ArrowUp" ? SPLITTER_STEP : event.key === "ArrowDown" ? -SPLITTER_STEP : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    prefs.detailHeight = Math.min(
+      DETAIL_HEIGHT_MAX,
+      Math.max(DETAIL_HEIGHT_MIN, prefs.detailHeight + delta),
+    );
+    prefs.persistDetailHeight();
+  }
+
   function onDetailSplitterMouseDown(event: MouseEvent) {
     startSplitterDrag(event, {
       axis: "y",
@@ -490,18 +559,25 @@
   const handleGlobalKeydown = makeVaultKeyHandler({
     isLoggedIn: () => auth.phase === "loggedIn",
     getDetail: () => vault.detail,
+    getSummary: (id) => vault.filteredCiphers.find((c) => c.id === id) ?? null,
     getSearchInput: () => searchInput,
     closeDetail: () => vault.closeDetail(),
     lock: () => lockAndReset(),
     copy: copyToClipboard,
-    // Ctrl+C / Ctrl+T act on the item the detail panel is showing, so
-    // the gate is the same one that panel uses. An empty string means
-    // "nothing to copy" to the handler, which is what a refused prompt
-    // should look like.
-    getPassword: async (id) =>
-      (await requireRepromptForId(id)) ? ((await api.revealField(id, "password")) ?? "") : "",
-    getTotpCode: async (id) =>
-      (await requireRepromptForId(id)) ? (await api.totpCode(id)).code : "",
+    // Ctrl+C / Ctrl+T go through the same reprompt gate the detail panel
+    // uses. An empty string means "nothing to copy" to the handler: the
+    // item has no such secret, or the prompt was refused. A focused list
+    // row only knows its type, so the detail is loaded to check.
+    getPassword: async (id) => {
+      const detail = await loadDetail(id);
+      if (!detail.login?.hasPassword || !(await requireReprompt(detail))) return "";
+      return (await api.revealField(id, "password")) ?? "";
+    },
+    getTotpCode: async (id) => {
+      const detail = await loadDetail(id);
+      if (!detail.login?.hasTotp || !(await requireReprompt(detail))) return "";
+      return (await api.totpCode(id)).code;
+    },
     onError: (e) => (vault.error = formatError(e)),
   });
 
@@ -701,13 +777,21 @@
                 onRenameFolder={(src, dst) => vault.renameFolderPath(src, dst)}
               />
 
+              <!-- A focusable separator is the WAI-ARIA window-splitter
+                   pattern; the lint only knows the static one. -->
               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
               <div
                 class="splitter"
                 role="separator"
                 aria-orientation="vertical"
                 aria-label={m.a11y_resize_tree()}
+                aria-valuemin={TREE_WIDTH_MIN}
+                aria-valuemax={TREE_WIDTH_MAX}
+                aria-valuenow={prefs.treeWidth}
+                tabindex="0"
                 onmousedown={onSplitterMouseDown}
+                onkeydown={onSplitterKeydown}
               ></div>
 
               <CipherList
@@ -751,12 +835,18 @@
 
             {#if vault.detail}
               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
               <div
                 class="detail-splitter"
                 role="separator"
                 aria-orientation="horizontal"
                 aria-label={m.a11y_resize_detail()}
+                aria-valuemin={DETAIL_HEIGHT_MIN}
+                aria-valuemax={DETAIL_HEIGHT_MAX}
+                aria-valuenow={prefs.detailHeight}
+                tabindex="0"
                 onmousedown={onDetailSplitterMouseDown}
+                onkeydown={onDetailSplitterKeydown}
               ></div>
               <div class="detail-pane" style="height: {prefs.detailHeight}px;">
                 <CipherDetail
@@ -800,8 +890,9 @@
 
 {#if menuCipher}
   <!-- Click-anywhere-else dismisses; right-clicking elsewhere is swallowed so
-       the native WebKit menu never leaks through. Keyboard reaches the items
-       via tab order, Escape closes it (handled on the window). -->
+       the native WebKit menu never leaks through. The first entry takes
+       focus on open, arrows move between entries, Escape closes it
+       (handled on the window) and hands focus back to the row. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
@@ -816,7 +907,9 @@
     bind:this={menuEl}
     class="ctx-menu"
     role="menu"
+    tabindex="-1"
     style="left: {menuX}px; top: {menuY}px;"
+    onkeydown={onMenuKeydown}
   >
     <button type="button" role="menuitem" onclick={openMenuCipher}>
       <span class="ctx-label">{m.ctx_open()}</span>

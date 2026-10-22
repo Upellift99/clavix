@@ -3,6 +3,7 @@
   import { api } from "#lib/api.ts";
   import PasswordStrength from "./PasswordStrength.svelte";
   import { formatError } from "./format";
+  import { trapFocus } from "./focus";
   import { serializeBitwardenCsv, type CsvExportRow } from "./csv";
   import type {
     CipherDetail,
@@ -270,6 +271,7 @@
       aria-modal="true"
       aria-labelledby="export-title"
       tabindex="-1"
+      use:trapFocus
     >
       <header class="import-header">
         <h2 id="export-title">{m.export_title()}</h2>

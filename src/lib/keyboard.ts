@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import type { CipherDetail } from "./types";
+import type { CipherDetail, CipherSummary } from "./types";
 
 function isTypingContext(): boolean {
   const a = document.activeElement as HTMLElement | null;
@@ -8,21 +8,67 @@ function isTypingContext(): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || a.isContentEditable;
 }
 
+/** Id of the list row that currently holds keyboard focus, if any. */
+export function focusedRowId(): string | null {
+  const a = document.activeElement as HTMLElement | null;
+  return a?.closest<HTMLElement>(".cipher-row")?.dataset.id ?? null;
+}
+
 export type VaultKeyDeps = {
   isLoggedIn: () => boolean;
   getDetail: () => CipherDetail | null;
+  /** Summary for a row id, so the shortcuts work on the focused row
+   *  before the detail panel is open. */
+  getSummary: (id: string) => CipherSummary | null;
   getSearchInput: () => HTMLInputElement | null;
   closeDetail: () => void;
   lock: () => Promise<void> | void;
   copy: (value: string, label: string) => Promise<void> | void;
-  /** Reveal the password for a cipher id on demand (kept out of `detail`). */
+  /** Reveal the password for a cipher id on demand (kept out of `detail`).
+   *  Resolves to "" when the item has none or the reprompt was refused. */
   getPassword: (cipherId: string) => Promise<string>;
-  /** Current TOTP code for a cipher id (computed in Rust). */
+  /** Current TOTP code for a cipher id (computed in Rust); "" when none. */
   getTotpCode: (cipherId: string) => Promise<string>;
   onError: (e: unknown) => void;
 };
 
-/** Builds the global keydown handler for the vault view (Esc, /, Ctrl+F/L/C/B/T/U). */
+type ShortcutTarget = {
+  id: string;
+  username: string | null;
+  uri: string | null;
+  /** False only when known to be absent; a summary cannot tell. */
+  mayHavePassword: boolean;
+  mayHaveTotp: boolean;
+};
+
+function fromDetail(detail: CipherDetail): ShortcutTarget {
+  return {
+    id: detail.id,
+    username: detail.login?.username ?? null,
+    uri: detail.login?.uris?.[0] ?? null,
+    mayHavePassword: detail.login?.hasPassword ?? false,
+    mayHaveTotp: detail.login?.hasTotp ?? false,
+  };
+}
+
+function fromSummary(summary: CipherSummary): ShortcutTarget {
+  const isLogin = summary.kind === 1;
+  return {
+    id: summary.id,
+    username: summary.username,
+    uri: summary.primaryUri,
+    mayHavePassword: isLogin,
+    mayHaveTotp: isLogin,
+  };
+}
+
+/**
+ * Builds the global keydown handler for the vault view (Esc, /, Ctrl+F/L/C/B/T/U).
+ *
+ * Ctrl+C/B/T/U act on the item the detail panel shows; with the panel
+ * closed they act on the list row that has keyboard focus, so the
+ * keyboard path is type, Enter or Down, Ctrl+C.
+ */
 export function makeVaultKeyHandler(deps: VaultKeyDeps) {
   return async function handle(event: KeyboardEvent) {
     if (!deps.isLoggedIn()) return;
@@ -63,36 +109,47 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
     }
     if (isTypingContext()) return;
     const selectionLength = window.getSelection()?.toString().length ?? 0;
-    if (!detail || selectionLength > 0) return;
-    if (key === "c" && detail.login?.hasPassword) {
+    if (selectionLength > 0) return;
+
+    let target: ShortcutTarget | null = null;
+    if (detail) {
+      target = fromDetail(detail);
+    } else {
+      const rowId = focusedRowId();
+      const summary = rowId ? deps.getSummary(rowId) : null;
+      if (summary) target = fromSummary(summary);
+    }
+    if (!target) return;
+
+    if (key === "c" && target.mayHavePassword) {
       event.preventDefault();
       try {
-        const password = await deps.getPassword(detail.id);
+        const password = await deps.getPassword(target.id);
         if (password) await deps.copy(password, "mot de passe");
       } catch (e) {
         deps.onError(e);
       }
       return;
     }
-    if (key === "b" && detail.login?.username) {
+    if (key === "b" && target.username) {
       event.preventDefault();
-      await deps.copy(detail.login.username, "identifiant");
+      await deps.copy(target.username, "identifiant");
       return;
     }
-    if (key === "t" && detail.login?.hasTotp) {
+    if (key === "t" && target.mayHaveTotp) {
       event.preventDefault();
       try {
-        const code = await deps.getTotpCode(detail.id);
-        await deps.copy(code, "code TOTP");
+        const code = await deps.getTotpCode(target.id);
+        if (code) await deps.copy(code, "code TOTP");
       } catch (e) {
         deps.onError(e);
       }
       return;
     }
-    if (key === "u" && detail.login?.uris?.[0]) {
+    if (key === "u" && target.uri) {
       event.preventDefault();
       try {
-        await openUrl(detail.login.uris[0]);
+        await openUrl(target.uri);
       } catch (e) {
         deps.onError(e);
       }

@@ -3,6 +3,7 @@
   import { parseKeepassCsv, type KeepassEntry } from "#lib/csv.ts";
   import { api } from "#lib/api.ts";
   import { formatError } from "#lib/format.ts";
+  import { trapFocus } from "./focus";
   import { exceedsEncryptedLimit } from "#lib/limits.ts";
   import { importIdentity } from "#lib/import.ts";
   import {
@@ -497,6 +498,7 @@
       aria-modal="true"
       aria-labelledby="import-title"
       tabindex="-1"
+      use:trapFocus
     >
       <header class="import-header">
         <h2 id="import-title">{m.import_title()}</h2>

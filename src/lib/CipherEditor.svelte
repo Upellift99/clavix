@@ -4,6 +4,7 @@
   import GeneratorDialog from "#lib/GeneratorDialog.svelte";
   import PasswordStrength from "#lib/PasswordStrength.svelte";
   import { api } from "#lib/api.ts";
+  import { trapFocus } from "#lib/focus.ts";
   import type { Locale, PasswordStrength as Strength, TauriError } from "#lib/types.ts";
 
   type FolderSummary = { id: string; name: string };
@@ -488,6 +489,7 @@
       aria-modal="true"
       aria-labelledby="editor-title"
       tabindex="-1"
+      use:trapFocus={{ initial: "#editor-name" }}
     >
       <header class="editor-header">
         <h2 id="editor-title">
@@ -519,7 +521,7 @@
 
         <label>
           {m.editor_name()}
-          <input type="text" bind:value={name} required />
+          <input id="editor-name" type="text" bind:value={name} required />
         </label>
 
         {#if organizations.length > 0}
