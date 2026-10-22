@@ -41,3 +41,6 @@ yarn-error.log*
 
 # claude code memory (synced via Syncthing, see ~/.claude/projects/.../memory symlink)
 .claude-memory/
+
+# ---- Impeccable (design tooling) local state: critique snapshots, hook cache ----
+.impeccable/
