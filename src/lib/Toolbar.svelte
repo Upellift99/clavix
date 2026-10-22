@@ -27,8 +27,8 @@
     onOpenExport: () => void;
     onOpenGenerator: () => void;
     onOpenAudit: () => void;
+    onOpenPreferences: () => void;
     onOpenStats: () => void;
-    onOpenAbout: () => void;
   };
 
   let {
@@ -46,8 +46,8 @@
     onOpenExport,
     onOpenGenerator,
     onOpenAudit,
+    onOpenPreferences,
     onOpenStats,
-    onOpenAbout,
   }: Props = $props();
 
   // `now` ticks once a minute so the "il y a N min" text and the
@@ -200,20 +200,20 @@
       <button
         type="button"
         class="tb-btn"
-        onclick={onOpenStats}
-        title={m.tree_infos_label()}
-        aria-label={m.tree_infos_label()}
+        onclick={onOpenPreferences}
+        title={m.settings_title()}
+        aria-label={m.settings_title()}
       >
-        <Icon name="info" size={18} />
+        <Icon name="settings" size={18} />
       </button>
       <button
         type="button"
         class="tb-btn"
-        onclick={onOpenAbout}
-        title={m.about_label()}
-        aria-label={m.about_label()}
+        onclick={onOpenStats}
+        title={m.infos_title()}
+        aria-label={m.infos_title()}
       >
-        <Icon name="arrow-up-circle" size={18} />
+        <Icon name="info" size={18} />
       </button>
     </div>
   </div>
