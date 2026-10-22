@@ -5,6 +5,21 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0](https://github.com/Upellift99/clavix/compare/v0.22.3...v0.23.0) (2026-10-22)
+
+
+### Features
+
+* **ui:** colour tokens with a single dark palette ([#395](https://github.com/Upellift99/clavix/issues/395)) ([050b8c1](https://github.com/Upellift99/clavix/commit/050b8c18401874eb0674682dca98d7f08957eb96))
+* **ui:** first-run empty state instead of a blank vault ([#398](https://github.com/Upellift99/clavix/issues/398)) ([af9c0bf](https://github.com/Upellift99/clavix/commit/af9c0bf31d1d779f7deef34006d617cb1f011a36))
+* **ui:** keyboard flow from unlock to copy ([#394](https://github.com/Upellift99/clavix/issues/394)) ([94c537e](https://github.com/Upellift99/clavix/commit/94c537e20921326918764c4f2512a1c8fc265ec6))
+* **ui:** split preferences out of the vault infos dialog ([#397](https://github.com/Upellift99/clavix/issues/397)) ([0097fef](https://github.com/Upellift99/clavix/commit/0097fefb15b7567115a06af3421298c1b481821d))
+
+
+### Bug Fixes
+
+* **i18n:** route the last hard-coded French strings through Paraglide ([#396](https://github.com/Upellift99/clavix/issues/396)) ([31cfc87](https://github.com/Upellift99/clavix/commit/31cfc87da434a02b7d6289ea1d924a18c031a383))
+
 ## [0.22.3](https://github.com/Upellift99/clavix/compare/v0.22.2...v0.22.3) (2026-10-21)
 
 
