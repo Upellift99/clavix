@@ -34,9 +34,9 @@
     display: flex;
     gap: 0.6rem;
     align-items: flex-start;
-    background: #fef3c7;
-    color: #7a3b00;
-    border: 1px solid #f0c674;
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    border: 1px solid var(--warning-border);
     border-radius: 6px;
     padding: 0.55rem 0.8rem;
     margin: 0 0 0.6rem;
@@ -55,22 +55,5 @@
   .standalone-unavailable {
     opacity: 0.85;
     font-size: 0.83rem;
-  }
-
-  /* Both dark blocks are required — the @media one for the system
-     preference, the :where(:root.force-dark) one for the in-app theme
-     toggle. See the comment at base.css:337-350. */
-  @media (prefers-color-scheme: dark) {
-    .standalone-banner {
-      background: #3a2f14;
-      color: #f0d9a8;
-      border-color: #6b5520;
-    }
-  }
-
-  :where(:root.force-dark) .standalone-banner {
-    background: #3a2f14;
-    color: #f0d9a8;
-    border-color: #6b5520;
   }
 </style>

@@ -245,6 +245,7 @@
   "settings_language": "Language",
   "settings_theme": "Theme",
   "settings_theme_auto": "Auto (system)",
+  "settings_theme_light": "Light (forced)",
   "settings_theme_dark": "Dark (forced)",
   "generator_title": "Password generator",
   "generator_label": "Generator",

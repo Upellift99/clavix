@@ -18,9 +18,9 @@
   min-height: 0;
   overflow-y: auto;
   contain: strict;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--surface-pane);
 }
 
 .cipher-spacer {
@@ -100,14 +100,14 @@
   list-style: none;
   cursor: pointer;
   user-select: none;
-  color: #555;
+  color: var(--text-muted);
   font-weight: 600;
 }
 .columns-chooser > summary::-webkit-details-marker {
   display: none;
 }
 .columns-chooser > summary:hover {
-  color: #1e3a8a;
+  color: var(--accent-text);
 }
 .columns-popover {
   position: absolute;
@@ -115,25 +115,25 @@
   left: 0;
   z-index: 5;
   min-width: 12rem;
-  background: #fff;
-  border: 1px solid #d6e0ee;
+  background: var(--surface-accent);
+  border: 1px solid var(--border-accent);
   border-radius: 6px;
   padding: 0.45rem 0.6rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-popover);
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.85rem;
   text-transform: none;
   letter-spacing: 0;
-  color: #333;
+  color: var(--text-secondary);
   font-weight: 400;
 }
 .columns-popover-title {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #555;
+  color: var(--text-muted);
   font-weight: 600;
   margin-bottom: 0.1rem;
 }
@@ -152,10 +152,10 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #555;
+  color: var(--text-muted);
   font-weight: 600;
-  border-bottom: 1px solid #e5e5e5;
-  background: #fafafa;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-header);
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
 }
@@ -174,11 +174,11 @@
 }
 
 .cipher-header:hover {
-  color: #1e3a8a;
+  color: var(--accent-text);
 }
 
 .cipher-header.active {
-  color: #1e3a8a;
+  color: var(--accent-text);
   font-weight: 700;
 }
 
@@ -203,7 +203,7 @@
 
 .col-username,
 .col-uri {
-  color: #4a4a4a;
+  color: var(--text-data-muted);
   font-size: 0.88rem;
   font-family: var(--font-data);
 }
@@ -212,7 +212,7 @@
    the cipher list is virtualised, so the DOM only contains a window
    of rows and `:nth-child(even)` would flicker as the user scrolls. */
 .cipher-row.zebra {
-  background: #eaf2fc;
+  background: var(--row-zebra);
 }
 
 /* Hover: pulled up two notches in saturation so it's clearly
@@ -220,17 +220,17 @@
    row. The previous #cfe0f5 read as essentially the same colour as
    the zebra to several users. */
 .cipher-row:hover {
-  background: #b3d2f0;
+  background: var(--row-hover);
 }
 
 .cipher-row.zebra:hover {
-  background: #a3c6ec;
+  background: var(--row-hover-zebra);
 }
 
 .cipher-row.selected,
 .cipher-row.zebra.selected {
-  background: #6ea3df;
-  color: #0a1f47;
+  background: var(--row-selected);
+  color: var(--row-selected-text);
 }
 
 .cipher-row.dragging {
@@ -238,7 +238,7 @@
 }
 
 .cipher-row:focus-visible {
-  outline: 2px solid #396cd8;
+  outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -248,19 +248,19 @@
    tint reads as a tick mark without needing a checkbox column. */
 .cipher-row.ticked,
 .cipher-row.zebra.ticked {
-  background: #d9e9fb;
-  box-shadow: inset 3px 0 0 #2563eb;
+  background: var(--row-ticked);
+  box-shadow: inset 3px 0 0 var(--row-tick-bar);
 }
 
 .cipher-row.ticked:hover,
 .cipher-row.zebra.ticked:hover {
-  background: #c2dbf6;
+  background: var(--row-ticked-hover);
 }
 
 .cipher-row.selected.ticked,
 .cipher-row.zebra.selected.ticked {
-  background: #6ea3df;
-  box-shadow: inset 3px 0 0 #1d4ed8;
+  background: var(--row-selected);
+  box-shadow: inset 3px 0 0 var(--row-tick-bar);
 }
 
 /* Bulk-action bar, shown only while a selection exists. */
@@ -271,9 +271,9 @@
   flex-wrap: wrap;
   padding: 0.35rem 0.5rem;
   margin-bottom: 0.4rem;
-  border: 1px solid #cfe0f5;
+  border: 1px solid var(--border-accent);
   border-radius: 6px;
-  background: #eef5fd;
+  background: var(--accent-soft-bg);
 }
 
 .selection-count {
@@ -289,9 +289,9 @@
 }
 
 .selection-bar .danger {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-primary);
 }
 
 /* Subtle background-colour transition so the row doesn't snap-flash
@@ -316,17 +316,17 @@
   padding: 2rem 1rem;
   flex: 1 1 auto;
   text-align: center;
-  color: #6b7280;
+  color: var(--text-faint);
 }
 .empty-state :global(.empty-icon) {
-  color: #9ca3af;
+  color: var(--text-disabled);
   margin-bottom: 0.4rem;
 }
 .empty-title {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-label);
 }
 .empty-body {
   margin: 0 0 0.4rem;
@@ -334,16 +334,6 @@
   max-width: 28rem;
   line-height: 1.4;
 }
-
-@media (prefers-color-scheme: dark) {
-  .empty-state { color: #9ca3af; }
-  .empty-state :global(.empty-icon) { color: #6b7280; }
-  .empty-title { color: #e5e7eb; }
-}
-
-:root.force-dark .empty-state { color: #9ca3af; }
-:root.force-dark .empty-state :global(.empty-icon) { color: #6b7280; }
-:root.force-dark .empty-title { color: #e5e7eb; }
 
 .cipher-icon {
   display: inline-flex;
@@ -378,58 +368,6 @@
   .col-uri { display: none; }
 }
 
-@media (prefers-color-scheme: dark) {
-  .list-pane .cipher-scroll { background: #232323; border-color: #333; }
-  .cipher-headers {
-    color: #9a9a9a;
-    border-bottom-color: #333;
-    background: #1f1f1f;
-  }
-  .cipher-header:hover,
-  .cipher-header.active { color: #aabaff; }
-  .columns-chooser > summary { color: #9a9a9a; }
-  .columns-chooser > summary:hover { color: #aabaff; }
-  .columns-popover {
-    background: #232b3a;
-    border-color: #2e3a52;
-    color: #e0e0e0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  }
-  .columns-popover-title { color: #9a9a9a; }
-  .col-username,
-  .col-uri { color: #b8b8b8; }
-  .cipher-row.zebra { background: #1d2738; }
-  .cipher-row:hover { background: #3b4f78; }
-  .cipher-row.zebra:hover { background: #44598a; }
-  .cipher-row.selected,
-  .cipher-row.zebra.selected { background: #4467b0; color: #e6efff; }
-}
-
-:root.force-dark .list-pane .cipher-scroll { background: #232323; border-color: #333; }
-:root.force-dark .cipher-headers {
-  color: #9a9a9a;
-  border-bottom-color: #333;
-  background: #1f1f1f;
-}
-:root.force-dark .cipher-header:hover,
-:root.force-dark .cipher-header.active { color: #aabaff; }
-:root.force-dark .columns-chooser > summary { color: #9a9a9a; }
-:root.force-dark .columns-chooser > summary:hover { color: #aabaff; }
-:root.force-dark .columns-popover {
-  background: #232b3a;
-  border-color: #2e3a52;
-  color: #e0e0e0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-:root.force-dark .columns-popover-title { color: #9a9a9a; }
-:root.force-dark .col-username,
-:root.force-dark .col-uri { color: #b8b8b8; }
-:root.force-dark .cipher-row.zebra { background: #1d2738; }
-:root.force-dark .cipher-row:hover { background: #3b4f78; }
-:root.force-dark .cipher-row.zebra:hover { background: #44598a; }
-:root.force-dark .cipher-row.selected,
-:root.force-dark .cipher-row.zebra.selected { background: #4467b0; color: #e6efff; }
-
 /* Right-click context menu over a cipher row. Rendered at the page level
    (see routes/+page.svelte) and positioned with fixed viewport coords, so
    these classes are global. Visually matches the folder tree menu. */
@@ -443,10 +381,10 @@
 .ctx-menu {
   position: fixed;
   z-index: 51;
-  background: #fff;
-  border: 1px solid #d0d0d0;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-input);
   border-radius: 6px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-menu);
   min-width: 180px;
   padding: 0.25rem;
   display: flex;
@@ -470,16 +408,17 @@
 
 .ctx-menu button:hover,
 .ctx-menu button:focus-visible {
-  background: #eef2fa;
+  background: var(--hover-soft);
   outline: none;
 }
 
 .ctx-menu button.danger {
-  color: #b9301a;
+  color: var(--danger-text);
 }
 
-.ctx-menu button.danger:hover {
-  background: #fdecec;
+.ctx-menu button.danger:hover,
+.ctx-menu button.danger:focus-visible {
+  background: var(--error-bg);
 }
 
 /* Hairline above the destructive block. Margins rather than padding so
@@ -487,7 +426,7 @@
 .ctx-sep {
   height: 1px;
   margin: 0.25rem -0.25rem;
-  background: #e4e6ea;
+  background: var(--border-input);
 }
 
 .ctx-label {
@@ -501,36 +440,9 @@
   font-family: var(--font-data, ui-monospace, monospace);
   font-size: 0.72rem;
   letter-spacing: 0.02em;
-  color: #8a8f98;
-  background: #f1f3f7;
-  border: 1px solid #e2e5eb;
+  color: var(--kbd-text);
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
   border-radius: 4px;
   padding: 0.05rem 0.35rem;
 }
-
-@media (prefers-color-scheme: dark) {
-  .cipher-row.ticked,
-  .cipher-row.zebra.ticked { background: #1e3556; box-shadow: inset 3px 0 0 #60a5fa; }
-  .cipher-row.ticked:hover,
-  .cipher-row.zebra.ticked:hover { background: #274672; }
-  .selection-bar { background: #1b2434; border-color: #2e3a52; }
-  .ctx-menu { background: #2a2a2a; border-color: #444; }
-  .ctx-menu button:hover,
-  .ctx-menu button:focus-visible { background: #2c3a55; }
-  .ctx-menu button.danger { color: #ffb4a8; }
-  .ctx-menu button.danger:hover { background: #5a2222; }
-  .ctx-sep { background: #444; }
-  .ctx-shortcut { color: #9aa0aa; background: #33383f; border-color: #454b54; }
-}
-
-:root.force-dark .cipher-row.ticked,
-:root.force-dark .cipher-row.zebra.ticked { background: #1e3556; box-shadow: inset 3px 0 0 #60a5fa; }
-:root.force-dark .cipher-row.ticked:hover,
-:root.force-dark .cipher-row.zebra.ticked:hover { background: #274672; }
-:root.force-dark .selection-bar { background: #1b2434; border-color: #2e3a52; }
-:root.force-dark .ctx-menu { background: #2a2a2a; border-color: #444; }
-:root.force-dark .ctx-menu button:hover { background: #2c3a55; }
-:root.force-dark .ctx-menu button.danger { color: #ffb4a8; }
-:root.force-dark .ctx-menu button.danger:hover { background: #5a2222; }
-:root.force-dark .ctx-sep { background: #444; }
-:root.force-dark .ctx-shortcut { color: #9aa0aa; background: #33383f; border-color: #454b54; }

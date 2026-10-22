@@ -1,6 +1,6 @@
 export type Locale = "fr" | "en";
 
-export type ThemePref = "auto" | "dark";
+export type ThemePref = "auto" | "light" | "dark";
 
 export type Phase =
   | "init"

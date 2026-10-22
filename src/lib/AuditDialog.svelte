@@ -151,8 +151,8 @@
   .audit-spinner {
     width: 1.05rem;
     height: 1.05rem;
-    border: 2px solid #c7d2fe;
-    border-top-color: #396cd8;
+    border: 2px solid var(--primary-hover-border);
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: audit-spin 0.7s linear infinite;
     flex: none;

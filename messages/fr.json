@@ -245,6 +245,7 @@
   "settings_language": "Langue",
   "settings_theme": "Thème",
   "settings_theme_auto": "Auto (système)",
+  "settings_theme_light": "Clair (forcé)",
   "settings_theme_dark": "Sombre (forcé)",
   "generator_title": "Générateur de mots de passe",
   "generator_label": "Générateur",

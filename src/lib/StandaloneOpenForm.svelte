@@ -93,7 +93,7 @@
     background: none;
     border: none;
     padding: 0;
-    color: #396cd8;
+    color: var(--link);
     text-decoration: underline;
     cursor: pointer;
     font-size: 0.85rem;
@@ -109,15 +109,5 @@
     justify-content: flex-end;
     gap: 0.5rem;
     margin-top: 0.5rem;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .link-button {
-      color: #8fb0ff;
-    }
-  }
-
-  :where(:root.force-dark) .link-button {
-    color: #8fb0ff;
   }
 </style>

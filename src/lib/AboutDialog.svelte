@@ -136,29 +136,13 @@
     padding: 0;
     font: inherit;
     font-size: 0.85rem;
-    color: #2563eb;
+    color: var(--link);
     text-decoration: underline;
     cursor: pointer;
   }
 
   .about-link:hover {
-    color: #1d4ed8;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .about-link {
-      color: #60a5fa;
-    }
-    .about-link:hover {
-      color: #93c5fd;
-    }
-  }
-
-  :global(:root.force-dark) .about-link {
-    color: #60a5fa;
-  }
-  :global(:root.force-dark) .about-link:hover {
-    color: #93c5fd;
+    color: var(--link-hover);
   }
 
   .about-actions {
@@ -170,8 +154,8 @@
   .about-spinner {
     width: 1.05rem;
     height: 1.05rem;
-    border: 2px solid #c7d2fe;
-    border-top-color: #396cd8;
+    border: 2px solid var(--primary-hover-bg);
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: about-spin 0.7s linear infinite;
     flex: none;
@@ -189,11 +173,11 @@
   }
 
   .about-status--ok {
-    color: #15803d;
+    color: var(--success-text);
   }
 
   .about-status--warn {
-    color: #b45309;
+    color: var(--warning-text);
   }
 
   .about-status--update {
@@ -201,21 +185,5 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .about-status--ok {
-      color: #4ade80;
-    }
-    .about-status--warn {
-      color: #fbbf24;
-    }
-  }
-
-  :global(:root.force-dark) .about-status--ok {
-    color: #4ade80;
-  }
-  :global(:root.force-dark) .about-status--warn {
-    color: #fbbf24;
   }
 </style>

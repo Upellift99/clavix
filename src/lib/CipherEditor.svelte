@@ -902,7 +902,7 @@
   .editor-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--backdrop);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -910,13 +910,14 @@
   }
 
   .editor-panel {
-    background: #fff;
+    background: var(--surface);
+    color: var(--text);
     border-radius: 10px;
     padding: 1.25rem 1.5rem;
     width: min(560px, 94vw);
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-dialog);
   }
 
   .editor-header {
@@ -945,7 +946,7 @@
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.85rem;
-    color: #333;
+    color: var(--text-secondary);
   }
 
   input[type="text"],
@@ -957,8 +958,8 @@
     font: inherit;
     padding: 0.45rem 0.65rem;
     border-radius: 6px;
-    border: 1px solid #d0d0d0;
-    background: #fff;
+    border: 1px solid var(--border-input);
+    background: var(--surface);
   }
 
   textarea {
@@ -983,21 +984,21 @@
   }
 
   .ssh-generate-hint {
-    color: var(--color-muted, #888);
+    color: var(--text-muted);
     font-size: 0.78rem;
   }
 
   .ssh-passphrase-hint {
     display: block;
     margin-top: 0.25rem;
-    color: var(--color-warning, #c97a00);
+    color: var(--warning-text);
     font-size: 0.78rem;
   }
 
   .ssh-passphrase-note {
     display: block;
     margin-top: 0.15rem;
-    color: var(--color-muted, #888);
+    color: var(--text-muted);
     font-size: 0.72rem;
     font-style: italic;
   }
@@ -1047,12 +1048,12 @@
   .reprompt-hint {
     display: block;
     margin: -0.35rem 0 0.6rem 1.6rem;
-    color: #666;
+    color: var(--text-muted);
     font-size: 0.78rem;
   }
 
   .custom-fields {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0.6rem 0.75rem 0.75rem;
     margin: 0.35rem 0 0.75rem;
@@ -1061,7 +1062,7 @@
   .custom-fields legend {
     padding: 0 0.35rem;
     font-size: 0.82rem;
-    color: #666;
+    color: var(--text-muted);
   }
 
   /* Type, name, value, then the buttons. The value column takes the
@@ -1090,26 +1091,9 @@
     font-size: 0.85rem;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .reprompt-hint,
-    .custom-fields legend {
-      color: #9aa0aa;
-    }
-    .custom-fields {
-      border-color: #444;
-    }
-  }
-  :global(:root.force-dark) .reprompt-hint,
-  :global(:root.force-dark) .custom-fields legend {
-    color: #9aa0aa;
-  }
-  :global(:root.force-dark) .custom-fields {
-    border-color: #444;
-  }
-
   .editor-error {
-    color: #7a1d1d;
-    background: #fdecec;
+    color: var(--error-text);
+    background: var(--error-bg);
     padding: 0.5rem 0.7rem;
     border-radius: 6px;
     margin: 0;
@@ -1124,9 +1108,9 @@
 
   button {
     cursor: pointer;
-    background: #396cd8;
-    color: #fff;
-    border: 1px solid #396cd8;
+    background: var(--primary);
+    color: var(--on-primary);
+    border: 1px solid var(--primary);
     border-radius: 6px;
     padding: 0.5rem 0.9rem;
     font: inherit;
@@ -1134,9 +1118,9 @@
   }
 
   button.secondary {
-    background: #fff;
-    color: #333;
-    border-color: #d0d0d0;
+    background: var(--surface);
+    color: var(--text-secondary);
+    border-color: var(--border-input);
   }
 
   button.small {

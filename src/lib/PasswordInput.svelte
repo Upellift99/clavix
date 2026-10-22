@@ -113,19 +113,19 @@
     padding: 0;
     border: none;
     background: none;
-    color: #666;
+    color: var(--text-muted);
     cursor: pointer;
     border-radius: 4px;
   }
 
   .reveal:hover:not(:disabled),
   .reveal:focus-visible {
-    color: #163b8a;
-    background: #eef3ff;
+    color: var(--accent-text);
+    background: var(--hover-soft);
   }
 
   .reveal:focus-visible {
-    outline: 2px solid #396cd8;
+    outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
   }
 

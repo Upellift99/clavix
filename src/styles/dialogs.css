@@ -18,11 +18,13 @@
      the dialog scroll inside its frame. */
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-dialog);
 }
 
 .stats-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--backdrop);
 }
 
 .stats-header {
@@ -56,11 +58,11 @@
 
 .ssh-agent-state {
   font-size: 0.88rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .ssh-agent-state.on {
-  color: #18683a;
+  color: var(--success-text);
   font-weight: 500;
 }
 
@@ -69,8 +71,8 @@
    a failure of the agent that did start. */
 .ssh-agent-skipped-badge {
   font-size: 0.82rem;
-  color: #8a5a00;
-  background: #fdf3e0;
+  color: var(--warning-text);
+  background: var(--warning-bg);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
 }
@@ -83,7 +85,7 @@
 }
 
 .ssh-agent-sock code {
-  background: #f3f4f6;
+  background: var(--surface-inset);
   padding: 0.2rem 0.4rem;
   border-radius: 4px;
   font-size: 0.82rem;
@@ -91,7 +93,7 @@
 }
 
 .ssh-agent-env-ok {
-  color: #18683a;
+  color: var(--success-text);
   font-size: 0.78rem;
   margin: 0.1rem 0 0.4rem;
 }
@@ -101,7 +103,7 @@
    Neutral grey rather than the old amber, which read as an error on a
    perfectly working setup. */
 .ssh-agent-env-unknown {
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.78rem;
   margin: 0.1rem 0 0.4rem;
 }
@@ -118,7 +120,7 @@
   list-style: none;
   padding: 0;
   margin: 0.4rem 0 0.6rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 6px;
   display: grid;
   /* Name hugs the longest entry (shrinking below it only when the dialog
@@ -150,7 +152,7 @@
   /* Spacing comes from padding rather than `gap` so the row separator
      runs unbroken across the columns instead of dashing over the gaps. */
   padding: 0.35rem 0.6rem 0.35rem 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-soft);
   font-size: 0.82rem;
 }
 
@@ -173,15 +175,15 @@
    background would fill the full row height — a band, not a pill. In a
    dense table the pill was noise anyway. */
 .ssh-agent-key-algo {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-data);
   font-size: 0.74rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .ssh-agent-key-fp {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-data);
   font-size: 0.74rem;
-  color: #444;
+  color: var(--text-label);
   /* The full fingerprint is rendered now. It fits at the dialog's normal
      width; on a narrow window the track shrinks below its content and
      the ellipsis takes over, with `title` still carrying the full value.
@@ -198,7 +200,7 @@
 
 .ssh-agent-skipped-list summary {
   cursor: pointer;
-  color: #7a3b00;
+  color: var(--warning-text);
 }
 
 .ssh-agent-skipped-list ul {
@@ -215,20 +217,20 @@
 }
 
 .ssh-agent-skip-reason {
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.78rem;
 }
 
 .audit-error {
-  color: #7a1d1d;
-  background: #fdecec;
+  color: var(--error-text);
+  background: var(--error-bg);
   padding: 0.5rem 0.7rem;
   border-radius: 6px;
 }
 
 .yubikey-warning {
-  color: #7a3b00;
-  background: #fff5e0;
+  color: var(--warning-text);
+  background: var(--warning-bg);
   padding: 0.5rem 0.7rem;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -249,7 +251,7 @@
 }
 
 .yubikey-message {
-  color: #18683a;
+  color: var(--success-text);
   font-weight: 500;
   margin-top: 0.5rem;
 }
@@ -259,7 +261,7 @@
    they sit in the same section. */
 .yubikey-master-note {
   display: block;
-  color: #7a3b00;
+  color: var(--warning-text);
   font-size: 0.8rem;
   margin-top: 0.25rem;
 }
@@ -269,16 +271,16 @@
    is the only thing standing between the user and a setting that looks
    armed and never fires — so it reads as a warning, not as a hint. */
 .auto-lock-warning {
-  color: #7a3b00;
+  color: var(--warning-text);
 }
 
 .audit-success {
-  color: #18683a;
+  color: var(--success-text);
   font-weight: 500;
 }
 
 .audit-warning {
-  color: #7a3b00;
+  color: var(--warning-text);
   font-weight: 500;
   margin-top: 0.25rem;
 }
@@ -296,7 +298,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.35rem 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .audit-list li:last-child {
@@ -320,7 +322,7 @@
 
 .audit-count {
   font-variant-numeric: tabular-nums;
-  color: #7a3b00;
+  color: var(--warning-text);
   font-size: 0.85rem;
   white-space: nowrap;
 }
@@ -329,7 +331,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: #1f4db0;
+  color: var(--link);
   text-decoration: underline;
   cursor: pointer;
   font: inherit;
@@ -337,14 +339,14 @@
 }
 
 .link-button:hover {
-  color: #0f307a;
+  color: var(--link-hover);
 }
 
 .generator-output {
-  background: #f3f4f6;
+  background: var(--surface-inset);
   padding: 0.6rem 0.8rem;
   border-radius: 6px;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-data);
   font-size: 1rem;
   margin-bottom: 0.75rem;
   overflow-wrap: anywhere;
@@ -372,24 +374,8 @@
 }
 
 .error-text {
-  color: #b91c1c;
+  color: var(--danger-text);
 }
-
-@media (prefers-color-scheme: dark) {
-  .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
-  .generator-output { background: #1e1e1e; }
-  .error-text { color: #ff8a8a; }
-  .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
-  .ssh-agent-env-unknown { color: #aaa; }
-  .auto-lock-warning { color: #f0c070; }
-}
-
-:root.force-dark .stats-dialog { background: #2b2b2b; color: #f6f6f6; }
-:root.force-dark .generator-output { background: #1e1e1e; }
-:root.force-dark .error-text { color: #ff8a8a; }
-:root.force-dark .ssh-agent-skipped-badge { color: #f0c070; background: #3a2f1a; }
-:root.force-dark .ssh-agent-env-unknown { color: #aaa; }
-:root.force-dark .auto-lock-warning { color: #f0c070; }
 
 /* Shared modal-dialog shell for ImportDialog and ExportDialog. These used
    to live only in ImportDialog's scoped <style>, so ExportDialog referenced
@@ -399,7 +385,7 @@
 .import-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -407,13 +393,14 @@
 }
 
 .import-panel {
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
   border-radius: 10px;
   padding: 1.1rem 1.4rem;
   width: min(640px, 96vw);
   max-height: 92vh;
   overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-dialog);
 }
 
 .import-header {
@@ -434,8 +421,8 @@
 }
 
 .import-error {
-  color: #7a1d1d;
-  background: #fdecec;
+  color: var(--error-text);
+  background: var(--error-bg);
   padding: 0.4rem 0.6rem;
   border-radius: 6px;
   margin: 0.5rem 0;

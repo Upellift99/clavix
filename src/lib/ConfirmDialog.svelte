@@ -85,10 +85,12 @@
     border: none;
     border-radius: 10px;
     padding: 1.25rem 1.4rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-dialog);
   }
   .confirm-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--backdrop);
   }
   .confirm-dialog h2 {
     margin: 0 0 0.5rem;
@@ -96,7 +98,7 @@
   }
   .confirm-body {
     margin: 0 0 1.1rem;
-    color: #555;
+    color: var(--text-muted);
     font-size: 0.9rem;
     /* Item and folder names are user data and can be long or
        unbroken; wrap them rather than widening the dialog. */
@@ -108,20 +110,11 @@
     gap: 0.6rem;
   }
   .confirm-actions .danger {
-    background: #b91c1c;
-    border-color: #b91c1c;
-    color: #fff;
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--on-primary);
   }
   .confirm-actions .danger:hover:not(:disabled) {
     filter: brightness(0.95);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .confirm-body {
-      color: #aaa;
-    }
-  }
-  :global(:root.force-dark) .confirm-body {
-    color: #aaa;
   }
 </style>

@@ -153,7 +153,7 @@
   .qr-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--backdrop);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -161,11 +161,12 @@
   }
 
   .qr-panel {
-    background: #fff;
+    background: var(--surface);
+    color: var(--text);
     border-radius: 10px;
     padding: 1rem 1.25rem;
     width: min(440px, 94vw);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-dialog);
   }
 
   .qr-header {
@@ -181,11 +182,13 @@
   }
 
   .hint {
-    color: #555;
+    color: var(--text-muted);
     font-size: 0.85rem;
     margin: 0 0 0.6rem;
   }
 
+  /* The camera well stays black in both themes: it is the letterbox
+     around the video frame, not a themed surface. */
   .qr-video-wrap {
     width: 100%;
     aspect-ratio: 4 / 3;
@@ -205,8 +208,8 @@
   }
 
   .qr-error {
-    color: #7a1d1d;
-    background: #fdecec;
+    color: var(--error-text);
+    background: var(--error-bg);
     padding: 0.5rem 0.7rem;
     border-radius: 6px;
     margin: 0.6rem 0 0;
@@ -215,9 +218,9 @@
 
   button {
     cursor: pointer;
-    background: #fff;
-    color: #333;
-    border: 1px solid #d0d0d0;
+    background: var(--surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-input);
     border-radius: 6px;
     padding: 0.3rem 0.6rem;
     font: inherit;

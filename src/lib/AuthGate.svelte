@@ -132,7 +132,7 @@
     gap: 0.4rem;
     margin-top: 1.25rem;
     font-size: 0.8rem;
-    color: #777;
+    color: var(--text-muted);
   }
 
   .auth-footer-sep {
@@ -144,13 +144,13 @@
     border: none;
     padding: 0;
     font: inherit;
-    color: #2563eb;
+    color: var(--link);
     text-decoration: underline;
     cursor: pointer;
   }
 
   .auth-footer-link:hover {
-    color: #1d4ed8;
+    color: var(--link-hover);
   }
 
   .auth-footer-langs {
@@ -171,47 +171,13 @@
   }
 
   .auth-lang:hover:not(.active) {
-    color: #2563eb;
+    color: var(--link);
     text-decoration: underline;
   }
 
   .auth-lang.active {
-    color: #333;
+    color: var(--text-secondary);
     font-weight: 600;
     cursor: default;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .auth-footer {
-      color: #999;
-    }
-    .auth-footer-link {
-      color: #60a5fa;
-    }
-    .auth-footer-link:hover {
-      color: #93c5fd;
-    }
-    .auth-lang:hover:not(.active) {
-      color: #60a5fa;
-    }
-    .auth-lang.active {
-      color: #e6e6e6;
-    }
-  }
-
-  :global(:root.force-dark) .auth-footer {
-    color: #999;
-  }
-  :global(:root.force-dark) .auth-footer-link {
-    color: #60a5fa;
-  }
-  :global(:root.force-dark) .auth-footer-link:hover {
-    color: #93c5fd;
-  }
-  :global(:root.force-dark) .auth-lang:hover:not(.active) {
-    color: #60a5fa;
-  }
-  :global(:root.force-dark) .auth-lang.active {
-    color: #e6e6e6;
   }
 </style>

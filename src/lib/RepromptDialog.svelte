@@ -109,10 +109,12 @@
     border: none;
     border-radius: 10px;
     padding: 1.25rem 1.4rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-dialog);
   }
   .reprompt-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--backdrop);
   }
   .reprompt-dialog h2 {
     margin: 0 0 0.5rem;
@@ -120,13 +122,13 @@
   }
   .reprompt-body {
     margin: 0 0 0.9rem;
-    color: #555;
+    color: var(--text-muted);
     font-size: 0.9rem;
     overflow-wrap: anywhere;
   }
   .reprompt-error {
     margin: 0.5rem 0 0;
-    color: #b9301a;
+    color: var(--danger-text);
     font-size: 0.85rem;
   }
   .reprompt-actions {
@@ -134,20 +136,5 @@
     justify-content: flex-end;
     gap: 0.6rem;
     margin-top: 1rem;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .reprompt-body {
-      color: #aaa;
-    }
-    .reprompt-error {
-      color: #ffb4a8;
-    }
-  }
-  :global(:root.force-dark) .reprompt-body {
-    color: #aaa;
-  }
-  :global(:root.force-dark) .reprompt-error {
-    color: #ffb4a8;
   }
 </style>

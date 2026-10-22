@@ -1,6 +1,6 @@
 .tree-pane {
-  background: #fff;
-  border: 1px solid #e5e5e5;
+  background: var(--surface-pane);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.4rem 0.35rem;
   overflow: auto;
@@ -24,7 +24,7 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #555;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
@@ -44,7 +44,7 @@
 .tree-children {
   padding-left: 0.75rem;
   margin-left: 0.55rem;
-  border-left: 1px solid #e5e5e5;
+  border-left: 1px solid var(--border);
 }
 
 .tree-row {
@@ -69,7 +69,7 @@
   border: none;
   cursor: pointer;
   font-size: 0.55rem;
-  color: #555;
+  color: var(--text-muted);
   padding: 0;
 }
 
@@ -98,18 +98,18 @@
 }
 
 .tree-label:hover {
-  background: #cfe0f5;
+  background: var(--hover-tint);
 }
 
 .tree-row.selected > .tree-label {
-  background: #6ea3df;
-  color: #0a1f47;
+  background: var(--row-selected);
+  color: var(--row-selected-text);
   font-weight: 500;
 }
 
 .tree-count {
   font-size: 0.68rem;
-  color: #555;
+  color: var(--text-muted);
   background: transparent;
   padding: 0;
   border-radius: 0;
@@ -120,7 +120,7 @@
 
 .tree-row.selected > .tree-label .tree-count {
   background: transparent;
-  color: #1e3a8a;
+  color: var(--row-selected-text);
 }
 
 .tree-all {
@@ -147,12 +147,12 @@
 }
 
 .tree-all:hover {
-  background: #cfe0f5;
+  background: var(--hover-tint);
 }
 
 .tree-all.selected {
-  background: #6ea3df;
-  color: #0a1f47;
+  background: var(--row-selected);
+  color: var(--row-selected-text);
 }
 
 .tree-row.org-root > .tree-label {
@@ -168,7 +168,7 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #555;
+  color: var(--text-muted);
   cursor: pointer;
   list-style: none;
   font-weight: 600;
@@ -188,43 +188,20 @@
 }
 
 .tree-row.droppable:not(.drop-over) > .tree-label {
-  outline-color: #c5d6ff;
+  outline-color: var(--droppable-outline);
 }
 
+/* The drop target wins over hover and selection: a drag in progress
+   has one question, "where will it land", and that answer must not
+   be hidden by the row's resting state. */
 .tree-row.drop-over > .tree-label,
-.tree-all.drop-over {
-  background: #fde68a !important;
-  color: #78350f !important;
-  outline: 2px solid #f59e0b;
+.tree-row.selected.drop-over > .tree-label,
+.tree-all.drop-over,
+.tree-all.selected.drop-over {
+  background: var(--drop-bg);
+  color: var(--drop-text);
+  outline: 2px solid var(--drop-outline);
 }
-
-@media (prefers-color-scheme: dark) {
-  .tree-pane { background: #232323; border-color: #333; box-shadow: none; }
-  .tree-pane h4 { color: #888; }
-  .tree-label:hover,
-  .tree-all:hover { background: #2c3a55; }
-  .tree-row.selected > .tree-label,
-  .tree-all.selected { background: #4467b0; color: #e6efff; }
-  .tree-count { background: transparent; color: #888; }
-  .tree-row.selected > .tree-label .tree-count {
-    background: transparent;
-    color: #e6efff;
-  }
-  .tree-children { border-left-color: #3a3a3a; }
-}
-
-:root.force-dark .tree-pane { background: #232323; border-color: #333; box-shadow: none; }
-:root.force-dark .tree-pane h4 { color: #888; }
-:root.force-dark .tree-label:hover,
-:root.force-dark .tree-all:hover { background: #2c3a55; }
-:root.force-dark .tree-row.selected > .tree-label,
-:root.force-dark .tree-all.selected { background: #4467b0; color: #e6efff; }
-:root.force-dark .tree-count { background: transparent; color: #888; }
-:root.force-dark .tree-row.selected > .tree-label .tree-count {
-  background: transparent;
-  color: #e6efff;
-}
-:root.force-dark .tree-children { border-left-color: #3a3a3a; }
 
 .tree-menu-backdrop {
   position: fixed;
@@ -236,10 +213,10 @@
 .tree-menu {
   position: fixed;
   z-index: 51;
-  background: #fff;
-  border: 1px solid #d0d0d0;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-input);
   border-radius: 6px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-menu);
   min-width: 160px;
   padding: 0.25rem;
   display: flex;
@@ -257,16 +234,19 @@
   color: inherit;
 }
 
-.tree-menu button:hover {
-  background: #eef2fa;
+.tree-menu button:hover,
+.tree-menu button:focus-visible {
+  background: var(--hover-soft);
+  outline: none;
 }
 
 .tree-menu button.danger {
-  color: #b9301a;
+  color: var(--danger-text);
 }
 
-.tree-menu button.danger:hover {
-  background: #fdecec;
+.tree-menu button.danger:hover,
+.tree-menu button.danger:focus-visible {
+  background: var(--error-bg);
 }
 
 .tree-rename {
@@ -278,22 +258,14 @@
   flex: 1;
   font: inherit;
   padding: 0.15rem 0.35rem;
-  border: 1px solid #98c2ff;
+  border: 1px solid var(--rename-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface-pane);
+  color: inherit;
+}
+
+.tree-rename input:focus {
   outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--focus-shadow);
 }
-
-@media (prefers-color-scheme: dark) {
-  .tree-menu { background: #2a2a2a; border-color: #444; }
-  .tree-menu button:hover { background: #2c3a55; }
-  .tree-menu button.danger { color: #ffb4a8; }
-  .tree-menu button.danger:hover { background: #5a2222; }
-  .tree-rename input { background: #1f1f1f; border-color: #4467b0; color: inherit; }
-}
-
-:root.force-dark .tree-menu { background: #2a2a2a; border-color: #444; }
-:root.force-dark .tree-menu button:hover { background: #2c3a55; }
-:root.force-dark .tree-menu button.danger { color: #ffb4a8; }
-:root.force-dark .tree-menu button.danger:hover { background: #5a2222; }
-:root.force-dark .tree-rename input { background: #1f1f1f; border-color: #4467b0; color: inherit; }

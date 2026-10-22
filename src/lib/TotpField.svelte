@@ -63,30 +63,30 @@
     font-size: 1.1rem;
     font-weight: 600;
     letter-spacing: 0.15em;
-    background: #eef3ff;
+    background: var(--accent-soft-bg);
     padding: 0.25rem 0.6rem;
     border-radius: 6px;
-    color: #163b8a;
+    color: var(--accent-text);
   }
 
   .totp-remaining {
     font-variant-numeric: tabular-nums;
-    color: #666;
+    color: var(--text-muted);
     font-size: 0.85rem;
   }
 
   .totp-remaining.soon {
-    color: #b8500e;
+    color: var(--warning-text);
     font-weight: 500;
   }
 
   .totp-error {
-    color: #7a1d1d;
+    color: var(--error-text);
     font-size: 0.85rem;
   }
 
   .totp-pending {
-    color: #999;
+    color: var(--text-disabled);
   }
 
   button.small {

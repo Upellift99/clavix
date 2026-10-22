@@ -101,7 +101,7 @@ export class PrefsController {
   bootstrap() {
     try {
       const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) as ThemePref | null;
-      this.applyTheme(savedTheme === "dark" ? "dark" : "auto");
+      this.applyTheme(savedTheme === "dark" || savedTheme === "light" ? savedTheme : "auto");
     } catch {
       this.applyTheme("auto");
     }
@@ -302,7 +302,11 @@ export class PrefsController {
     this.themePref = next;
     try {
       if (typeof document !== "undefined") {
+        // `force-light` matters on a dark system: without it the "Clair"
+        // choice was stored and then ignored, since only the dark class
+        // existed and the OS media query kept winning.
         document.documentElement.classList.toggle("force-dark", next === "dark");
+        document.documentElement.classList.toggle("force-light", next === "light");
       }
       localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {

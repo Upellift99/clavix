@@ -736,7 +736,7 @@
   .import-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--backdrop);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -744,13 +744,14 @@
   }
 
   .import-panel {
-    background: #fff;
+    background: var(--surface);
+    color: var(--text);
     border-radius: 10px;
     padding: 1.1rem 1.4rem;
     width: min(880px, 96vw);
     max-height: 92vh;
     overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-dialog);
   }
 
   .import-header {
@@ -766,7 +767,7 @@
   }
 
   .hint {
-    color: #555;
+    color: var(--text-muted);
     font-size: 0.85rem;
     margin: 0.2rem 0 0.6rem;
   }
@@ -789,8 +790,8 @@
   }
 
   .import-error {
-    color: #7a1d1d;
-    background: #fdecec;
+    color: var(--error-text);
+    background: var(--error-bg);
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
     margin: 0.5rem 0;
@@ -806,14 +807,14 @@
     margin: 0.5rem 0;
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
-    background: #eef3ff;
-    color: #163b8a;
+    background: var(--hover-soft);
+    color: var(--accent-text);
     font-size: 0.85rem;
   }
 
   .import-warning {
-    color: #7a4a0e;
-    background: #fdf3e3;
+    color: var(--warning-text);
+    background: var(--warning-bg);
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
     margin: 0.5rem 0;
@@ -821,8 +822,8 @@
   }
 
   .import-failures {
-    color: #7a1d1d;
-    background: #fdecec;
+    color: var(--error-text);
+    background: var(--error-bg);
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
     margin: 0.5rem 0;
@@ -856,7 +857,7 @@
   }
 
   .preview-count {
-    color: #555;
+    color: var(--text-muted);
     font-size: 0.82rem;
   }
 
@@ -867,7 +868,7 @@
        and a bottom scrollbar overlapped the last row's checkbox, making
        it a fight to tick. */
     overflow-x: hidden;
-    border: 1px solid #e6e6e6;
+    border: 1px solid var(--border);
     border-radius: 6px;
     margin: 0 0 0.4rem;
   }
@@ -904,24 +905,24 @@
     top: 0;
     /* Sit above the scrolling body so rows never paint over the header. */
     z-index: 2;
-    background: #f3f4f6;
+    background: var(--surface-inset);
     padding: 0.35rem 0.5rem;
     text-align: left;
     /* box-shadow, not border-bottom: a sticky element's own border can
        still be overpainted by scrolling cells; an inset shadow can't. */
-    box-shadow: inset 0 -1px 0 #d0d0d0;
+    box-shadow: inset 0 -1px 0 var(--border-input);
   }
 
   td {
     padding: 0.3rem 0.5rem;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border-soft);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .url-cell {
-    color: #3f64a1;
+    color: var(--link);
   }
 
   .import-progress,
@@ -933,8 +934,8 @@
   /* Amber, not the failures' red: the entries that remain aren't bad,
      they were never sent. */
   .import-aborted {
-    color: #7a3b00;
-    background: #fdf3e0;
+    color: var(--warning-text);
+    background: var(--warning-bg);
     padding: 0.4rem 0.6rem;
     border-radius: 6px;
     margin: 0.5rem 0;
@@ -944,8 +945,8 @@
   .kdbx-password-row {
     margin: 0.6rem 0;
     padding: 0.7rem 0.9rem;
-    background: #f7f8fa;
-    border: 1px solid #e2e4e8;
+    background: var(--surface-inset);
+    border: 1px solid var(--border);
     border-radius: 8px;
   }
 
@@ -965,7 +966,7 @@
   .kdbx-password-input-row input {
     flex: 1 1 auto;
     padding: 0.45rem 0.6rem;
-    border: 1px solid #d0d0d0;
+    border: 1px solid var(--border-input);
     border-radius: 6px;
     font: inherit;
   }
@@ -979,9 +980,9 @@
 
   button {
     cursor: pointer;
-    background: #396cd8;
-    color: #fff;
-    border: 1px solid #396cd8;
+    background: var(--primary);
+    color: var(--on-primary);
+    border: 1px solid var(--primary);
     border-radius: 6px;
     padding: 0.45rem 0.9rem;
     font: inherit;
@@ -989,9 +990,9 @@
   }
 
   button.secondary {
-    background: #fff;
-    color: #333;
-    border-color: #d0d0d0;
+    background: var(--surface);
+    color: var(--text-secondary);
+    border-color: var(--border-input);
   }
 
   button:disabled {
