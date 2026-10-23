@@ -496,7 +496,8 @@ export class VaultController {
   }
 
   async openEditEditor() {
-    if (!this.detail) return;
+    // The provisional copy lacks every secret and flag the editor needs.
+    if (!this.detail || this.detailLoading) return;
     // Secrets are no longer in `detail`; fetch the ones the editor edits so
     // saving them back doesn't wipe them.
     let sshPrivateKey = "";
