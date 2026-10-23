@@ -424,8 +424,10 @@
   }
 
   // Tug the menu back inside the viewport once laid out, so a right-click
-  // near the right/bottom edge doesn't clip its actions.
+  // near the right/bottom edge doesn't clip its actions. Re-measured when
+  // the decrypted detail lands: it adds the password and TOTP entries.
   $effect(() => {
+    void menuDetail;
     if (menuCipher === null || menuEl === null) return;
     const rect = menuEl.getBoundingClientRect();
     const overflowX = rect.right - window.innerWidth;
@@ -550,6 +552,18 @@
     vault.reset();
     clearSelection();
     unlockedItems = new Set();
+  }
+
+  // Lock keeps the account and asks only for the master password again;
+  // signing out forgets the server, the email and the cache, and sits one
+  // button away from Lock in the toolbar.
+  async function confirmSignOut() {
+    const ok = await confirm({
+      title: m.logout_confirm_title(),
+      body: m.logout_confirm_body(),
+      confirmLabel: m.action_logout(),
+    });
+    if (ok) await switchAccountAndReset();
   }
 
   function onSplitterMouseDown(event: MouseEvent) {
@@ -818,6 +832,9 @@
   });
 
   const errorMsg = $derived(auth.error ?? vault.error);
+  // Items outside the trash: the one count the tree, the list header and
+  // the search gate all show.
+  const liveCount = $derived(vault.summary?.ciphers.filter((c) => !c.deletedDate).length ?? 0);
   const wide = $derived(auth.phase === "loggedIn" && vault.summary !== null);
 </script>
 
@@ -873,7 +890,7 @@
         readOnly={auth.isReadOnly}
         onSync={() => vault.sync()}
         onLock={lockAndReset}
-        onSwitchAccount={switchAccountAndReset}
+        onSwitchAccount={confirmSignOut}
         onCreateItem={() => vault.openCreateEditor()}
         onOpenImport={() => (importOpen = true)}
         onOpenExport={() => (exportOpen = true)}
@@ -932,7 +949,7 @@
 
             <CipherList
               items={vault.filteredCiphers}
-              totalCount={vault.summary.ciphers.length}
+              totalCount={liveCount}
               hasNarrowing={vault.hasNarrowing}
               gated={listGated}
               onShowAll={() => (showAllOnce = true)}
@@ -1013,7 +1030,10 @@
               onmousedown={onDetailSplitterMouseDown}
               onkeydown={onDetailSplitterKeydown}
             ></div>
-            <div class="detail-pane" style="height: {prefs.detailHeight}px;">
+            <!-- Capped against the window so a small one (800×600, the
+                 default) still keeps a few list rows above an open item:
+                 380px is the toolbar, search and list chrome plus ~4 rows. -->
+            <div class="detail-pane" style="height: max({DETAIL_HEIGHT_MIN}px, min({prefs.detailHeight}px, 100vh - 380px));">
               {@render detailPanel()}
             </div>
           {/if}

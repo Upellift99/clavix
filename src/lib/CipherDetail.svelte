@@ -526,7 +526,6 @@
       <div class="detail-field" role="group">
         <dt>{m.detail_field_totp()}</dt>
         <dd>
-          <span class="field-actions"></span>
           <TotpField
             id={detail.id}
             onCopy={(code) => onCopy(code, "totp")}

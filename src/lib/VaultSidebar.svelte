@@ -274,7 +274,9 @@
   >
     <span>{m.tree_all_items()}</span>
     <span class="tree-count">
-      {(summary.itemCount - cipherIndex.trash).toLocaleString(numberLocale)}
+      <!-- From the ciphers, not `summary.itemCount`: that one already
+           excludes the trash, and goes stale after an optimistic delete. -->
+      {(summary.ciphers.length - cipherIndex.trash).toLocaleString(numberLocale)}
     </span>
   </button>
   <button

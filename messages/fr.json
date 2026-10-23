@@ -530,7 +530,9 @@
   "detail_attachment_unavailable": "Indisponible hors ligne",
   "editor_lost_on_lock": "Le coffre s'est verrouillé pendant une modification : les changements non enregistrés ont été abandonnés.",
   "share_confirm_title": "Partager avec {org} ?",
-  "share_confirm_body": "« {name} » passe dans la collection « {collection} » de {org}. Il est rechiffré avec la clé de l'organisation : ses membres qui ont accès à cette collection pourront le voir.",
+  "share_confirm_body": "« {name} » passe dans la collection « {collection} » de {org}. Il est rechiffré avec la clé de l'organisation : ses membres qui ont accès à cette collection pourront le voir. Ce partage ne se défait pas : un item d'organisation ne peut pas revenir dans un coffre personnel.",
   "share_confirm_action": "Partager",
-  "share_done": "« {name} » est maintenant dans {org} › {collection}, rechiffré avec la clé de l'organisation."
+  "share_done": "« {name} » est maintenant dans {org} › {collection}, rechiffré avec la clé de l'organisation.",
+  "logout_confirm_title": "Se déconnecter ?",
+  "logout_confirm_body": "Clavix oubliera ce compte sur cet ordinateur : il faudra ressaisir le serveur, l'adresse e-mail et le mot de passe maître. Pour seulement fermer le coffre, utilisez Verrouiller."
 }

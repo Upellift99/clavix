@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
   import { api } from "#lib/api.ts";
+  import Icon from "./Icon.svelte";
 
   // The TOTP secret stays in Rust; we ask the backend for the current code
   // once a second. `id` is the cipher id.
@@ -45,21 +46,43 @@
   }
 </script>
 
+<!-- Same order as every other detail field: the copy action sits in the
+     fixed slot before the value, so it never moves as the code ticks. -->
+<span class="field-actions">
+  {#if code && !parseError}
+    <button
+      type="button"
+      class="icon-btn"
+      title={m.action_copy()}
+      aria-label={m.action_copy()}
+      onclick={() => onCopy(code)}
+    >
+      <Icon name="copy" size={14} />
+    </button>
+  {/if}
+</span>
 {#if parseError}
   <span class="totp-error">{parseError}</span>
 {:else if code}
-  <span class="totp-code">{formatCode(code)}</span>
-  <span class="totp-remaining" class:soon={remaining <= 5}>{remaining}s</span>
-  <button type="button" class="secondary small" onclick={() => onCopy(code)}>
-    {m.action_copy()}
-  </button>
+  <span class="totp">
+    <span class="totp-code">{formatCode(code)}</span>
+    <span class="totp-remaining" class:soon={remaining <= 5}>{remaining}s</span>
+  </span>
 {:else}
   <span class="totp-pending">…</span>
 {/if}
 
 <style>
+  .totp {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    white-space: nowrap;
+  }
+
   .totp-code {
-    font-family: ui-monospace, monospace;
+    font-family: var(--font-data);
+    font-variant-numeric: tabular-nums;
     font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: 0.15em;
@@ -87,10 +110,5 @@
 
   .totp-pending {
     color: var(--text-disabled);
-  }
-
-  button.small {
-    padding: 0.2rem 0.5rem;
-    font-size: 0.85rem;
   }
 </style>

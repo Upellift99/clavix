@@ -9,6 +9,11 @@
  * and nothing else saturated except the status colours where state is
  * meant. Bitwarden's blue is gone for good.
  *
+ * Pure verdigris carries white text at only 4.1:1, so every fill that
+ * holds text (buttons, the selected row, the username toast) uses the
+ * slightly deeper #0d7f81 (4.8:1). #0f8b8d stays on the mark, focus rings,
+ * splitter and tick bars, where no text sits on it.
+ *
  * Light values live on `:root`. The dark values are written twice, in
  * two blocks that must stay byte-identical (tokens.test.ts checks):
  *   - under `@media (prefers-color-scheme: dark)` for the system theme,
@@ -36,9 +41,9 @@
   --text: #16191a;
   --text-secondary: #2e3538;
   --text-label: #4b5356;
-  --text-muted: #6c767a;
+  --text-muted: #5f696d;
   --text-data-muted: #4b5356;
-  --text-faint: #7f898d;
+  --text-faint: #646e72;
   --text-disabled: #a4adb0;
   --on-primary: #ffffff;
 
@@ -49,7 +54,7 @@
   --border-soft: #e6eaea;
 
   /* Primary: verdigris */
-  --primary: #0f8b8d;
+  --primary: #0d7f81;
   --primary-pressed: #0b5c5e;
   --primary-hover-bg: #e3f3f1;
   --primary-hover-border: #bfe9e4;
@@ -64,7 +69,7 @@
   --row-zebra: #f7f9f9;
   --row-hover: #eef3f3;
   --row-hover-zebra: #e8eeee;
-  --row-selected: #0f8b8d;
+  --row-selected: #0d7f81;
   --row-selected-text: #ffffff;
   --row-ticked: #e3f3f1;
   --row-ticked-hover: #d4ecea;
@@ -80,7 +85,7 @@
   --rename-border: #3fb3b1;
   --badge-bg: #e3f3f1;
   --badge-text: #0b5c5e;
-  --kbd-text: #6c767a;
+  --kbd-text: #5f696d;
   --kbd-bg: #f0f2f2;
   --kbd-border: #d8dcdc;
 
@@ -116,7 +121,7 @@
   /* Clipboard toast: a dark pill tinted by what was copied, white text
      on all four in both themes. */
   --toast-password: #0b5c5e;
-  --toast-username: #0f8b8d;
+  --toast-username: #0d7f81;
   --toast-totp: #30474a;
   --toast-default: #30373a;
 
@@ -156,7 +161,7 @@
     --border-accent: #2a4546;
     --border-soft: #2c3335;
 
-    --primary: #0f8b8d;
+    --primary: #0d7f81;
     --primary-pressed: #0b5c5e;
     --primary-hover-bg: #1f3c3d;
     --primary-hover-border: #2a5a5b;
@@ -170,7 +175,7 @@
     --row-zebra: #1c2122;
     --row-hover: #263031;
     --row-hover-zebra: #2a3536;
-    --row-selected: #0f8b8d;
+    --row-selected: #0d7f81;
     --row-selected-text: #ffffff;
     --row-ticked: #1f3c3d;
     --row-ticked-hover: #255052;
@@ -215,7 +220,7 @@
     --status-unknown: #9ca3af;
 
     --toast-password: #0b5c5e;
-    --toast-username: #0f8b8d;
+    --toast-username: #0d7f81;
     --toast-totp: #30474a;
     --toast-default: #30373a;
 
@@ -252,7 +257,7 @@
     --border-accent: #2a4546;
     --border-soft: #2c3335;
 
-    --primary: #0f8b8d;
+    --primary: #0d7f81;
     --primary-pressed: #0b5c5e;
     --primary-hover-bg: #1f3c3d;
     --primary-hover-border: #2a5a5b;
@@ -266,7 +271,7 @@
     --row-zebra: #1c2122;
     --row-hover: #263031;
     --row-hover-zebra: #2a3536;
-    --row-selected: #0f8b8d;
+    --row-selected: #0d7f81;
     --row-selected-text: #ffffff;
     --row-ticked: #1f3c3d;
     --row-ticked-hover: #255052;
@@ -311,7 +316,7 @@
     --status-unknown: #9ca3af;
 
     --toast-password: #0b5c5e;
-    --toast-username: #0f8b8d;
+    --toast-username: #0d7f81;
     --toast-totp: #30474a;
     --toast-default: #30373a;
 

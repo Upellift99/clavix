@@ -530,7 +530,9 @@
   "detail_attachment_unavailable": "Unavailable offline",
   "editor_lost_on_lock": "The vault locked while an item was being edited: the unsaved changes were discarded.",
   "share_confirm_title": "Share with {org}?",
-  "share_confirm_body": "“{name}” moves into {org}’s “{collection}” collection. It is re-encrypted with the organization’s key: members with access to that collection will be able to see it.",
+  "share_confirm_body": "“{name}” moves into {org}’s “{collection}” collection. It is re-encrypted with the organization’s key: members with access to that collection will be able to see it. This cannot be undone: an organization item cannot move back into a personal vault.",
   "share_confirm_action": "Share",
-  "share_done": "“{name}” is now in {org} › {collection}, re-encrypted with the organization’s key."
+  "share_done": "“{name}” is now in {org} › {collection}, re-encrypted with the organization’s key.",
+  "logout_confirm_title": "Sign out?",
+  "logout_confirm_body": "Clavix will forget this account on this computer: you will have to enter the server, the email address and the master password again. To just close the vault, use Lock."
 }
