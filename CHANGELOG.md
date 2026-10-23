@@ -5,6 +5,19 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0](https://github.com/Upellift99/clavix/compare/v0.23.1...v0.24.0) (2026-10-23)
+
+
+### Features
+
+* **ui:** new visual identity, the seal and verdigris ([#403](https://github.com/Upellift99/clavix/issues/403)) ([dbf2f51](https://github.com/Upellift99/clavix/commit/dbf2f510ab07f8ffd68b49f3484d8b3a08544ac4))
+* **ui:** three-column vault with in-place editing and row quick actions ([#404](https://github.com/Upellift99/clavix/issues/404)) ([b20c90d](https://github.com/Upellift99/clavix/commit/b20c90d9ecc2e0af08f83a8fd7781c75ab671054))
+
+
+### Bug Fixes
+
+* **ui:** never decide the reprompt gate on the provisional detail ([#406](https://github.com/Upellift99/clavix/issues/406)) ([1c17c47](https://github.com/Upellift99/clavix/commit/1c17c4756f4e5ed9d1e992058a823ef297e59400))
+
 ## [0.23.1](https://github.com/Upellift99/clavix/compare/v0.23.0...v0.23.1) (2026-10-23)
 
 
