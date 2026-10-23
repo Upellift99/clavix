@@ -196,3 +196,32 @@ describe("toolbar alignment", () => {
     },
   );
 });
+
+describe("blurNotes", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("defaults to on", () => {
+    const prefs = new PrefsController();
+    prefs.bootstrap();
+    expect(prefs.blurNotes).toBe(true);
+  });
+
+  it("turns off only on an explicit false", () => {
+    const a = new PrefsController();
+    a.setBlurNotes(false);
+    const b = new PrefsController();
+    b.bootstrap();
+    expect(b.blurNotes).toBe(false);
+  });
+
+  // A protection that is on by default must not be switched off by a
+  // corrupted value.
+  it.each(["", "0", "no", "FALSE", "null"])("stays on for a stored %j", (stored) => {
+    localStorage.setItem("clavix.blurNotes", stored);
+    const prefs = new PrefsController();
+    prefs.bootstrap();
+    expect(prefs.blurNotes).toBe(true);
+  });
+});

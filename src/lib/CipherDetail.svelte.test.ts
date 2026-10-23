@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup } from "@testing-library/svelte";
+import { tick } from "svelte";
 
 // The panel scores the password over IPC on mount; no Tauri backend here.
 vi.mock("./api", () => ({
@@ -88,5 +89,67 @@ describe("CipherDetail location", () => {
   it("says so when the item is unfiled", () => {
     expect(location({})).toHaveLength(1);
     expect(location({})[0]).not.toBe("");
+  });
+});
+
+describe("CipherDetail notes", () => {
+  function mountNotes(over: Record<string, unknown> = {}) {
+    const onReprompt = vi.fn().mockResolvedValue(true);
+    const { container } = render(CipherDetail, {
+      props: {
+        detail: detail({ notes: "Codes de secours : 1111-2222" }),
+        summaryEntry: null,
+        folders: [],
+        organizations: [],
+        collections: [],
+        onCopy: () => {},
+        onClose: () => {},
+        onEdit: () => {},
+        onRestore: () => {},
+        onSoftDelete: () => {},
+        onDeleteForever: () => {},
+        onDuplicate: () => {},
+        onReprompt,
+        confirm: async () => true,
+        onError: () => {},
+        onRefresh: () => {},
+        ...over,
+      },
+    });
+    return { container, onReprompt };
+  }
+
+  const flush = async () => {
+    for (let i = 0; i < 4; i++) await tick();
+  };
+
+  it("blurs notes by default and keeps them out of the accessibility tree", async () => {
+    const { container } = mountNotes();
+    const blurred = container.querySelector(".notes-blurred");
+    expect(blurred).not.toBeNull();
+    expect(blurred?.querySelector('[aria-hidden="true"]')?.textContent).toContain("1111-2222");
+    expect(container.querySelector("p.notes")).toBeNull();
+  });
+
+  it("reveals on click, through the reprompt gate", async () => {
+    const { container, onReprompt } = mountNotes();
+    (container.querySelector(".notes-blurred") as HTMLButtonElement).click();
+    await flush();
+    expect(onReprompt).toHaveBeenCalledTimes(1);
+    expect(container.querySelector("p.notes")?.textContent).toContain("1111-2222");
+  });
+
+  it("stays blurred when the reprompt is refused", async () => {
+    const { container } = mountNotes({ onReprompt: vi.fn().mockResolvedValue(false) });
+    (container.querySelector(".notes-blurred") as HTMLButtonElement).click();
+    await flush();
+    expect(container.querySelector(".notes-blurred")).not.toBeNull();
+    expect(container.querySelector("p.notes")).toBeNull();
+  });
+
+  it("shows notes plainly when the preference is off", async () => {
+    const { container } = mountNotes({ blurNotes: false });
+    expect(container.querySelector(".notes-blurred")).toBeNull();
+    expect(container.querySelector("p.notes")?.textContent).toContain("1111-2222");
   });
 });

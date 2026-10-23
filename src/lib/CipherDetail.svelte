@@ -48,6 +48,8 @@
     /** The detail shown is the row's provisional copy; secrets are still
         being decrypted, so their rows render as skeletons. */
     loading?: boolean;
+    /** Show notes blurred until revealed (Préférences › Sécurité). */
+    blurNotes?: boolean;
   };
 
   let {
@@ -69,6 +71,7 @@
     onRefresh,
     readOnly = false,
     loading = false,
+    blurNotes = true,
   }: Props = $props();
 
   let showPassword = $state(false);
@@ -147,6 +150,22 @@
     if (!(await passReprompt())) return;
     const value = await revealValue(field);
     if (value) await onCopy(value, kind, label);
+  }
+
+  // Notes start blurred again on every item, like the masked fields.
+  let notesShown = $state(false);
+  $effect(() => {
+    void detail.id;
+    notesShown = false;
+  });
+
+  async function toggleNotes() {
+    if (notesShown) {
+      notesShown = false;
+      return;
+    }
+    if (!(await passReprompt())) return;
+    notesShown = true;
   }
 
   /** Reveal-toggle a secret field: fetch it before showing. */
@@ -327,16 +346,18 @@
   <div class="detail-field" role="group">
     <dt>{label}</dt>
     <dd>
+      <span class="field-actions">
+        <button
+          type="button"
+          class="icon-btn"
+          title={m.action_copy()}
+          aria-label={m.action_copy()}
+          onclick={() => onCopy(value, copyAs, label)}
+        >
+          <Icon name="copy" size={14} />
+        </button>
+      </span>
       <code class="value">{value}</code>
-      <button
-        type="button"
-        class="icon-btn"
-        title={m.action_copy()}
-        aria-label={m.action_copy()}
-        onclick={() => onCopy(value, copyAs, label)}
-      >
-        <Icon name="copy" size={14} />
-      </button>
     </dd>
   </div>
 {/snippet}
@@ -353,6 +374,28 @@
   <div class="detail-field" role="group">
     <dt>{label}</dt>
     <dd>
+      <span class="field-actions">
+        <button
+          type="button"
+          class="icon-btn"
+          title={shown ? m.action_hide_value() : m.action_show()}
+          aria-label={shown ? m.action_hide_value() : m.action_show()}
+          onclick={toggle}
+          disabled={loading}
+        >
+          <Icon name={shown ? "eye-off" : "eye"} size={14} />
+        </button>
+        <button
+          type="button"
+          class="icon-btn primary"
+          title={m.action_copy()}
+          aria-label={m.action_copy()}
+          onclick={() => copyField(field, copyAs, label)}
+          disabled={loading}
+        >
+          <Icon name="copy" size={14} />
+        </button>
+      </span>
       {#if loading}
         <span class="value skeleton" aria-hidden="true"></span>
       {:else if shown && options?.renderShown === "password"}
@@ -366,26 +409,6 @@
       {:else}
         <code class="value">{options?.masked ?? "••••••••"}</code>
       {/if}
-      <button
-        type="button"
-        class="icon-btn"
-        title={shown ? m.action_hide_value() : m.action_show()}
-        aria-label={shown ? m.action_hide_value() : m.action_show()}
-        onclick={toggle}
-        disabled={loading}
-      >
-        <Icon name={shown ? "eye-off" : "eye"} size={14} />
-      </button>
-      <button
-        type="button"
-        class="icon-btn primary"
-        title={m.action_copy()}
-        aria-label={m.action_copy()}
-        onclick={() => copyField(field, copyAs, label)}
-        disabled={loading}
-      >
-        <Icon name="copy" size={14} />
-      </button>
     </dd>
   </div>
 {/snippet}
@@ -492,7 +515,7 @@
       <h3 class="detail-section-title">{m.detail_section_security()}</h3>
       <div class="detail-field" role="group">
         <dt>{m.detail_field_totp()}</dt>
-        <dd><span class="value skeleton" aria-hidden="true"></span></dd>
+        <dd><span class="field-actions"></span><span class="value skeleton" aria-hidden="true"></span></dd>
       </div>
     </section>
   {:else if detail.login?.hasTotp}
@@ -501,6 +524,7 @@
       <div class="detail-field" role="group">
         <dt>{m.detail_field_totp()}</dt>
         <dd>
+          <span class="field-actions"></span>
           <TotpField
             id={detail.id}
             onCopy={(code) => onCopy(code, "totp")}
@@ -519,7 +543,7 @@
       {#if detail.card.brand}
         <div class="detail-field" role="group">
           <dt>{m.detail_field_brand()}</dt>
-          <dd><span class="value">{detail.card.brand}</span></dd>
+          <dd><span class="field-actions"></span><span class="value">{detail.card.brand}</span></dd>
         </div>
       {/if}
       {#if detail.card.hasNumber}
@@ -536,6 +560,7 @@
         <div class="detail-field" role="group">
           <dt>{m.detail_field_expiry()}</dt>
           <dd>
+            <span class="field-actions"></span>
             <span class="value">
               {detail.card.expMonth ?? "?"} / {detail.card.expYear ?? "?"}
             </span>
@@ -586,16 +611,18 @@
         <div class="detail-field" role="group">
           <dt>{m.detail_field_public_key()}</dt>
           <dd>
+            <span class="field-actions">
+              <button
+                type="button"
+                class="icon-btn"
+                title={m.action_copy()}
+                aria-label={m.action_copy()}
+                onclick={() => onCopy(detail.sshKey!.publicKey!, "publicKey")}
+              >
+                <Icon name="copy" size={14} />
+              </button>
+            </span>
             <code class="value ssh-key">{detail.sshKey.publicKey}</code>
-            <button
-              type="button"
-              class="icon-btn"
-              title={m.action_copy()}
-              aria-label={m.action_copy()}
-              onclick={() => onCopy(detail.sshKey!.publicKey!, "publicKey")}
-            >
-              <Icon name="copy" size={14} />
-            </button>
           </dd>
         </div>
       {/if}
@@ -629,6 +656,7 @@
           <div class="detail-field" role="group">
             <dt>{label}</dt>
             <dd>
+              <span class="field-actions"></span>
               <span class="value">
                 {field.value === "true" ? m.editor_field_true() : m.editor_field_false()}
               </span>
@@ -639,7 +667,7 @@
         {:else}
           <div class="detail-field" role="group">
             <dt>{label}</dt>
-            <dd><span class="value muted">—</span></dd>
+            <dd><span class="field-actions"></span><span class="value muted">—</span></dd>
           </div>
         {/if}
       {/each}
@@ -722,18 +750,20 @@
             <div class="detail-field" role="group">
               <dt class="history-date">{entry.lastUsedDate?.slice(0, 10) ?? "—"}</dt>
               <dd>
+                <span class="field-actions">
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    title={m.action_copy()}
+                    aria-label={m.action_copy()}
+                    onclick={() => onCopy(entry.password, "password")}
+                  >
+                    <Icon name="copy" size={14} />
+                  </button>
+                </span>
                 <code class="value password">
                   {#each [...entry.password] as ch}<span class={charClass(ch)}>{ch}</span>{/each}
                 </code>
-                <button
-                  type="button"
-                  class="icon-btn"
-                  title={m.action_copy()}
-                  aria-label={m.action_copy()}
-                  onclick={() => onCopy(entry.password, "password")}
-                >
-                  <Icon name="copy" size={14} />
-                </button>
               </dd>
             </div>
           {/each}
@@ -745,9 +775,33 @@
   {/if}
 
   {#if detail.notes}
+    {@const hidden = blurNotes && !notesShown}
     <section class="detail-section">
-      <h3 class="detail-section-title">{m.detail_section_notes()}</h3>
-      <p class="notes">{detail.notes}</p>
+      <div class="notes-header">
+        <h3 class="detail-section-title">{m.detail_section_notes()}</h3>
+        {#if blurNotes}
+          <button
+            type="button"
+            class="icon-btn"
+            title={hidden ? m.notes_show() : m.notes_hide()}
+            aria-label={hidden ? m.notes_show() : m.notes_hide()}
+            aria-pressed={!hidden}
+            onclick={toggleNotes}
+          >
+            <Icon name={hidden ? "eye" : "eye-off"} size={14} />
+          </button>
+        {/if}
+      </div>
+      {#if hidden}
+        <!-- The text stays out of the accessibility tree while blurred;
+             a click on it reveals, like the eye button. -->
+        <button type="button" class="notes notes-blurred" onclick={toggleNotes}>
+          <span class="visually-hidden">{m.notes_hidden_sr()}</span>
+          <span aria-hidden="true">{detail.notes}</span>
+        </button>
+      {:else}
+        <p class="notes">{detail.notes}</p>
+      {/if}
     </section>
   {/if}
 
