@@ -201,12 +201,15 @@ button.secondary {
   border-color: var(--border-input);
 }
 
-button:hover:not(:disabled) {
+/* :where() keeps these at the specificity of a plain class selector,
+   so a component's own hover (a list row, a tree node, a toolbar
+   button) always wins over the generic primary hover. */
+:where(button):hover:not(:disabled) {
   background: var(--primary-pressed);
   border-color: var(--primary-pressed);
 }
 
-button.secondary:hover:not(:disabled) {
+:where(button.secondary):hover:not(:disabled) {
   background: var(--hover-soft);
   border-color: var(--border-input);
 }
