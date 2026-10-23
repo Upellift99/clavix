@@ -16,6 +16,7 @@ const VISIBLE_COLUMNS_STORAGE_KEY = "clavix.visibleColumns";
 const REQUIRE_NARROWING_STORAGE_KEY = "clavix.requireNarrowing";
 const SSH_AGENT_CONFIRM_STORAGE_KEY = "clavix.sshAgentConfirm";
 const SSH_AGENT_AUTOSTART_STORAGE_KEY = "clavix.sshAgentAutoStart";
+const BLUR_NOTES_STORAGE_KEY = "clavix.blurNotes";
 const TOOLBAR_ALIGN_STORAGE_KEY = "clavix.toolbarAlign";
 const AUTO_SYNC_STORAGE_KEY = "clavix.autoSyncMinutes";
 
@@ -99,6 +100,9 @@ export class PrefsController {
   requireNarrowing = $state<boolean>(REQUIRE_NARROWING_DEFAULT);
   sshAgentConfirm = $state<SshAgentConfirm>(SSH_AGENT_CONFIRM_DEFAULT);
   sshAgentAutoStart = $state<boolean>(SSH_AGENT_AUTOSTART_DEFAULT);
+  /** On unless the user turned it off: a malformed or absent value keeps
+      notes blurred. */
+  blurNotes = $state<boolean>(true);
   toolbarAlign = $state<ToolbarAlign>(TOOLBAR_ALIGN_DEFAULT);
   autoSyncMinutes = $state<number>(AUTO_SYNC_DEFAULT_MINUTES);
 
@@ -206,6 +210,7 @@ export class PrefsController {
       // must never turn key exposure on by itself.
       this.sshAgentAutoStart =
         localStorage.getItem(SSH_AGENT_AUTOSTART_STORAGE_KEY) === "true";
+      this.blurNotes = localStorage.getItem(BLUR_NOTES_STORAGE_KEY) !== "false";
       const savedAlign = localStorage.getItem(TOOLBAR_ALIGN_STORAGE_KEY);
       if (savedAlign === "left" || savedAlign === "center") {
         this.toolbarAlign = savedAlign;
@@ -256,6 +261,15 @@ export class PrefsController {
     this.sshAgentConfirm = value;
     try {
       localStorage.setItem(SSH_AGENT_CONFIRM_STORAGE_KEY, value);
+    } catch {
+      // best-effort
+    }
+  }
+
+  setBlurNotes(value: boolean) {
+    this.blurNotes = value;
+    try {
+      localStorage.setItem(BLUR_NOTES_STORAGE_KEY, String(value));
     } catch {
       // best-effort
     }

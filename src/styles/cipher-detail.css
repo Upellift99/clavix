@@ -5,7 +5,12 @@
      values above it. Anything that changes the grid must change it here. */
   --detail-label-col: 130px;
   --detail-label-gap: 0.85rem;
-  --detail-value-indent: calc(var(--detail-label-col) + var(--detail-label-gap));
+  /* The actions sit BEFORE the value in a fixed slot, so revealing a
+     long password never moves the eye button out from under the pointer,
+     and every value starts on the same line. Copy always takes the right
+     cell of the slot; the eye, when there is one, the left. */
+  --detail-actions-width: 3.6rem;
+  --detail-value-indent: calc(var(--detail-label-col) + var(--detail-label-gap) + var(--detail-actions-width) + 0.3rem);
   margin-top: 0.5rem;
   padding: 0.85rem 1rem;
   /* Fade + slide a couple of pixels when the panel mounts. Keeps the
@@ -131,8 +136,19 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  flex-wrap: wrap;
   font-family: var(--font-data);
+  min-width: 0;
+}
+
+.field-actions {
+  flex: 0 0 var(--detail-actions-width);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.2rem;
+}
+
+.detail-field dd > .value {
+  flex: 1 1 auto;
 }
 
 /* `.value` wraps any single-field content (string, code, password
@@ -226,6 +242,48 @@
   font-size: 0.88rem;
   font-family: var(--font-data);
   color: var(--text-secondary);
+}
+
+.notes-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.notes-header .detail-section-title {
+  margin-bottom: 0.2rem;
+}
+
+/* Blurred notes: legible as "there is text here", not as the text. */
+.notes-blurred {
+  display: block;
+  width: calc(100% - var(--detail-value-indent));
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  filter: blur(5px);
+  user-select: none;
+}
+
+.notes-blurred:hover:not(:disabled) {
+  background: transparent;
+  border: none;
+}
+
+.notes-blurred:focus-visible {
+  filter: blur(5px);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+@media (max-width: 720px) {
+  .notes-blurred {
+    width: 100%;
+  }
 }
 
 .ssh-key {

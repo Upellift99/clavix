@@ -53,6 +53,18 @@
   right: 0;
 }
 
+/* The column is narrow: a tighter label column, and notes on the full
+   width under their heading rather than indented to the value column. */
+.detail-column .cipher-detail {
+  --detail-label-col: 104px;
+}
+
+.detail-column .notes,
+.detail-column .notes-blurred {
+  margin-left: 0;
+  width: 100%;
+}
+
 .detail-empty {
   flex: 1 1 auto;
   display: flex;

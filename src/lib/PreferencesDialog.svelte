@@ -20,6 +20,8 @@
     autoSyncMinutes: number;
     sshAgentConfirm: SshAgentConfirm;
     sshAgentAutoStart: boolean;
+    blurNotes: boolean;
+    onApplyBlurNotes: (value: boolean) => void;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (trigger: AutoLockTrigger, minutes: number) => void;
@@ -48,6 +50,8 @@
     autoSyncMinutes,
     sshAgentConfirm,
     sshAgentAutoStart,
+    blurNotes,
+    onApplyBlurNotes,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
@@ -403,6 +407,18 @@
             {:else}
               <p class="hint">{m.stats_auto_lock_never_hint()}</p>
             {/if}
+          </dd>
+          <dt>{m.settings_blur_notes()}</dt>
+          <dd>
+            <label class="ssh-agent-autostart">
+              <input
+                type="checkbox"
+                checked={blurNotes}
+                onchange={(e) => onApplyBlurNotes((e.currentTarget as HTMLInputElement).checked)}
+              />
+              {m.settings_blur_notes_label()}
+            </label>
+            <p class="hint">{m.settings_blur_notes_hint()}</p>
           </dd>
         </dl>
       </div>

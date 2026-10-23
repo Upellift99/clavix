@@ -1016,6 +1016,7 @@
     onRefresh={(id) => vault.openCipher(id)}
     readOnly={auth.isReadOnly}
     loading={vault.detailLoading}
+    blurNotes={prefs.blurNotes}
   />
   {/if}
 {/snippet}
@@ -1145,6 +1146,8 @@
   autoSyncMinutes={prefs.autoSyncMinutes}
   sshAgentConfirm={prefs.sshAgentConfirm}
   sshAgentAutoStart={prefs.sshAgentAutoStart}
+  blurNotes={prefs.blurNotes}
+  onApplyBlurNotes={(v) => prefs.setBlurNotes(v)}
   onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
   onApplyTheme={(t) => prefs.applyTheme(t)}
   onApplyAutoLock={(trigger, min) => prefs.setAutoLock(trigger, min)}

@@ -51,6 +51,8 @@ function mount() {
       autoSyncMinutes: 30,
       sshAgentConfirm: "session" as const,
       sshAgentAutoStart: false,
+      blurNotes: true,
+      onApplyBlurNotes: vi.fn(),
       onApplyLocale: vi.fn(),
       onApplyTheme,
       onApplyAutoLock: vi.fn(),
