@@ -276,7 +276,7 @@ A cool neutral field with one verdigris accent family and a small, literal set o
 - **Body** (400, 0.85rem, line-height 1.45): the working size of the interface: tree labels, form labels, list paths, popovers, hints at 0.78 to 0.82rem. Item names in the list sit at 0.92rem.
 - **Data** (400, 0.92rem, Atkinson Hyperlegible): every value in the detail panel, every text input and textarea, notes at 0.88rem, usernames and URLs in the list at 0.88rem in Ink Label, inline code and preformatted blocks.
 - **Password** (400, Atkinson Hyperlegible, tracking 0.08em): revealed passwords in the detail panel; 0.04em inside editable password and TOTP inputs. Digits are coloured deep teal (Verdigris Pale in dark) and symbols Danger Red, both semibold, following the KeePassXC convention.
-- **Label** (600, 0.72rem, tracking 0.06em, uppercase): column headers in the list, section titles in the detail panel and the editor's custom-fields legend, in Ink Muted or Ink Faint. The tree's section headers use the same treatment at 0.68rem, tracking 0.05em.
+- **Label** (600, 0.72rem, tracking 0.06em, uppercase): column headers in the list, section titles in the detail panel and the editor's custom-fields legend, in Ink Muted or Ink Faint. The tree's section headers use the same size, tracking 0.05em.
 
 ### Named Rules
 **The Secret Reads Right Rule.** Anything the user did not type into the interface as a command is data: usernames, passwords, URLs, codes, notes, fingerprints, SSH keys. Data is always set in Atkinson Hyperlegible. Buttons, menus, labels and headings are always Inter. Selects stay in Inter even inside a form.
@@ -328,7 +328,7 @@ Standard, same height, quiet until hovered.
 - **Style:** Paper fill, Hairline Input border, 6 px radius, 2.25rem minimum height, Atkinson Hyperlegible for text inputs and textareas, Inter for selects. Placeholders in Ink Faint.
 - **Focus:** border turns Verdigris and a 2 px halo of verdigris at 22% alpha appears (30% in dark). No outline.
 - **Password fields:** a 1.6rem reveal button sits inside the right edge, Ink Muted, hovering to deep teal on Row Hover. Revealed values track at 0.04em.
-- **Strength meter:** four 4 px segments with 3 px gaps, resting on Hairline, filling weak in Danger Red, fair in Warning Amber, good and strong in Success Green, with a 0.78rem verdict in the same colour and the entropy in Ink Muted tabular figures.
+- **Strength meter:** four 4 px segments with 3 px gaps, resting on Hairline, filling weak in Danger Red, fair in Warning Amber, good and strong in Success Green, with a 0.8rem verdict in the same colour and the entropy in Ink Muted tabular figures.
 - **Labels:** stacked above the field, 0.85rem Ink Secondary, 0.25rem gap. Checkbox rows flip to inline.
 
 ### Panels and Boxes
@@ -339,16 +339,16 @@ Standard, same height, quiet until hovered.
 - **Internal Padding:** 0.6rem by 0.85rem for boxes, 0.85rem by 1rem for the detail panel, 1rem for standalone forms.
 
 ### Toolbar
-A paper strip with a cool accent hairline, 6 px radius, 0.3rem by 0.5rem padding. The 20 px mark and the 0.95rem semibold wordmark sit left behind a hairline; icon-button groups follow with hairline dividers; the status sits right at 0.78rem Ink Muted with a 0.5rem dot that pulses while syncing. The toolbar can switch to a centred three-column grid where the buttons sit on the window's centre line.
+A paper strip with a cool accent hairline, 6 px radius, 0.3rem by 0.5rem padding. The 20 px mark and the 0.95rem semibold wordmark sit left behind a hairline; icon-button groups follow with hairline dividers; the status sits right at 0.8rem Ink Muted with a 0.5rem dot that pulses while syncing. The toolbar can switch to a centred three-column grid where the buttons sit on the window's centre line.
 
 ### Tree
-A Cool Pane panel with 0.4rem by 0.35rem padding. Sections carry 0.68rem tracked uppercase headers in Ink Muted. Rows are transparent 6 px-radius buttons at 0.85rem, 0.2rem by 0.45rem padding, with a 1.1rem chevron toggle and a right-aligned tabular count in Ink Muted. Children indent 0.75rem behind a hairline guide. Hover fills Mint Wash; the selected node fills Mint Selected with deep-teal semibold text. A droppable node shows a dashed Verdigris Pale outline, and the live drop target flips to amber regardless of hover or selection. Renaming swaps the label for an input outlined in Verdigris Lifted.
+A Cool Pane panel with 0.4rem by 0.35rem padding. Sections carry 0.72rem tracked uppercase headers in Ink Muted. Rows are transparent 6 px-radius buttons at 0.85rem, 0.2rem by 0.45rem padding, with a 1.1rem chevron toggle and a right-aligned tabular count in Ink Muted. Children indent 0.75rem behind a hairline guide. Hover fills Mint Wash; the selected node fills Mint Selected with deep-teal semibold text. A droppable node shows a dashed Verdigris Pale outline, and the live drop target flips to amber regardless of hover or selection. Renaming swaps the label for an input outlined in Verdigris Lifted.
 
 ### List
 A paper container with 8 px radius and a Cool Header strip carrying 0.72rem tracked uppercase sortable column headers; the active sort reads deep teal at 700. Rows are 36 px, 0.2rem by 0.5rem padding, 1.3 line-height, a 16 px type icon then name at 0.92rem and identifier and URL at 0.88rem Atkinson in Ink Label. Even rows zebra at Cool Header; hover is Row Hover (one step darker on zebra rows); the open row fills Verdigris with white text and its data columns at 85% opacity. Multi-selected rows tint Mint Wash with a 3 px inset Verdigris bar and keep the bar when also open. A bulk-action bar appears above the list in Mint Wash with a cool accent hairline. The empty state is a centred Ink Disabled icon, a 0.95rem Ink Label title and 0.85rem body.
 
 ### Detail Panel
-A paper panel that mounts with a 140 ms fade and 4 px slide. The header puts the type badge (Mint Wash, deep-teal text, 3 px radius, 0.7rem 500) before the 1.05rem semibold title, the folder path in 0.78rem Ink Faint under it, and the actions right: primary, secondaries, danger, then a close icon. Fields are a 130 px label grid, labels 0.82rem Ink Muted 500, values 0.92rem Atkinson with 1.7rem icon buttons for reveal and copy. Section titles are 0.7rem tracked caps in Ink Faint.
+A paper panel that mounts with a 140 ms fade and 4 px slide. The header puts the type badge (Mint Wash, deep-teal text, 3 px radius, 0.72rem 500) before the 1.05rem semibold title, the folder path in 0.8rem Ink Faint under it, and the actions right: primary, secondaries, danger, then a close icon. Fields are a 130 px label grid, labels 0.82rem Ink Muted 500, values 0.92rem Atkinson with 1.7rem icon buttons for reveal and copy. Section titles are 0.72rem tracked caps in Ink Faint.
 
 ### Dialogs
 Native-feeling modal panels: Paper, 10 px radius, 1.25rem by 1.5rem padding, dialog shadow, tinted backdrop. The title row is 1.05rem semibold with a close icon button right. The editor pins its action row to the bottom behind a hairline so "Annuler" and "Enregistrer" stay visible while the form scrolls. Preferences use a tab strip of transparent buttons with a 2 px underline that turns Verdigris and deep-teal text when selected, hovering to Ink on Row Hover. Error and warning notices inside dialogs are 6 px-radius washes in their state colours.
@@ -357,7 +357,7 @@ Native-feeling modal panels: Paper, 10 px radius, 1.25rem by 1.5rem padding, dia
 Surface Raised with a Hairline Input border, 6 px radius, menu shadow, 0.25rem padding. Items are 4 px-radius transparent buttons, 0.4rem by 0.6rem, hovering to Row Hover; destructive items are Danger text hovering to Error Wash behind a hairline separator. Keyboard hints sit right in a 0.72rem Atkinson chip on the keyboard-hint tint.
 
 ### Clipboard Toast
-A solid pill fixed bottom centre, 8 px radius, 0.6rem by 1rem, white text, popover shadow, with a white secondary button that takes the pill's colour as its text. The pill's colour names what was copied: Deep Teal for a password, Verdigris for a username, a muted indigo (#3f4b8a) for a TOTP code, Dark Code grey for anything else. The toast is the same in both themes because each tint already reads on a light or a dark page.
+A solid pill fixed bottom centre, 8 px radius, 0.6rem by 1rem, white text, popover shadow, with a white secondary button that takes the pill's colour as its text. The pill's colour names what was copied through four dedicated tokens: Deep Teal for a password, Verdigris for a username, a dark slate teal (#30474a) for a TOTP code, Dark Code grey for anything else. The four tokens are identical in both themes because each tint already reads on a light or a dark page.
 
 ### The Mark
 "Le sceau précis", inline SVG in a 512 viewBox: a knurled rim (a dashed ring in Verdigris), a filled Verdigris disc, a hairline Mint ring, and a C in white over a Deep Teal offset impression. In the app it is 20 px in the toolbar and larger beside the brand name on the auth screens, driven by the accent tokens so it follows the theme. The shipped logo adds a Deep Teal tile with 112 px corners behind the same geometry; every icon size and the favicon derive from `assets/clavix-logo.svg`.
