@@ -36,9 +36,15 @@ packages=(
 
 sudo rm -f /etc/apt/sources.list.d/google-chrome.*
 
-# Rewrite every Ubuntu archive URL in the apt sources to the given mirror.
-# Covers both the deb822 file (ubuntu.sources, 24.04) and the legacy list.
+# Point apt at the given mirror. The runner image's sources read
+# `mirror+file:/etc/apt/apt-mirrors.txt`, so that list is what decides the
+# host (rewriting the sources alone changed nothing on 2026-10-23); plain
+# archive URLs, in the deb822 file or the legacy list, are rewritten too in
+# case an image ships without the mirror list.
 use_mirror() {
+  if [ -f /etc/apt/apt-mirrors.txt ]; then
+    echo "$1" | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+  fi
   local files=()
   for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources; do
     [ -f "$f" ] && files+=("$f")
