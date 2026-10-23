@@ -1019,14 +1019,14 @@
 
   .ssh-generate-hint {
     color: var(--text-muted);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
   }
 
   .ssh-passphrase-hint {
     display: block;
     margin-top: 0.25rem;
     color: var(--warning-text);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
   }
 
   .ssh-passphrase-note {
@@ -1083,7 +1083,7 @@
     display: block;
     margin: -0.35rem 0 0.6rem 1.6rem;
     color: var(--text-muted);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
   }
 
   /* A section of the form, not a boxed widget: a rule above and the

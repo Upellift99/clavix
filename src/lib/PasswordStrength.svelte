@@ -135,7 +135,7 @@
   .strength-seg {
     flex: 1;
     background: var(--border);
-    border-radius: 2px;
+    border-radius: 3px;
     transition: background 120ms ease-out;
   }
 
@@ -157,7 +157,7 @@
     justify-content: space-between;
     gap: 0.5rem;
     margin: 0.2rem 0 0;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
   }
 
   .strength-verdict {
@@ -184,7 +184,7 @@
 
   .strength-warning {
     margin: 0.2rem 0 0;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     color: var(--strength-fair);
   }
 </style>

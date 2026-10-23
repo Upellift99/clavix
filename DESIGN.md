@@ -48,6 +48,7 @@ colors:
   dark-hairline-input: "#3f4749"
   dark-accent-wash: "#1f3c3d"
   dark-accent-active: "#255052"
+  camera-well: "#000000"
 typography:
   display:
     fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
@@ -84,12 +85,35 @@ typography:
     fontSize: "0.72rem"
     fontWeight: 600
     letterSpacing: "0.06em"
+  small:
+    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    fontSize: "0.8rem"
+    fontWeight: 400
+  base:
+    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 400
+    lineHeight: 1.45
+  heading:
+    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    fontSize: "0.95rem"
+    fontWeight: 600
+    letterSpacing: "-0.01em"
+  dialog-title:
+    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    fontSize: "1.15rem"
+    fontWeight: 600
+  auth-title:
+    fontFamily: "Atkinson Hyperlegible, Inter, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "1.45rem"
+    fontWeight: 700
 rounded:
   hairline: "3px"
   icon: "4px"
   control: "6px"
   panel: "8px"
   dialog: "10px"
+  pill: "999px"
 spacing:
   hair: "0.15rem"
   xs: "0.25rem"

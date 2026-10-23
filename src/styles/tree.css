@@ -21,7 +21,7 @@
 
 .tree-pane h4 {
   margin: 0.5rem 0.25rem 0.2rem;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -68,7 +68,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 0.55rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   padding: 0;
 }
@@ -108,7 +108,7 @@
 }
 
 .tree-count {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   background: transparent;
   padding: 0;
@@ -167,7 +167,7 @@
 
 .tree-types summary {
   padding: 0.2rem 0.5rem;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);

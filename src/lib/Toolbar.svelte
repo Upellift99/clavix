@@ -350,7 +350,7 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     padding-right: 0.2rem;
   }

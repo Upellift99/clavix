@@ -287,10 +287,10 @@ dd {
 }
 
 pre {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   background: var(--surface-inset);
   padding: 0.4rem 0.5rem;
-  border-radius: 5px;
+  border-radius: 4px;
   overflow-x: auto;
   font-family: var(--font-data);
 }
@@ -326,7 +326,7 @@ code {
   background: var(--badge-bg);
   color: var(--badge-text);
   border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 500;
   min-width: 3.2rem;
   text-align: center;
