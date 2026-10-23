@@ -108,6 +108,8 @@ pub fn run() {
             commands::cipher::reveal_login_totp,
             commands::cipher::create_login_cipher,
             commands::cipher::update_login_cipher,
+            commands::clipboard::clipboard_write,
+            commands::clipboard::clipboard_clear_if_ours,
             commands::cipher::create_cipher,
             commands::cipher::update_cipher,
             commands::cipher::restore_cipher,

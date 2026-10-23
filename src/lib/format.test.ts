@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cipherTypeIconName,
   cipherTypeLabel,
+  formatDateTime,
   computeSessionStatus,
   extractDomain,
   faviconUrl,
@@ -196,5 +197,12 @@ describe("formatError", () => {
     });
     expect(msg).toContain("404");
     expect(msg).toContain("Cipher doesn't exist");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("formats in the UI locale and tolerates garbage", () => {
+    expect(formatDateTime("2026-09-12T10:21:00Z", "fr")).toMatch(/2026/);
+    expect(formatDateTime("not a date", "en")).toBe("");
   });
 });

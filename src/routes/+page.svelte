@@ -141,6 +141,34 @@
     if (ok) await vault.deleteCipherForever(id);
   }
 
+  // Dropping an item on another organization's collection is not a move:
+  // the item is re-encrypted with that organization's key and its members
+  // get access. Same-org moves between collections stay one gesture.
+  async function moveToCollection(cipherId: string, collectionId: string) {
+    const summary = vault.summary;
+    const cipher = summary?.ciphers.find((c) => c.id === cipherId);
+    const collection = summary?.collections.find((c) => c.id === collectionId);
+    if (!summary || !cipher || !collection) return;
+    if (cipher.organizationId === collection.organizationId) {
+      await vault.moveCipherToCollection(cipherId, collectionId);
+      return;
+    }
+    const org = summary.organizations.find((o) => o.id === collection.organizationId)?.name ?? "";
+    const names = { name: cipher.name, org, collection: collection.name };
+    const ok = await confirm({
+      title: m.share_confirm_title({ org }),
+      body: m.share_confirm_body(names),
+      confirmLabel: m.share_confirm_action(),
+    });
+    if (!ok) return;
+    const before = vault.error;
+    await vault.moveCipherToCollection(cipherId, collectionId);
+    const shared = vault.summary?.ciphers.find((c) => c.id === cipherId);
+    if (vault.error === before && shared?.organizationId === collection.organizationId) {
+      notice = m.share_done(names);
+    }
+  }
+
   async function confirmDuplicate(id: string, name: string) {
     const ok = await confirm({
       title: m.action_confirm_duplicate_title(),
@@ -396,8 +424,10 @@
   }
 
   // Tug the menu back inside the viewport once laid out, so a right-click
-  // near the right/bottom edge doesn't clip its actions.
+  // near the right/bottom edge doesn't clip its actions. Re-measured when
+  // the decrypted detail lands: it adds the password and TOTP entries.
   $effect(() => {
+    void menuDetail;
     if (menuCipher === null || menuEl === null) return;
     const rect = menuEl.getBoundingClientRect();
     const overflowX = rect.right - window.innerWidth;
@@ -497,7 +527,17 @@
     await copyToClipboard(command, "command");
   }
 
+  // Set by the open editor. A lock throws its form away, and nothing of
+  // it is kept as a draft (that would leave secrets behind the lock), so
+  // the most it can do is say so once the vault is open again.
+  let editorDirty = $state(false);
+  // One dismissible line under the vault for something that already
+  // happened (an edit lost to a lock, an item shared into an org).
+  let notice = $state<string | null>(null);
+
   async function lockAndReset() {
+    notice = vault.editorOpen && editorDirty ? m.editor_lost_on_lock() : null;
+    editorDirty = false;
     await auth.lock();
     vault.reset();
     showAllOnce = false;
@@ -512,6 +552,18 @@
     vault.reset();
     clearSelection();
     unlockedItems = new Set();
+  }
+
+  // Lock keeps the account and asks only for the master password again;
+  // signing out forgets the server, the email and the cache, and sits one
+  // button away from Lock in the toolbar.
+  async function confirmSignOut() {
+    const ok = await confirm({
+      title: m.logout_confirm_title(),
+      body: m.logout_confirm_body(),
+      confirmLabel: m.action_logout(),
+    });
+    if (ok) await switchAccountAndReset();
   }
 
   function onSplitterMouseDown(event: MouseEvent) {
@@ -780,6 +832,9 @@
   });
 
   const errorMsg = $derived(auth.error ?? vault.error);
+  // Items outside the trash: the one count the tree, the list header and
+  // the search gate all show.
+  const liveCount = $derived(vault.summary?.ciphers.filter((c) => !c.deletedDate).length ?? 0);
   const wide = $derived(auth.phase === "loggedIn" && vault.summary !== null);
 </script>
 
@@ -835,7 +890,7 @@
         readOnly={auth.isReadOnly}
         onSync={() => vault.sync()}
         onLock={lockAndReset}
-        onSwitchAccount={switchAccountAndReset}
+        onSwitchAccount={confirmSignOut}
         onCreateItem={() => vault.openCreateEditor()}
         onOpenImport={() => (importOpen = true)}
         onOpenExport={() => (exportOpen = true)}
@@ -868,7 +923,7 @@
               onExpandAll={() => vault.expandAllNodes()}
               onCollapseAll={() => vault.collapseAllNodes()}
               onMoveCipherToFolder={(id, fid) => vault.moveCipherToFolder(id, fid)}
-              onMoveCipherToCollection={(id, cid) => vault.moveCipherToCollection(id, cid)}
+              onMoveCipherToCollection={moveToCollection}
               onMoveFolderPath={(s, t) => vault.performFolderMove(s, t)}
               onDeleteFolder={(ids) => vault.deleteFolder(ids)}
               {confirm}
@@ -894,7 +949,7 @@
 
             <CipherList
               items={vault.filteredCiphers}
-              totalCount={vault.summary.ciphers.length}
+              totalCount={liveCount}
               hasNarrowing={vault.hasNarrowing}
               gated={listGated}
               onShowAll={() => (showAllOnce = true)}
@@ -975,12 +1030,24 @@
               onmousedown={onDetailSplitterMouseDown}
               onkeydown={onDetailSplitterKeydown}
             ></div>
-            <div class="detail-pane" style="height: {prefs.detailHeight}px;">
+            <!-- Capped against the window so a small one (800×600, the
+                 default) still keeps a few list rows above an open item:
+                 380px is the toolbar, search and list chrome plus ~4 rows. -->
+            <div class="detail-pane" style="height: max({DETAIL_HEIGHT_MIN}px, min({prefs.detailHeight}px, 100vh - 380px));">
               {@render detailPanel()}
             </div>
           {/if}
         </section>
       {/if}
+    {/if}
+
+    {#if notice && auth.phase === "loggedIn"}
+      <section class="box notice" role="status">
+        <p>{notice}</p>
+        <button type="button" class="secondary" onclick={() => (notice = null)}>
+          {m.action_close()}
+        </button>
+      </section>
     {/if}
 
     {#if errorMsg}
@@ -1036,6 +1103,7 @@
     onCancel={() => vault.closeEditor()}
     onSubmit={(input) => vault.submitEditor(input)}
     onCopy={copyToClipboard}
+    onDirtyChange={(d) => (editorDirty = d)}
   />
 {/snippet}
 
@@ -1193,6 +1261,7 @@
     onCancel={() => vault.closeEditor()}
     onSubmit={(input) => vault.submitEditor(input)}
     onCopy={copyToClipboard}
+    onDirtyChange={(d) => (editorDirty = d)}
   />
   <ImportDialog
     open={importOpen}

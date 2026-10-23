@@ -460,7 +460,7 @@
       {#if visibleColumns.username}
         <button
           type="button"
-          class="cipher-header"
+          class="cipher-header col-username"
           class:active={sortKey === "username"}
           onclick={() => onToggleSort("username")}
         >
@@ -471,7 +471,7 @@
       {#if visibleColumns.uri}
         <button
           type="button"
-          class="cipher-header"
+          class="cipher-header col-uri"
           class:active={sortKey === "uri"}
           onclick={() => onToggleSort("uri")}
         >

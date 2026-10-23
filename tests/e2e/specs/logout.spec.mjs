@@ -24,6 +24,15 @@ describe("Logout", () => {
     await logoutBtn.waitForClickable({ timeout: 10_000 });
     await logoutBtn.click();
 
+    // Signing out forgets the account, so it asks first; the second
+    // button of the shared confirmation dialog is the confirm one.
+    const dialog = await $("dialog.confirm-dialog");
+    await dialog.waitForDisplayed({
+      timeout: 5_000,
+      timeoutMsg: "sign-out did not raise a confirmation",
+    });
+    await dialog.$$(".confirm-actions button")[1].click();
+
     // The discriminator: a successful logout shows the login form
     // (server URL field present). A bug that only locked would show
     // the unlock form, where there's no `input[type="url"]`.

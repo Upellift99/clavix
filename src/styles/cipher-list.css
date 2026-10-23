@@ -268,8 +268,10 @@
   font-size: 0.92rem;
 }
 
-.col-username,
-.col-uri {
+/* Rows only: the column headers carry the same classes so the narrow
+   breakpoints hide them together, but keep the header type. */
+.cipher-row .col-username,
+.cipher-row .col-uri {
   color: var(--text-data-muted);
   font-size: 0.88rem;
   font-family: var(--font-data);
@@ -303,7 +305,6 @@
 .cipher-row.selected .col-username,
 .cipher-row.selected .col-uri {
   color: var(--row-selected-text);
-  opacity: 0.85;
 }
 
 .cipher-row.dragging {
@@ -433,7 +434,10 @@
   border-radius: 3px;
 }
 
+/* Headers and rows share these rules, so a narrow window drops the same
+   columns from both. */
 @media (max-width: 900px) {
+  .cipher-headers.cipher-columns,
   .cipher-row.cipher-columns {
     grid-template-columns: 1.25rem minmax(0, 2fr) minmax(0, 1.4fr);
   }
@@ -441,6 +445,7 @@
 }
 
 @media (max-width: 680px) {
+  .cipher-headers.cipher-columns,
   .cipher-row.cipher-columns {
     grid-template-columns: 1.25rem minmax(0, 1fr);
   }

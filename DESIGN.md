@@ -3,6 +3,7 @@ name: Clavix
 description: A Vaultwarden desktop client in the category standard, signed by a machined seal and one verdigris accent.
 colors:
   verdigris: "#0f8b8d"
+  verdigris-fill: "#0d7f81"
   deep-teal: "#0b5c5e"
   mint: "#bfe9e4"
   mint-wash: "#e3f3f1"
@@ -20,8 +21,8 @@ colors:
   ink: "#16191a"
   ink-secondary: "#2e3538"
   ink-label: "#4b5356"
-  ink-muted: "#6c767a"
-  ink-faint: "#7f898d"
+  ink-muted: "#5f696d"
+  ink-faint: "#646e72"
   ink-disabled: "#a4adb0"
   hairline: "#d8dcdc"
   hairline-input: "#c9cfcf"
@@ -221,7 +222,8 @@ The system refuses the category's lazy rendition: the Tauri template blue, white
 A cool neutral field with one verdigris accent family and a small, literal set of state colours.
 
 ### Primary
-- **Verdigris** (#0f8b8d): the only saturated colour in the chrome. Fills primary buttons, the selected list row, the focus ring, the mark's disc, the splitter line on hover, the multi-select tick bar and the active preferences tab underline. Identical in both themes.
+- **Verdigris** (#0f8b8d): the only saturated colour in the chrome. The focus ring, the mark's disc, the splitter line on hover, the multi-select tick bar and the active preferences tab underline. Identical in both themes.
+- **Verdigris Fill** (#0d7f81): verdigris a step deeper wherever white text sits on it (primary buttons, the selected list row, the username toast), because pure verdigris only gives white 4.1:1; this gives 4.8:1. Identical in both themes.
 - **Deep Teal** (#0b5c5e): the pressed state of verdigris. Primary button hover, link hover, accent-coloured text on light surfaces (badge text, selected tree node, column header hover), the clipboard toast for passwords, the logo tile and the C's impression. Identical in both themes.
 - **Mint** (#bfe9e4): the lightest member of the family. Icon-button active background, hover border, splitter hover fill, the mark's hairline ring. Dark theme uses the accent washes instead.
 - **Mint Wash** (#e3f3f1): the resting accent tint. Icon-button hover, tree row hover, the badge background, the multi-selection row tint, the bulk-action bar. In dark it becomes Dark Accent Wash (#1f3c3d).
@@ -239,8 +241,8 @@ A cool neutral field with one verdigris accent family and a small, literal set o
 - **Ink** (#16191a): primary text, the wordmark, headings. Dark Ink (#eceff0) in dark.
 - **Ink Secondary** (#2e3538): form labels, secondary button text, notes.
 - **Ink Label** (#4b5356): definition-list terms and muted data values (usernames and URLs in the list). Lifted to #c1c9cc in dark.
-- **Ink Muted** (#6c767a): tracked-caps section labels, hints, status text, counts, placeholders' neighbours. Dark Ink Muted (#a9b3b6) in dark.
-- **Ink Faint** (#7f898d) and **Ink Disabled** (#a4adb0): placeholders, detail footers and location paths; disabled text and the empty-state icon.
+- **Ink Muted** (#5f696d, ≥ 4.5:1 on every light surface): tracked-caps section labels, hints, status text, counts, placeholders' neighbours. Dark Ink Muted (#a9b3b6) in dark.
+- **Ink Faint** (#646e72) and **Ink Disabled** (#a4adb0): placeholders, detail footers and location paths; disabled text and the empty-state icon.
 - **Hairline** (#d8dcdc): every panel border, divider, splitter and tree guide line. Dark Hairline (#343b3d) in dark.
 - **Hairline Input** (#c9cfcf): the slightly firmer border of inputs, secondary buttons and menus. Dark Hairline Input (#3f4749) in dark.
 - **Hairline Accent** (#cfe3e2) and **Hairline Soft** (#e6eaea): the toolbar's and selection bar's cool-tinted border; the softest row separators inside lists.

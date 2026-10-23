@@ -293,6 +293,14 @@ export const api = {
 
   /** This build's version, straight from Rust (offline, no network). */
   appVersion: () => invoke<string>("app_version"),
+
+  /** Write to the clipboard from Rust, which remembers a digest of the
+      value so the timed clear can tell whether it is still there. */
+  clipboardWrite: (text: string) => invoke<void>("clipboard_write", { text }),
+
+  /** Clear the clipboard only if it still holds the last value Clavix
+      wrote; resolves to whether it cleared. */
+  clipboardClearIfOurs: () => invoke<boolean>("clipboard_clear_if_ours"),
 };
 
 /// Flat entry shape returned by `parse_kdbx` — mirrors the CSV

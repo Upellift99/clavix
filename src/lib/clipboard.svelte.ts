@@ -1,4 +1,4 @@
-import { clear as clearClipboard, writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { api } from "./api";
 
 export const CLIPBOARD_CLEAR_SECONDS = 30;
 
@@ -50,7 +50,7 @@ export class ClipboardController {
   private interval: ReturnType<typeof setInterval> | null = null;
 
   async copy(value: string, kind: ClipboardKind, label?: string): Promise<void> {
-    await writeText(value);
+    await api.clipboardWrite(value);
     this.scheduleClear(kind, label);
   }
 
@@ -65,9 +65,11 @@ export class ClipboardController {
         this.secondsLeft -= 1;
       }
     }, 1000);
+    // Only clears while the clipboard still holds what was copied here:
+    // anything the user copied since, in Clavix or elsewhere, stays.
     this.timeout = setTimeout(async () => {
       try {
-        await clearClipboard();
+        await api.clipboardClearIfOurs();
       } catch {
         // best-effort
       }
@@ -79,7 +81,7 @@ export class ClipboardController {
   async clearNow(): Promise<void> {
     this.clearTimers();
     try {
-      await clearClipboard();
+      await api.clipboardClearIfOurs();
     } catch {
       // best-effort
     }

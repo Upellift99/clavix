@@ -134,6 +134,7 @@
     onSubmit,
     onCopy,
     inline = false,
+    onDirtyChange,
   }: {
     open: boolean;
     mode: "create" | "edit";
@@ -151,6 +152,9 @@
     /** Copy from the generator dialog goes through the page's clipboard
         controller (auto-clear, toast) rather than a bare writeText. */
     onCopy: (value: string, kind: ClipboardKind) => void;
+    /** Told whenever the form gains or loses unsaved changes, so a lock
+        that closes it can say what was lost. */
+    onDirtyChange?: (dirty: boolean) => void;
   } = $props();
 
   let cipherType = $state<CipherKind>(1);
@@ -267,6 +271,10 @@
         reprompt !== initial.reprompt ||
         !sameCustomFields(fields, initial.fields)),
   );
+
+  $effect(() => {
+    onDirtyChange?.(dirty);
+  });
 
   function sameCustomFields(a: EditorField[], b: EditorField[]): boolean {
     return (
