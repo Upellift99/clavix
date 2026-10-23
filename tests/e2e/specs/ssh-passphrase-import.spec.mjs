@@ -113,7 +113,7 @@ describe("Import an encrypted SSH key", () => {
     // form is the most stable selector — option indices would silently
     // drift if a future cipher type is added.
     const typeSelect = await editor.$(TYPE_SELECT);
-    await typeSelect.selectByVisibleText("🔑 Clé SSH");
+    await typeSelect.selectByVisibleText("Clé SSH");
 
     const nameInput = await editor.$('input[type="text"][required]');
     await nameInput.setValue(ITEM_NAME_OK);
@@ -240,7 +240,7 @@ describe("Import an encrypted SSH key", () => {
     await editor.waitForDisplayed({ timeout: 10_000 });
 
     const typeSelect = await editor.$(TYPE_SELECT);
-    await typeSelect.selectByVisibleText("🔑 Clé SSH");
+    await typeSelect.selectByVisibleText("Clé SSH");
 
     const nameInput = await editor.$('input[type="text"][required]');
     await nameInput.setValue(ITEM_NAME_ECDSA);
