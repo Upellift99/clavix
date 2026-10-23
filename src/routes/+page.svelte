@@ -96,6 +96,9 @@
     item: { id: string; name: string; reprompt: boolean } | null,
   ): Promise<boolean> {
     if (!item) return false;
+    // The panel's provisional copy (shown while the item decrypts) does
+    // not know the reprompt flag yet; never decide the gate on it.
+    if (vault.detailLoading && item === vault.detail) item = await api.getCipher(item.id);
     if (!item.reprompt || unlockedItems.has(item.id)) return true;
     const ok = (await repromptDialog?.ask(item.name)) ?? false;
     if (ok) unlockedItems = new Set(unlockedItems).add(item.id);
@@ -103,8 +106,14 @@
   }
 
   /** The decrypted detail for an id, reusing the open panel's copy. */
+  /** The decrypted detail for an id, reusing the open panel's copy only
+      once it is the real one, never the provisional row copy. */
   async function loadDetail(id: string): Promise<CipherDetailData> {
-    return vault.detail?.id === id ? vault.detail : await api.getCipher(id);
+    return knownDetail(id) ?? (await api.getCipher(id));
+  }
+
+  function knownDetail(id: string): CipherDetailData | null {
+    return vault.detail?.id === id && !vault.detailLoading ? vault.detail : null;
   }
 
   /** Gate for a cipher we only know by id — resolves the loaded detail. */
@@ -323,7 +332,7 @@
     event.preventDefault();
     menuReturnEl = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     menuCipher = cipher;
-    menuDetail = vault.detail?.id === cipher.id ? vault.detail : null;
+    menuDetail = knownDetail(cipher.id);
     menuX = event.clientX;
     menuY = event.clientY;
     // Only login items can carry a password/TOTP worth decrypting for.
