@@ -33,7 +33,6 @@
     | "camera" // QR scanner
     | "user" // copy username (row quick action)
     | "external-link" // open URL
-    | "arrow-up-circle" // check for updates
     | "edit" // edit cipher
     | "eye" // reveal field
     | "eye-off" // hide field
@@ -172,10 +171,6 @@
   {:else if name === "camera"}
     <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
     <circle cx="12" cy="13" r="3" />
-  {:else if name === "arrow-up-circle"}
-    <circle cx="12" cy="12" r="10" />
-    <path d="M8 12l4-4 4 4" />
-    <line x1="12" y1="16" x2="12" y2="8" />
   {:else if name === "edit"}
     <path d="M12 20h9" />
     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />

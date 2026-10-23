@@ -211,3 +211,13 @@ export function cipherTypeIconName(
     default: return "info";
   }
 }
+
+/** Date and time of an ISO timestamp, in the UI locale ("" if unparseable). */
+export function formatDateTime(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}

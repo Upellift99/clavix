@@ -369,3 +369,16 @@ dialog[open] {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* A one-off note after the fact (an edit discarded by a lock): neutral,
+   not an error, dismissed by the user. */
+.box.notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.box.notice p {
+  margin: 0;
+  flex: 1;
+}

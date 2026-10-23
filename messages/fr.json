@@ -324,7 +324,7 @@
   "col_url": "URL",
   "columns_label": "Colonnes",
   "columns_chooser_title": "Colonnes affichées",
-  "detail_item_id": "Item #{id}",
+  "detail_modified": "Modifié le {date}",
   "detail_location": "Emplacement",
   "detail_section_credentials": "Identifiants",
   "detail_section_urls": "URLs",
@@ -527,5 +527,10 @@
   "standalone_open_file": "Ouvrir une sauvegarde chiffrée",
   "standalone_open_file_hint": "Restauration d'urgence : ouvre un fichier d'export chiffré en lecture seule, sans serveur ni compte.",
   "err_read_only_session": "Ce coffre est ouvert en mode autonome et ne peut pas être modifié.",
-  "detail_attachment_unavailable": "Indisponible hors ligne"
+  "detail_attachment_unavailable": "Indisponible hors ligne",
+  "editor_lost_on_lock": "Le coffre s'est verrouillé pendant une modification : les changements non enregistrés ont été abandonnés.",
+  "share_confirm_title": "Partager avec {org} ?",
+  "share_confirm_body": "« {name} » passe dans la collection « {collection} » de {org}. Il est rechiffré avec la clé de l'organisation : ses membres qui ont accès à cette collection pourront le voir.",
+  "share_confirm_action": "Partager",
+  "share_done": "« {name} » est maintenant dans {org} › {collection}, rechiffré avec la clé de l'organisation."
 }

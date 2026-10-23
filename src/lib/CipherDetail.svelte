@@ -4,7 +4,8 @@
   import TotpField from "./TotpField.svelte";
   import PasswordStrength from "./PasswordStrength.svelte";
   import { api } from "./api";
-  import { cipherTypeLabel, formatBytes } from "./format";
+  import { cipherTypeLabel, formatBytes, formatDateTime } from "./format";
+  import { getLocale } from "#lib/paraglide/runtime.js";
   import type { ClipboardKind } from "./clipboard.svelte";
   import { ATTACHMENT_MAX_BYTES } from "./limits";
   import { cipherLocations } from "./tree";
@@ -292,6 +293,7 @@
 
   const isDeleted = $derived(summaryEntry?.deletedDate ?? null);
   const locations = $derived(cipherLocations(detail, folders, organizations, collections));
+  const modified = $derived(detail.revisionDate ? formatDateTime(detail.revisionDate, getLocale()) : "");
 
   /**
    * Classify a single character of a revealed password so the CSS can
@@ -805,7 +807,7 @@
     </section>
   {/if}
 
-  <p class="hint detail-footer">
-    {m.detail_item_id({ id: detail.id.slice(0, 8) })}
-  </p>
+  {#if modified}
+    <p class="hint detail-footer">{m.detail_modified({ date: modified })}</p>
+  {/if}
 </section>
