@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.1](https://github.com/Upellift99/clavix/compare/v0.23.0...v0.23.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** move clipboard-win past the yanked 5.4.1, ctutils past RUSTSEC-2026-0385 ([#401](https://github.com/Upellift99/clavix/issues/401)) ([6fb31cb](https://github.com/Upellift99/clavix/commit/6fb31cbcdd206cbd7502a07d25eb529c47e74df8))
+
 ## [0.23.0](https://github.com/Upellift99/clavix/compare/v0.22.3...v0.23.0) (2026-10-22)
 
 
