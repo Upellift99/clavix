@@ -60,7 +60,7 @@
 <style>
   .totp-code {
     font-family: ui-monospace, monospace;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: 0.15em;
     background: var(--accent-soft-bg);

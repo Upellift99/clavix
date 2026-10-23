@@ -17,6 +17,8 @@
     onShowAll: () => void;
     selectedId: string | null;
     currentLocale: Locale;
+    /** Where the list is (quick filter or node path), shown in the header. */
+    pathSegments?: string[];
     sortKey: SortKey;
     sortAsc: boolean;
     storedAccount: StoredAccount | null;
@@ -60,6 +62,7 @@
     onShowAll,
     selectedId,
     currentLocale,
+    pathSegments = [],
     sortKey,
     sortAsc,
     storedAccount,
@@ -287,12 +290,17 @@
 </script>
 
 <section class="list-pane">
-  <h3>
-    {m.items_title()}
-    <!-- Kept on one line: a newline before `)` renders as a stray space,
-         which showed up as "(3 319 )" whenever nothing narrowed the list. -->
-    <small>({items.length.toLocaleString(numberLocale)}{#if hasNarrowing}/{totalCount.toLocaleString(numberLocale)}{/if})</small>
-  </h3>
+  <div class="list-title">
+    <h3 class="list-heading">
+      {m.items_title()}
+      <!-- Kept on one line: a newline before `)` renders as a stray space,
+           which showed up as "(3 319 )" whenever nothing narrowed the list. -->
+      <small>({items.length.toLocaleString(numberLocale)}{#if hasNarrowing}/{totalCount.toLocaleString(numberLocale)}{/if})</small>
+    </h3>
+    {#if pathSegments.length > 0}
+      <span class="list-path" title={pathSegments.join(" › ")}>{pathSegments.join(" › ")}</span>
+    {/if}
+  </div>
   <div class="search-row">
     <input
       type="search"

@@ -67,7 +67,7 @@
     <header class="stats-header">
       <h2>{m.infos_title()}</h2>
       <button type="button" class="secondary small" onclick={close} aria-label={m.action_close()}>
-        ✕
+        <Icon name="x" size={14} />
       </button>
     </header>
 

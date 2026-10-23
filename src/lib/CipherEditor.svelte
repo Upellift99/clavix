@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
+  import Icon from "#lib/Icon.svelte";
   import QrScanner from "#lib/QrScanner.svelte";
   import GeneratorDialog from "#lib/GeneratorDialog.svelte";
   import PasswordStrength from "#lib/PasswordStrength.svelte";
@@ -502,7 +503,7 @@
           onclick={() => requestClose("explicit")}
           aria-label={m.action_close()}
         >
-          ✕
+          <Icon name="x" size={14} />
         </button>
       </header>
 
@@ -511,11 +512,11 @@
           <label>
             {m.editor_type()}
             <select bind:value={cipherType}>
-              <option value={1}>🔐 {m.type_login()}</option>
-              <option value={2}>📝 {m.type_note()}</option>
-              <option value={3}>💳 {m.type_card()}</option>
-              <option value={4}>🪪 {m.type_identity()}</option>
-              <option value={5}>🔑 {m.type_ssh_key()}</option>
+              <option value={1}>{m.type_login()}</option>
+              <option value={2}>{m.type_note()}</option>
+              <option value={3}>{m.type_card()}</option>
+              <option value={4}>{m.type_identity()}</option>
+              <option value={5}>{m.type_ssh_key()}</option>
             </select>
           </label>
         {/if}
@@ -591,8 +592,9 @@
                 class="secondary small"
                 onclick={openGenerator}
                 title={m.generator_title()}
+                aria-label={m.generator_title()}
               >
-                🎲
+                <Icon name="dice" size={16} />
               </button>
             </div>
             {#if password.length > 0}
@@ -615,8 +617,9 @@
                 class="secondary small"
                 onclick={() => (qrOpen = true)}
                 title={m.qr_button_title()}
+                aria-label={m.qr_button_title()}
               >
-                📷
+                <Icon name="camera" size={16} />
               </button>
             </div>
           </label>
@@ -839,7 +842,7 @@
                 aria-label={m.editor_field_remove()}
                 title={m.editor_field_remove()}
               >
-                ✕
+                <Icon name="x" size={14} />
               </button>
             </div>
           {/each}
@@ -914,11 +917,31 @@
     background: var(--surface);
     color: var(--text);
     border-radius: 10px;
-    padding: 1.25rem 1.5rem;
+    padding: 1.25rem 1.5rem 0;
     width: min(560px, 94vw);
     max-height: 90vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     box-shadow: var(--shadow-dialog);
+  }
+
+  /* The form is the scrolling region; the action row below it stays in
+     view whatever the item's length. */
+  .editor-panel > form {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    border: none;
+    padding: 0 0.25rem 0 0;
+  }
+
+  .editor-panel > form > .row {
+    position: sticky;
+    bottom: 0;
+    margin: 0.75rem -0.25rem 0 0;
+    padding: 0.75rem 0 1.25rem;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
   }
 
   .editor-header {
@@ -963,9 +986,19 @@
     background: var(--surface);
   }
 
+  /* What the user types is data: identifiers, passwords, URLs, notes
+     read in the same confusable-free face as the detail panel shows
+     them. Selects stay in the UI face. */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  textarea {
+    font-family: var(--font-data);
+  }
+
   textarea {
     resize: vertical;
-    font-family: inherit;
   }
 
   .ssh-private-key {
@@ -986,14 +1019,14 @@
 
   .ssh-generate-hint {
     color: var(--text-muted);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
   }
 
   .ssh-passphrase-hint {
     display: block;
     margin-top: 0.25rem;
     color: var(--warning-text);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
   }
 
   .ssh-passphrase-note {
@@ -1050,21 +1083,38 @@
     display: block;
     margin: -0.35rem 0 0.6rem 1.6rem;
     color: var(--text-muted);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
   }
 
+  /* A section of the form, not a boxed widget: a rule above and the
+     tracked-caps label the detail panel uses for the same group. */
   .custom-fields {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.6rem 0.75rem 0.75rem;
-    margin: 0.35rem 0 0.75rem;
+    border: none;
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 0 0;
+    margin: 0.5rem 0 0.75rem;
+    min-width: 0;
   }
 
+  /* The rows start below the floated legend, never beside it. */
+  .custom-fields > :not(legend) {
+    clear: both;
+  }
+
+  /* Floated full-width so the browser stops threading the fieldset's
+     top rule through the legend text; the rule then spans the row
+     above and the label sits under it like every other section label. */
   .custom-fields legend {
-    padding: 0 0.35rem;
-    font-size: 0.82rem;
+    float: left;
+    width: 100%;
+    padding: 0.1rem 0 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--text-muted);
   }
+
 
   /* Type, name, value, then the buttons. The value column takes the
      slack so a long secret stays readable in a 560px panel. */
@@ -1135,6 +1185,18 @@
   }
 
   button:hover:not(:disabled) {
-    filter: brightness(0.95);
+
+    background: var(--primary-pressed);
+
+    border-color: var(--primary-pressed);
+
+  }
+
+  button.secondary:hover:not(:disabled) {
+
+    background: var(--hover-soft);
+
+    border-color: var(--border-input);
+
   }
 </style>

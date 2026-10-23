@@ -125,7 +125,19 @@
     border-color: var(--border-input);
   }
 
-  button:hover {
-    filter: brightness(0.95);
+  button:hover:not(:disabled) {
+
+    background: var(--primary-pressed);
+
+    border-color: var(--primary-pressed);
+
+  }
+
+  button.secondary:hover:not(:disabled) {
+
+    background: var(--hover-soft);
+
+    border-color: var(--border-input);
+
   }
 </style>

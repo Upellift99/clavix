@@ -48,7 +48,7 @@
   margin: 0.25rem 0 0;
   padding: 0;
   list-style: none;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--text-faint);
 }
 
@@ -95,7 +95,7 @@
 }
 
 .detail-section-title {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -123,6 +123,7 @@
    indent the panel already defines for exactly this purpose. */
 .detail-strength {
   margin: -0.15rem 0 0.5rem var(--detail-value-indent);
+  max-width: 20rem;
 }
 
 .detail-field dd {
@@ -216,7 +217,7 @@
   word-break: break-all;
   max-height: 10rem;
   overflow-y: auto;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   background: var(--surface-inset);
   border: 1px solid var(--border);
   border-radius: 4px;

@@ -414,7 +414,7 @@
           {m.action_delete_forever()}
         </button>
       {:else}
-        <button type="button" class="secondary small" onclick={onEdit}>
+        <button type="button" class="small" onclick={onEdit}>
           <Icon name="edit" size={14} />
           {m.action_edit()}
         </button>

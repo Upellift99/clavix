@@ -81,11 +81,11 @@ h2 {
 
 h3 {
   margin: 0.75rem 0 0.35rem;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--text-label);
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
 }
 
 h3 small {
@@ -131,8 +131,15 @@ form {
   gap: 0.75rem;
   background: var(--surface);
   padding: 1rem;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: var(--shadow-sm);
+}
+
+/* A form inside a box is the box's content, not a second frame. */
+.box > form {
+  border: none;
+  padding: 0;
+  background: transparent;
 }
 
 label {
@@ -148,11 +155,17 @@ button,
 select,
 textarea {
   font: inherit;
-  padding: 0.4rem 0.6rem;
-  border-radius: 5px;
+  padding: 0.45rem 0.7rem;
+  min-height: 2.25rem;
+  box-sizing: border-box;
+  border-radius: 6px;
   border: 1px solid var(--border-input);
   background: var(--surface);
   color: var(--text);
+}
+
+textarea {
+  min-height: 4.5rem;
 }
 
 input,
@@ -188,8 +201,17 @@ button.secondary {
   border-color: var(--border-input);
 }
 
-button:hover:not(:disabled) {
-  filter: brightness(0.95);
+/* :where() keeps these at the specificity of a plain class selector,
+   so a component's own hover (a list row, a tree node, a toolbar
+   button) always wins over the generic primary hover. */
+:where(button):hover:not(:disabled) {
+  background: var(--primary-pressed);
+  border-color: var(--primary-pressed);
+}
+
+:where(button.secondary):hover:not(:disabled) {
+  background: var(--hover-soft);
+  border-color: var(--border-input);
 }
 
 button:focus-visible {
@@ -204,6 +226,7 @@ button:disabled {
 
 button.small {
   padding: 0.3rem 0.6rem;
+  min-height: 1.85rem;
   font-size: 0.82rem;
 }
 
@@ -227,7 +250,7 @@ button.info-button {
   padding: 0.6rem 0.85rem;
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .box.error {
@@ -267,10 +290,10 @@ dd {
 }
 
 pre {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   background: var(--surface-inset);
   padding: 0.4rem 0.5rem;
-  border-radius: 5px;
+  border-radius: 4px;
   overflow-x: auto;
   font-family: var(--font-data);
 }
@@ -306,7 +329,7 @@ code {
   background: var(--badge-bg);
   color: var(--badge-text);
   border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 500;
   min-width: 3.2rem;
   text-align: center;

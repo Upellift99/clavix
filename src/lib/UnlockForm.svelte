@@ -88,10 +88,14 @@
 </section>
 
 <style>
+  .box > .hint {
+    margin: 0 0 1rem;
+  }
+
   .yubikey-unlock {
     margin-top: 1.25rem;
     padding-top: 1rem;
-    border-top: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.25));
+    border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;

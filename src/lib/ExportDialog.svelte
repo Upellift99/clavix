@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
+  import Icon from "./Icon.svelte";
   import { api } from "#lib/api.ts";
   import PasswordStrength from "./PasswordStrength.svelte";
   import { formatError } from "./format";
@@ -282,7 +283,7 @@
           disabled={exporting}
           aria-label={m.action_close()}
         >
-          ✕
+          <Icon name="x" size={14} />
         </button>
       </header>
 

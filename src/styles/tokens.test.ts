@@ -51,6 +51,16 @@ describe("tokens.css", () => {
     // anything else identical is usually a dark value someone forgot.
     const allowed = new Set([
       "--primary",
+      "--primary-pressed",
+      "--row-selected",
+      "--row-selected-text",
+      "--rename-border",
+      "--shadow-sm",
+      "--shadow-card",
+      "--toast-password",
+      "--toast-username",
+      "--toast-totp",
+      "--toast-default",
       "--danger",
       "--error-border",
       "--star",

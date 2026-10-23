@@ -94,7 +94,7 @@
 
 .ssh-agent-env-ok {
   color: var(--success-text);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   margin: 0.1rem 0 0.4rem;
 }
 
@@ -104,7 +104,7 @@
    perfectly working setup. */
 .ssh-agent-env-unknown {
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   margin: 0.1rem 0 0.4rem;
 }
 
@@ -218,7 +218,7 @@
 
 .ssh-agent-skip-reason {
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
 }
 
 .audit-error {
