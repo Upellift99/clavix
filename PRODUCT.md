@@ -49,7 +49,10 @@ The only Vaultwarden client with a true hierarchical tree (derived from the Bitw
 ## Brand Commitments
 
 - Name: Clavix. Logo: `assets/clavix-logo.svg`. Website: clavix.org (separate repo, clavix-website).
-- Undecided: whether the website's visual design is binding on the application. Until decided, the app follows its own desktop conventions and shares only the name and logo with the site.
+- Decided 2026-10-23: the application takes the category standard, played straight at the finish level of Bitwarden Desktop and KeePassXC (the two products the maintainer named as the bar): the expected shell, white and neutral surfaces, one accent colour on action and selection, no world-specific motif. Identity is carried by the mark and the accent colour, not by the chrome. The website's "Vault Room" world (dark navy, Bitwarden blue) is not binding and will be realigned on the app's identity afterwards; the two share the name, the mark and the accent.
+- Mark, chosen 2026-10-23 after three rounds (keys, monograms, abstract signs and wax seals were shown): "le sceau précis", a machined seal with a knurled rim, a hairline inner ring and a C pressed into the disc. Source of truth: `assets/clavix-logo.svg`; every icon size and the favicon derive from it. The previous C-as-key mark and Bitwarden's primary blue (#175ddc) are retired and must not come back.
+- Brand colour, chosen the same day: verdigris. Deep teal #0b5c5e, verdigris #0f8b8d, mint #bfe9e4, white. The accent is the only saturated colour in the application chrome; the user picked it because no competing password manager uses it and it reads as "verified, sound".
+- Visual register for the application: the category standard (Bitwarden Desktop, KeePassXC as the bar), chosen explicitly after a direction round in the safer register. No world-specific motif in the chrome; identity lives in the mark and the accent.
 - Readability commitment: the owner chose Atkinson Hyperlegible for the auth screens and for data fields so that usernames and passwords read unambiguously (no confusable glyphs). This is a deliberate product decision about reading secrets, not a formal accessibility standard, and future work must preserve it wherever a secret or identifier is displayed.
 
 ## Evidence on Hand

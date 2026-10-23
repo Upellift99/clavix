@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
+  import Icon from "./Icon.svelte";
   import { api } from "./api";
   import { formatError } from "./format";
   import type { AuditResult, Locale } from "./types";
@@ -56,7 +57,7 @@
     <header class="stats-header">
       <h2>🛡 {m.audit_title()}</h2>
       <button type="button" class="secondary small" onclick={close} aria-label={m.action_close()}>
-        ✕
+        <Icon name="x" size={14} />
       </button>
     </header>
     <p class="hint audit-privacy">{m.audit_privacy_note()}</p>

@@ -2,6 +2,7 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as m from "#lib/paraglide/messages.js";
   import { api } from "./api";
+  import Mark from "./Mark.svelte";
   import AuthLoginForm from "./AuthLoginForm.svelte";
   import Onboarding from "./Onboarding.svelte";
   import TwoFactorForm from "./TwoFactorForm.svelte";
@@ -41,6 +42,13 @@
     await openUrl("https://clavix.org");
   }
 </script>
+
+{#if auth.phase !== "loggedIn" && auth.phase !== "init"}
+  <header class="auth-brand">
+    <Mark size={40} label="Clavix" />
+    <span class="auth-brand-name">Clavix</span>
+  </header>
+{/if}
 
 {#if auth.phase === "init"}
   <p class="subtitle">{m.loading()}</p>
@@ -125,6 +133,22 @@
 {/if}
 
 <style>
+  .auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    margin: 0.5rem 0 1.25rem;
+  }
+
+  .auth-brand-name {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 1.6rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
   .auth-footer {
     display: flex;
     align-items: center;

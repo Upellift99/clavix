@@ -30,6 +30,7 @@
     | "shield" // audit
     | "info" // vault infos / about
     | "settings" // preferences
+    | "camera" // QR scanner
     | "arrow-up-circle" // check for updates
     | "edit" // edit cipher
     | "eye" // reveal field
@@ -159,6 +160,9 @@
     <line x1="14" y1="2" x2="14" y2="6" />
     <line x1="8" y1="10" x2="8" y2="14" />
     <line x1="16" y1="18" x2="16" y2="22" />
+  {:else if name === "camera"}
+    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+    <circle cx="12" cy="13" r="3" />
   {:else if name === "arrow-up-circle"}
     <circle cx="12" cy="12" r="10" />
     <path d="M8 12l4-4 4 4" />

@@ -120,9 +120,9 @@
      tokens.css (system preference minus "force light", then the in-app
      "Dark" choice). The strong band is the shared success colour. */
   .strength {
-    --strength-weak: #b91c1c;
-    --strength-fair: #b45309;
-    --strength-good: #1d4ed8;
+    --strength-weak: var(--danger-text);
+    --strength-fair: var(--warning-text);
+    --strength-good: var(--success-text);
     margin: 0.3rem 0 0;
   }
 
@@ -186,19 +186,5 @@
     margin: 0.2rem 0 0;
     font-size: 0.78rem;
     color: var(--strength-fair);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not(.force-light)) .strength {
-      --strength-weak: #ff8a8a;
-      --strength-fair: #e0a458;
-      --strength-good: #8fb0ff;
-    }
-  }
-
-  :global(:root.force-dark) .strength {
-    --strength-weak: #ff8a8a;
-    --strength-fair: #e0a458;
-    --strength-good: #8fb0ff;
   }
 </style>

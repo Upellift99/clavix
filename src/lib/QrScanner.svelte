@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import jsQR from "jsqr";
   import * as m from "#lib/paraglide/messages.js";
+  import Icon from "./Icon.svelte";
   import { trapFocus } from "./focus";
 
   let {
@@ -131,7 +132,7 @@
           }}
           aria-label={m.action_close()}
         >
-          ✕
+          <Icon name="x" size={14} />
         </button>
       </header>
       <p class="hint">{m.qr_hint()}</p>

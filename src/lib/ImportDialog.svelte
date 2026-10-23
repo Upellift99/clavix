@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
+  import Icon from "./Icon.svelte";
   import { parseKeepassCsv, type KeepassEntry } from "#lib/csv.ts";
   import { api } from "#lib/api.ts";
   import { formatError } from "#lib/format.ts";
@@ -509,7 +510,7 @@
           disabled={importing}
           aria-label={m.action_close()}
         >
-          ✕
+          <Icon name="x" size={14} />
         </button>
       </header>
       <p class="hint">{m.import_hint()}</p>

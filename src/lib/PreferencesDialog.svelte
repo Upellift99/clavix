@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
+  import Icon from "./Icon.svelte";
   import { api } from "./api";
   import { formatError } from "./format";
   import PasswordInput from "./PasswordInput.svelte";
@@ -276,7 +277,7 @@
     <header class="stats-header">
       <h2 id="prefs-title">{m.settings_title()}</h2>
       <button type="button" class="secondary small" onclick={close} aria-label={m.action_close()}>
-        ✕
+        <Icon name="x" size={14} />
       </button>
     </header>
 

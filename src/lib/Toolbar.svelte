@@ -7,6 +7,7 @@
     type SessionStatus,
   } from "./format";
   import Icon from "./Icon.svelte";
+  import Mark from "./Mark.svelte";
   import type { ToolbarAlign } from "./prefs.svelte";
 
   type Props = {
@@ -94,12 +95,14 @@
   );
 </script>
 
-<!-- Centred mode adds an empty first cell so the buttons are centred on
-     the window, not on the space the status indicator leaves free. -->
+<!-- The brand sits in the first cell in both modes. In centred mode that
+     cell is one of the two equal side columns, so the buttons stay on the
+     window's centre line whatever the brand and the status take. -->
 <nav class="toolbar" class:centered={align === "center"} aria-label="Actions">
-  {#if align === "center"}
-    <span class="tb-spacer" aria-hidden="true"></span>
-  {/if}
+  <div class="tb-brand" aria-hidden="true">
+    <Mark size={20} />
+    <span class="tb-wordmark">Clavix</span>
+  </div>
   <div class="tb-main">
     <!-- Section: session -->
     <div class="tb-group">
@@ -233,6 +236,7 @@
 <style>
   .toolbar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem;
     padding: 0.3rem 0.5rem;
@@ -259,8 +263,32 @@
     justify-self: end;
   }
 
+  .tb-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0 0.6rem 0 0.25rem;
+    margin-right: 0.2rem;
+    border-right: 1px solid var(--border);
+    height: 1.4rem;
+    flex: 0 0 auto;
+  }
+
+  .tb-wordmark {
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+
+  .toolbar.centered .tb-brand {
+    justify-self: start;
+    border-right: none;
+  }
+
   .tb-main {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem;
     min-width: 0;
@@ -329,6 +357,21 @@
 
   .tb-status-label {
     font-weight: 500;
+  }
+
+  /* Below the tree/list breakpoint the row has no room for the status
+     sentence; the dot and its tooltip carry the state. */
+  @media (max-width: 760px) {
+    .tb-status-label {
+      display: none;
+    }
+    .tb-wordmark {
+      display: none;
+    }
+    .tb-brand {
+      border-right: none;
+      padding-right: 0.2rem;
+    }
   }
 
   .tb-dot {

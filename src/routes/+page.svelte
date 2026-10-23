@@ -36,6 +36,7 @@
   import { formatError } from "#lib/format.ts";
   import { startSplitterDrag } from "#lib/splitter.ts";
   import { makeVaultKeyHandler } from "#lib/keyboard.ts";
+  import { findNode, folderPathFromKey, splitPath } from "#lib/tree.ts";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type {
     CipherDetail as CipherDetailData,
@@ -677,6 +678,19 @@
     auth.phase = "idle";
   }
 
+  // Where the list is: the quick filter's name, or the selected node's
+  // path, so the header always says which drawer is open.
+  const listPath = $derived.by<string[]>(() => {
+    if (vault.quickFilter === "favorites") return [m.tree_favorites()];
+    if (vault.quickFilter === "trash") return [m.tree_trash()];
+    const key = vault.selectedKey;
+    if (!key) return [m.tree_all_items()];
+    const folder = folderPathFromKey(key);
+    if (folder) return splitPath(folder);
+    const node = findNode(vault.allTrees, key);
+    return node ? [node.label] : [];
+  });
+
   const errorMsg = $derived(auth.error ?? vault.error);
   const wide = $derived(auth.phase === "loggedIn" && vault.summary !== null);
 </script>
@@ -794,6 +808,7 @@
               onShowAll={() => (showAllOnce = true)}
               selectedId={vault.detail?.id ?? null}
               currentLocale={prefs.currentLocale}
+              pathSegments={listPath}
               sortKey={vault.sortKey}
               sortAsc={vault.sortAsc}
               storedAccount={auth.storedAccount}

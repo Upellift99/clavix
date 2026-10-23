@@ -5,8 +5,36 @@
   flex-direction: column;
 }
 
-.list-pane h3 {
+.list-title {
   flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.list-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text);
+}
+
+.list-heading small {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.list-path {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .list-pane .search-row {
@@ -19,8 +47,8 @@
   overflow-y: auto;
   contain: strict;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-pane);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .cipher-spacer {
@@ -148,16 +176,16 @@
 }
 
 .cipher-headers {
-  padding: 0.3rem 0.5rem;
-  font-size: 0.7rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
   font-weight: 600;
   border-bottom: 1px solid var(--border);
   background: var(--surface-header);
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
 
 .cipher-header {
@@ -231,6 +259,12 @@
 .cipher-row.zebra.selected {
   background: var(--row-selected);
   color: var(--row-selected-text);
+}
+
+.cipher-row.selected .col-username,
+.cipher-row.selected .col-uri {
+  color: var(--row-selected-text);
+  opacity: 0.85;
 }
 
 .cipher-row.dragging {

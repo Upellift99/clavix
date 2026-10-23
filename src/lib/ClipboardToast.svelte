@@ -55,7 +55,7 @@
     /* Accent tints by copied kind (set via the variant-* classes). The
        toast is a solid dark pill in both themes, so these are not
        themed: each one already reads on a light or a dark page. */
-    --toast-accent: #1e3a8a;
+    --toast-accent: var(--toast-password);
     position: fixed;
     bottom: 1rem;
     left: 50%;
@@ -72,16 +72,16 @@
   }
 
   .clipboard-toast.variant-password {
-    --toast-accent: #1e3a8a;
+    --toast-accent: var(--toast-password);
   }
   .clipboard-toast.variant-username {
-    --toast-accent: #0f766e;
+    --toast-accent: var(--toast-username);
   }
   .clipboard-toast.variant-totp {
-    --toast-accent: #6d28d9;
+    --toast-accent: var(--toast-totp);
   }
   .clipboard-toast.variant-default {
-    --toast-accent: #334155;
+    --toast-accent: var(--toast-default);
   }
 
   .clipboard-toast button.secondary {

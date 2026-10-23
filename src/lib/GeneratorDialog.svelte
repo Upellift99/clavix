@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
+  import Icon from "./Icon.svelte";
   import { generatePassword, buildCharset } from "./generator";
   import { entropyBits } from "./strength";
   import PasswordStrength from "./PasswordStrength.svelte";
@@ -72,7 +73,7 @@
     <header class="stats-header">
       <h2>{m.generator_title()}</h2>
       <button type="button" class="secondary small" onclick={close} aria-label={m.action_close()}>
-        ✕
+        <Icon name="x" size={14} />
       </button>
     </header>
 
