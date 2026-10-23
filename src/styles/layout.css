@@ -6,6 +6,78 @@
   min-height: 0;
 }
 
+/* Wide window: the detail is a third column. The list never moves when
+   an item opens or closes; the column shows a quiet placeholder until
+   something is selected. */
+.vault-layout.three-columns {
+  grid-template-columns: var(--tree-width, 260px) 6px minmax(0, 1fr) 6px var(--detail-width, 420px);
+}
+
+.detail-column {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin-left: 0.25rem;
+}
+
+.detail-column > .cipher-detail {
+  margin-top: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* In the column the header stacks: title and path on the full width,
+   the actions on their own row, the close button pinned top-right. */
+.detail-column .detail-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  position: relative;
+}
+
+.detail-column .detail-heading {
+  padding-right: 2rem;
+}
+
+.detail-column .detail-header > .row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.detail-column .detail-header > .row > .icon-btn:last-child {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.detail-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-faint);
+}
+
+.detail-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.detail-empty .hint {
+  color: var(--text-disabled);
+  max-width: 26rem;
+}
+
 .container.wide .vault-layout {
   flex: 1 1 auto;
 }

@@ -5,6 +5,7 @@ const LOCALE_STORAGE_KEY = "clavix.locale";
 const THEME_STORAGE_KEY = "clavix.theme";
 const TREE_WIDTH_STORAGE_KEY = "clavix.treeWidth";
 const DETAIL_HEIGHT_STORAGE_KEY = "clavix.detailHeight";
+const DETAIL_WIDTH_STORAGE_KEY = "clavix.detailWidth";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
 const AUTO_LOCK_TRIGGER_STORAGE_KEY = "clavix.autoLockTrigger";
 const CLOSE_TO_TRAY_STORAGE_KEY = "clavix.closeToTray";
@@ -65,6 +66,9 @@ const TREE_WIDTH_DEFAULT = 260;
 export const DETAIL_HEIGHT_MIN = 160;
 export const DETAIL_HEIGHT_MAX = 900;
 const DETAIL_HEIGHT_DEFAULT = 320;
+export const DETAIL_WIDTH_MIN = 320;
+export const DETAIL_WIDTH_MAX = 720;
+const DETAIL_WIDTH_DEFAULT = 420;
 const AUTO_LOCK_DEFAULT_MINUTES = 10;
 const AUTO_LOCK_DEFAULT_TRIGGER: AutoLockTrigger = "idle";
 // Hide-to-tray default matches the Rust mirror: on for Windows/macOS
@@ -84,6 +88,7 @@ export class PrefsController {
   themePref = $state<ThemePref>("auto");
   treeWidth = $state<number>(TREE_WIDTH_DEFAULT);
   detailHeight = $state<number>(DETAIL_HEIGHT_DEFAULT);
+  detailWidth = $state<number>(DETAIL_WIDTH_DEFAULT);
   autoLockMinutes = $state<number>(AUTO_LOCK_DEFAULT_MINUTES);
   autoLockTrigger = $state<AutoLockTrigger>(AUTO_LOCK_DEFAULT_TRIGGER);
   closeToTray = $state<boolean>(CLOSE_TO_TRAY_DEFAULT);
@@ -124,6 +129,13 @@ export class PrefsController {
         const parsed = parseInt(saved, 10);
         if (Number.isFinite(parsed)) {
           this.treeWidth = Math.max(TREE_WIDTH_MIN, Math.min(TREE_WIDTH_MAX, parsed));
+        }
+      }
+      const savedDetailWidth = localStorage.getItem(DETAIL_WIDTH_STORAGE_KEY);
+      if (savedDetailWidth !== null) {
+        const parsed = parseInt(savedDetailWidth, 10);
+        if (!Number.isNaN(parsed)) {
+          this.detailWidth = Math.max(DETAIL_WIDTH_MIN, Math.min(DETAIL_WIDTH_MAX, parsed));
         }
       }
       const savedDetail = localStorage.getItem(DETAIL_HEIGHT_STORAGE_KEY);
@@ -333,6 +345,18 @@ export class PrefsController {
   persistDetailHeight() {
     try {
       localStorage.setItem(DETAIL_HEIGHT_STORAGE_KEY, String(this.detailHeight));
+    } catch {
+      // ignore
+    }
+  }
+
+  setDetailWidth(width: number) {
+    this.detailWidth = Math.max(DETAIL_WIDTH_MIN, Math.min(DETAIL_WIDTH_MAX, width));
+  }
+
+  persistDetailWidth() {
+    try {
+      localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, String(this.detailWidth));
     } catch {
       // ignore
     }

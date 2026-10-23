@@ -5,7 +5,7 @@
   import GeneratorDialog from "#lib/GeneratorDialog.svelte";
   import PasswordStrength from "#lib/PasswordStrength.svelte";
   import { api } from "#lib/api.ts";
-  import { trapFocus } from "#lib/focus.ts";
+  import { focusOnMount, trapFocus } from "#lib/focus.ts";
   import type { ClipboardKind } from "#lib/clipboard.svelte.ts";
   import type { Locale, PasswordStrength as Strength, TauriError } from "#lib/types.ts";
 
@@ -133,6 +133,7 @@
     onCancel,
     onSubmit,
     onCopy,
+    inline = false,
   }: {
     open: boolean;
     mode: "create" | "edit";
@@ -144,6 +145,9 @@
     currentLocale: Locale;
     onCancel: () => void;
     onSubmit: (payload: SubmitPayload) => Promise<void>;
+    /** Render the form in place (inside the detail column) instead of
+        as a modal dialog over the page. */
+    inline?: boolean;
     /** Copy from the generator dialog goes through the page's clipboard
         controller (auto-clear, toast) rather than a bare writeText. */
     onCopy: (value: string, kind: ClipboardKind) => void;
@@ -467,7 +471,400 @@
   }
 </script>
 
+{#snippet editorForm()}
+  <form onsubmit={handleSubmit}>
+    {#if mode === "create"}
+      <label>
+        {m.editor_type()}
+        <select bind:value={cipherType}>
+          <option value={1}>{m.type_login()}</option>
+          <option value={2}>{m.type_note()}</option>
+          <option value={3}>{m.type_card()}</option>
+          <option value={4}>{m.type_identity()}</option>
+          <option value={5}>{m.type_ssh_key()}</option>
+        </select>
+      </label>
+    {/if}
+
+    <label>
+      {m.editor_name()}
+      <input id="editor-name" type="text" bind:value={name} required use:focusOnMount />
+    </label>
+
+    {#if organizations.length > 0}
+      <label>
+        {m.editor_owner()}
+        <select
+          bind:value={organizationId}
+          disabled={mode === "edit"}
+          title={mode === "edit" ? m.editor_owner_locked() : undefined}
+        >
+          <option value={null}>{m.editor_owner_personal()}</option>
+          {#each organizations as org (org.id)}
+            <option value={org.id}>{org.name}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
+
+    {#if organizationId}
+      <label>
+        {m.editor_collection()}
+        <select bind:value={collectionId}>
+          {#if orgCollections.length === 0}
+            <option value={null} disabled>{m.editor_no_collection()}</option>
+          {:else}
+            {#each orgCollections as c (c.id)}
+              <option value={c.id}>{c.name}</option>
+            {/each}
+          {/if}
+        </select>
+      </label>
+    {:else}
+      <label>
+        {m.editor_folder()}
+        <select bind:value={folderId}>
+          <option value={null}>{m.editor_no_folder()}</option>
+          {#each folders as f (f.id)}
+            <option value={f.id}>{f.name}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
+
+    {#if cipherType === 1}
+      <label>
+        {m.detail_field_username()}
+        <input type="text" bind:value={username} autocomplete="off" />
+      </label>
+      <label>
+        {m.detail_field_password()}
+        <div class="password-row">
+          <input
+            type={showPassword ? "text" : "password"}
+            bind:value={password}
+            autocomplete="off"
+          />
+          <button
+            type="button"
+            class="secondary small"
+            onclick={() => (showPassword = !showPassword)}
+          >
+            {showPassword ? m.action_hide() : m.action_show()}
+          </button>
+          <button
+            type="button"
+            class="secondary small"
+            onclick={openGenerator}
+            title={m.generator_title()}
+            aria-label={m.generator_title()}
+          >
+            <Icon name="dice" size={16} />
+          </button>
+        </div>
+        {#if password.length > 0}
+          <PasswordStrength
+            score={strength?.score ?? null}
+            warning={strength?.warning ?? null}
+          />
+        {/if}
+      </label>
+      <label>
+        {m.editor_uris()}
+        <textarea bind:value={urisInput} rows="2" placeholder={m.editor_uris_placeholder()}></textarea>
+      </label>
+      <label>
+        {m.detail_field_totp()}
+        <div class="totp-row">
+          <input type="text" bind:value={totp} autocomplete="off" placeholder="otpauth://…" />
+          <button
+            type="button"
+            class="secondary small"
+            onclick={() => (qrOpen = true)}
+            title={m.qr_button_title()}
+            aria-label={m.qr_button_title()}
+          >
+            <Icon name="camera" size={16} />
+          </button>
+        </div>
+      </label>
+    {:else if cipherType === 3}
+      <label>
+        {m.detail_field_cardholder()}
+        <input type="text" bind:value={card.cardholderName} autocomplete="off" />
+      </label>
+      <label>
+        {m.detail_field_brand()}
+        <input type="text" bind:value={card.brand} autocomplete="off" />
+      </label>
+      <label>
+        {m.detail_field_number()}
+        <input type="text" bind:value={card.number} autocomplete="off" />
+      </label>
+      <div class="two-col">
+        <label>
+          {m.detail_field_expiry()}
+          <div class="expiry-row">
+            <input type="text" bind:value={card.expMonth} placeholder="MM" maxlength="2" />
+            <span>/</span>
+            <input type="text" bind:value={card.expYear} placeholder="YY" maxlength="4" />
+          </div>
+        </label>
+        <label>
+          {m.detail_field_cvv()}
+          <input type="text" bind:value={card.code} autocomplete="off" maxlength="4" />
+        </label>
+      </div>
+    {:else if cipherType === 4}
+      <div class="two-col">
+        <label>
+          {m.identity_title()}
+          <input type="text" bind:value={identity.title} autocomplete="off" />
+        </label>
+        <label>
+          {m.identity_first_name()}
+          <input type="text" bind:value={identity.firstName} autocomplete="off" />
+        </label>
+      </div>
+      <div class="two-col">
+        <label>
+          {m.identity_middle_name()}
+          <input type="text" bind:value={identity.middleName} autocomplete="off" />
+        </label>
+        <label>
+          {m.identity_last_name()}
+          <input type="text" bind:value={identity.lastName} autocomplete="off" />
+        </label>
+      </div>
+      <label>
+        {m.identity_username()}
+        <input type="text" bind:value={identity.username} autocomplete="off" />
+      </label>
+      <label>
+        {m.identity_email()}
+        <input type="email" bind:value={identity.email} autocomplete="off" />
+      </label>
+      <label>
+        {m.identity_phone()}
+        <input type="tel" bind:value={identity.phone} autocomplete="off" />
+      </label>
+      <label>
+        {m.identity_company()}
+        <input type="text" bind:value={identity.company} autocomplete="off" />
+      </label>
+      <label>
+        {m.identity_address1()}
+        <input type="text" bind:value={identity.address1} autocomplete="off" />
+      </label>
+      <label>
+        {m.identity_address2()}
+        <input type="text" bind:value={identity.address2} autocomplete="off" />
+      </label>
+      <div class="two-col">
+        <label>
+          {m.identity_city()}
+          <input type="text" bind:value={identity.city} autocomplete="off" />
+        </label>
+        <label>
+          {m.identity_postal_code()}
+          <input type="text" bind:value={identity.postalCode} autocomplete="off" />
+        </label>
+      </div>
+      <div class="two-col">
+        <label>
+          {m.identity_state()}
+          <input type="text" bind:value={identity.state} autocomplete="off" />
+        </label>
+        <label>
+          {m.identity_country()}
+          <input type="text" bind:value={identity.country} autocomplete="off" />
+        </label>
+      </div>
+      <label>
+        {m.detail_field_ssn()}
+        <input type="text" bind:value={identity.ssn} autocomplete="off" />
+      </label>
+      <div class="two-col">
+        <label>
+          {m.identity_passport()}
+          <input type="text" bind:value={identity.passportNumber} autocomplete="off" />
+        </label>
+        <label>
+          {m.identity_license()}
+          <input type="text" bind:value={identity.licenseNumber} autocomplete="off" />
+        </label>
+      </div>
+    {:else if cipherType === 5}
+      {#if mode === "create" && sshKey.privateKey.trim().length === 0}
+        <div class="ssh-generate-row">
+          <button
+            type="button"
+            class="ssh-generate-btn"
+            onclick={handleGenerateSshKey}
+            disabled={sshGenerating}
+          >
+            {sshGenerating ? m.ssh_generate_running() : m.ssh_generate_action()}
+          </button>
+          <small class="ssh-generate-hint">{m.ssh_generate_hint()}</small>
+        </div>
+      {/if}
+      <label>
+        {m.detail_field_private_key()}
+        <textarea
+          bind:value={sshKey.privateKey}
+          rows="6"
+          placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+          class="ssh-private-key"
+        ></textarea>
+      </label>
+      {#if sshPassphrasePrompt}
+        <label>
+          {m.ssh_passphrase_label()}
+          <input
+            type="password"
+            bind:value={sshPassphrase}
+            autocomplete="off"
+            placeholder="••••••••"
+          />
+          <small class="ssh-passphrase-hint">
+            {sshPassphraseError ?? m.ssh_passphrase_required()}
+          </small>
+          <small class="ssh-passphrase-note">{m.ssh_passphrase_hint()}</small>
+        </label>
+      {/if}
+      <label>
+        {m.detail_field_public_key()}
+        <textarea bind:value={sshKey.publicKey} rows="2" placeholder="ssh-ed25519 AAAA…"></textarea>
+      </label>
+      <label>
+        {m.detail_field_fingerprint()}
+        <input type="text" bind:value={sshKey.keyFingerprint} autocomplete="off" placeholder="SHA256:…" />
+      </label>
+    {/if}
+
+    <label>
+      {m.detail_field_notes()}
+      <textarea bind:value={notes} rows="3"></textarea>
+    </label>
+
+    <!-- Custom fields. Every item type can carry them, so this sits
+         outside the per-type blocks. -->
+    <fieldset class="custom-fields">
+      <legend>{m.editor_custom_fields()}</legend>
+      {#each fields as field, index (index)}
+        <div class="custom-field-row">
+          <select bind:value={field.kind} aria-label={m.editor_field_type()}>
+            <option value={0}>{m.editor_field_text()}</option>
+            <option value={1}>{m.editor_field_hidden()}</option>
+            <option value={2}>{m.editor_field_boolean()}</option>
+            {#if field.kind === 3}
+              <!-- Linked fields come from the browser extension we
+                   don't ship; offered only so an existing one can be
+                   kept as it is rather than silently retyped. -->
+              <option value={3}>{m.editor_field_linked()}</option>
+            {/if}
+          </select>
+          <input
+            type="text"
+            bind:value={field.name}
+            placeholder={m.editor_field_name()}
+            aria-label={m.editor_field_name()}
+            autocomplete="off"
+          />
+          {#if field.kind === 2}
+            <label class="custom-field-bool">
+              <input
+                type="checkbox"
+                checked={field.value === "true"}
+                onchange={(e) =>
+                  (field.value = e.currentTarget.checked ? "true" : "false")}
+              />
+              <span>{field.value === "true" ? m.editor_field_true() : m.editor_field_false()}</span>
+            </label>
+          {:else}
+            <input
+              type={field.kind === 1 && !shownFields.has(index) ? "password" : "text"}
+              bind:value={field.value}
+              placeholder={m.editor_field_value()}
+              aria-label={m.editor_field_value()}
+              autocomplete="off"
+              readonly={field.kind === 3}
+            />
+          {/if}
+          {#if field.kind === 1}
+            <button
+              type="button"
+              class="secondary small"
+              onclick={() => toggleFieldVisible(index)}
+            >
+              {shownFields.has(index) ? m.action_hide() : m.action_show()}
+            </button>
+          {/if}
+          <button
+            type="button"
+            class="secondary small"
+            onclick={() => removeField(index)}
+            aria-label={m.editor_field_remove()}
+            title={m.editor_field_remove()}
+          >
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+      {/each}
+      <button type="button" class="secondary small" onclick={addField}>
+        + {m.editor_field_add()}
+      </button>
+    </fieldset>
+
+    <label class="checkbox-row">
+      <input type="checkbox" bind:checked={favorite} />
+      <span>★ {m.items_favorite()}</span>
+    </label>
+
+    <label class="checkbox-row">
+      <input type="checkbox" bind:checked={reprompt} />
+      <span>{m.editor_reprompt()}</span>
+    </label>
+    <small class="reprompt-hint">{m.editor_reprompt_hint()}</small>
+
+    {#if error}
+      <p class="editor-error">{error}</p>
+    {/if}
+
+    <div class="row">
+      <button
+        type="button"
+        class="secondary"
+        onclick={() => requestClose("explicit")}
+        disabled={submitting}
+      >
+        {m.action_cancel()}
+      </button>
+      <button type="submit" disabled={submitting || !name.trim()}>
+        {submitting ? m.editor_saving() : m.action_save()}
+      </button>
+    </div>
+  </form>
+{/snippet}
+
 {#if open}
+  {#if inline}
+    <!-- In place: the detail column is the dialog. Escape backs out the
+         same way (ignored while the form is dirty), other keys stay
+         inside so the vault shortcuts do not fire while typing. -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <section
+      class="editor-inline"
+      aria-label={m.editor_edit_title()}
+      onkeydown={(e) => {
+        if (e.key === "Escape") requestClose("accidental");
+        e.stopPropagation();
+      }}
+    >
+      <p class="editor-inline-label">{m.editor_edit_title()}</p>
+      {@render editorForm()}
+    </section>
+  {:else}
   <div
     class="editor-backdrop"
     onclick={() => requestClose("accidental")}
@@ -507,381 +904,10 @@
         </button>
       </header>
 
-      <form onsubmit={handleSubmit}>
-        {#if mode === "create"}
-          <label>
-            {m.editor_type()}
-            <select bind:value={cipherType}>
-              <option value={1}>{m.type_login()}</option>
-              <option value={2}>{m.type_note()}</option>
-              <option value={3}>{m.type_card()}</option>
-              <option value={4}>{m.type_identity()}</option>
-              <option value={5}>{m.type_ssh_key()}</option>
-            </select>
-          </label>
-        {/if}
-
-        <label>
-          {m.editor_name()}
-          <input id="editor-name" type="text" bind:value={name} required />
-        </label>
-
-        {#if organizations.length > 0}
-          <label>
-            {m.editor_owner()}
-            <select
-              bind:value={organizationId}
-              disabled={mode === "edit"}
-              title={mode === "edit" ? m.editor_owner_locked() : undefined}
-            >
-              <option value={null}>{m.editor_owner_personal()}</option>
-              {#each organizations as org (org.id)}
-                <option value={org.id}>{org.name}</option>
-              {/each}
-            </select>
-          </label>
-        {/if}
-
-        {#if organizationId}
-          <label>
-            {m.editor_collection()}
-            <select bind:value={collectionId}>
-              {#if orgCollections.length === 0}
-                <option value={null} disabled>{m.editor_no_collection()}</option>
-              {:else}
-                {#each orgCollections as c (c.id)}
-                  <option value={c.id}>{c.name}</option>
-                {/each}
-              {/if}
-            </select>
-          </label>
-        {:else}
-          <label>
-            {m.editor_folder()}
-            <select bind:value={folderId}>
-              <option value={null}>{m.editor_no_folder()}</option>
-              {#each folders as f (f.id)}
-                <option value={f.id}>{f.name}</option>
-              {/each}
-            </select>
-          </label>
-        {/if}
-
-        {#if cipherType === 1}
-          <label>
-            {m.detail_field_username()}
-            <input type="text" bind:value={username} autocomplete="off" />
-          </label>
-          <label>
-            {m.detail_field_password()}
-            <div class="password-row">
-              <input
-                type={showPassword ? "text" : "password"}
-                bind:value={password}
-                autocomplete="off"
-              />
-              <button
-                type="button"
-                class="secondary small"
-                onclick={() => (showPassword = !showPassword)}
-              >
-                {showPassword ? m.action_hide() : m.action_show()}
-              </button>
-              <button
-                type="button"
-                class="secondary small"
-                onclick={openGenerator}
-                title={m.generator_title()}
-                aria-label={m.generator_title()}
-              >
-                <Icon name="dice" size={16} />
-              </button>
-            </div>
-            {#if password.length > 0}
-              <PasswordStrength
-                score={strength?.score ?? null}
-                warning={strength?.warning ?? null}
-              />
-            {/if}
-          </label>
-          <label>
-            {m.editor_uris()}
-            <textarea bind:value={urisInput} rows="2" placeholder={m.editor_uris_placeholder()}></textarea>
-          </label>
-          <label>
-            {m.detail_field_totp()}
-            <div class="totp-row">
-              <input type="text" bind:value={totp} autocomplete="off" placeholder="otpauth://…" />
-              <button
-                type="button"
-                class="secondary small"
-                onclick={() => (qrOpen = true)}
-                title={m.qr_button_title()}
-                aria-label={m.qr_button_title()}
-              >
-                <Icon name="camera" size={16} />
-              </button>
-            </div>
-          </label>
-        {:else if cipherType === 3}
-          <label>
-            {m.detail_field_cardholder()}
-            <input type="text" bind:value={card.cardholderName} autocomplete="off" />
-          </label>
-          <label>
-            {m.detail_field_brand()}
-            <input type="text" bind:value={card.brand} autocomplete="off" />
-          </label>
-          <label>
-            {m.detail_field_number()}
-            <input type="text" bind:value={card.number} autocomplete="off" />
-          </label>
-          <div class="two-col">
-            <label>
-              {m.detail_field_expiry()}
-              <div class="expiry-row">
-                <input type="text" bind:value={card.expMonth} placeholder="MM" maxlength="2" />
-                <span>/</span>
-                <input type="text" bind:value={card.expYear} placeholder="YY" maxlength="4" />
-              </div>
-            </label>
-            <label>
-              {m.detail_field_cvv()}
-              <input type="text" bind:value={card.code} autocomplete="off" maxlength="4" />
-            </label>
-          </div>
-        {:else if cipherType === 4}
-          <div class="two-col">
-            <label>
-              {m.identity_title()}
-              <input type="text" bind:value={identity.title} autocomplete="off" />
-            </label>
-            <label>
-              {m.identity_first_name()}
-              <input type="text" bind:value={identity.firstName} autocomplete="off" />
-            </label>
-          </div>
-          <div class="two-col">
-            <label>
-              {m.identity_middle_name()}
-              <input type="text" bind:value={identity.middleName} autocomplete="off" />
-            </label>
-            <label>
-              {m.identity_last_name()}
-              <input type="text" bind:value={identity.lastName} autocomplete="off" />
-            </label>
-          </div>
-          <label>
-            {m.identity_username()}
-            <input type="text" bind:value={identity.username} autocomplete="off" />
-          </label>
-          <label>
-            {m.identity_email()}
-            <input type="email" bind:value={identity.email} autocomplete="off" />
-          </label>
-          <label>
-            {m.identity_phone()}
-            <input type="tel" bind:value={identity.phone} autocomplete="off" />
-          </label>
-          <label>
-            {m.identity_company()}
-            <input type="text" bind:value={identity.company} autocomplete="off" />
-          </label>
-          <label>
-            {m.identity_address1()}
-            <input type="text" bind:value={identity.address1} autocomplete="off" />
-          </label>
-          <label>
-            {m.identity_address2()}
-            <input type="text" bind:value={identity.address2} autocomplete="off" />
-          </label>
-          <div class="two-col">
-            <label>
-              {m.identity_city()}
-              <input type="text" bind:value={identity.city} autocomplete="off" />
-            </label>
-            <label>
-              {m.identity_postal_code()}
-              <input type="text" bind:value={identity.postalCode} autocomplete="off" />
-            </label>
-          </div>
-          <div class="two-col">
-            <label>
-              {m.identity_state()}
-              <input type="text" bind:value={identity.state} autocomplete="off" />
-            </label>
-            <label>
-              {m.identity_country()}
-              <input type="text" bind:value={identity.country} autocomplete="off" />
-            </label>
-          </div>
-          <label>
-            {m.detail_field_ssn()}
-            <input type="text" bind:value={identity.ssn} autocomplete="off" />
-          </label>
-          <div class="two-col">
-            <label>
-              {m.identity_passport()}
-              <input type="text" bind:value={identity.passportNumber} autocomplete="off" />
-            </label>
-            <label>
-              {m.identity_license()}
-              <input type="text" bind:value={identity.licenseNumber} autocomplete="off" />
-            </label>
-          </div>
-        {:else if cipherType === 5}
-          {#if mode === "create" && sshKey.privateKey.trim().length === 0}
-            <div class="ssh-generate-row">
-              <button
-                type="button"
-                class="ssh-generate-btn"
-                onclick={handleGenerateSshKey}
-                disabled={sshGenerating}
-              >
-                {sshGenerating ? m.ssh_generate_running() : m.ssh_generate_action()}
-              </button>
-              <small class="ssh-generate-hint">{m.ssh_generate_hint()}</small>
-            </div>
-          {/if}
-          <label>
-            {m.detail_field_private_key()}
-            <textarea
-              bind:value={sshKey.privateKey}
-              rows="6"
-              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-              class="ssh-private-key"
-            ></textarea>
-          </label>
-          {#if sshPassphrasePrompt}
-            <label>
-              {m.ssh_passphrase_label()}
-              <input
-                type="password"
-                bind:value={sshPassphrase}
-                autocomplete="off"
-                placeholder="••••••••"
-              />
-              <small class="ssh-passphrase-hint">
-                {sshPassphraseError ?? m.ssh_passphrase_required()}
-              </small>
-              <small class="ssh-passphrase-note">{m.ssh_passphrase_hint()}</small>
-            </label>
-          {/if}
-          <label>
-            {m.detail_field_public_key()}
-            <textarea bind:value={sshKey.publicKey} rows="2" placeholder="ssh-ed25519 AAAA…"></textarea>
-          </label>
-          <label>
-            {m.detail_field_fingerprint()}
-            <input type="text" bind:value={sshKey.keyFingerprint} autocomplete="off" placeholder="SHA256:…" />
-          </label>
-        {/if}
-
-        <label>
-          {m.detail_field_notes()}
-          <textarea bind:value={notes} rows="3"></textarea>
-        </label>
-
-        <!-- Custom fields. Every item type can carry them, so this sits
-             outside the per-type blocks. -->
-        <fieldset class="custom-fields">
-          <legend>{m.editor_custom_fields()}</legend>
-          {#each fields as field, index (index)}
-            <div class="custom-field-row">
-              <select bind:value={field.kind} aria-label={m.editor_field_type()}>
-                <option value={0}>{m.editor_field_text()}</option>
-                <option value={1}>{m.editor_field_hidden()}</option>
-                <option value={2}>{m.editor_field_boolean()}</option>
-                {#if field.kind === 3}
-                  <!-- Linked fields come from the browser extension we
-                       don't ship; offered only so an existing one can be
-                       kept as it is rather than silently retyped. -->
-                  <option value={3}>{m.editor_field_linked()}</option>
-                {/if}
-              </select>
-              <input
-                type="text"
-                bind:value={field.name}
-                placeholder={m.editor_field_name()}
-                aria-label={m.editor_field_name()}
-                autocomplete="off"
-              />
-              {#if field.kind === 2}
-                <label class="custom-field-bool">
-                  <input
-                    type="checkbox"
-                    checked={field.value === "true"}
-                    onchange={(e) =>
-                      (field.value = e.currentTarget.checked ? "true" : "false")}
-                  />
-                  <span>{field.value === "true" ? m.editor_field_true() : m.editor_field_false()}</span>
-                </label>
-              {:else}
-                <input
-                  type={field.kind === 1 && !shownFields.has(index) ? "password" : "text"}
-                  bind:value={field.value}
-                  placeholder={m.editor_field_value()}
-                  aria-label={m.editor_field_value()}
-                  autocomplete="off"
-                  readonly={field.kind === 3}
-                />
-              {/if}
-              {#if field.kind === 1}
-                <button
-                  type="button"
-                  class="secondary small"
-                  onclick={() => toggleFieldVisible(index)}
-                >
-                  {shownFields.has(index) ? m.action_hide() : m.action_show()}
-                </button>
-              {/if}
-              <button
-                type="button"
-                class="secondary small"
-                onclick={() => removeField(index)}
-                aria-label={m.editor_field_remove()}
-                title={m.editor_field_remove()}
-              >
-                <Icon name="x" size={14} />
-              </button>
-            </div>
-          {/each}
-          <button type="button" class="secondary small" onclick={addField}>
-            + {m.editor_field_add()}
-          </button>
-        </fieldset>
-
-        <label class="checkbox-row">
-          <input type="checkbox" bind:checked={favorite} />
-          <span>★ {m.items_favorite()}</span>
-        </label>
-
-        <label class="checkbox-row">
-          <input type="checkbox" bind:checked={reprompt} />
-          <span>{m.editor_reprompt()}</span>
-        </label>
-        <small class="reprompt-hint">{m.editor_reprompt_hint()}</small>
-
-        {#if error}
-          <p class="editor-error">{error}</p>
-        {/if}
-
-        <div class="row">
-          <button
-            type="button"
-            class="secondary"
-            onclick={() => requestClose("explicit")}
-            disabled={submitting}
-          >
-            {m.action_cancel()}
-          </button>
-          <button type="submit" disabled={submitting || !name.trim()}>
-            {submitting ? m.editor_saving() : m.action_save()}
-          </button>
-        </div>
-      </form>
+      {@render editorForm()}
     </div>
   </div>
+  {/if}
 
   <QrScanner
     open={qrOpen}
@@ -907,13 +933,20 @@
     position: fixed;
     inset: 0;
     background: var(--backdrop);
+    animation: backdrop-in 150ms ease-out;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 100;
   }
 
+  @keyframes backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
   .editor-panel {
+    animation: panel-in 150ms ease-out;
     background: var(--surface);
     color: var(--text);
     border-radius: 10px;
@@ -927,7 +960,35 @@
 
   /* The form is the scrolling region; the action row below it stays in
      view whatever the item's length. */
-  .editor-panel > form {
+  .editor-inline {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem 0;
+    box-sizing: border-box;
+    animation: editor-in 140ms ease-out;
+  }
+
+  .editor-inline-label {
+    margin: 0 0 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  @keyframes editor-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .editor-panel > form,
+  .editor-inline > form {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -935,13 +996,19 @@
     padding: 0 0.25rem 0 0;
   }
 
-  .editor-panel > form > .row {
+  .editor-panel > form > .row,
+  .editor-inline > form > .row {
     position: sticky;
     bottom: 0;
     margin: 0.75rem -0.25rem 0 0;
     padding: 0.75rem 0 1.25rem;
     background: var(--surface);
     border-top: 1px solid var(--border);
+  }
+
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to { opacity: 1; transform: none; }
   }
 
   .editor-header {

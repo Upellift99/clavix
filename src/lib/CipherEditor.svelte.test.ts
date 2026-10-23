@@ -184,3 +184,29 @@ describe("CipherEditor custom fields", () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 });
+
+describe("CipherEditor inline presentation", () => {
+  it("renders in place, without backdrop or dialog role", async () => {
+    const { container } = mount({ inline: true, mode: "edit" });
+    await tick();
+    expect(container.querySelector(".editor-backdrop")).toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector(".editor-inline form")).not.toBeNull();
+  });
+
+  it("Escape on an untouched inline form cancels the edit", async () => {
+    const { container, onCancel } = mount({ inline: true, mode: "edit" });
+    await tick();
+    const host = container.querySelector(".editor-inline") as HTMLElement;
+    host.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("Escape on a dirty inline form keeps the edit", async () => {
+    const { container, onCancel } = mount({ inline: true, mode: "edit" });
+    await typeName(container, "Changed");
+    const host = container.querySelector(".editor-inline") as HTMLElement;
+    host.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+});

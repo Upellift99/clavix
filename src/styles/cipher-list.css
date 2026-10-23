@@ -67,8 +67,47 @@
 }
 
 .cipher-list li {
+  position: relative;
   display: flex;
   align-items: stretch;
+}
+
+/* Quick actions sit over the row's right end and fade in on hover or
+   when a button inside holds focus; a gradient hides the text under
+   them so the icons never collide with a long URL. */
+.row-actions {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding-left: 1.75rem;
+  background: linear-gradient(90deg, transparent, var(--row-hover) 30%);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.cipher-list li:hover .row-actions,
+.cipher-list li:focus-within .row-actions {
+  visibility: visible;
+  opacity: 1;
+}
+
+.row-actions.on-selected {
+  background: linear-gradient(90deg, transparent, var(--row-selected) 30%);
+}
+
+.row-actions.on-selected .icon-btn {
+  color: var(--row-selected-text);
+}
+
+.row-actions.on-selected .icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: transparent;
+  color: var(--row-selected-text);
 }
 
 /* Fill the parent <li> top to bottom: without `height: 100%` the

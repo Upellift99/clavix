@@ -153,6 +153,24 @@
   letter-spacing: 0.08em;
 }
 
+/* A secret still being decrypted: a shimmering bar the length of a
+   typical value, so the row keeps its place and nothing jumps when the
+   real text lands. */
+.value.skeleton {
+  display: inline-block;
+  width: 9ch;
+  height: 0.95em;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--surface-inset) 30%, var(--border-soft) 50%, var(--surface-inset) 70%);
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.2s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -100% 0; }
+}
+
 /* Character-class colouring inside a revealed password — the same
    convention KeePassXC uses. The point is readability: at a glance
    you can tell `1` from `l` and `0` from `O`, and you can see that
