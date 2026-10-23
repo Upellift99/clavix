@@ -1,6 +1,7 @@
 import { api } from "./api";
 import { applyVaultFilters } from "./filter";
 import { formatError } from "./format";
+import { provisionalDetail } from "./detail";
 import {
   buildCipherIndex,
   buildFolderTree,
@@ -55,6 +56,7 @@ export class VaultController {
 
   detail = $state<CipherDetail | null>(null);
   detailLoading = $state(false);
+  private openSeq = 0;
 
   editorOpen = $state(false);
   editorMode = $state<"create" | "edit">("create");
@@ -298,16 +300,28 @@ export class VaultController {
    * save, since `submitEditor` re-opens the item it just wrote). The
    * panel is closed from its own ✕ button.
    */
+  /**
+   * Open an item: the panel shows what the list row already knows at
+   * once, and the decrypted detail replaces it when it lands. A click on
+   * another row while a decrypt is in flight wins; the late response is
+   * dropped instead of overwriting the newer item.
+   */
   async openCipher(id: string) {
+    const row = this.summary?.ciphers.find((c) => c.id === id);
+    if (row) this.detail = provisionalDetail(row);
     this.detailLoading = true;
     this.error = null;
+    const token = ++this.openSeq;
     try {
-      this.detail = await api.getCipher(id);
+      const full = await api.getCipher(id);
+      if (token !== this.openSeq) return;
+      this.detail = full;
     } catch (e) {
+      if (token !== this.openSeq) return;
       this.error = formatError(e);
       this.detail = null;
     } finally {
-      this.detailLoading = false;
+      if (token === this.openSeq) this.detailLoading = false;
     }
   }
 

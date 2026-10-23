@@ -26,6 +26,8 @@
   import {
     DETAIL_HEIGHT_MAX,
     DETAIL_HEIGHT_MIN,
+    DETAIL_WIDTH_MAX,
+    DETAIL_WIDTH_MIN,
     PrefsController,
     TREE_WIDTH_MAX,
     TREE_WIDTH_MIN,
@@ -37,6 +39,7 @@
   import { startSplitterDrag } from "#lib/splitter.ts";
   import { makeVaultKeyHandler } from "#lib/keyboard.ts";
   import { findNode, folderPathFromKey, splitPath } from "#lib/tree.ts";
+  import { isInlineEditable } from "#lib/detail.ts";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type {
     CipherDetail as CipherDetailData,
@@ -513,6 +516,90 @@
     });
   }
 
+  // Wide window: the detail is a third column and logins and notes are
+  // edited in place. Narrow window: the detail is the bottom pane and
+  // every edit takes the dialog. Tracked with a media query so the
+  // layout and the edit mode agree.
+  const WIDE_QUERY = "(min-width: 1100px)";
+  let wideWindow = $state(typeof window !== "undefined" && window.matchMedia(WIDE_QUERY).matches);
+  $effect(() => {
+    const mq = window.matchMedia(WIDE_QUERY);
+    const update = () => (wideWindow = mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  });
+
+  const inlineEdit = $derived(
+    wideWindow &&
+      vault.editorOpen &&
+      vault.editorMode === "edit" &&
+      vault.detail !== null &&
+      isInlineEditable(vault.detail.kind),
+  );
+
+  /** The password of an item, behind the reprompt gate; "" when none or refused. */
+  async function getPasswordFor(id: string): Promise<string> {
+    const detail = await loadDetail(id);
+    if (!detail.login?.hasPassword || !(await requireReprompt(detail))) return "";
+    return (await api.revealField(id, "password")) ?? "";
+  }
+
+  /** The current TOTP of an item, same gate; "" when none or refused. */
+  async function getTotpFor(id: string): Promise<string> {
+    const detail = await loadDetail(id);
+    if (!detail.login?.hasTotp || !(await requireReprompt(detail))) return "";
+    return (await api.totpCode(id)).code;
+  }
+
+  // Row quick actions: the same three copies the context menu and the
+  // shortcuts offer, one click from the list.
+  function copyUsernameFor(id: string) {
+    const row = vault.filteredCiphers.find((c) => c.id === id);
+    if (row?.username) void copyToClipboard(row.username, "username");
+  }
+
+  async function copyPasswordFor(id: string) {
+    try {
+      const password = await getPasswordFor(id);
+      if (password) await copyToClipboard(password, "password");
+    } catch (e) {
+      vault.error = formatError(e);
+    }
+  }
+
+  async function openUrlFor(id: string) {
+    const row = vault.filteredCiphers.find((c) => c.id === id);
+    if (!row?.primaryUri) return;
+    try {
+      await openUrl(row.primaryUri);
+    } catch (e) {
+      vault.error = formatError(e);
+    }
+  }
+
+  function onDetailWidthSplitterMouseDown(event: MouseEvent) {
+    startSplitterDrag(event, {
+      axis: "x",
+      invert: true,
+      min: DETAIL_WIDTH_MIN,
+      max: DETAIL_WIDTH_MAX,
+      startSize: prefs.detailWidth,
+      onChange: (w) => (prefs.detailWidth = w),
+      onCommit: () => prefs.persistDetailWidth(),
+    });
+  }
+
+  function onDetailWidthSplitterKeydown(event: KeyboardEvent) {
+    // The column grows leftward, so ArrowLeft widens it.
+    const delta =
+      event.key === "ArrowLeft" ? SPLITTER_STEP : event.key === "ArrowRight" ? -SPLITTER_STEP : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    prefs.detailWidth = Math.min(DETAIL_WIDTH_MAX, Math.max(DETAIL_WIDTH_MIN, prefs.detailWidth + delta));
+    prefs.persistDetailWidth();
+  }
+
   // Keyboard resize for the two splitters, one notch per arrow press.
   const SPLITTER_STEP = 16;
 
@@ -562,16 +649,8 @@
     // uses. An empty string means "nothing to copy" to the handler: the
     // item has no such secret, or the prompt was refused. A focused list
     // row only knows its type, so the detail is loaded to check.
-    getPassword: async (id) => {
-      const detail = await loadDetail(id);
-      if (!detail.login?.hasPassword || !(await requireReprompt(detail))) return "";
-      return (await api.revealField(id, "password")) ?? "";
-    },
-    getTotpCode: async (id) => {
-      const detail = await loadDetail(id);
-      if (!detail.login?.hasTotp || !(await requireReprompt(detail))) return "";
-      return (await api.totpCode(id)).code;
-    },
+    getPassword: getPasswordFor,
+    getTotpCode: getTotpFor,
     onError: (e) => (vault.error = formatError(e)),
   });
 
@@ -759,7 +838,11 @@
 
       {#if vault.summary}
         <section class="vault-section">
-          <div class="vault-layout" style="--tree-width: {prefs.treeWidth}px;">
+          <div
+            class="vault-layout"
+            class:three-columns={wideWindow}
+            style="--tree-width: {prefs.treeWidth}px; --detail-width: {prefs.detailWidth}px;"
+          >
             <VaultSidebar
               summary={vault.summary}
               folderTree={vault.folderTree}
@@ -834,16 +917,41 @@
               readOnly={auth.isReadOnly}
               onCreateItem={() => vault.openCreateEditor()}
               onOpenImport={() => (importOpen = true)}
+              onCopyUsername={copyUsernameFor}
+              onCopyPassword={copyPasswordFor}
+              onOpenUrl={openUrlFor}
             />
+            {#if wideWindow}
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+              <div
+                class="splitter"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={m.a11y_resize_detail_column()}
+                aria-valuemin={DETAIL_WIDTH_MIN}
+                aria-valuemax={DETAIL_WIDTH_MAX}
+                aria-valuenow={prefs.detailWidth}
+                tabindex="0"
+                onmousedown={onDetailWidthSplitterMouseDown}
+                onkeydown={onDetailWidthSplitterKeydown}
+              ></div>
+              <section class="detail-column" aria-label={m.detail_location()}>
+                {#if inlineEdit}
+                  {@render inlineEditor()}
+                {:else if vault.detail}
+                  {@render detailPanel()}
+                {:else}
+                  <div class="detail-empty">
+                    <p>{m.detail_empty_placeholder()}</p>
+                    <p class="hint">{m.detail_empty_hint()}</p>
+                  </div>
+                {/if}
+              </section>
+            {/if}
           </div>
 
-          {#if vault.detailLoading}
-            <section class="box">
-              <p class="hint">{m.detail_decrypting()}</p>
-            </section>
-          {/if}
-
-          {#if vault.detail}
+          {#if !wideWindow && vault.detail}
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
             <div
@@ -859,27 +967,7 @@
               onkeydown={onDetailSplitterKeydown}
             ></div>
             <div class="detail-pane" style="height: {prefs.detailHeight}px;">
-              <CipherDetail
-                detail={vault.detail}
-                summaryEntry={vault.detailSummaryEntry}
-                folders={vault.summary.folders}
-                organizations={vault.summary.organizations}
-                collections={vault.summary.collections}
-                onCopy={copyToClipboard}
-                onClose={() => vault.closeDetail()}
-                onEdit={async () => {
-                  if (await requireReprompt(vault.detail)) await vault.openEditEditor();
-                }}
-                onRestore={(id) => vault.restoreCipher(id)}
-                onSoftDelete={(id) => confirmSoftDelete(id, vault.detail?.name ?? "")}
-                onDeleteForever={(id) => confirmDeleteForever(id, vault.detail?.name ?? "")}
-                onDuplicate={confirmDuplicate}
-                onReprompt={() => requireReprompt(vault.detail)}
-                {confirm}
-                onError={(e) => (vault.error = formatError(e))}
-                onRefresh={(id) => vault.openCipher(id)}
-                readOnly={auth.isReadOnly}
-              />
+              {@render detailPanel()}
             </div>
           {/if}
         </section>
@@ -894,6 +982,52 @@
     {/if}
   {/key}
 </main>
+
+
+{#snippet detailPanel()}
+  {#if vault.detail && vault.summary}
+  <CipherDetail
+    detail={vault.detail}
+    summaryEntry={vault.detailSummaryEntry}
+    folders={vault.summary.folders}
+    organizations={vault.summary.organizations}
+    collections={vault.summary.collections}
+    onCopy={copyToClipboard}
+    onClose={() => vault.closeDetail()}
+    onEdit={async () => {
+      if (await requireReprompt(vault.detail)) await vault.openEditEditor();
+    }}
+    onRestore={(id) => vault.restoreCipher(id)}
+    onSoftDelete={(id) => confirmSoftDelete(id, vault.detail?.name ?? "")}
+    onDeleteForever={(id) => confirmDeleteForever(id, vault.detail?.name ?? "")}
+    onDuplicate={confirmDuplicate}
+    onReprompt={() => requireReprompt(vault.detail)}
+    {confirm}
+    onError={(e) => (vault.error = formatError(e))}
+    onRefresh={(id) => vault.openCipher(id)}
+    readOnly={auth.isReadOnly}
+    loading={vault.detailLoading}
+  />
+  {/if}
+{/snippet}
+
+<!-- Logins and notes edit in place in the detail column; the dialog
+     below stays for creation, the complex types, and narrow windows. -->
+{#snippet inlineEditor()}
+  <CipherEditor
+    open={true}
+    inline={true}
+    mode="edit"
+    initial={vault.editorInitial}
+    folders={vault.summary?.folders ?? []}
+    organizations={vault.summary?.organizations ?? []}
+    collections={vault.summary?.collections ?? []}
+    currentLocale={prefs.currentLocale}
+    onCancel={() => vault.closeEditor()}
+    onSubmit={(input) => vault.submitEditor(input)}
+    onCopy={copyToClipboard}
+  />
+{/snippet}
 
 <ClipboardToast {clipboard} />
 
@@ -1037,7 +1171,7 @@
 
 {#key prefs.currentLocale}
   <CipherEditor
-    open={vault.editorOpen}
+    open={vault.editorOpen && !inlineEdit}
     mode={vault.editorMode}
     initial={vault.editorInitial}
     folders={vault.summary?.folders ?? []}

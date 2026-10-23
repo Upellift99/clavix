@@ -52,6 +52,10 @@
     /** First-run empty state actions; hidden when read-only. */
     onCreateItem: () => void;
     onOpenImport: () => void;
+    /** Quick actions shown at a row's right end on hover or focus. */
+    onCopyUsername?: (id: string) => void;
+    onCopyPassword?: (id: string) => void;
+    onOpenUrl?: (id: string) => void;
   };
 
   let {
@@ -87,6 +91,9 @@
     readOnly = false,
     onCreateItem,
     onOpenImport,
+    onCopyUsername = () => {},
+    onCopyPassword = () => {},
+    onOpenUrl = () => {},
   }: Props = $props();
 
   const numberLocale = $derived(currentLocale === "fr" ? "fr-FR" : "en-US");
@@ -540,6 +547,53 @@
                   </span>
                 {/if}
               </button>
+              <!-- Beside the row button, not inside it (a button cannot
+                   hold buttons). Hidden until the row is hovered or holds
+                   focus, so the list stays quiet. -->
+              {#if c.kind === 1 && !c.deletedDate}
+                <div class="row-actions" class:on-selected={selectedId === c.id}>
+                  {#if c.username}
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="{m.ctx_copy_username()} · Ctrl+B"
+                      aria-label={m.ctx_copy_username()}
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        onCopyUsername(c.id);
+                      }}
+                    >
+                      <Icon name="user" size={14} />
+                    </button>
+                  {/if}
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    title="{m.ctx_copy_password()} · Ctrl+C"
+                    aria-label={m.ctx_copy_password()}
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      onCopyPassword(c.id);
+                    }}
+                  >
+                    <Icon name="key" size={14} />
+                  </button>
+                  {#if c.primaryUri}
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="{m.ctx_open_url()} · Ctrl+U"
+                      aria-label={m.ctx_open_url()}
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        onOpenUrl(c.id);
+                      }}
+                    >
+                      <Icon name="external-link" size={14} />
+                    </button>
+                  {/if}
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>

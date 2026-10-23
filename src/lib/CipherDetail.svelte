@@ -45,6 +45,9 @@
         hidden, and so is attachment download — the payloads live on
         the server, not in the vault, so there is nothing to fetch. */
     readOnly?: boolean;
+    /** The detail shown is the row's provisional copy; secrets are still
+        being decrypted, so their rows render as skeletons. */
+    loading?: boolean;
   };
 
   let {
@@ -65,6 +68,7 @@
     onError,
     onRefresh,
     readOnly = false,
+    loading = false,
   }: Props = $props();
 
   let showPassword = $state(false);
@@ -349,7 +353,9 @@
   <div class="detail-field" role="group">
     <dt>{label}</dt>
     <dd>
-      {#if shown && options?.renderShown === "password"}
+      {#if loading}
+        <span class="value skeleton" aria-hidden="true"></span>
+      {:else if shown && options?.renderShown === "password"}
         <code class="value password">
           {#each [...value] as ch}<span class={charClass(ch)}>{ch}</span>{/each}
         </code>
@@ -366,6 +372,7 @@
         title={shown ? m.action_hide_value() : m.action_show()}
         aria-label={shown ? m.action_hide_value() : m.action_show()}
         onclick={toggle}
+        disabled={loading}
       >
         <Icon name={shown ? "eye-off" : "eye"} size={14} />
       </button>
@@ -375,6 +382,7 @@
         title={m.action_copy()}
         aria-label={m.action_copy()}
         onclick={() => copyField(field, copyAs, label)}
+        disabled={loading}
       >
         <Icon name="copy" size={14} />
       </button>
@@ -479,7 +487,15 @@
     </section>
   {/if}
 
-  {#if detail.login?.hasTotp}
+  {#if loading && detail.kind === 1}
+    <section class="detail-section" aria-busy="true">
+      <h3 class="detail-section-title">{m.detail_section_security()}</h3>
+      <div class="detail-field" role="group">
+        <dt>{m.detail_field_totp()}</dt>
+        <dd><span class="value skeleton" aria-hidden="true"></span></dd>
+      </div>
+    </section>
+  {:else if detail.login?.hasTotp}
     <section class="detail-section">
       <h3 class="detail-section-title">{m.detail_section_security()}</h3>
       <div class="detail-field" role="group">

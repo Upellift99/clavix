@@ -69,6 +69,12 @@
     gap: 0.75rem;
     box-shadow: var(--shadow-popover);
     z-index: 1000;
+    animation: toast-in 160ms ease-out;
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translate(-50%, 8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
   }
 
   .clipboard-toast.variant-password {

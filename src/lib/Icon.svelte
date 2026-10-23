@@ -31,6 +31,8 @@
     | "info" // vault infos / about
     | "settings" // preferences
     | "camera" // QR scanner
+    | "user" // copy username (row quick action)
+    | "external-link" // open URL
     | "arrow-up-circle" // check for updates
     | "edit" // edit cipher
     | "eye" // reveal field
@@ -160,6 +162,13 @@
     <line x1="14" y1="2" x2="14" y2="6" />
     <line x1="8" y1="10" x2="8" y2="14" />
     <line x1="16" y1="18" x2="16" y2="22" />
+  {:else if name === "user"}
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  {:else if name === "external-link"}
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
   {:else if name === "camera"}
     <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
     <circle cx="12" cy="13" r="3" />
