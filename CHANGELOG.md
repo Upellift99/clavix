@@ -5,6 +5,18 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0](https://github.com/Upellift99/clavix/compare/v0.25.1...v0.26.0) (2026-10-24)
+
+
+### Features
+
+* **ui:** create folders from the sidebar ([#414](https://github.com/Upellift99/clavix/issues/414)) ([5dbc41f](https://github.com/Upellift99/clavix/commit/5dbc41f63efd8673785a9dfa26485985757475ce))
+
+
+### Bug Fixes
+
+* **ui:** lift context menus into the top layer ([#413](https://github.com/Upellift99/clavix/issues/413)) ([81823ea](https://github.com/Upellift99/clavix/commit/81823ea40ace767c6854528b1e68f3b6933b0289))
+
 ## [0.25.1](https://github.com/Upellift99/clavix/compare/v0.25.0...v0.25.1) (2026-10-23)
 
 
