@@ -214,6 +214,12 @@
 
 .tree-menu {
   position: fixed;
+  /* Shown as a popover (see lib/top-layer.ts): undo the UA popover
+     box so the inline left/top keep placing it at the cursor. */
+  inset: auto;
+  margin: 0;
+  overflow: visible;
+  color: inherit;
   z-index: 51;
   background: var(--surface-raised);
   border: 1px solid var(--border-input);

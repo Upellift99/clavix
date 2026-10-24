@@ -3,6 +3,7 @@
   import Icon, { type IconName } from "./Icon.svelte";
   import { canDropFolderOn, isCipherDroppable, isFolderDropTarget } from "./drag";
   import type { DragController } from "./drag.svelte";
+  import { topLayer } from "./top-layer";
   import { collectFolderIds, folderPathFromKey } from "./tree";
   import type { CipherIndex } from "./tree";
   import type { ConfirmFn, Locale, QuickFilter, SyncSummary, TreeNode } from "./types";
@@ -353,6 +354,7 @@
     bind:this={menuEl}
     class="tree-menu"
     role="menu"
+    use:topLayer
     style="left: {menuX}px; top: {menuY}px;"
   >
     <button type="button" role="menuitem" onclick={startRename}>

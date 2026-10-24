@@ -21,6 +21,7 @@
   import StandaloneBanner from "#lib/StandaloneBanner.svelte";
   import { ClipboardController, type ClipboardKind } from "#lib/clipboard.svelte.ts";
   import { DragController } from "#lib/drag.svelte.ts";
+  import { topLayer } from "#lib/top-layer.ts";
   import { AuthController } from "#lib/auth.svelte.ts";
   import { VaultController } from "#lib/vault.svelte.ts";
   import {
@@ -1128,6 +1129,7 @@
     bind:this={menuEl}
     class="ctx-menu"
     role="menu"
+    use:topLayer
     tabindex="-1"
     style="left: {menuX}px; top: {menuY}px;"
     onkeydown={onMenuKeydown}
