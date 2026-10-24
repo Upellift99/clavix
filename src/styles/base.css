@@ -27,6 +27,32 @@ body {
   color: var(--row-selected-text);
 }
 
+/* Styled scrollbars everywhere. Not cosmetic: with the DMA-BUF
+   renderer off (see src-tauri/src/main.rs), WebKitGTK paints its
+   native overlay scrollbar above every page layer, popovers included,
+   so the folder tree's scrollbar drew a stripe through the context
+   menu. A styled scrollbar is painted in page order instead. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-input);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-disabled);
+}
+
 .container {
   max-width: 620px;
   margin: 0 auto;
