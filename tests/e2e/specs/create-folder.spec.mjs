@@ -23,6 +23,22 @@ async function createFromSidebar(name) {
   await browser.keys("Enter");
 }
 
+// WDIO's `*=` text selectors cannot follow a descendant combinator, so
+// read the selected tree row's label from the DOM instead.
+async function waitForSelectedFolder(label, timeoutMsg) {
+  await browser.waitUntil(
+    () =>
+      browser.execute(
+        (text) =>
+          Array.from(document.querySelectorAll(".tree-row.selected .tree-label-text")).some(
+            (el) => el.textContent === text,
+          ),
+        label,
+      ),
+    { timeout: 15_000, timeoutMsg },
+  );
+}
+
 async function serverFolderNames() {
   return browser.execute(async () => {
     // @ts-expect-error — tauri injects this global
@@ -40,11 +56,7 @@ describe("Create a folder from the sidebar", () => {
   it("creates a top-level folder and selects it", async () => {
     await createFromSidebar(TOP);
 
-    const row = await $(`.tree-row.selected .tree-label*=${TOP}`);
-    await row.waitForDisplayed({
-      timeout: 15_000,
-      timeoutMsg: "new folder never appeared selected in the tree",
-    });
+    await waitForSelectedFolder(TOP, "new folder never appeared selected in the tree");
     expect(await serverFolderNames()).toContain(TOP);
   });
 
@@ -52,11 +64,7 @@ describe("Create a folder from the sidebar", () => {
     await createFromSidebar(NESTED_TYPED);
 
     // The parent is expanded so the selected child is on screen.
-    const child = await $(".tree-row.selected .tree-label*=child");
-    await child.waitForDisplayed({
-      timeout: 15_000,
-      timeoutMsg: "nested folder never appeared selected in the tree",
-    });
+    await waitForSelectedFolder("child", "nested folder never appeared selected in the tree");
     const names = await serverFolderNames();
     expect(names).toContain(NESTED_STORED);
     expect(names).not.toContain(NESTED_TYPED);
