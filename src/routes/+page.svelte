@@ -929,6 +929,8 @@
               onDeleteFolder={(ids) => vault.deleteFolder(ids)}
               {confirm}
               onRenameFolder={(src, dst) => vault.renameFolderPath(src, dst)}
+              onCreateFolder={(path) => vault.createFolder(path)}
+              readOnly={auth.isReadOnly}
             />
 
             <!-- A focusable separator is the WAI-ARIA window-splitter

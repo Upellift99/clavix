@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as m from "#lib/paraglide/messages.js";
   import Icon, { type IconName } from "./Icon.svelte";
+  import { focusOnMount } from "./focus";
   import { canDropFolderOn, isCipherDroppable, isFolderDropTarget } from "./drag";
   import type { DragController } from "./drag.svelte";
   import { topLayer } from "./top-layer";
@@ -28,6 +29,9 @@
     onMoveFolderPath: (source: string, targetParent: string | null) => Promise<void>;
     onDeleteFolder: (folderIds: string[]) => Promise<void>;
     onRenameFolder: (sourcePath: string, newPath: string) => Promise<void>;
+    onCreateFolder: (path: string) => Promise<void>;
+    /** Standalone (KeePassXC) session: no folder can be created. */
+    readOnly: boolean;
     /** Raises the page-level ConfirmDialog; resolves true on confirm. */
     confirm: ConfirmFn;
   };
@@ -52,6 +56,8 @@
     onMoveFolderPath,
     onDeleteFolder,
     onRenameFolder,
+    onCreateFolder,
+    readOnly,
     confirm,
   }: Props = $props();
 
@@ -67,6 +73,11 @@
   let menuEl = $state<HTMLDivElement | null>(null);
   let renamingNode = $state<TreeNode | null>(null);
   let renameValue = $state("");
+  // Inline "new folder" input. `parentKey` is the tree node it hangs
+  // under (null for the top of "My vault"), `parentPath` the folder
+  // path the new name is appended to.
+  let creating = $state<{ parentKey: string | null; parentPath: string | null } | null>(null);
+  let newFolderName = $state("");
 
   function openContextMenu(event: MouseEvent, node: TreeNode) {
     // Synthetic parents (folderId === null because they only exist
@@ -164,6 +175,33 @@
 
   function cancelRename() {
     renamingNode = null;
+  }
+
+  function startCreate(parent: TreeNode | null) {
+    const parentPath = parent ? folderPathFromKey(parent.key) : null;
+    if (parent && !parentPath) return;
+    if (parent && !expanded.has(parent.key)) onToggleExpanded(parent.key);
+    creating = { parentKey: parent?.key ?? null, parentPath };
+    newFolderName = "";
+  }
+
+  function startCreateFromMenu() {
+    const node = menuNode;
+    closeContextMenu();
+    if (node?.kind === "folder") startCreate(node);
+  }
+
+  async function commitCreate(event: Event) {
+    event.preventDefault();
+    const target = creating;
+    const name = newFolderName.trim();
+    creating = null;
+    if (!target || name.length === 0) return;
+    await onCreateFolder(target.parentPath ? `${target.parentPath}/${name}` : name);
+  }
+
+  function cancelCreate() {
+    creating = null;
   }
 
   function onFolderDragStart(event: DragEvent, node: TreeNode) {
@@ -324,10 +362,26 @@
       </button>
     </div>
   {/if}
-  {#if folderTree && folderTree.children.length > 0}
-    <h4>{m.tree_my_vault()}</h4>
+  {#if (folderTree && folderTree.children.length > 0) || !readOnly}
+    <div class="tree-section-head">
+      <h4>{m.tree_my_vault()}</h4>
+      {#if !readOnly}
+        <button
+          type="button"
+          class="icon-btn"
+          title={m.folder_new()}
+          aria-label={m.folder_new()}
+          onclick={() => startCreate(null)}
+        >
+          <Icon name="plus" size={14} />
+        </button>
+      {/if}
+    </div>
     <ul class="tree-root">
-      {#each folderTree.children as node (node.key)}
+      {#if creating && creating.parentKey === null}
+        {@render newFolderRow()}
+      {/if}
+      {#each folderTree?.children ?? [] as node (node.key)}
         {@render treeNode(node)}
       {/each}
     </ul>
@@ -357,6 +411,11 @@
     use:topLayer
     style="left: {menuX}px; top: {menuY}px;"
   >
+    {#if !readOnly}
+      <button type="button" role="menuitem" onclick={startCreateFromMenu}>
+        {m.folder_action_new_subfolder()}
+      </button>
+    {/if}
     <button type="button" role="menuitem" onclick={startRename}>
       {m.folder_action_rename()}
     </button>
@@ -391,11 +450,10 @@
       {/if}
       {#if renamingNode?.key === node.key}
         <form class="tree-rename" onsubmit={commitRename}>
-          <!-- svelte-ignore a11y_autofocus -->
           <input
             type="text"
             bind:value={renameValue}
-            autofocus
+            use:focusOnMount
             onkeydown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
@@ -428,13 +486,40 @@
         </button>
       {/if}
     </div>
-    {#if expanded.has(node.key) && node.children.length > 0}
+    {#if (expanded.has(node.key) && node.children.length > 0) || creating?.parentKey === node.key}
       <ul class="tree-children">
-        {#each node.children as child (child.key)}
+        {#if creating?.parentKey === node.key}
+          {@render newFolderRow()}
+        {/if}
+        {#each expanded.has(node.key) ? node.children : [] as child (child.key)}
           {@render treeNode(child)}
         {/each}
       </ul>
     {/if}
+  </li>
+{/snippet}
+
+{#snippet newFolderRow()}
+  <li>
+    <div class="tree-row">
+      <span class="tree-spacer"></span>
+      <form class="tree-rename" onsubmit={commitCreate}>
+        <input
+          type="text"
+          bind:value={newFolderName}
+          placeholder={m.folder_new_placeholder()}
+          aria-label={m.folder_new()}
+          use:focusOnMount
+          onkeydown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              cancelCreate();
+            }
+          }}
+          onblur={cancelCreate}
+        />
+      </form>
+    </div>
   </li>
 {/snippet}
 

@@ -7,6 +7,7 @@ import {
   buildFolderTree,
   buildOrgTrees,
   collectAllKeys,
+  FOLDERS_ROOT_PREFIX,
   folderPathFromKey,
 } from "./tree";
 import {
@@ -715,6 +716,37 @@ export class VaultController {
     } catch (e) {
       this.error = formatError(e);
     }
+  }
+
+  async createFolder(path: string) {
+    // Bitwarden folders are flat: a sub-folder is just a name with `/`
+    // in it, so `work/archive` nests under `work` in the tree. Blank
+    // segments ("work//x", "work/ ") would render as empty nodes.
+    const name = path
+      .split("/")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .join("/");
+    if (name.length === 0) return;
+    // An existing folder of that exact path is shown rather than
+    // duplicated: the tree would only tell the twins apart by a `#id`.
+    if (!this.summary?.folders.some((f) => f.name === name)) {
+      try {
+        await api.createFolder(name);
+        this.summary = await api.sync();
+      } catch (e) {
+        this.error = formatError(e);
+        return;
+      }
+    }
+    // Open every ancestor so the new folder is on screen, and select it.
+    const next = new Set(this.expanded);
+    const segments = name.split("/");
+    for (let i = 1; i < segments.length; i++) {
+      next.add(FOLDERS_ROOT_PREFIX + segments.slice(0, i).join("/"));
+    }
+    this.expanded = next;
+    this.selectedKey = FOLDERS_ROOT_PREFIX + name;
   }
 
   async renameFolder(folderId: string, name: string) {
