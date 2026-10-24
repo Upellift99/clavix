@@ -28,6 +28,20 @@
   font-weight: 600;
 }
 
+/* "My vault" heading with its new-folder button pinned to the right. */
+.tree-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.tree-section-head .icon-btn {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.3rem;
+}
+
 .tree-toolbar {
   display: flex;
   gap: 0.25rem;
@@ -251,14 +265,23 @@
   background: var(--error-bg);
 }
 
+/* Inline rename / new-folder field. Reset the global `form` card
+   (padding, border, background) so the field sits in the row. */
 .tree-rename {
   flex: 1;
+  min-width: 0;
   display: flex;
+  padding: 0;
+  border: none;
+  background: none;
 }
 
 .tree-rename input {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   font: inherit;
+  font-size: 0.85rem;
   padding: 0.15rem 0.35rem;
   border: 1px solid var(--rename-border);
   border-radius: 4px;
