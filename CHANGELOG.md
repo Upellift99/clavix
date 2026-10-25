@@ -5,6 +5,13 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.2](https://github.com/Upellift99/clavix/compare/v0.26.1...v0.26.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* **ui:** readable folder chevron on hover ([#418](https://github.com/Upellift99/clavix/issues/418)) ([03c087a](https://github.com/Upellift99/clavix/commit/03c087ad6e909b28fc9f377eab3d0b4e382525f7))
+
 ## [0.26.1](https://github.com/Upellift99/clavix/compare/v0.26.0...v0.26.1) (2026-10-24)
 
 
