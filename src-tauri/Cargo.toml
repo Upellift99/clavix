@@ -87,7 +87,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 # Session/system bus client for the screensaver + logind queries. No
 # default features: we make plain method calls and don't need the
 # blocking API, the p2p transport or the proxy-derive extras.
-zbus = { version = "5", default-features = false, features = ["tokio"] }
+zbus = { version = "6", default-features = false, features = ["tokio"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 # Raw FFI only. `windows-sys` rather than `windows` keeps us on the same
