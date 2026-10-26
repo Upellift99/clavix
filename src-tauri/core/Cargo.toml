@@ -48,7 +48,7 @@ sha1 = "0.10"
 dirs = "6"
 rand = "0.8"
 rusqlite = { version = "0.40", features = ["bundled"] }
-parking_lot = "0.12"
+parking_lot = "0.13"
 rayon = "1"
 futures = "0.3"
 zxcvbn = { version = "3", default-features = false }
