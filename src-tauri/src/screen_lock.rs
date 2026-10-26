@@ -155,7 +155,7 @@ mod imp {
         .await
         .ok()?
         .ok()?;
-        let value: zbus::zvariant::OwnedValue = reply.body().deserialize().ok()?;
+        let value: zbus::OwnedVariant = reply.body().deserialize().ok()?;
         bool::try_from(value).ok()
     }
 }
