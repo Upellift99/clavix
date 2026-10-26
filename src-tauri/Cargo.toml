@@ -80,9 +80,11 @@ keepass = "0.17"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 # Desktop-session lock detection, one probe per platform (see
-# `src/screen_lock.rs`). All three are already in the tree transitively —
-# zbus via the tray stack, windows-sys and core-foundation via Tauri /
-# wry — so these declarations only expose an existing build to us.
+# `src/screen_lock.rs`). windows-sys and core-foundation are already in
+# the tree via Tauri / wry, so those declarations only expose an existing
+# build to us. zbus is the exception: we are on 6 while
+# tauri-plugin-opener and tauri-plugin-single-instance still pull zbus 5,
+# so the Linux build carries both until those plugins move to 6.
 [target.'cfg(target_os = "linux")'.dependencies]
 # Session/system bus client for the screensaver + logind queries. No
 # default features: we make plain method calls and don't need the
