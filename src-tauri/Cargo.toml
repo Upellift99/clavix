@@ -36,8 +36,7 @@ tauri-plugin-opener = "2"
 # stealing SSH_AUTH_SOCK from the vault the user actually unlocked.
 tauri-plugin-single-instance = "2"
 tauri-plugin-clipboard-manager = "2"
-# Stay on the plugin line compatible with our locked Tauri 2.11 runtime.
-tauri-plugin-autostart = "~2.5.1"
+tauri-plugin-autostart = "2"
 # The vault engine: protocol, crypto, cache, vault logic. Everything this
 # crate still declares below is here because a *desktop* concern needs it
 # — the tray, the SSH agent, the USB security key, the KDBX import.

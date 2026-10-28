@@ -23,7 +23,7 @@
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-opener": "^2.5.4"
   },
   "devDependencies": {
@@ -33,7 +33,7 @@
     "@sveltejs/adapter-static": "^4.0.0",
     "@sveltejs/kit": "^3.1.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@tauri-apps/cli": "^2.11.4",
+    "@tauri-apps/cli": "^2.12.4",
     "@testing-library/svelte": "^5.4.2",
     "@types/node": "^26.6.5",
     "@wdio/cli": "^10.1.0",
