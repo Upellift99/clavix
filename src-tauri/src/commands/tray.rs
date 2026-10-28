@@ -9,7 +9,8 @@
 //!     locale from `localStorage`.
 //!   - `handle_window_event` interprets `WindowEvent::CloseRequested`
 //!     against the user's `close_to_tray` preference, and
-//!     `WindowEvent::Resized` against `minimize_to_tray`.
+//!     `WindowEvent::Resized` against `minimize_to_tray`. Both hide
+//!     paths flush the window geometry to disk on the way down.
 //!   - `set_close_to_tray` / `set_minimize_to_tray` are the IPCs
 //!     the renderer calls every time the matching preference
 //!     changes (and on bootstrap, to hydrate the Rust mirror).
@@ -20,6 +21,7 @@
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 use crate::state::AppState;
 use clavix_core::error::Result;
@@ -39,6 +41,14 @@ pub(crate) const EVENT_SESSION_LOCKED: &str = "clavix:session-locked";
 // `capabilities/default.json` is scoped to `["main"]` for the same
 // reason. Keep this in sync if a label is ever added to the config.
 const MAIN_WINDOW: &str = "main";
+/// What `tauri-plugin-window-state` saves and restores. `VISIBLE` is
+/// left out on purpose: with it the plugin shows and focuses the window
+/// as soon as it is created, which would defeat `"visible": false` and
+/// the `--tray` login launch. Visibility stays with `lib.rs` setup and
+/// `raise_main_window`.
+pub(crate) const WINDOW_STATE_FLAGS: StateFlags = StateFlags::SIZE
+    .union(StateFlags::POSITION)
+    .union(StateFlags::MAXIMIZED);
 
 /// Native tray menu labels per locale. Native menus don't go through
 /// Paraglide, so the renderer hands the locale code over IPC and we
@@ -437,6 +447,11 @@ fn lock_session(app: &AppHandle) {
 /// change instead. `Focused(false)` catches that path. macOS minimise
 /// (cmd-M to dock) is still best-effort: neither signal is reliable
 /// there until upstream tao exposes a dedicated minimise event.
+///
+/// Both hide paths save the window geometry first, while the window is
+/// still mapped. The window-state plugin only writes on
+/// `RunEvent::Exit`, which a Clavix sitting in the tray never reaches
+/// when the session ends: logout sends SIGTERM.
 pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
     match event {
         WindowEvent::CloseRequested { api, .. } => {
@@ -448,6 +463,7 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
                 return;
             }
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                persist_window_state(app);
                 if state
                     .hide_dock_on_tray
                     .load(std::sync::atomic::Ordering::Relaxed)
@@ -475,6 +491,7 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
                     // intended UX (the window disappears into the
                     // tray, not the taskbar).
                     let _ = window.unminimize();
+                    persist_window_state(app);
                     if state
                         .hide_dock_on_tray
                         .load(std::sync::atomic::Ordering::Relaxed)
@@ -486,5 +503,11 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
             }
         }
         _ => {}
+    }
+}
+
+fn persist_window_state(app: &AppHandle) {
+    if let Err(e) = app.save_window_state(WINDOW_STATE_FLAGS) {
+        eprintln!("[clavix] saving window state failed (non-fatal): {e}");
     }
 }
