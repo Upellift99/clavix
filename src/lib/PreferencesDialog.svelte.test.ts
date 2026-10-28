@@ -7,6 +7,8 @@ import { tick } from "svelte";
 // none of that exists under jsdom.
 vi.mock("./api", () => ({
   api: {
+    autostartEnabled: vi.fn().mockResolvedValue(false),
+    setAutostart: vi.fn().mockResolvedValue(undefined),
     sshAgentStatus: vi.fn().mockResolvedValue({ running: false, socketPath: null, keys: [], skipped: [] }),
     sshAuthSock: vi.fn().mockResolvedValue(null),
     yubikeyUnlockState: vi.fn().mockResolvedValue({ enrolled: false, requiresPin: false }),
@@ -19,8 +21,11 @@ vi.mock("./api", () => ({
 }));
 
 import PreferencesDialog from "./PreferencesDialog.svelte";
+import { api } from "./api";
 
 beforeEach(() => {
+  vi.mocked(api.autostartEnabled).mockResolvedValue(false);
+  vi.mocked(api.setAutostart).mockReset().mockResolvedValue(undefined);
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
     this.open = true;
   };
@@ -46,6 +51,8 @@ function mount() {
       closeToTray: true,
       minimizeToTray: false,
       hideDockOnTray: false,
+      trayIconStyle: "color" as const,
+      onApplyTrayIconStyle: vi.fn(),
       requireNarrowing: true,
       toolbarAlign: "left" as const,
       autoSyncMinutes: 30,
@@ -80,6 +87,36 @@ function key(target: Element, k: string) {
 }
 
 describe("PreferencesDialog", () => {
+  it("reads the OS autostart setting and disables it on request", async () => {
+    vi.mocked(api.autostartEnabled).mockResolvedValue(true);
+    const { component, tabs, panel } = mount();
+    await component.open();
+    await flush();
+    tabs()[2].click();
+    await flush();
+    const checkbox = panel().querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    expect(checkbox.checked).toBe(true);
+    checkbox.click();
+    await flush();
+    expect(api.setAutostart).toHaveBeenCalledWith(false);
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it("keeps autostart off and displays an error if OS registration fails", async () => {
+    vi.mocked(api.setAutostart).mockRejectedValueOnce(new Error("Registration denied"));
+    const { component, tabs, panel } = mount();
+    await component.open();
+    await flush();
+    tabs()[2].click();
+    await flush();
+    const checkbox = panel().querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    checkbox.click();
+    await flush();
+    expect(api.setAutostart).toHaveBeenCalledWith(true);
+    expect(checkbox.checked).toBe(false);
+    expect(panel().querySelector('[role="alert"]')?.textContent).toContain("Registration denied");
+  });
+
   it("opens on the general tab with one panel and one Tab stop", async () => {
     const { component, tabs, panel } = mount();
     await component.open();

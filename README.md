@@ -57,6 +57,11 @@ Against a real Vaultwarden instance, Clavix:
 - **lives in the system tray**: the X and `_` buttons hide into the tray
   by default (KeePassXC / Bitwarden Desktop semantics); switch either to
   quit / minimise-to-taskbar in Préférences;
+- **tray appearance and login startup**: choose Color, White or Black in
+  Preferences → Window. Enable “Start Clavix in the system tray” to launch
+  hidden at login with the vault locked. Normal launches open the window;
+  disabling the toggle removes the login-startup registration. On Linux,
+  your desktop must support tray icons (GNOME may require an extension);
 - **generates TOTP codes** live from the stored secret (`otpauth://` URIs
   with custom period, digits, hash), and **scans QR codes** through the
   camera to fill the TOTP field;

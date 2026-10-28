@@ -9,6 +9,8 @@ const DETAIL_WIDTH_STORAGE_KEY = "clavix.detailWidth";
 const AUTO_LOCK_STORAGE_KEY = "clavix.autoLockMinutes";
 const AUTO_LOCK_TRIGGER_STORAGE_KEY = "clavix.autoLockTrigger";
 const CLOSE_TO_TRAY_STORAGE_KEY = "clavix.closeToTray";
+const TRAY_ICON_STYLE_STORAGE_KEY = "clavix.trayIconStyle";
+export type TrayIconStyle = "color" | "white" | "black";
 const MINIMIZE_TO_TRAY_STORAGE_KEY = "clavix.minimizeToTray";
 const HIDE_DOCK_ON_TRAY_STORAGE_KEY = "clavix.hideDockOnTray";
 const ONBOARDED_STORAGE_KEY = "clavix.onboarded";
@@ -100,6 +102,7 @@ export class PrefsController {
   requireNarrowing = $state<boolean>(REQUIRE_NARROWING_DEFAULT);
   sshAgentConfirm = $state<SshAgentConfirm>(SSH_AGENT_CONFIRM_DEFAULT);
   sshAgentAutoStart = $state<boolean>(SSH_AGENT_AUTOSTART_DEFAULT);
+  trayIconStyle = $state<TrayIconStyle>("color");
   /** On unless the user turned it off: a malformed or absent value keeps
       notes blurred. */
   blurNotes = $state<boolean>(true);
@@ -175,6 +178,10 @@ export class PrefsController {
       // turned hide-to-tray on under a working tray keeps it across
       // restarts even on Linux.
       const savedTray = localStorage.getItem(CLOSE_TO_TRAY_STORAGE_KEY);
+      const savedIconStyle = localStorage.getItem(TRAY_ICON_STYLE_STORAGE_KEY);
+      if (savedIconStyle === "color" || savedIconStyle === "white" || savedIconStyle === "black") {
+        this.trayIconStyle = savedIconStyle;
+      }
       if (savedTray === "true") {
         this.closeToTray = true;
       } else if (savedTray === "false") {
@@ -396,6 +403,15 @@ export class PrefsController {
       localStorage.setItem(CLOSE_TO_TRAY_STORAGE_KEY, String(value));
     } catch {
       // ignore
+    }
+  }
+
+  setTrayIconStyle(value: TrayIconStyle) {
+    this.trayIconStyle = value;
+    try {
+      localStorage.setItem(TRAY_ICON_STYLE_STORAGE_KEY, value);
+    } catch {
+      // Storage can be unavailable; the live preference still applies.
     }
   }
 

@@ -378,3 +378,30 @@ unlocked vault, which is what this checklist is for. Set the cadence to
 - The timer lives in the WebView. A frozen renderer stops syncing (it
   also stops the auto-lock front-end timer; the Rust watchdog covers the
   lock, nothing covers the sync).
+
+## Tray appearance and login startup
+
+- In Preferences → Window, switch the tray icon between Color, White and
+  Black. Check visibility on light and dark panels and verify the chosen
+  style survives quitting and reopening Clavix.
+- Enable “Start Clavix in the system tray”, reopen Preferences and confirm
+  it remains enabled. Sign out of the desktop session and back in: Clavix
+  should start hidden, with its tray icon present and its vault locked.
+- Open the vault window from the tray. Quit, then launch Clavix normally:
+  the window should appear. Launching normally while it is already hidden
+  should reveal the existing instance.
+- Disable login startup and sign out/in again: Clavix should not start.
+- Launch with `--tray` where tray creation fails: the window should appear.
+- Linux, vanilla GNOME without the AppIndicator extension: `clavix --tray`
+  should show the window after ~10 s, since no StatusNotifier host exists.
+- AppImage: enable login startup, rename the AppImage and launch it once
+  (release build). `~/.config/autostart/clavix.desktop` should now point
+  at the new path.
+- macOS: after a login launch there should be no dock icon; opening the
+  window from the tray brings it back. With the window hidden, clicking
+  the dock icon should reveal it.
+
+Known limits, inherited from `tauri-plugin-autostart`: the executable path
+is written unquoted (the Linux `Exec=` line breaks if it contains spaces),
+`$XDG_CONFIG_HOME` is ignored in favour of `~/.config/autostart`, and
+enabling it from `pnpm tauri dev` registers the debug binary.

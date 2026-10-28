@@ -36,6 +36,8 @@ tauri-plugin-opener = "2"
 # stealing SSH_AUTH_SOCK from the vault the user actually unlocked.
 tauri-plugin-single-instance = "2"
 tauri-plugin-clipboard-manager = "2"
+# Stay on the plugin line compatible with our locked Tauri 2.11 runtime.
+tauri-plugin-autostart = "~2.5.1"
 # The vault engine: protocol, crypto, cache, vault logic. Everything this
 # crate still declares below is here because a *desktop* concern needs it
 # — the tray, the SSH agent, the USB security key, the KDBX import.
@@ -90,6 +92,9 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 # default features: we make plain method calls and don't need the
 # blocking API, the p2p transport or the proxy-derive extras.
 zbus = { version = "6", default-features = false, features = ["tokio"] }
+# Only to reach the window's GTK titlebar (see `unblock_wayland_titlebar`
+# in lib.rs). Pinned to the gtk-rs release Tauri itself builds against.
+gtk = "0.18"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 # Raw FFI only. `windows-sys` rather than `windows` keeps us on the same

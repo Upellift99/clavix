@@ -4,7 +4,7 @@
   import { api } from "./api";
   import { formatError } from "./format";
   import PasswordInput from "./PasswordInput.svelte";
-  import type { SshAgentConfirm, ToolbarAlign } from "./prefs.svelte";
+  import type { SshAgentConfirm, ToolbarAlign, TrayIconStyle } from "./prefs.svelte";
   import type { AutoLockTrigger, Locale, SshAgentStatus, ThemePref } from "./types";
 
   type Props = {
@@ -15,6 +15,8 @@
     closeToTray: boolean;
     minimizeToTray: boolean;
     hideDockOnTray: boolean;
+    trayIconStyle: TrayIconStyle;
+    onApplyTrayIconStyle: (style: TrayIconStyle) => void;
     requireNarrowing: boolean;
     toolbarAlign: ToolbarAlign;
     autoSyncMinutes: number;
@@ -45,6 +47,8 @@
     closeToTray,
     minimizeToTray,
     hideDockOnTray,
+    trayIconStyle,
+    onApplyTrayIconStyle,
     requireNarrowing,
     toolbarAlign,
     autoSyncMinutes,
@@ -257,9 +261,42 @@
   // case the screen-lock options would silently never fire, so the UI
   // says so rather than letting the user pick a dead setting.
   let screenLockAvailable = $state<boolean | null>(null);
+  let autostartEnabled = $state(false);
+  let autostartBusy = $state(false);
+  let autostartError = $state<string | null>(null);
+
+  async function refreshAutostart() {
+    autostartBusy = true;
+    autostartError = null;
+    try {
+      autostartEnabled = await api.autostartEnabled();
+    } catch (e) {
+      autostartError = formatError(e);
+    } finally {
+      autostartBusy = false;
+    }
+  }
+
+  async function toggleAutostart(event: Event) {
+    // Keep the checkbox on the last confirmed value while the OS operation
+    // runs, including if registration fails and no state change follows.
+    (event.currentTarget as HTMLInputElement).checked = autostartEnabled;
+    autostartBusy = true;
+    autostartError = null;
+    try {
+      const enabled = !autostartEnabled;
+      await api.setAutostart(enabled);
+      autostartEnabled = enabled;
+    } catch (e) {
+      autostartError = formatError(e);
+    } finally {
+      autostartBusy = false;
+    }
+  }
 
   export async function open() {
     dialog?.showModal();
+    void refreshAutostart();
     // Deliberately not awaited before the SSH/Yubikey refreshes: it's a
     // decoration on one row, and on a wedged D-Bus it can take a couple
     // of seconds to answer.
@@ -425,6 +462,26 @@
     {:else if tab === "window"}
       <div class="prefs-panel" role="tabpanel" id="prefs-panel-window" aria-labelledby="prefs-tab-window">
         <dl>
+          <dt>{m.settings_autostart()}</dt>
+          <dd>
+            <label>
+              <input type="checkbox" checked={autostartEnabled} disabled={autostartBusy}
+                onchange={toggleAutostart} />
+              {m.settings_autostart_label()}
+            </label>
+            <p class="hint">{m.settings_autostart_hint()}</p>
+            {#if autostartError}<p role="alert">{autostartError}</p>{/if}
+          </dd>
+          <dt><label for="tray-icon-style">{m.settings_tray_icon_style()}</label></dt>
+          <dd>
+            <select id="tray-icon-style" value={trayIconStyle}
+              onchange={(e) => onApplyTrayIconStyle(e.currentTarget.value as TrayIconStyle)}>
+              <option value="color">{m.settings_tray_icon_color()}</option>
+              <option value="white">{m.settings_tray_icon_white()}</option>
+              <option value="black">{m.settings_tray_icon_black()}</option>
+            </select>
+            <p class="hint">{m.settings_tray_icon_hint()}</p>
+          </dd>
           <dt>{m.settings_close_to_tray()}</dt>
           <dd>
             <select

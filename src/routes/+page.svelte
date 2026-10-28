@@ -794,6 +794,12 @@
 
   let unlistenSessionLocked: UnlistenFn | null = null;
 
+  $effect(() => {
+    api.setTrayIconStyle(prefs.trayIconStyle).catch((e) => {
+      console.warn("[clavix] setTrayIconStyle failed:", e);
+    });
+  });
+
   onMount(async () => {
     prefs.bootstrap();
     await auth.bootstrap({ onboarded: prefs.isOnboarded() });
@@ -1233,6 +1239,8 @@
   closeToTray={prefs.closeToTray}
   minimizeToTray={prefs.minimizeToTray}
   hideDockOnTray={prefs.hideDockOnTray}
+  trayIconStyle={prefs.trayIconStyle}
+  onApplyTrayIconStyle={(style) => prefs.setTrayIconStyle(style)}
   requireNarrowing={prefs.requireNarrowing}
   toolbarAlign={prefs.toolbarAlign}
   autoSyncMinutes={prefs.autoSyncMinutes}
