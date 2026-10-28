@@ -405,3 +405,46 @@ Known limits, inherited from `tauri-plugin-autostart`: the executable path
 is written unquoted (the Linux `Exec=` line breaks if it contains spaces),
 `$XDG_CONFIG_HOME` is ignored in favour of `~/.config/autostart`, and
 enabling it from `pnpm tauri dev` registers the debug binary.
+
+---
+
+## Window size and position
+
+Code path: `tauri_plugin_window_state` registered in
+`src-tauri/src/lib.rs::run` with `commands::tray::WINDOW_STATE_FLAGS`
+(size, position, maximised; never visibility). The plugin writes
+`~/.config/com.clavixlabs.clavix/.window-state.json` on exit, and
+`commands::tray::handle_window_event` also flushes it whenever the window
+hides into the tray.
+
+The E2E suite points `XDG_CONFIG_HOME` at its sandbox, so it never reads
+or overwrites the file of whoever runs it, and it does not cover this
+either. From `pnpm tauri dev`, add `CLAVIX_ALLOW_MULTIPLE_INSTANCES=1` if a
+packaged Clavix sits in the tray.
+
+### Happy path
+
+- [ ] **Quit keeps the size** — with "close to tray" off, resize the
+  window and close it. Relaunch: same size (and, on X11 / Windows /
+  macOS, same position).
+- [ ] **Tray quit keeps the size** — resize, hide into the tray, pick
+  Quit from the tray menu. Relaunch: same size.
+- [ ] **Maximised comes back maximised** — maximise, quit, relaunch. Then
+  un-maximise: the window returns to the size it had before maximising.
+- [ ] **Tray launch stays hidden** — `clavix --tray`: no window appears.
+  Opening it from the tray shows it at the saved size.
+- [ ] **No drift** — quit and relaunch 3–4 times without touching the
+  window. The size stays put (GNOME Wayland draws its own title bar, so
+  this catches a window that grows or shrinks by the header height).
+- [ ] **Session end in the tray** — resize, hide into the tray, then
+  `kill -TERM` the process (what logout does). Relaunch: same size.
+- [ ] **Unplugged monitor** — quit with the window on a secondary
+  monitor, unplug it, relaunch. The window opens on a connected screen.
+
+### Known limitations
+
+- Wayland does not let clients place windows, so only size and the
+  maximised state come back there.
+- A hard kill (SIGKILL, a crash) loses any resize made since the last
+  hide into the tray or clean exit: those are the only times the file is
+  written.

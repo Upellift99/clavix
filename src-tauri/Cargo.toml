@@ -37,6 +37,9 @@ tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-autostart = "2"
+# Brings the window back at the size and position it had when the app
+# quit. Configured from Rust only; see `commands::tray::WINDOW_STATE_FLAGS`.
+tauri-plugin-window-state = "2"
 # The vault engine: protocol, crypto, cache, vault logic. Everything this
 # crate still declares below is here because a *desktop* concern needs it
 # — the tray, the SSH agent, the USB security key, the KDBX import.

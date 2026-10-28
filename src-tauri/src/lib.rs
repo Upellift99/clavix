@@ -63,6 +63,14 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--tray"]),
         ))
+        // Restores size, position and maximised state when the window is
+        // created, still hidden, and saves them on exit. The flags leave
+        // visibility to `setup` below; see `WINDOW_STATE_FLAGS`.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(commands::tray::WINDOW_STATE_FLAGS)
+                .build(),
+        )
         .on_window_event(|window, event| {
             // Close-to-tray hook. The handler is a no-op when the
             // user disables the preference; otherwise it hides the

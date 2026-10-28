@@ -29,6 +29,10 @@ export const e2ePassword = "correct-horse-battery-staple";
 // ~/.local/share/clavix/ of whoever runs them. store.rs / cache.rs go
 // through dirs::data_local_dir(), which honours XDG_DATA_HOME on Linux.
 const sandboxDataHome = resolve(here, "sandbox");
+// Same for the config directory: tauri-plugin-window-state keeps the
+// window geometry under XDG_CONFIG_HOME. Nested in the data sandbox so
+// the reset below wipes both.
+const sandboxConfigHome = resolve(sandboxDataHome, "config");
 
 function run(cmd, args, opts = {}) {
   const result = spawnSync(cmd, args, { stdio: "inherit", ...opts });
@@ -229,6 +233,7 @@ export const config = {
           // cost for our UI.
           WEBKIT_DISABLE_COMPOSITING_MODE: "1",
           XDG_DATA_HOME: sandboxDataHome,
+          XDG_CONFIG_HOME: sandboxConfigHome,
           // The app takes a single-instance lock (lib.rs) keyed on the
           // bundle identifier, which is shared by debug and release
           // builds. Without this opt-out, a Clavix sitting in the
