@@ -256,6 +256,7 @@ fn reencrypt_cipher(
         collection_ids: cipher.collection_ids.clone(),
         revision_date: cipher.revision_date.clone(),
         deleted_date: cipher.deleted_date.clone(),
+        archived_date: cipher.archived_date.clone(),
         favorite: cipher.favorite,
         login: cipher
             .login
@@ -574,6 +575,7 @@ mod tests {
             collection_ids: vec![],
             revision_date: None,
             deleted_date: None,
+            archived_date: None,
             favorite: true,
             login: (kind == CipherType::Login).then(|| CipherLogin {
                 username: Some(e("alice")),

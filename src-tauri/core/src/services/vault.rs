@@ -251,6 +251,7 @@ mod tests {
             collection_ids: vec![],
             revision_date: None,
             deleted_date: None,
+            archived_date: None,
             favorite: false,
             login: Some(CipherLogin {
                 username: username.map(|u| encrypt_string(u, key).unwrap()),
@@ -289,6 +290,7 @@ mod tests {
             collection_ids: vec![],
             revision_date: None,
             deleted_date: None,
+            archived_date: None,
             favorite: false,
             login: None,
             card: None,

@@ -293,9 +293,17 @@ pub fn build_update_cipher_body(
     // item without bound.
     history.truncate(5);
 
-    body.as_object_mut()
-        .expect("build_cipher_body returns a map")
-        .insert("passwordHistory".into(), serde_json::Value::Array(history));
+    let obj = body
+        .as_object_mut()
+        .expect("build_cipher_body returns a map");
+    obj.insert("passwordHistory".into(), serde_json::Value::Array(history));
+    // Same replace semantics: an absent `archivedDate` unarchives the item,
+    // so editing an item archived from another client would pull it back
+    // into the vault.
+    obj.insert(
+        "archivedDate".into(),
+        serde_json::json!(existing.archived_date),
+    );
     Ok(body)
 }
 
@@ -567,6 +575,8 @@ pub fn build_share_cipher_body(
         // field the body omits, so an absent `reprompt` silently turned off
         // master-password reprompt on every shared item. Absent means 0.
         "reprompt": cipher.reprompt.unwrap_or(0),
+        // Same story for the archive: an absent `archivedDate` unarchives.
+        "archivedDate": cipher.archived_date,
         "login": login_json,
         "card": card_json,
         "identity": identity_json,
@@ -651,6 +661,7 @@ mod tests {
             collection_ids: vec![],
             revision_date: None,
             deleted_date: None,
+            archived_date: None,
             favorite: false,
             // A cipher always carries the sub-object matching its type;
             // the server rejects the share PUT outright without it. Every
@@ -1153,6 +1164,22 @@ mod tests {
     }
 
     #[test]
+    fn share_body_preserves_archived_date() {
+        // Vaultwarden unarchives an item whose share PUT omits `archivedDate`.
+        let source = test_key();
+        let target = other_test_key();
+        let mut cipher = base_cipher(CipherType::Login, &source);
+        cipher.archived_date = Some("2026-10-01T09:30:00.000000Z".into());
+
+        let body =
+            build_share_cipher_body(&cipher, &source, &target, "org", &[], "user-uuid").unwrap();
+        assert_eq!(
+            body["cipher"]["archivedDate"],
+            "2026-10-01T09:30:00.000000Z"
+        );
+    }
+
+    #[test]
     fn share_body_defaults_reprompt_to_zero_when_absent() {
         let source = test_key();
         let target = other_test_key();
@@ -1407,6 +1434,40 @@ mod tests {
             totp: None,
         });
         input
+    }
+
+    #[test]
+    fn update_body_preserves_archived_date() {
+        // Vaultwarden's cipher PUT unarchives the item when the body has no
+        // `archivedDate`, so saving an item archived from the web vault
+        // silently brought it back.
+        let key = test_key();
+        let mut cipher = login_cipher_with_password(&key, "pw");
+        cipher.archived_date = Some("2026-10-01T09:30:00.000000Z".into());
+        let body = build_update_cipher_body(
+            &login_input_with_password("pw"),
+            &key,
+            "user-uuid",
+            &cipher,
+            "2026-10-28T10:00:00.000Z",
+        )
+        .unwrap();
+        assert_eq!(body["archivedDate"], "2026-10-01T09:30:00.000000Z");
+    }
+
+    #[test]
+    fn update_body_keeps_an_unarchived_item_unarchived() {
+        let key = test_key();
+        let cipher = login_cipher_with_password(&key, "pw");
+        let body = build_update_cipher_body(
+            &login_input_with_password("pw"),
+            &key,
+            "user-uuid",
+            &cipher,
+            "2026-10-28T10:00:00.000Z",
+        )
+        .unwrap();
+        assert!(body["archivedDate"].is_null());
     }
 
     #[test]
