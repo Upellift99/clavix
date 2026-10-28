@@ -269,4 +269,4 @@ export type TreeNode = {
 };
 
 export type SortKey = "name" | "username" | "uri";
-export type QuickFilter = "all" | "favorites" | "trash" | `type:${number}`;
+export type QuickFilter = "all" | "favorites" | "archive" | "trash" | `type:${number}`;

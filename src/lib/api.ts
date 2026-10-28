@@ -177,6 +177,9 @@ export const api = {
     invoke<void>("update_cipher", { cipherId, input: payloadToRust(input) }),
 
   restoreCipher: (cipherId: string) => invoke<void>("restore_cipher", { cipherId }),
+  /** Both answer with the server's `archivedDate` (null once unarchived). */
+  archiveCipher: (cipherId: string) => invoke<string | null>("archive_cipher", { cipherId }),
+  unarchiveCipher: (cipherId: string) => invoke<string | null>("unarchive_cipher", { cipherId }),
 
   softDeleteCipher: (cipherId: string) =>
     invoke<void>("soft_delete_cipher", { cipherId }),

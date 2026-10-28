@@ -22,6 +22,7 @@ function cipher(p: Partial<CipherSummary>): CipherSummary {
     username: p.username ?? null,
     revisionDate: null,
     deletedDate: p.deletedDate ?? null,
+    archivedDate: p.archivedDate ?? null,
   };
 }
 
@@ -38,6 +39,27 @@ describe("matchesQuickFilter", () => {
     expect(matchesQuickFilter(trashed, "favorites")).toBe(false);
     expect(matchesQuickFilter(trashed, "all")).toBe(false);
     expect(matchesQuickFilter(trashed, "type:1")).toBe(false);
+  });
+
+  it("keeps only archived items under 'archive'", () => {
+    const live = cipher({ id: "a" });
+    const archived = cipher({ id: "b", archivedDate: "2026-10-01T09:30:00.000000Z" });
+    expect(matchesQuickFilter(live, "archive")).toBe(false);
+    expect(matchesQuickFilter(archived, "archive")).toBe(true);
+  });
+
+  it("hides archived items on every other filter", () => {
+    const archived = cipher({ archivedDate: "2026-10-01", favorite: true });
+    expect(matchesQuickFilter(archived, "all")).toBe(false);
+    expect(matchesQuickFilter(archived, "favorites")).toBe(false);
+    expect(matchesQuickFilter(archived, "type:1")).toBe(false);
+    expect(matchesQuickFilter(archived, "trash")).toBe(false);
+  });
+
+  it("lets the trash win over the archive", () => {
+    const both = cipher({ archivedDate: "2026-10-01", deletedDate: "2026-10-02" });
+    expect(matchesQuickFilter(both, "trash")).toBe(true);
+    expect(matchesQuickFilter(both, "archive")).toBe(false);
   });
 
   it("keeps only favorites under 'favorites'", () => {

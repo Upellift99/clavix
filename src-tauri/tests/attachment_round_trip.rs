@@ -457,3 +457,92 @@ async fn an_archived_item_stays_archived_after_an_edit() {
         .await
         .expect("clean up");
 }
+
+/// The archive and unarchive routes Clavix now calls: each answers with the
+/// cipher, and that answer is what the app keeps — so it has to carry the
+/// date (or its absence), and a sync has to agree with it.
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "needs the seeded Vaultwarden container"]
+async fn archive_and_unarchive_round_trip() {
+    let session = login().await;
+
+    let input = CipherCreateInput {
+        name: "Archive route round trip".into(),
+        login: Some(LoginInput {
+            username: Some("someone".into()),
+            password: Some("irrelevant".into()),
+            uris: vec![],
+            totp: None,
+        }),
+        card: None,
+        identity: None,
+        ssh_key: None,
+        cipher_type: 1,
+        folder_id: None,
+        favorite: false,
+        notes: None,
+        organization_id: None,
+        collection_ids: vec![],
+        fields: vec![],
+        reprompt: false,
+    };
+    let created = session
+        .client
+        .create_cipher(
+            &session.access_token,
+            &build_cipher_body(&input, &session.user_key, &session.user_id).expect("create body"),
+        )
+        .await
+        .expect("create cipher");
+    assert!(created.archived_date.is_none());
+
+    let archived = session
+        .client
+        .archive_cipher(&session.access_token, &created.id)
+        .await
+        .expect("archive");
+    assert!(
+        archived.archived_date.is_some(),
+        "archive answers with the date"
+    );
+
+    let sync = session
+        .client
+        .sync(&session.access_token)
+        .await
+        .expect("sync");
+    let stored = sync
+        .ciphers
+        .iter()
+        .find(|c| c.id == created.id)
+        .expect("cipher");
+    assert_eq!(stored.archived_date, archived.archived_date);
+
+    let unarchived = session
+        .client
+        .unarchive_cipher(&session.access_token, &created.id)
+        .await
+        .expect("unarchive");
+    assert!(
+        unarchived.archived_date.is_none(),
+        "unarchive clears the date"
+    );
+
+    let sync = session
+        .client
+        .sync(&session.access_token)
+        .await
+        .expect("sync");
+    let stored = sync
+        .ciphers
+        .iter()
+        .find(|c| c.id == created.id)
+        .expect("cipher");
+    assert!(stored.archived_date.is_none());
+
+    session
+        .client
+        .delete_cipher(&session.access_token, &created.id)
+        .await
+        .expect("clean up");
+}

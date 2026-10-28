@@ -113,6 +113,8 @@ pub fn run() {
             commands::cipher::create_cipher,
             commands::cipher::update_cipher,
             commands::cipher::restore_cipher,
+            commands::cipher::archive_cipher,
+            commands::cipher::unarchive_cipher,
             commands::cipher::soft_delete_cipher,
             commands::cipher::delete_cipher,
             commands::cipher::duplicate_cipher,

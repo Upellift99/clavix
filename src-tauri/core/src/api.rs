@@ -169,6 +169,43 @@ impl VaultwardenClient {
         Ok(())
     }
 
+    /// Archive: PUT /api/ciphers/{id}/archive (Vaultwarden >= 1.36). The
+    /// archive is per user, org items included: it stamps `archivedDate`
+    /// for the signed-in user only and leaves the cipher itself untouched.
+    /// Answers with the cipher, `archivedDate` included.
+    pub async fn archive_cipher(
+        &self,
+        access_token: &str,
+        cipher_id: &str,
+    ) -> Result<crate::models::Cipher> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/archive"))?;
+        let response = self.http.put(url).bearer_auth(access_token).send().await?;
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
+        }
+        let bytes = response.bytes().await?;
+        serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
+            reason: e.to_string(),
+        })
+    }
+
+    /// Undo of `archive_cipher`: PUT /api/ciphers/{id}/unarchive.
+    pub async fn unarchive_cipher(
+        &self,
+        access_token: &str,
+        cipher_id: &str,
+    ) -> Result<crate::models::Cipher> {
+        let url = self.api_endpoint(&format!("ciphers/{cipher_id}/unarchive"))?;
+        let response = self.http.put(url).bearer_auth(access_token).send().await?;
+        if !response.status().is_success() {
+            return Err(http_error(response).await);
+        }
+        let bytes = response.bytes().await?;
+        serde_json::from_slice(&bytes).map_err(|e| Error::InvalidResponse {
+            reason: e.to_string(),
+        })
+    }
+
     pub async fn create_cipher(
         &self,
         access_token: &str,

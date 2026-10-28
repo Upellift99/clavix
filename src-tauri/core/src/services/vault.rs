@@ -74,6 +74,7 @@ pub fn build_sync_summary(
                 username,
                 revision_date: c.revision_date.clone(),
                 deleted_date: c.deleted_date.clone(),
+                archived_date: c.archived_date.clone(),
             }
         })
         .collect();
