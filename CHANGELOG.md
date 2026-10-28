@@ -5,6 +5,19 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0](https://github.com/Upellift99/clavix/compare/v0.26.2...v0.27.0) (2026-10-28)
+
+
+### Features
+
+* **vault:** archive and unarchive items ([#434](https://github.com/Upellift99/clavix/issues/434)) ([c93d764](https://github.com/Upellift99/clavix/commit/c93d7649eef11ee5c451e73fe0f71afeb405d70a)), closes [#431](https://github.com/Upellift99/clavix/issues/431)
+
+
+### Bug Fixes
+
+* **deps:** ignore unfixable deepmerge advisory in the audit gate ([#430](https://github.com/Upellift99/clavix/issues/430)) ([d645020](https://github.com/Upellift99/clavix/commit/d645020ad7ba456282ea2e8d98b1283c1f84d912))
+* **vault:** keep archived items archived when editing them ([#433](https://github.com/Upellift99/clavix/issues/433)) ([e064fe8](https://github.com/Upellift99/clavix/commit/e064fe8dbc002acd0c0896924872f49bd2eac652)), closes [#431](https://github.com/Upellift99/clavix/issues/431)
+
 ## [0.26.2](https://github.com/Upellift99/clavix/compare/v0.26.1...v0.26.2) (2026-10-25)
 
 
