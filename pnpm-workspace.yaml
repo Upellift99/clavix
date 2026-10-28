@@ -109,24 +109,29 @@ overrides:
   ws@<8.21.0: ^8.21.0
 
 # Advisories with no reachable fix go in an `auditConfig.ignoreGhsas` list
-# here. There is none at the moment: the three entries this file carried
-# (extract-zip GHSA-jmr9-qjv8-65gv and GHSA-7pqw-9j4j-h8q3, braces
-# GHSA-vfj7-8cjw-p6xm) left with the move to wdio 10, which dropped both
-# packages from the tree — @puppeteer/browsers 3 unpacks with modern-tar
-# instead of extract-zip, and mocha 12 depends on chokidar 5, which has no
-# braces.
+# here. The three entries this file used to carry (extract-zip
+# GHSA-jmr9-qjv8-65gv and GHSA-7pqw-9j4j-h8q3, braces GHSA-vfj7-8cjw-p6xm)
+# left with the move to wdio 10, which dropped both packages from the tree —
+# @puppeteer/browsers 3 unpacks with modern-tar instead of extract-zip, and
+# mocha 12 depends on chokidar 5, which has no braces.
 #
-# If one is needed again, hand-write it: never pass
+# Hand-write every entry: never pass
 # `pnpm audit --ignore <CVE>`, which WRITES here and then exits 0 on every
 # tree (see the long note on the audit steps in .github/workflows/ci.yml).
 # A config ignore keeps the exit code honest — a tree with one ignored and
 # one live finding still fails. Key it by GHSA, not CVE: some advisories
 # reach us with no `cves` array at all, so an `ignoreCves` entry would
 # silently never match.
-#
-# auditConfig:
-#   ignoreGhsas:
-#     - GHSA-xxxx-xxxx-xxxx   # with the reason and the exit condition above it
+auditConfig:
+  ignoreGhsas:
+    # deepmerge <= 4.3.1 (low) — mergeObject() prototype poisoning of the
+    # returned object. There is no fix to take: 4.3.1 (2023) is the last
+    # release and the advisory lists no patched version, so no override can
+    # clear it. Reached only through @sveltejs/vite-plugin-svelte, which
+    # deep-merges our own Svelte config at build time (utils/options.js) —
+    # devDependency only, never attacker input, nothing in the shipped app.
+    # Drop it once vite-plugin-svelte leaves deepmerge or a 4.3.2 ships.
+    - GHSA-gcqx-w48m-w2h4
 
 # pnpm 11 turned "ignored build scripts" from a warning into a hard install
 # error, so the answer has to be recorded explicitly or `pnpm install
