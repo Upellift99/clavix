@@ -610,6 +610,57 @@ pub async fn restore_cipher(state: State<'_, AppState>, cipher_id: String) -> Re
     Ok(())
 }
 
+/// Move a cipher to the archive: out of every view but its own, still
+/// whole on the server. Reversible via `unarchive_cipher`. Returns the
+/// server's `archivedDate` for the renderer's summary.
+#[tauri::command]
+pub async fn archive_cipher(
+    state: State<'_, AppState>,
+    cipher_id: String,
+) -> Result<Option<String>> {
+    set_archived(&state, cipher_id, true).await
+}
+
+#[tauri::command]
+pub async fn unarchive_cipher(
+    state: State<'_, AppState>,
+    cipher_id: String,
+) -> Result<Option<String>> {
+    set_archived(&state, cipher_id, false).await
+}
+
+async fn set_archived(
+    state: &State<'_, AppState>,
+    cipher_id: String,
+    archived: bool,
+) -> Result<Option<String>> {
+    ensure_fresh_tokens(state).await?;
+    let (client, access_token) = {
+        let guard = state.session.lock();
+        let s = guard.as_ref().ok_or(Error::NotAuthenticated)?;
+        (s.client()?.clone(), s.access_token()?.to_string())
+    };
+    let updated = if archived {
+        client.archive_cipher(&access_token, &cipher_id).await?
+    } else {
+        client.unarchive_cipher(&access_token, &cipher_id).await?
+    };
+    // The server's copy, not a placeholder: `archivedDate` goes back out
+    // on every later write of this item, so it has to be a date the
+    // server can parse.
+    let archived_date = updated.archived_date.clone();
+
+    let mut guard = state.session.lock();
+    if let Some(session) = guard.as_mut() {
+        if let Some(vault) = session.vault.as_mut() {
+            if let Some(slot) = vault.ciphers.iter_mut().find(|c| c.id == cipher_id) {
+                *slot = updated;
+            }
+        }
+    }
+    Ok(archived_date)
+}
+
 /// Move a cipher to the trash. Reversible via `restore_cipher` until
 /// either the user empties the trash via `delete_cipher` (hard) or
 /// another client wipes it. The vault keeps the row; only its

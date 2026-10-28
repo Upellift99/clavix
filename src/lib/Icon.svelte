@@ -18,6 +18,7 @@
     | "id-card" // Identity
     | "terminal" // SSH Key
     | "star" // favorite badge
+    | "archive" // archive filter
     | "trash" // trash filter / delete forever
     | "refresh" // sync
     | "refresh-spin" // sync in flight
@@ -103,6 +104,10 @@
     <polygon
       points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"
     />
+  {:else if name === "archive"}
+    <rect x="2" y="3" width="20" height="5" rx="1" />
+    <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+    <line x1="10" y1="12" x2="14" y2="12" />
   {:else if name === "trash"}
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />

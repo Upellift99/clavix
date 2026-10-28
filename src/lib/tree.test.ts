@@ -44,6 +44,7 @@ function cipher(partial: Partial<CipherSummary>): CipherSummary {
     username: partial.username ?? null,
     revisionDate: partial.revisionDate ?? null,
     deletedDate: partial.deletedDate ?? null,
+    archivedDate: partial.archivedDate ?? null,
   };
 }
 
@@ -235,6 +236,20 @@ describe("buildCipherIndex", () => {
     expect(idx.byOrg.get("o1")).toBe(1);
     expect(idx.byType.get(1)).toBe(2);
     expect(idx.byType.get(2)).toBe(1);
+  });
+
+  it("counts archived items in the archive only, and trashed ones in the trash", () => {
+    const ciphers = [
+      cipher({ id: "1", kind: 1, folderId: "f1", favorite: true }),
+      cipher({ id: "2", kind: 1, folderId: "f1", favorite: true, archivedDate: "2026-10-01" }),
+      cipher({ id: "3", kind: 1, archivedDate: "2026-10-01", deletedDate: "2026-10-02" }),
+    ];
+    const idx = buildCipherIndex(ciphers);
+    expect(idx.archive).toBe(1);
+    expect(idx.trash).toBe(1);
+    expect(idx.favorites).toBe(1);
+    expect(idx.byFolder.get("f1")).toBe(1);
+    expect(idx.byType.get(1)).toBe(1);
   });
 
   it("returns zeros when ciphers are undefined", () => {

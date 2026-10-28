@@ -4,6 +4,10 @@ import { collectCollectionIds, collectFolderIds, findNode } from "./tree";
 export function matchesQuickFilter(c: CipherSummary, filter: QuickFilter): boolean {
   if (filter === "trash") return c.deletedDate !== null;
   if (c.deletedDate !== null) return false;
+  // Trash wins over the archive: an archived item that gets deleted only
+  // shows in the trash, and is back in the archive once restored.
+  if (filter === "archive") return c.archivedDate !== null;
+  if (c.archivedDate !== null) return false;
   if (filter === "favorites") return c.favorite;
   if (filter.startsWith("type:")) {
     const k = parseInt(filter.slice(5), 10);

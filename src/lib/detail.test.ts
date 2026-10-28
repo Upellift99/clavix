@@ -14,6 +14,7 @@ const row: CipherSummary = {
   username: "root@pam",
   revisionDate: "2026-09-12T10:21:00Z",
   deletedDate: null,
+  archivedDate: null,
 };
 
 describe("provisionalDetail", () => {

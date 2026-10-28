@@ -315,7 +315,9 @@
     <span class="tree-count">
       <!-- From the ciphers, not `summary.itemCount`: that one already
            excludes the trash, and goes stale after an optimistic delete. -->
-      {(summary.ciphers.length - cipherIndex.trash).toLocaleString(numberLocale)}
+      {(summary.ciphers.length - cipherIndex.trash - cipherIndex.archive).toLocaleString(
+        numberLocale,
+      )}
     </span>
   </button>
   <button
@@ -326,6 +328,15 @@
   >
     <span class="tree-all-label"><Icon name="star" size={14} />{m.tree_favorites()}</span>
     <span class="tree-count">{cipherIndex.favorites}</span>
+  </button>
+  <button
+    type="button"
+    class="tree-all"
+    class:selected={quickFilter === "archive"}
+    onclick={() => onSelectQuickFilter("archive")}
+  >
+    <span class="tree-all-label"><Icon name="archive" size={14} />{m.tree_archive()}</span>
+    <span class="tree-count">{cipherIndex.archive}</span>
   </button>
   <button
     type="button"

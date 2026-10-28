@@ -176,6 +176,7 @@ export type CipherIndex = {
   byOrg: Map<string, number>;
   byType: Map<number, number>;
   favorites: number;
+  archive: number;
   trash: number;
 };
 
@@ -185,11 +186,18 @@ export function buildCipherIndex(ciphers: CipherSummary[] | undefined): CipherIn
   const byOrg = new Map<string, number>();
   const byType = new Map<number, number>();
   let favorites = 0;
+  let archive = 0;
   let trash = 0;
-  if (!ciphers) return { byFolder, byCollection, byOrg, byType, favorites, trash };
+  if (!ciphers) return { byFolder, byCollection, byOrg, byType, favorites, archive, trash };
   for (const c of ciphers) {
     if (c.deletedDate !== null) {
       trash += 1;
+      continue;
+    }
+    // Same rule as `matchesQuickFilter`: archived items count only in
+    // their own drawer, so every other count matches its list.
+    if (c.archivedDate !== null) {
+      archive += 1;
       continue;
     }
     if (c.favorite) favorites += 1;
@@ -200,7 +208,7 @@ export function buildCipherIndex(ciphers: CipherSummary[] | undefined): CipherIn
       byCollection.set(cid, (byCollection.get(cid) ?? 0) + 1);
     }
   }
-  return { byFolder, byCollection, byOrg, byType, favorites, trash };
+  return { byFolder, byCollection, byOrg, byType, favorites, archive, trash };
 }
 
 export function buildFolderTree(

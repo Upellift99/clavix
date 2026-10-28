@@ -342,6 +342,24 @@ export class VaultController {
     }
   }
 
+  /**
+   * Archive or unarchive one item. No confirmation: both are one click
+   * away from undone, and nothing is lost either way.
+   */
+  async setArchived(id: string, archived: boolean) {
+    try {
+      const archivedDate = archived
+        ? await api.archiveCipher(id)
+        : await api.unarchiveCipher(id);
+      const c = this.summary?.ciphers.find((c) => c.id === id);
+      if (c) c.archivedDate = archivedDate;
+      // The item just left the list being looked at.
+      if (this.detail?.id === id) this.closeDetail();
+    } catch (e) {
+      this.error = formatError(e);
+    }
+  }
+
   // Both delete paths assume the caller already got a yes: confirmation
   // is a UI concern and lives in `ConfirmDialog` (see routes/+page.svelte),
   // which the store cannot reach and unit tests should not have to stub.

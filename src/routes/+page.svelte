@@ -512,6 +512,12 @@
     if (cipher) await confirmDuplicate(cipher.id, cipher.name);
   }
 
+  async function setMenuCipherArchived(archived: boolean) {
+    const id = menuCipher?.id;
+    closeRowMenu();
+    if (id) await vault.setArchived(id, archived);
+  }
+
   async function restoreMenuCipher() {
     const id = menuCipher?.id;
     closeRowMenu();
@@ -823,6 +829,7 @@
   // path, so the header always says which drawer is open.
   const listPath = $derived.by<string[]>(() => {
     if (vault.quickFilter === "favorites") return [m.tree_favorites()];
+    if (vault.quickFilter === "archive") return [m.tree_archive()];
     if (vault.quickFilter === "trash") return [m.tree_trash()];
     const key = vault.selectedKey;
     if (!key) return [m.tree_all_items()];
@@ -833,9 +840,11 @@
   });
 
   const errorMsg = $derived(auth.error ?? vault.error);
-  // Items outside the trash: the one count the tree, the list header and
-  // the search gate all show.
-  const liveCount = $derived(vault.summary?.ciphers.filter((c) => !c.deletedDate).length ?? 0);
+  // Items outside the trash and the archive: the one count the tree, the
+  // list header and the search gate all show.
+  const liveCount = $derived(
+    vault.summary?.ciphers.filter((c) => !c.deletedDate && !c.archivedDate).length ?? 0,
+  );
   const wide = $derived(auth.phase === "loggedIn" && vault.summary !== null);
 </script>
 
@@ -1182,6 +1191,17 @@
           <span class="ctx-label">{m.action_delete_forever()}</span>
         </button>
       {:else}
+        <!-- Archive sits in the destructive block without being one: it
+             moves the item out of sight, like the delete under it. -->
+        <button
+          type="button"
+          role="menuitem"
+          onclick={() => setMenuCipherArchived(!menuCipher?.archivedDate)}
+        >
+          <span class="ctx-label">
+            {menuCipher.archivedDate ? m.action_unarchive() : m.action_archive()}
+          </span>
+        </button>
         <button type="button" role="menuitem" class="danger" onclick={softDeleteMenuCipher}>
           <span class="ctx-label">{m.action_soft_delete()}</span>
         </button>

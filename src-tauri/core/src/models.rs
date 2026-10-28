@@ -767,6 +767,9 @@ pub struct CipherSummary {
     pub username: Option<String>,
     pub revision_date: Option<String>,
     pub deleted_date: Option<String>,
+    /// Non-null when the item sits in the archive. Trash wins: an item
+    /// that is both archived and deleted shows only in the trash.
+    pub archived_date: Option<String>,
 }
 
 #[cfg(test)]
