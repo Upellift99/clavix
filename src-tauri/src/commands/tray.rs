@@ -109,7 +109,7 @@ pub fn set_hide_dock_on_tray(state: State<'_, AppState>, value: bool) -> Result<
 /// CI runner or a Linux desktop without a system tray (xvfb, plain
 /// Sway without `waybar` etc.) just gets a working app without the
 /// tray entry. Logs the reason so it's traceable in the dev console.
-pub fn build_tray(app: &AppHandle) {
+pub fn build_tray(app: &AppHandle) -> bool {
     // Don't reuse `default_window_icon()`: on Linux it picks an entry
     // from `bundle.icon` and feeds it to `TrayIconBuilder` as raw RGBA.
     // Our `icons/32x32.png` ships as 16-bit RGBA — Tauri keeps the
@@ -124,7 +124,7 @@ pub fn build_tray(app: &AppHandle) {
         Ok(image) => image,
         Err(e) => {
             eprintln!("[clavix] tray icon setup skipped: {e}");
-            return;
+            return false;
         }
     };
 
@@ -161,7 +161,29 @@ pub fn build_tray(app: &AppHandle) {
 
     if let Err(e) = result {
         eprintln!("[clavix] tray icon setup failed (non-fatal): {e}");
+        return false;
     }
+    true
+}
+
+/// Read the OS registration instead of keeping a second, possibly stale,
+/// localStorage setting. Merely starting the app never enables autostart.
+#[tauri::command]
+pub fn autostart_enabled(app: AppHandle) -> std::result::Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_autostart(app: AppHandle, enabled: bool) -> std::result::Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable()
+    } else {
+        manager.disable()
+    }
+    .map_err(|e| e.to_string())
 }
 
 /// Decode the bundled tray PNG into the 8-bit RGBA buffer that
@@ -169,10 +191,47 @@ pub fn build_tray(app: &AppHandle) {
 /// file's bit depth. `include_bytes!` bakes the asset into the binary
 /// so there is no runtime I/O.
 fn decode_tray_icon() -> std::result::Result<tauri::image::Image<'static>, image::ImageError> {
-    let bytes: &[u8] = include_bytes!("../../icons/32x32.png");
-    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?.to_rgba8();
+    tray_icon(TrayIconStyle::Color)
+}
+
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TrayIconStyle {
+    Color,
+    White,
+    Black,
+}
+
+fn tray_icon(
+    style: TrayIconStyle,
+) -> std::result::Result<tauri::image::Image<'static>, image::ImageError> {
+    let bytes: &[u8] = match style {
+        TrayIconStyle::Color => include_bytes!("../../icons/32x32.png"),
+        _ => include_bytes!("../../icons/tray-monochrome.png"),
+    };
+    let mut img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?.to_rgba8();
+    if let TrayIconStyle::White = style {
+        for pixel in img.pixels_mut() {
+            pixel.0[..3].fill(255);
+        }
+    }
     let (w, h) = img.dimensions();
     Ok(tauri::image::Image::new_owned(img.into_raw(), w, h))
+}
+
+/// Apply immediately to the existing tray; persistence lives with the other
+/// window preferences and is restored by the renderer on bootstrap.
+#[tauri::command]
+pub fn set_tray_icon_style(
+    app: AppHandle,
+    style: TrayIconStyle,
+) -> std::result::Result<(), String> {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return Ok(());
+    };
+    let icon = tray_icon(style).map_err(|e| format!("decode tray icon: {e}"))?;
+    tray.set_icon(Some(icon))
+        .map_err(|e| format!("set tray icon: {e}"))
 }
 
 fn build_menu(app: &AppHandle, locale: &str) -> tauri::Result<Menu<tauri::Wry>> {
@@ -242,6 +301,11 @@ pub fn set_tray_locale(app: AppHandle, locale: String) -> Result<()> {
 /// where `set_focus()` alone already raises — the deferred dance
 /// is harmless there.
 pub(crate) fn raise_main_window(app: &AppHandle) {
+    // A `--tray` login launch drops the dock icon via the Accessory
+    // policy (`set_skip_taskbar` is a no-op on macOS); put it back
+    // whenever the window comes up.
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         // Clear any skip-taskbar hint set on the way down by the
         // hide_dock_on_tray path. Safe to call unconditionally: a
@@ -266,6 +330,56 @@ pub(crate) fn raise_main_window(app: &AppHandle) {
                 let _ = win.set_always_on_top(false);
             });
         });
+    }
+}
+
+/// Safety net for a `--tray` launch on Linux. libayatana registers the
+/// indicator even when nothing hosts it (vanilla GNOME without the
+/// AppIndicator extension), so `build_tray` reports success and the
+/// app would sit there with no window and no icon. Poll for the
+/// StatusNotifier host for a while — at login it may start after us —
+/// and surface the window if it never shows up.
+#[cfg(target_os = "linux")]
+pub(crate) fn spawn_tray_host_fallback(app: &AppHandle) {
+    const ATTEMPTS: u32 = 20;
+    const INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // No session bus means no indicator host either.
+        if let Ok(conn) = zbus::Connection::session().await {
+            for _ in 0..ATTEMPTS {
+                if tray_host_present(&conn).await {
+                    return;
+                }
+                tokio::time::sleep(INTERVAL).await;
+            }
+        }
+        let already_visible = app
+            .get_webview_window(MAIN_WINDOW)
+            .and_then(|w| w.is_visible().ok())
+            .unwrap_or(false);
+        if !already_visible {
+            eprintln!("[clavix] no system tray host found, showing the window");
+            raise_main_window(&app);
+        }
+    });
+}
+
+#[cfg(target_os = "linux")]
+async fn tray_host_present(conn: &zbus::Connection) -> bool {
+    let reply = conn
+        .call_method(
+            Some("org.freedesktop.DBus"),
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "NameHasOwner",
+            &("org.kde.StatusNotifierWatcher",),
+        )
+        .await;
+    match reply {
+        Ok(msg) => msg.body().deserialize::<bool>().unwrap_or(false),
+        Err(_) => false,
     }
 }
 

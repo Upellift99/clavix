@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { TrayIconStyle } from "./prefs.svelte";
 import type {
   AuditResult,
   AutoLockTrigger,
@@ -126,6 +127,9 @@ export const api = {
     invoke<void>("set_hide_dock_on_tray", { value }),
 
   setTrayLocale: (locale: string) => invoke<void>("set_tray_locale", { locale }),
+  setTrayIconStyle: (style: TrayIconStyle) => invoke<void>("set_tray_icon_style", { style }),
+  autostartEnabled: () => invoke<boolean>("autostart_enabled"),
+  setAutostart: (enabled: boolean) => invoke<void>("set_autostart", { enabled }),
 
   webauthnSignChallenge: (challengeJson: string) =>
     invoke<string>("webauthn_sign_challenge", { challengeJson }),

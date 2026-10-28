@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Monochrome tray variant of clavix-logo.svg: transparent field,
+       knurled seal rim and C. Rust tints the black mask white when selected.
+       Rendered with librsvg at 32×32 into src-tauri/icons/tray-monochrome.png. -->
+  <circle cx="256" cy="256" r="208" fill="none" stroke="#000" stroke-width="32" stroke-dasharray="18 11"/>
+  <path d="M336 182 A110 110 0 1 0 336 330" fill="none" stroke="#000" stroke-width="60"/>
+</svg>

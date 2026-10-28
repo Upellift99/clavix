@@ -1,5 +1,13 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings_autostart": "Start at login",
+  "settings_autostart_label": "Start Clavix in the system tray",
+  "settings_autostart_hint": "Launch hidden when you sign in to your computer. Open Clavix from its tray icon to unlock your vault.",
+  "settings_tray_icon_style": "Tray icon",
+  "settings_tray_icon_color": "Color",
+  "settings_tray_icon_white": "White",
+  "settings_tray_icon_black": "Black",
+  "settings_tray_icon_hint": "Use a monochrome icon to match your system tray.",
   "app_name": "Clavix",
   "loading": "Loading…",
   "error": "Error",

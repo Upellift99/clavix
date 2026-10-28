@@ -1,5 +1,13 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings_autostart": "Démarrage à la connexion",
+  "settings_autostart_label": "Démarrer Clavix dans la zone de notification",
+  "settings_autostart_hint": "Démarrer en arrière-plan à l’ouverture de session. Ouvrez Clavix depuis son icône pour déverrouiller votre coffre.",
+  "settings_tray_icon_style": "Icône de la zone de notification",
+  "settings_tray_icon_color": "Couleur",
+  "settings_tray_icon_white": "Blanc",
+  "settings_tray_icon_black": "Noir",
+  "settings_tray_icon_hint": "Utiliser une icône monochrome adaptée à votre zone de notification.",
   "app_name": "Clavix",
   "loading": "Chargement…",
   "error": "Erreur",

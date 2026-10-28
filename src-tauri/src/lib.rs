@@ -45,11 +45,13 @@ pub fn run() {
     // very likely still locked, with no error explaining why the keys
     // vanished.
     if std::env::var_os(ALLOW_MULTIPLE_INSTANCES_ENV).is_none() {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // Reuse the tray's raise path: it handles the
             // hidden-to-tray and minimised cases, and carries the
             // GNOME/X11 focus dance we already needed there.
-            commands::tray::raise_main_window(app);
+            if !argv.iter().any(|arg| arg == "--tray") {
+                commands::tray::raise_main_window(app);
+            }
         }));
     }
 
@@ -57,6 +59,10 @@ pub fn run() {
         .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--tray"]),
+        ))
         .on_window_event(|window, event| {
             // Close-to-tray hook. The handler is a no-op when the
             // user disables the preference; otherwise it hides the
@@ -70,7 +76,39 @@ pub fn run() {
             // a system tray (CI under xvfb, some minimal WMs) just
             // run without the tray entry, which is the same shape
             // the app had pre-#38.
-            commands::tray::build_tray(app.handle());
+            let tray_ready = commands::tray::build_tray(app.handle());
+            #[cfg(target_os = "linux")]
+            if let Some(window) = app.get_webview_window("main") {
+                unblock_wayland_titlebar(&window);
+            }
+            let start_in_tray = std::env::args_os().any(|arg| arg == "--tray");
+            // Windows are created hidden so a login launch never flashes the
+            // vault window. If tray construction fails, leave a way back in.
+            if start_in_tray && tray_ready {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_skip_taskbar(true);
+                }
+                #[cfg(target_os = "macos")]
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                #[cfg(target_os = "linux")]
+                commands::tray::spawn_tray_host_fallback(app.handle());
+            } else {
+                commands::tray::raise_main_window(app.handle());
+            }
+
+            // The login entry stores an absolute path. Rewrite it on every
+            // start so a moved or updated binary (AppImage filenames carry
+            // the version) doesn't leave autostart pointing at nothing.
+            // Dev builds keep their hands off a release registration.
+            if !cfg!(debug_assertions) {
+                use tauri_plugin_autostart::ManagerExt;
+                let autolaunch = app.autolaunch();
+                if let Ok(true) = autolaunch.is_enabled() {
+                    if let Err(e) = autolaunch.enable() {
+                        eprintln!("[clavix] autostart refresh failed (non-fatal): {e}");
+                    }
+                }
+            }
 
             // Auto-lock watchdog + desktop-session-lock poller. Backend
             // safety net for the idle trigger (a frozen WebView or a
@@ -141,6 +179,9 @@ pub fn run() {
             commands::tray::set_minimize_to_tray,
             commands::tray::set_hide_dock_on_tray,
             commands::tray::set_tray_locale,
+            commands::tray::set_tray_icon_style,
+            commands::tray::autostart_enabled,
+            commands::tray::set_autostart,
             commands::import::parse_kdbx,
             commands::export::export_encrypted,
             commands::export::import_encrypted,
@@ -150,6 +191,42 @@ pub fn run() {
             commands::update::check_for_update,
             commands::update::app_version,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            // macOS dock click with every window hidden (tray launch or
+            // close-to-tray): nothing else would bring the window back.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = _event
+            {
+                commands::tray::raise_main_window(_app);
+            }
+        });
+}
+
+/// On Wayland tao wraps its GTK headerbar in an `EventBox` with
+/// `above_child` set, i.e. an input-only window stacked over the
+/// min/max/close buttons. GTK shows that window after the children on
+/// every map, so once the window comes back from the tray (hide/show)
+/// it swallows all button clicks until a maximise makes the headerbar
+/// rebuild its buttons on top. With `above_child` off GTK doesn't
+/// create the overlay at all; titlebar drag and double-click still
+/// reach `GtkWindow` through the normal event bubbling. X11 windows
+/// have no custom titlebar, so this is a no-op there.
+#[cfg(target_os = "linux")]
+fn unblock_wayland_titlebar(window: &tauri::WebviewWindow) {
+    use gtk::prelude::*;
+
+    let Ok(gtk_window) = window.gtk_window() else {
+        return;
+    };
+    if let Some(event_box) = gtk_window
+        .titlebar()
+        .and_then(|titlebar| titlebar.downcast::<gtk::EventBox>().ok())
+    {
+        event_box.set_above_child(false);
+    }
 }
