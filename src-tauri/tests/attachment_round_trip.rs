@@ -364,3 +364,96 @@ async fn fields_reprompt_and_history_survive_a_write() {
         .await
         .expect("clean up");
 }
+
+/// Vaultwarden (>= 1.36) unarchives any item whose cipher PUT carries no
+/// `archivedDate`. Clavix had no notion of the archive, so editing an item
+/// the user had archived from the web vault or the browser extension
+/// silently pulled it back into the vault. Archive one, edit it the way
+/// the editor does, and check it is still archived.
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "needs the seeded Vaultwarden container"]
+async fn an_archived_item_stays_archived_after_an_edit() {
+    use clavix_core::services::cipher::build_update_cipher_body;
+
+    let session = login().await;
+
+    let mut input = CipherCreateInput {
+        name: "Archive round trip".into(),
+        login: Some(LoginInput {
+            username: Some("someone".into()),
+            password: Some("irrelevant".into()),
+            uris: vec![],
+            totp: None,
+        }),
+        card: None,
+        identity: None,
+        ssh_key: None,
+        cipher_type: 1,
+        folder_id: None,
+        favorite: false,
+        notes: None,
+        organization_id: None,
+        collection_ids: vec![],
+        fields: vec![],
+        reprompt: false,
+    };
+    let mut body =
+        build_cipher_body(&input, &session.user_key, &session.user_id).expect("create body");
+    let created = session
+        .client
+        .create_cipher(&session.access_token, &body)
+        .await
+        .expect("create cipher");
+
+    // Archive it. A PUT carrying `archivedDate` is how the server's own
+    // update handler archives, and what another client's edit of an
+    // archived item sends.
+    body["archivedDate"] = "2026-10-01T09:30:00Z".into();
+    let archived = session
+        .client
+        .update_cipher(&session.access_token, &created.id, &body)
+        .await
+        .expect("archive cipher");
+    assert!(
+        archived.archived_date.is_some(),
+        "the server reports the item as archived"
+    );
+
+    // Now edit it the way the editor does.
+    input.notes = Some("edited in Clavix".into());
+    let body = build_update_cipher_body(
+        &input,
+        &session.user_key,
+        &session.user_id,
+        &archived,
+        "2026-10-28T10:00:00.000Z",
+    )
+    .expect("update body");
+    session
+        .client
+        .update_cipher(&session.access_token, &created.id, &body)
+        .await
+        .expect("update cipher");
+
+    let sync = session
+        .client
+        .sync(&session.access_token)
+        .await
+        .expect("sync");
+    let stored = sync
+        .ciphers
+        .iter()
+        .find(|c| c.id == created.id)
+        .expect("cipher present after the edit");
+    assert!(stored.notes.is_some(), "the edit went through");
+    assert_eq!(
+        stored.archived_date, archived.archived_date,
+        "the edit kept the item archived"
+    );
+
+    session
+        .client
+        .delete_cipher(&session.access_token, &created.id)
+        .await
+        .expect("clean up");
+}

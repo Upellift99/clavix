@@ -246,6 +246,12 @@ pub struct Cipher {
     pub revision_date: Option<String>,
     #[serde(default)]
     pub deleted_date: Option<String>,
+    /// When the signed-in user archived this item (Vaultwarden >= 1.36),
+    /// as the server sent it. Clavix has no archive UI yet, but every
+    /// cipher write must echo it: the server unarchives any item whose
+    /// PUT body leaves `archivedDate` out.
+    #[serde(default)]
+    pub archived_date: Option<String>,
     #[serde(default)]
     pub favorite: bool,
     #[serde(default)]
