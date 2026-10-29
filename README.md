@@ -221,8 +221,11 @@ autofill.
 
 ## Development requirements
 
-- **Rust** ≥ 1.85 (edition 2024 required by deps)
-- **Node.js** ≥ 20 and **pnpm** ≥ 10
+- **Rust** ≥ 1.95 (set by `parking_lot` 0.13 in `Cargo.lock`; matches
+  `rust-version` in `src-tauri/Cargo.toml`)
+- **Node.js** ^20.19 or ≥ 22.12 (required by Vite 8; `.nvmrc` pins 22)
+- **pnpm** 11 (`packageManager` in `package.json` pins the exact
+  version; `corepack enable` picks it up)
 
 ### Ubuntu / Debian
 
@@ -246,6 +249,40 @@ sudo apt install \
 ### Other platforms
 
 See the [Tauri prerequisites](https://tauri.app/start/prerequisites/).
+
+## Building for distributions
+
+Packagers don't need the Tauri CLI or bundler. Both steps work offline
+once `node_modules` and the crates are vendored: the build fetches
+nothing from the network.
+
+1. **Frontend:** `pnpm install --frozen-lockfile`, then `pnpm build`
+   (runs `vite build`). It writes the static app to `build/`, which the
+   Rust binary embeds. Test dependencies (Vitest, Testing Library) are
+   not needed for this step.
+2. **Binary:**
+   `cargo build --release --features tauri/custom-protocol --manifest-path src-tauri/Cargo.toml`.
+   The `custom-protocol` feature makes the binary serve the embedded
+   `build/` instead of the Vite dev server. The result is
+   `src-tauri/target/release/clavix`.
+
+The build-time system libraries are the ones listed under
+[Ubuntu / Debian](#ubuntu--debian) above.
+
+What to install:
+
+- the `clavix` binary;
+- the icons: `assets/clavix-logo.svg` is the scalable source (install
+  it as `icons/hicolor/scalable/apps/clavix.svg`), and `src-tauri/icons/`
+  holds the PNG sizes;
+- a desktop entry named `clavix.desktop`, to match the window's Wayland
+  app_id, with `StartupWMClass=clavix` for X11.
+
+The tray icon loads `libayatana-appindicator3` at runtime, so declare it
+as a runtime dependency.
+
+To link the system SQLite instead of the bundled one, build with
+`LIBSQLITE3_SYS_USE_PKG_CONFIG=1`.
 
 ## Run the app in development
 
