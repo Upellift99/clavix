@@ -85,10 +85,6 @@ pub fn run() {
             // run without the tray entry, which is the same shape
             // the app had pre-#38.
             let tray_ready = commands::tray::build_tray(app.handle());
-            #[cfg(target_os = "linux")]
-            if let Some(window) = app.get_webview_window("main") {
-                unblock_wayland_titlebar(&window);
-            }
             let start_in_tray = std::env::args_os().any(|arg| arg == "--tray");
             // Windows are created hidden so a login launch never flashes the
             // vault window. If tray construction fails, leave a way back in.
@@ -214,28 +210,4 @@ pub fn run() {
                 commands::tray::raise_main_window(_app);
             }
         });
-}
-
-/// On Wayland tao wraps its GTK headerbar in an `EventBox` with
-/// `above_child` set, i.e. an input-only window stacked over the
-/// min/max/close buttons. GTK shows that window after the children on
-/// every map, so once the window comes back from the tray (hide/show)
-/// it swallows all button clicks until a maximise makes the headerbar
-/// rebuild its buttons on top. With `above_child` off GTK doesn't
-/// create the overlay at all; titlebar drag and double-click still
-/// reach `GtkWindow` through the normal event bubbling. X11 windows
-/// have no custom titlebar, so this is a no-op there.
-#[cfg(target_os = "linux")]
-fn unblock_wayland_titlebar(window: &tauri::WebviewWindow) {
-    use gtk::prelude::*;
-
-    let Ok(gtk_window) = window.gtk_window() else {
-        return;
-    };
-    if let Some(event_box) = gtk_window
-        .titlebar()
-        .and_then(|titlebar| titlebar.downcast::<gtk::EventBox>().ok())
-    {
-        event_box.set_above_child(false);
-    }
 }
