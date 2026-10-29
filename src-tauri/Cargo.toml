@@ -94,8 +94,9 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 # default features: we make plain method calls and don't need the
 # blocking API, the p2p transport or the proxy-derive extras.
 zbus = { version = "6", default-features = false, features = ["tokio"] }
-# Only to reach the window's GTK titlebar (see `unblock_wayland_titlebar`
-# in lib.rs). Pinned to the gtk-rs release Tauri itself builds against.
+# Only to reach the window's GdkWindow (see `pin_wayland_restore_size`
+# in commands/tray.rs). Pinned to the gtk-rs release Tauri itself builds
+# against.
 gtk = "0.18"
 
 [target.'cfg(target_os = "windows")'.dependencies]
