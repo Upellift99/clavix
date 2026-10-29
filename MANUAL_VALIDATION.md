@@ -418,7 +418,8 @@ Code path: `tauri_plugin_window_state` registered in
 hides into the tray (minimise, close, tray click). On Wayland the same
 helper calls `pin_wayland_restore_size`, without which KWin's tiled state
 makes GTK bring a hidden window back at its first size
-(tauri-apps/tao#1389).
+(tauri-apps/tao#1389). Ctrl+Q goes through `commands::tray::quit_app`,
+the same exit as the tray menu's Quit.
 
 The E2E suite points `XDG_CONFIG_HOME` at its sandbox, so it never reads
 or overwrites the file of whoever runs it, and it does not cover this
@@ -440,6 +441,9 @@ packaged Clavix sits in the tray.
   snap back to the size it opened at either.
 - [ ] **Maximised tray round-trip** — maximise, hide into the tray,
   reopen: still maximised. Un-maximise: the size from before maximising.
+- [ ] **Ctrl+Q quits** — from the unlock screen, from the vault and with
+  the item editor open, Ctrl+Q ends the process even with "close to tray"
+  on. Relaunch: same size.
 - [ ] **Maximised comes back maximised** — maximise, quit, relaunch. Then
   un-maximise: the window returns to the size it had before maximising.
 - [ ] **Tray launch stays hidden** — `clavix --tray`: no window appears.

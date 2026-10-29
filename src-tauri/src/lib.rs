@@ -190,6 +190,7 @@ pub fn run() {
             commands::tray::set_tray_icon_style,
             commands::tray::autostart_enabled,
             commands::tray::set_autostart,
+            commands::tray::quit_app,
             commands::import::parse_kdbx,
             commands::export::export_encrypted,
             commands::export::import_encrypted,

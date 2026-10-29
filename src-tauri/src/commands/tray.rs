@@ -186,6 +186,13 @@ pub fn autostart_enabled(app: AppHandle) -> std::result::Result<bool, String> {
     app.autolaunch().is_enabled().map_err(|e| e.to_string())
 }
 
+/// Ctrl+Q from the renderer. Same exit as the tray menu's Quit, so
+/// `RunEvent::Exit` still saves the window state.
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, enabled: bool) -> std::result::Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
