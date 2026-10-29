@@ -5,6 +5,20 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0](https://github.com/Upellift99/clavix/compare/v0.27.0...v0.28.0) (2026-10-29)
+
+
+### Features
+
+* **shortcuts:** Ctrl+Q quits the app ([bdba05b](https://github.com/Upellift99/clavix/commit/bdba05b926c111df654189c6e892d0081c0cd4b3))
+* **tray:** add icon styles and startup in tray ([63918db](https://github.com/Upellift99/clavix/commit/63918dbce97db8f742091ff6ed22e61dd8f8e098))
+
+
+### Bug Fixes
+
+* **window:** keep the size across a tray hide on Wayland ([1857a22](https://github.com/Upellift99/clavix/commit/1857a22b640ce6825b28394ee80e8d878f90b5e3))
+* **window:** remember window size and position across restarts ([5343507](https://github.com/Upellift99/clavix/commit/5343507c92f3301a28eb3c4c97e619b216f7f91d))
+
 ## [0.27.0](https://github.com/Upellift99/clavix/compare/v0.26.2...v0.27.0) (2026-10-28)
 
 
