@@ -9,8 +9,10 @@
 //!     locale from `localStorage`.
 //!   - `handle_window_event` interprets `WindowEvent::CloseRequested`
 //!     against the user's `close_to_tray` preference, and
-//!     `WindowEvent::Resized` against `minimize_to_tray`. Both hide
-//!     paths flush the window geometry to disk on the way down.
+//!     `WindowEvent::Resized` against `minimize_to_tray`. Every hide
+//!     path, tray click included, goes through `hide_main_window`,
+//!     which flushes the geometry to disk and keeps the size intact
+//!     across the hide/show on Wayland.
 //!   - `set_close_to_tray` / `set_minimize_to_tray` are the IPCs
 //!     the renderer calls every time the matching preference
 //!     changes (and on bootstrap, to hydrate the Rust mirror).
@@ -20,7 +22,7 @@
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow, WindowEvent};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 use crate::state::AppState;
@@ -400,9 +402,7 @@ fn show_main_window(app: &AppHandle) {
 fn toggle_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         match window.is_visible() {
-            Ok(true) => {
-                let _ = window.hide();
-            }
+            Ok(true) => hide_main_window(app, &window),
             Ok(false) | Err(_) => {
                 raise_main_window(app);
             }
@@ -448,10 +448,8 @@ fn lock_session(app: &AppHandle) {
 /// (cmd-M to dock) is still best-effort: neither signal is reliable
 /// there until upstream tao exposes a dedicated minimise event.
 ///
-/// Both hide paths save the window geometry first, while the window is
-/// still mapped. The window-state plugin only writes on
-/// `RunEvent::Exit`, which a Clavix sitting in the tray never reaches
-/// when the session ends: logout sends SIGTERM.
+/// Both hide paths go through `hide_main_window`; see there for what
+/// it does besides hiding.
 pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
     match event {
         WindowEvent::CloseRequested { api, .. } => {
@@ -463,14 +461,13 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
                 return;
             }
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-                persist_window_state(app);
                 if state
                     .hide_dock_on_tray
                     .load(std::sync::atomic::Ordering::Relaxed)
                 {
                     let _ = window.set_skip_taskbar(true);
                 }
-                let _ = window.hide();
+                hide_main_window(app, &window);
             }
             api.prevent_close();
         }
@@ -491,19 +488,73 @@ pub fn handle_window_event(app: &AppHandle, event: &WindowEvent) {
                     // intended UX (the window disappears into the
                     // tray, not the taskbar).
                     let _ = window.unminimize();
-                    persist_window_state(app);
                     if state
                         .hide_dock_on_tray
                         .load(std::sync::atomic::Ordering::Relaxed)
                     {
                         let _ = window.set_skip_taskbar(true);
                     }
-                    let _ = window.hide();
+                    hide_main_window(app, &window);
                 }
             }
         }
         _ => {}
     }
+}
+
+/// Hide the main window into the tray. Every hide path goes through
+/// here, because two things have to happen first, while the window is
+/// still mapped:
+///
+///   - Save the geometry to disk. The window-state plugin only writes
+///     on `RunEvent::Exit`, which a Clavix sitting in the tray never
+///     reaches when the session ends: logout sends SIGTERM.
+///   - On Wayland, pin the size GTK will come back at; see
+///     `pin_wayland_restore_size`.
+fn hide_main_window(app: &AppHandle, window: &WebviewWindow) {
+    persist_window_state(app);
+    #[cfg(target_os = "linux")]
+    pin_wayland_restore_size(window);
+    let _ = window.hide();
+}
+
+/// Without this, a window hidden into the tray on KDE Wayland comes
+/// back at the size it had when it was first shown (tauri-apps/tao#1389).
+///
+/// KWin flags windows with server-side decorations as tiled, and GDK 3
+/// stops recording the "saved" size while a window is tiled (or
+/// maximised, or fullscreen). After a hide, the compositor's first
+/// configure leaves the size to the client, and GDK answers with that
+/// stale saved size. A `set_size` through Tauri doesn't help: GTK
+/// drops a resize to the current size before it reaches GDK.
+/// `gdk_window_resize` is the one call that writes the saved size while
+/// tiled, and the hide leaves it alone.
+///
+/// Maximised or fullscreen windows are skipped: GDK already holds their
+/// pre-maximise size and this would overwrite it with the full-screen
+/// one. Untiled windows don't need it, since hiding clears the saved
+/// size and the window keeps its own.
+#[cfg(target_os = "linux")]
+fn pin_wayland_restore_size(window: &WebviewWindow) {
+    use gtk::gdk::WindowState;
+    use gtk::prelude::*;
+
+    let Ok(gtk_window) = window.gtk_window() else {
+        return;
+    };
+    let Some(gdk_window) = gtk_window.window() else {
+        return;
+    };
+    if !gdk_window.display().backend().is_wayland() {
+        return;
+    }
+    let state = gdk_window.state();
+    if !state.contains(WindowState::TILED)
+        || state.intersects(WindowState::MAXIMIZED | WindowState::FULLSCREEN)
+    {
+        return;
+    }
+    gdk_window.resize(gdk_window.width(), gdk_window.height());
 }
 
 fn persist_window_state(app: &AppHandle) {

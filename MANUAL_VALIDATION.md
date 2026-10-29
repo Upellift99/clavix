@@ -414,8 +414,11 @@ Code path: `tauri_plugin_window_state` registered in
 `src-tauri/src/lib.rs::run` with `commands::tray::WINDOW_STATE_FLAGS`
 (size, position, maximised; never visibility). The plugin writes
 `~/.config/com.clavixlabs.clavix/.window-state.json` on exit, and
-`commands::tray::handle_window_event` also flushes it whenever the window
-hides into the tray.
+`commands::tray::hide_main_window` also flushes it whenever the window
+hides into the tray (minimise, close, tray click). On Wayland the same
+helper calls `pin_wayland_restore_size`, without which KWin's tiled state
+makes GTK bring a hidden window back at its first size
+(tauri-apps/tao#1389).
 
 The E2E suite points `XDG_CONFIG_HOME` at its sandbox, so it never reads
 or overwrites the file of whoever runs it, and it does not cover this
@@ -429,6 +432,14 @@ packaged Clavix sits in the tray.
   macOS, same position).
 - [ ] **Tray quit keeps the size** — resize, hide into the tray, pick
   Quit from the tray menu. Relaunch: same size.
+- [ ] **Tray round-trip keeps the size** — resize, hide into the tray,
+  reopen from the tray: same size. Try all three ways in: minimise (with
+  "minimise to tray" on), X (with "close to tray" on) and a left click on
+  the tray icon. KDE Plasma Wayland is the one that used to snap back to
+  800×600. Then relaunch, resize again and repeat: the window must not
+  snap back to the size it opened at either.
+- [ ] **Maximised tray round-trip** — maximise, hide into the tray,
+  reopen: still maximised. Un-maximise: the size from before maximising.
 - [ ] **Maximised comes back maximised** — maximise, quit, relaunch. Then
   un-maximise: the window returns to the size it had before maximising.
 - [ ] **Tray launch stays hidden** — `clavix --tray`: no window appears.
