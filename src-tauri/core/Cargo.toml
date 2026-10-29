@@ -8,6 +8,7 @@ description = "Vault engine for Clavix: Bitwarden/Vaultwarden protocol, crypto a
 authors = ["Clavix Labs"]
 license = "GPL-3.0-or-later"
 edition = "2021"
+rust-version = "1.95"
 publish = false
 
 [lib]
