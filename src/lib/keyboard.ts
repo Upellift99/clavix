@@ -15,6 +15,14 @@ export function focusedRowId(): string | null {
   return a?.closest<HTMLElement>(".cipher-row")?.dataset.id ?? null;
 }
 
+/**
+ * Ctrl+Q (Cmd+Q on macOS) quits the app from any screen. Alt rules it
+ * out because some layouts report AltGr as Ctrl+Alt.
+ */
+export function isQuitShortcut(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "q";
+}
+
 export type VaultKeyDeps = {
   isLoggedIn: () => boolean;
   getDetail: () => CipherDetail | null;

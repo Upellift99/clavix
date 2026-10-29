@@ -130,6 +130,8 @@ export const api = {
   setTrayIconStyle: (style: TrayIconStyle) => invoke<void>("set_tray_icon_style", { style }),
   autostartEnabled: () => invoke<boolean>("autostart_enabled"),
   setAutostart: (enabled: boolean) => invoke<void>("set_autostart", { enabled }),
+  /// Really quits (Ctrl+Q), whatever the close-to-tray preference says.
+  quitApp: () => invoke<void>("quit_app"),
 
   webauthnSignChallenge: (challengeJson: string) =>
     invoke<string>("webauthn_sign_challenge", { challengeJson }),

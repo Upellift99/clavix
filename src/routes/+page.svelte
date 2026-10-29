@@ -38,7 +38,7 @@
   import { setupAutoSync } from "#lib/auto-sync.svelte.ts";
   import { formatError } from "#lib/format.ts";
   import { startSplitterDrag } from "#lib/splitter.ts";
-  import { makeVaultKeyHandler } from "#lib/keyboard.ts";
+  import { isQuitShortcut, makeVaultKeyHandler } from "#lib/keyboard.ts";
   import { findNode, folderPathFromKey, splitPath } from "#lib/tree.ts";
   import { isInlineEditable } from "#lib/detail.ts";
   import { openUrl } from "@tauri-apps/plugin-opener";
@@ -855,6 +855,17 @@
 </script>
 
 <svelte:window
+  onkeydowncapture={(e) => {
+    // Capture phase: the editor and the import/export/QR dialogs stop
+    // keydown from bubbling, and Ctrl+Q has to quit from there as well
+    // as from the login screen.
+    if (isQuitShortcut(e)) {
+      e.preventDefault();
+      api.quitApp().catch((err) => {
+        console.warn("[clavix] quitApp failed:", err);
+      });
+    }
+  }}
   onkeydown={(e) => {
     if (e.key === "Escape" && menuCipher) {
       e.preventDefault();

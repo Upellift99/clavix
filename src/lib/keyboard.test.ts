@@ -6,7 +6,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 }));
 
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { focusedRowId, makeVaultKeyHandler, type VaultKeyDeps } from "./keyboard";
+import { focusedRowId, isQuitShortcut, makeVaultKeyHandler, type VaultKeyDeps } from "./keyboard";
 import type { CipherDetail, CipherSummary } from "./types";
 
 const LOGIN_ROW: CipherSummary = {
@@ -200,5 +200,27 @@ describe("vault shortcuts with the detail panel open", () => {
     document.body.appendChild(dialog);
     await makeVaultKeyHandler(d)(ctrl("c"));
     expect(d.getPassword).not.toHaveBeenCalled();
+  });
+});
+
+describe("isQuitShortcut", () => {
+  const key = (init: KeyboardEventInit) => new KeyboardEvent("keydown", init);
+
+  it("matches Ctrl+Q and Cmd+Q", () => {
+    expect(isQuitShortcut(ctrl("q"))).toBe(true);
+    expect(isQuitShortcut(key({ key: "q", metaKey: true }))).toBe(true);
+  });
+
+  it("matches with Shift held (key comes through as Q)", () => {
+    expect(isQuitShortcut(key({ key: "Q", ctrlKey: true, shiftKey: true }))).toBe(true);
+  });
+
+  it("ignores a plain q and other Ctrl combos", () => {
+    expect(isQuitShortcut(key({ key: "q" }))).toBe(false);
+    expect(isQuitShortcut(ctrl("w"))).toBe(false);
+  });
+
+  it("ignores Ctrl+Alt+Q, which AltGr produces on some layouts", () => {
+    expect(isQuitShortcut(key({ key: "q", ctrlKey: true, altKey: true }))).toBe(false);
   });
 });
