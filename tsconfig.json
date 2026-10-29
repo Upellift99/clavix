@@ -21,7 +21,8 @@
     "tests/**/*.js",
     "tests/**/*.ts",
     "tests/**/*.svelte",
-    "vite.config.js"
+    "vite.config.js",
+    "vitest.config.js"
   ],
   //
   // Tests are excluded from svelte-check so vitest can stay out of the default
