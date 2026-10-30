@@ -64,6 +64,31 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: sync Cargo.lock with the released version" -- src-tauri/Cargo.lock
+
+      # Software centers show the metainfo's newest <release> as the app's
+      # version, and distributions ship the file as is, so it must list the
+      # version being tagged. The entry takes the CHANGELOG section's date,
+      # which release-please refreshes whenever it updates the PR.
+      - name: List the released version in the AppStream metainfo
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        run: |
+          python3 .github/scripts/metainfo-release.py .
+          if git diff --quiet -- packaging/linux/org.clavix.Clavix.metainfo.xml; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: list the released version in the AppStream metainfo" -- packaging/linux/org.clavix.Clavix.metainfo.xml
+
+      # One push for both commits above, so the PR's checks run once, on the
+      # final tree.
+      - name: Push the release branch
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        run: |
+          if [ -z "$(git log --oneline '@{u}..')" ]; then
+            echo "Nothing to push"
+            exit 0
+          fi
           git push
 
       # There used to be a `gh workflow run release.yml` step here, because a
