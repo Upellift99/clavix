@@ -11,17 +11,33 @@
 //! the cache under `<data_local_dir>/clavix`, which never depended on the
 //! identifier.
 //!
-//! Must run before the Tauri builder starts: the window-state plugin reads
-//! its file during plugin setup, and the WebView opens its storage when
-//! the window is created. Every failure is logged and skipped — at worst
-//! the user sees default settings, the app still starts.
+//! Runs from the setup of [`plugin`], which `run()` registers right after
+//! the single-instance guard. A second launch exits inside the guard's own
+//! setup, so only the instance that keeps running moves anything: an older
+//! Clavix still in the tray during an upgrade keeps its directories. Plugins
+//! are set up in registration order, so the move still happens before the
+//! window-state plugin reads its file, and before the WebView opens its
+//! storage when the window is created. Every failure is logged and skipped —
+//! at worst the user sees default settings, the app still starts.
 
 use std::path::{Path, PathBuf};
+
+use tauri::plugin::{Builder, TauriPlugin};
+use tauri::Runtime;
 
 pub const LEGACY_IDENTIFIER: &str = "com.clavixlabs.clavix";
 pub const IDENTIFIER: &str = "org.clavix.Clavix";
 
-pub fn migrate() {
+pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
+    Builder::new("legacy-app-dirs")
+        .setup(|_app, _api| {
+            migrate();
+            Ok(())
+        })
+        .build()
+}
+
+fn migrate() {
     for base in base_dirs() {
         migrate_dir(&base.join(LEGACY_IDENTIFIER), &base.join(IDENTIFIER));
     }

@@ -32,9 +32,6 @@ const ALLOW_MULTIPLE_INSTANCES_ENV: &str = "CLAVIX_ALLOW_MULTIPLE_INSTANCES";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Before anything opens a per-app directory: see the module docs.
-    legacy_app_dirs::migrate();
-
     let mut builder = tauri::Builder::default();
 
     // Single-instance guard, registered before every other plugin as
@@ -50,15 +47,29 @@ pub fn run() {
     // very likely still locked, with no error explaining why the keys
     // vanished.
     if std::env::var_os(ALLOW_MULTIPLE_INSTANCES_ENV).is_none() {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            // Reuse the tray's raise path: it handles the
-            // hidden-to-tray and minimised cases, and carries the
-            // GNOME/X11 focus dance we already needed there.
-            if !argv.iter().any(|arg| arg == "--tray") {
-                commands::tray::raise_main_window(app);
-            }
-        }));
+        builder = builder.plugin(
+            tauri_plugin_single_instance::Builder::new()
+                // On Linux the guard is a session D-Bus name, by default
+                // derived from the identifier. It stays on the old identifier:
+                // an upgrade often happens while the old version sits in the
+                // tray, and a new build that looked for a different name would
+                // start a second instance (and a second agent) next to it.
+                .dbus_id(legacy_app_dirs::LEGACY_IDENTIFIER)
+                .callback(|app, argv, _cwd| {
+                    // Reuse the tray's raise path: it handles the
+                    // hidden-to-tray and minimised cases, and carries the
+                    // GNOME/X11 focus dance we already needed there.
+                    if !argv.iter().any(|arg| arg == "--tray") {
+                        commands::tray::raise_main_window(app);
+                    }
+                })
+                .build(),
+        );
     }
+
+    // After the guard, so that only the instance that keeps running moves the
+    // directories named after the old identifier: see `legacy_app_dirs`.
+    builder = builder.plugin(legacy_app_dirs::plugin());
 
     builder
         .manage(AppState::default())
