@@ -284,6 +284,13 @@ as a runtime dependency.
 To link the system SQLite instead of the bundled one, build with
 `LIBSQLITE3_SYS_USE_PKG_CONFIG=1`.
 
+The update check (a request to the GitHub Releases API at startup and
+from the About dialog) is a default Cargo feature. Distribution packages,
+which get updates from their package manager, should add
+`--no-default-features` to the `cargo build` command: the check is then
+not compiled in, and the About dialog says that updates come from the
+distribution.
+
 ## Run the app in development
 
 ```bash

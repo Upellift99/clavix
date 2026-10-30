@@ -300,6 +300,10 @@ export const api = {
       whether a newer Clavix has been published. */
   checkForUpdate: () => invoke<UpdateInfo>("check_for_update"),
 
+  /** Whether this build checks for updates at all. Distribution packages
+      build without it, since their package manager handles updates. */
+  updateCheckEnabled: () => invoke<boolean>("update_check_enabled"),
+
   /** This build's version, straight from Rust (offline, no network). */
   appVersion: () => invoke<string>("app_version"),
 

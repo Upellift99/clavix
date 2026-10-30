@@ -58,6 +58,12 @@ jobs:
       - name: cargo clippy (strict)
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+      # Distribution packages build with `--no-default-features` (no update
+      # check). Nothing else compiles that configuration, so lint it here to
+      # keep it building.
+      - name: cargo clippy (no default features)
+        run: cargo clippy --workspace --all-targets --locked --no-default-features -- -D warnings
+
       # `--tests` covers both lib unit tests AND integration tests
       # under `src-tauri/tests/` (refresh_token_endpoint,
       # persisted_session_disk, token_refresh_lifecycle). The previous

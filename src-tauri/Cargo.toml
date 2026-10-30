@@ -25,6 +25,14 @@ rust-version = "1.95"
 name = "clavix_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = ["update-check"]
+# Asks the GitHub Releases API whether a newer Clavix is out, at startup and
+# from the About dialog. Distribution packages build with
+# `--no-default-features`: their package manager delivers updates, and the
+# binary then contains no update check at all.
+update-check = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

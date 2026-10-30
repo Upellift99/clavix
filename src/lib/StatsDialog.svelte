@@ -21,6 +21,8 @@
   // null = not checked yet this session; otherwise the last verdict.
   let result = $state<UpdateInfo | null>(null);
   let failed = $state(false);
+  // null until Rust answers; false in builds without the update-check feature.
+  let updateCheck = $state<boolean | null>(null);
 
   async function check() {
     checking = true;
@@ -46,6 +48,13 @@
       version = await api.appVersion();
     } catch {
       version = "";
+    }
+    if (updateCheck === null) {
+      try {
+        updateCheck = await api.updateCheckEnabled();
+      } catch {
+        updateCheck = false;
+      }
     }
   }
 
@@ -117,27 +126,31 @@
         </button>
       </p>
 
-      <div class="about-actions">
-        <button type="button" class="secondary" onclick={check} disabled={checking}>
-          {checking ? m.about_checking() : m.about_check_updates()}
-        </button>
-        {#if checking}
-          <span class="about-spinner" aria-hidden="true"></span>
-        {/if}
-      </div>
-
-      {#if failed}
-        <p class="about-status about-status--warn">{m.about_check_failed()}</p>
-      {:else if result?.updateAvailable}
-        <div class="about-status about-status--update">
-          <span>{m.update_available_body({ version: result.latest, current: result.current })}</span>
-          <button type="button" class="primary small" onclick={openReleasePage}>
-            <Icon name="download" size={14} />
-            {m.update_action_view()}
+      {#if updateCheck === false}
+        <p class="about-status">{m.about_distro_updates()}</p>
+      {:else if updateCheck}
+        <div class="about-actions">
+          <button type="button" class="secondary" onclick={check} disabled={checking}>
+            {checking ? m.about_checking() : m.about_check_updates()}
           </button>
+          {#if checking}
+            <span class="about-spinner" aria-hidden="true"></span>
+          {/if}
         </div>
-      {:else if result}
-        <p class="about-status about-status--ok">✔ {m.about_up_to_date()}</p>
+
+        {#if failed}
+          <p class="about-status about-status--warn">{m.about_check_failed()}</p>
+        {:else if result?.updateAvailable}
+          <div class="about-status about-status--update">
+            <span>{m.update_available_body({ version: result.latest, current: result.current })}</span>
+            <button type="button" class="primary small" onclick={openReleasePage}>
+              <Icon name="download" size={14} />
+              {m.update_action_view()}
+            </button>
+          </div>
+        {:else if result}
+          <p class="about-status about-status--ok">✔ {m.about_up_to_date()}</p>
+        {/if}
       {/if}
     </div>
   {/key}

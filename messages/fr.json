@@ -482,6 +482,7 @@
   "about_checking": "Vérification…",
   "about_up_to_date": "Vous utilisez la dernière version.",
   "about_check_failed": "Vérification impossible — êtes-vous hors ligne ?",
+  "about_distro_updates": "Cette version est fournie par votre distribution et se met à jour via son gestionnaire de paquets.",
   "about_website": "Site web de Clavix",
   "generator_use": "Utiliser ce mot de passe",
   "editor_custom_fields": "Champs personnalisés",
