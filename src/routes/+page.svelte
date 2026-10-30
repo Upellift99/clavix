@@ -811,9 +811,10 @@
     });
     // Fire-and-forget: a failed update check must never disrupt startup, so we
     // swallow errors (offline, rate-limited, GitHub down) and simply show no
-    // banner.
+    // banner. Distribution builds have no update check and skip it entirely.
     api
-      .checkForUpdate()
+      .updateCheckEnabled()
+      .then((enabled) => (enabled ? api.checkForUpdate() : null))
       .then((info) => {
         updateInfo = info;
       })

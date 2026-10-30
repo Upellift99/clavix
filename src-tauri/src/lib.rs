@@ -15,6 +15,7 @@ mod ssh_agent;
 // — `ensure_fresh_tokens` operates on a real session lock and
 // can't be exercised end-to-end without one.
 pub mod state;
+#[cfg(feature = "update-check")]
 mod update;
 mod webauthn;
 mod yubikey_unlock;
@@ -197,7 +198,9 @@ pub fn run() {
             commands::standalone::open_export_file,
             commands::standalone::standalone_summary,
             commands::standalone::session_origin,
+            #[cfg(feature = "update-check")]
             commands::update::check_for_update,
+            commands::update::update_check_enabled,
             commands::update::app_version,
         ])
         .build(tauri::generate_context!())

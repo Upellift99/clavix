@@ -6,6 +6,9 @@
 //! the one "phone home" the app makes besides HIBP, and keeping it behind an
 //! IPC command preserves that boundary: JS only ever sees a small verdict
 //! struct, never gets to make the outbound request itself.
+//!
+//! Compiled only with the `update-check` feature, which distribution packages
+//! turn off (see `Cargo.toml`).
 
 use serde::{Deserialize, Serialize};
 
