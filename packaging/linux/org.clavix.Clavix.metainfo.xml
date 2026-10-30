@@ -50,6 +50,25 @@
     </p>
   </description>
 
+  <screenshots>
+    <screenshot type="default">
+      <caption>Browse your vault by folder and organization, with live TOTP codes</caption>
+      <image type="source" width="1280" height="800">https://raw.githubusercontent.com/Upellift99/clavix/master/assets/screenshots/01-vault-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Shared organization collections in the dark theme</caption>
+      <image type="source" width="1280" height="800">https://raw.githubusercontent.com/Upellift99/clavix/master/assets/screenshots/02-collection-dark.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>SSH keys stored in the vault and served by the built-in SSH agent</caption>
+      <image type="source" width="1280" height="800">https://raw.githubusercontent.com/Upellift99/clavix/master/assets/screenshots/03-ssh-key.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>A security audit for breached, reused and weak passwords</caption>
+      <image type="source" width="1280" height="800">https://raw.githubusercontent.com/Upellift99/clavix/master/assets/screenshots/04-security-audit.png</image>
+    </screenshot>
+  </screenshots>
+
   <launchable type="desktop-id">clavix.desktop</launchable>
   <provides>
     <binary>clavix</binary>
