@@ -16,6 +16,16 @@ permissions:
   contents: write
   pull-requests: write
 
+# One run at a time. Several merges in quick succession (four in under a
+# minute on 2026-10-30) used to start overlapping runs: release-please
+# rewrote the release branch from one, and the metainfo/Cargo.lock push
+# of an older one was then rejected as non-fast-forward. Queued rather
+# than cancelled, so a run is never stopped halfway through its pushes;
+# GitHub keeps only the newest pending run, which sees every commit.
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
