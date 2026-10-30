@@ -40,8 +40,9 @@ fi
 
 echo "→ Regenerating PNG icons from $SVG"
 
-# Tauri's bundle reads icon.png at 1024² — the largest single export.
-convert -background none -density 300 "$SVG" -resize 1024x1024 "$OUT_DIR/icon.png"
+# icon.png isn't listed in tauri.conf.json's bundle icons; distro packages
+# install it as the 512x512 hicolor icon, so it stays at that size.
+convert -background none -density 300 "$SVG" -resize 512x512   "$OUT_DIR/icon.png"
 convert -background none -density 300 "$SVG" -resize 256x256  "$OUT_DIR/128x128@2x.png"
 convert -background none -density 300 "$SVG" -resize 128x128  "$OUT_DIR/128x128.png"
 convert -background none -density 300 "$SVG" -resize 32x32    "$OUT_DIR/32x32.png"
