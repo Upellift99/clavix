@@ -109,7 +109,7 @@
                 {#each group.cipherIds as cid, j (cid)}
                   <button type="button" class="link-button" onclick={() => jump(cid)}>
                     {group.names[j]}
-                  </button>{#if j < group.cipherIds.length - 1}, {/if}
+                  </button>{#if j < group.cipherIds.length - 1}{", "}{/if}
                 {/each}
               </span>
             </li>
