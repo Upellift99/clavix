@@ -117,5 +117,10 @@ Two env vars to iterate locally without recycling Docker each run:
   `drag.test.ts` on the vitest side.
 - The Tauri app's data dir is sandboxed to `tests/e2e/sandbox/` via
   `XDG_DATA_HOME` so runs never touch the real `~/.local/share/clavix/`.
+- Selectors match the French UI labels. A fresh profile follows the
+  system language and starts in English for anything but French, so
+  `loginAsSeededUser` pins the UI to French (`clavix.locale`) before
+  logging in. A spec with its own login flow has to match labels in
+  both languages or avoid them, like `login-totp.spec.mjs`.
 
 [tauri-apps/tauri#3815]: https://github.com/tauri-apps/tauri/issues/3815
