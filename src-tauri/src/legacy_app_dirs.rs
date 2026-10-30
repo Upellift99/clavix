@@ -132,6 +132,36 @@ mod tests {
         assert_eq!(conf["identifier"], IDENTIFIER);
     }
 
+    /// The renames only help if they cover every directory Tauri resolves
+    /// from the identifier. Runs on the Windows and macOS CI runners too,
+    /// where nobody can check an upgrade by hand. On Windows that covers the
+    /// WebView2 storage as well (Tauri points it at `app_local_data_dir`);
+    /// macOS keeps WKWebView's store outside these, under `~/Library/WebKit`.
+    #[test]
+    fn covers_every_directory_tauri_resolves_from_the_identifier() {
+        use tauri::Manager;
+
+        let mut context = tauri::test::mock_context(tauri::test::noop_assets());
+        context.config_mut().identifier = IDENTIFIER.into();
+        let app = tauri::test::mock_builder().build(context).unwrap();
+        let path = app.path();
+        let bases = base_dirs();
+
+        for (name, dir) in [
+            ("app_config_dir", path.app_config_dir()),
+            ("app_data_dir", path.app_data_dir()),
+            ("app_local_data_dir", path.app_local_data_dir()),
+            ("app_cache_dir", path.app_cache_dir()),
+        ] {
+            let dir = dir.unwrap();
+            assert!(
+                bases.iter().any(|base| base.join(IDENTIFIER) == dir),
+                "{name} is {}, not under any of {bases:?}",
+                dir.display()
+            );
+        }
+    }
+
     #[test]
     fn moves_the_old_directory_when_the_new_one_is_missing() {
         let tmp = tempfile::tempdir().unwrap();
