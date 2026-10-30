@@ -4,6 +4,7 @@
 // security key, the auto-lock watchdog and the screen-lock probe.
 mod auto_lock;
 mod commands;
+mod legacy_app_dirs;
 mod screen_lock;
 // Adapts `AppState` to the engine's session slots — see the module docs.
 pub mod session;
@@ -30,6 +31,9 @@ const ALLOW_MULTIPLE_INSTANCES_ENV: &str = "CLAVIX_ALLOW_MULTIPLE_INSTANCES";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before anything opens a per-app directory: see the module docs.
+    legacy_app_dirs::migrate();
+
     let mut builder = tauri::Builder::default();
 
     // Single-instance guard, registered before every other plugin as

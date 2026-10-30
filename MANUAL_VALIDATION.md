@@ -413,7 +413,7 @@ enabling it from `pnpm tauri dev` registers the debug binary.
 Code path: `tauri_plugin_window_state` registered in
 `src-tauri/src/lib.rs::run` with `commands::tray::WINDOW_STATE_FLAGS`
 (size, position, maximised; never visibility). The plugin writes
-`~/.config/com.clavixlabs.clavix/.window-state.json` on exit, and
+`~/.config/org.clavix.Clavix/.window-state.json` on exit, and
 `commands::tray::hide_main_window` also flushes it whenever the window
 hides into the tray (minimise, close, tray click). On Wayland the same
 helper calls `pin_wayland_restore_size`, without which KWin's tiled state
