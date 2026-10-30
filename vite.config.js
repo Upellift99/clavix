@@ -3,6 +3,7 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
+import pkg from "./package.json" with { type: "json" };
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -21,6 +22,13 @@ export default defineConfig(async () => ({
       adapter: adapter({
         fallback: "index.html",
       }),
+      // The default version name is Date.now(), which changes
+      // _app/version.json, index.html and the CSP hash of its inline
+      // script on every build. Pinning it to the release version makes
+      // two builds of the same tag byte-identical. SvelteKit only uses it
+      // to detect new deployments of a website, which a desktop app has
+      // no use for.
+      version: { name: pkg.version },
       // Hash-mode CSP: SvelteKit emits one inline <script> in
       // index.html (the bootstrap that imports the entry chunks and
       // calls kit.start). Its content changes on every build because
