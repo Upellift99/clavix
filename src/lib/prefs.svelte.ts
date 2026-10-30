@@ -330,6 +330,11 @@ export class PrefsController {
     } catch {
       // ignore
     }
+    // app.html ships `lang="en"`; without this a French UI was announced
+    // as English to screen readers and hyphenated/spell-checked as such.
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = loc;
+    }
     setLocale(loc, { reload: opts.reload === true });
   }
 
