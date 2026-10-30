@@ -14,6 +14,8 @@ export async function loginAsSeededUser() {
     { timeout: 15_000, timeoutMsg: "body still empty / loading" },
   );
 
+  await pinFrenchUi();
+
   // Onboarding shows once per fresh XDG sandbox — click through.
   const onboardingContinue = await $(
     "section.onboarding button:not(.secondary)",
@@ -100,6 +102,48 @@ export async function showAllItems() {
     {
       timeout: 20_000,
       timeoutMsg: "auto-sync never populated the vault with the seeded ciphers",
+    },
+  );
+}
+
+/**
+ * Pin the UI to French, the language the specs' selectors are written in
+ * ("Nouvel item", "Éditer", …).
+ *
+ * A fresh profile takes its language from the system and starts in
+ * English for anything but French, so the suite can't rely on the
+ * runner's locale. prefs.bootstrap() reads `clavix.locale` exactly once
+ * in onMount(), so the key is set from WebdriverIO and the page reloaded,
+ * as in helpers/lock.mjs. No reload when the profile already has it.
+ */
+async function pinFrenchUi() {
+  const alreadyFrench = await browser.execute(() => {
+    if (localStorage.getItem("clavix.locale") === "fr") return true;
+    localStorage.setItem("clavix.locale", "fr");
+    // Marks this document, so the wait below can tell the reloaded one
+    // apart from it.
+    window.__clavixBeforeLocaleReload = true;
+    window.location.reload();
+    return false;
+  });
+  if (alreadyFrench) return;
+
+  await browser.waitUntil(
+    async () => {
+      try {
+        return await browser.execute(
+          () =>
+            !window.__clavixBeforeLocaleReload &&
+            document.body.innerText.trim().length > 20,
+        );
+      } catch {
+        // The WebView is between documents.
+        return false;
+      }
+    },
+    {
+      timeout: 15_000,
+      timeoutMsg: "the app never came back after pinning the UI to French",
     },
   );
 }
