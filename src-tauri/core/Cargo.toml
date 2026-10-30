@@ -27,7 +27,10 @@ thiserror = "2"
 url = "2"
 # `multipart` is for attachment upload: Vaultwarden's direct-upload
 # endpoint takes multipart/form-data and nothing else.
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip", "multipart"] }
+# `rustls-tls-native-roots` adds the system trust store to the bundled
+# webpki roots, so a server behind a private CA that the user installed
+# system-wide (`update-ca-certificates`, the OS keychain) can connect.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "json", "gzip", "multipart"] }
 pbkdf2 = "0.12"
 sha2 = "0.10"
 argon2 = "0.6"
