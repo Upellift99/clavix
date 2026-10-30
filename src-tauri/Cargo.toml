@@ -61,7 +61,8 @@ serde_json = "1"
 # frontend read `webauthnChallenge`, so WebAuthn 2FA could never work.
 ts-rs = "12"
 url = "2"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
+# Same trust roots as `clavix-core`: bundled webpki plus the system store.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "json", "gzip"] }
 sha2 = "0.10"
 # 0.23 turned on SIMD engines by default, which flips the crate from
 # `forbid(unsafe_code)` to `deny` and compiles hand-written AVX2/NEON
