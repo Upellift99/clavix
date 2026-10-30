@@ -5,6 +5,21 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0](https://github.com/Upellift99/clavix/compare/v0.28.0...v0.29.0) (2026-10-30)
+
+
+### Features
+
+* **linux:** ship a desktop entry and AppStream metainfo ([#443](https://github.com/Upellift99/clavix/issues/443)) ([b6566de](https://github.com/Upellift99/clavix/commit/b6566de9f58135ed68a2c6af2935568680858db8))
+* **update:** make the update check a cargo feature for distributions ([#442](https://github.com/Upellift99/clavix/issues/442)) ([f30bcbe](https://github.com/Upellift99/clavix/commit/f30bcbea87be4bae177ccd6855182e131f71a23f)), closes [#436](https://github.com/Upellift99/clavix/issues/436)
+* use org.clavix.Clavix as the app identifier ([#440](https://github.com/Upellift99/clavix/issues/440)) ([80f84dd](https://github.com/Upellift99/clavix/commit/80f84dd69deabb2c2cf4e358b136d2f004a27369))
+
+
+### Bug Fixes
+
+* keep the single-instance guard on the old app identifier ([#444](https://github.com/Upellift99/clavix/issues/444)) ([768bce4](https://github.com/Upellift99/clavix/commit/768bce4428bf75a9432fa61a8f481b7929068706)), closes [#440](https://github.com/Upellift99/clavix/issues/440)
+* retry the app-dir migration after a failed move ([#445](https://github.com/Upellift99/clavix/issues/445)) ([f8f3c09](https://github.com/Upellift99/clavix/commit/f8f3c0991c552fad9ce181058a1882e48505605a))
+
 ## [0.28.0](https://github.com/Upellift99/clavix/compare/v0.27.0...v0.28.0) (2026-10-29)
 
 
