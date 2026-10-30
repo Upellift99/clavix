@@ -157,6 +157,9 @@ tokio = { version = "1", features = ["macros", "rt"] }
 # `examples/e2e_seed.rs` derives its own TOTP secrets. The app itself has
 # no use for SHA-1 any more — that moved to the engine with `totp.rs`.
 sha1 = "0.10"
+# Mock runtime, so `legacy_app_dirs` can check its directories against
+# Tauri's own path resolver on every CI platform.
+tauri = { version = "2", features = ["test"] }
 
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.
