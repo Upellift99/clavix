@@ -459,6 +459,15 @@ clavix/
   targets the cloud's split `api.` / `identity.` endpoints. Cloud login,
   sync and item creation are verified, but it remains alpha: Vaultwarden
   is the primary target and gets the most testing.
+- TLS connections trust the **system certificate store** on top of the
+  public roots bundled with Clavix. A server behind a private CA, such as
+  a homelab Vaultwarden, works once that CA is added to the operating
+  system (`update-ca-certificates` on Debian/Ubuntu,
+  `update-ca-trust` on Fedora/openSUSE, Keychain Access on macOS,
+  `certutil -addstore Root` on Windows). A self-signed certificate is
+  handled the same way: add it as a trusted root. The flip side is that
+  any CA in that store is trusted, including one installed to inspect
+  traffic, the same as for your browser.
 - Release bundles carry a **build provenance attestation** (from
   releases made after this was added): a Sigstore-signed statement that
   the file was built by this repository's release workflow from the

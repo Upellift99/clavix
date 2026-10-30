@@ -85,6 +85,14 @@ Current design assumptions include:
   relied upon for protocol correctness and item storage
 - Tauri, the system WebView, RustCrypto crates, and OS APIs are trusted
   dependencies unless a known vulnerability says otherwise
+- TLS to the server trusts the bundled webpki roots plus the operating
+  system's certificate store (since #451, so private CAs work). Whoever
+  can add a root CA to that store can intercept the connection: they
+  would see the master password hash, tokens and encrypted vault, not
+  plaintext, and could then attack the master password offline. Adding a
+  root CA takes root on Linux, and on macOS and Windows at least the
+  user's own confirmation in a system prompt; an attacker who can do
+  that is the compromised session or same-user malware listed above
 - once the vault is unlocked, plaintext necessarily exists in process
   memory and may be exposed by a local compromise
 
