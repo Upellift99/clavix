@@ -4,6 +4,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import pkg from "./package.json" with { type: "json" };
+import { thirdPartyLicenses } from "./scripts/third-party-licenses.js";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -76,6 +77,9 @@ export default defineConfig(async () => ({
       project: "./project.inlang",
       outdir: "./src/lib/paraglide",
     }),
+    // THIRD_PARTY_LICENSES.txt in build/, for the npm code and fonts bundled
+    // in the web UI; see the script for how packages are found.
+    thirdPartyLicenses(),
   ],
   clearScreen: false,
   server: {
