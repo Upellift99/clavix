@@ -25,7 +25,7 @@
   },
   "bundle": {
     "active": true,
-    "publisher": "clavixlabs",
+    "publisher": "clavix",
     "targets": "all",
     "icon": [
       "icons/32x32.png",
