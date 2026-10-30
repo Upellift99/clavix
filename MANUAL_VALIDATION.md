@@ -297,9 +297,11 @@ between specs.
 
 ### Platform matrix
 
-- **Linux** — a well-known name on the session D-Bus, derived from the
-  bundle identifier. Per session bus, so a second *user session* (fast
-  user switching, a separate X/Wayland login) legitimately gets its own
+- **Linux** — a well-known name on the session D-Bus,
+  `com.clavixlabs.clavix.SingleInstance`. It is pinned to the old
+  identifier so that a new build still finds an older Clavix running in
+  the tray. Per session bus, so a second *user session* (fast user
+  switching, a separate X/Wayland login) legitimately gets its own
   instance.
 - **macOS / Windows** — the plugin's own primitives (a listener socket /
   a named mutex). Same user-scoped behaviour.
@@ -322,6 +324,13 @@ between specs.
   answered from a locked vault.)
 - [ ] **Quit then relaunch** — quit from the tray menu, launch again. The
   app starts normally; the lock is released on exit, not leaked.
+- [ ] **Upgrade with the old version in the tray** (Linux) — with a build
+  that still uses `com.clavixlabs.clavix` running, start the new one. The
+  old window comes to the front, the new process exits, and
+  `~/.config/com.clavixlabs.clavix` and
+  `~/.local/share/com.clavixlabs.clavix` are untouched. Quit the old one
+  and start the new one again: both directories have moved to
+  `org.clavix.Clavix`, and preferences and window size are kept.
 - [ ] **Escape hatch** — `CLAVIX_ALLOW_MULTIPLE_INSTANCES=1 clavix`
   starts a second instance alongside the first. Expect the SSH-agent
   socket takeover described above if both agents are started; that is
@@ -335,6 +344,9 @@ between specs.
 - **A hard-killed instance on Linux** (SIGKILL) releases its bus name
   when the connection drops, so the next launch works. A frozen —
   not dead — process still holds the name and will simply be raised.
+- **macOS and Windows key their guard on the current identifier**, and the
+  plugin has no override there, so an instance of a build that still used
+  `com.clavixlabs.clavix` is not detected by a newer one.
 
 ---
 
