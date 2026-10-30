@@ -197,6 +197,27 @@ describe("toolbar alignment", () => {
   );
 });
 
+describe("document language", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.lang = "en";
+  });
+
+  it("follows a saved French locale", () => {
+    localStorage.setItem("clavix.locale", "fr");
+    new PrefsController().bootstrap();
+    expect(document.documentElement.lang).toBe("fr");
+  });
+
+  it("follows a locale change", () => {
+    const prefs = new PrefsController();
+    prefs.applyLocale("fr");
+    expect(document.documentElement.lang).toBe("fr");
+    prefs.applyLocale("en");
+    expect(document.documentElement.lang).toBe("en");
+  });
+});
+
 describe("blurNotes", () => {
   beforeEach(() => {
     localStorage.clear();
