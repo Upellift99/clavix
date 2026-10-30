@@ -5,7 +5,7 @@ name = "clavix-core"
 # `src-tauri/Cargo.toml` bump the only version edit a release makes.
 version = "0.0.0"
 description = "Vault engine for Clavix: Bitwarden/Vaultwarden protocol, crypto and vault logic, free of any UI toolkit"
-authors = ["Clavix Labs"]
+authors = ["Jériel"]
 license = "GPL-3.0-or-later"
 edition = "2021"
 rust-version = "1.95"
