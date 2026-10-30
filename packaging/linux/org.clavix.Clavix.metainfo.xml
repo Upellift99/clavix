@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.clavix.Clavix</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>Clavix</name>
+  <summary>Desktop client for Vaultwarden and Bitwarden</summary>
+  <summary xml:lang="fr">Client de bureau pour Vaultwarden et Bitwarden</summary>
+
+  <developer id="org.clavix">
+    <name>Jériel</name>
+  </developer>
+
+  <description>
+    <p>
+      Clavix is a desktop client for Vaultwarden and Bitwarden servers, built for the
+      self-hosted Vaultwarden community. It shows your vault as a tree that you can
+      rearrange with drag and drop, the way KeePassXC does.
+    </p>
+    <p xml:lang="fr">
+      Clavix est un client de bureau pour les serveurs Vaultwarden et Bitwarden, pensé
+      pour la communauté Vaultwarden auto-hébergée. Il présente votre coffre sous forme
+      d'arborescence que vous pouvez réorganiser par glisser-déposer, comme KeePassXC.
+    </p>
+    <ul>
+      <li>Two-factor sign-in with TOTP, YubiKey OTP and WebAuthn/FIDO2</li>
+      <li xml:lang="fr">Connexion à deux facteurs par TOTP, YubiKey OTP et WebAuthn/FIDO2</li>
+      <li>Optional unlock with a FIDO2 security key</li>
+      <li xml:lang="fr">Déverrouillage facultatif avec une clé de sécurité FIDO2</li>
+      <li>Logins, notes, cards, identities and SSH keys, in personal and organization vaults</li>
+      <li xml:lang="fr">Identifiants, notes, cartes, identités et clés SSH, dans le coffre personnel comme dans ceux des organisations</li>
+      <li>Built-in SSH agent that serves the keys stored in the vault</li>
+      <li xml:lang="fr">Agent SSH intégré qui fournit les clés stockées dans le coffre</li>
+      <li>TOTP codes, QR code scanning and password strength ratings</li>
+      <li xml:lang="fr">Codes TOTP, lecture de QR codes et évaluation de la robustesse des mots de passe</li>
+      <li>Security audit for breached, reused and weak passwords</li>
+      <li xml:lang="fr">Audit de sécurité des mots de passe compromis, réutilisés ou faibles</li>
+      <li>Encrypted local cache with a read-only offline mode, and encrypted backups</li>
+      <li xml:lang="fr">Cache local chiffré avec un mode hors ligne en lecture seule, et sauvegardes chiffrées</li>
+      <li>Import from KeePassXC CSV and KDBX files</li>
+      <li xml:lang="fr">Import depuis les fichiers CSV et KDBX de KeePassXC</li>
+    </ul>
+    <p>
+      Clavix is alpha software: its cryptography has not been independently audited yet.
+    </p>
+    <p xml:lang="fr">
+      Clavix est un logiciel en version alpha : sa cryptographie n'a pas encore fait
+      l'objet d'un audit indépendant.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">clavix.desktop</launchable>
+  <provides>
+    <binary>clavix</binary>
+  </provides>
+
+  <url type="homepage">https://clavix.org</url>
+  <url type="bugtracker">https://github.com/Upellift99/clavix/issues</url>
+  <url type="vcs-browser">https://github.com/Upellift99/clavix</url>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.29.0" date="2026-10-30"/>
+    <release version="0.28.0" date="2026-10-29"/>
+  </releases>
+</component>

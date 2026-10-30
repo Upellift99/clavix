@@ -260,29 +260,67 @@ nothing from the network.
    (runs `vite build`). It writes the static app to `build/`, which the
    Rust binary embeds. Test dependencies (Vitest, Testing Library) are
    not needed for this step.
-2. **Binary:**
-   `cargo build --release --features tauri/custom-protocol --manifest-path src-tauri/Cargo.toml`.
+2. **Binary:** from `src-tauri/`, run
+   `cargo build --release --locked --features tauri/custom-protocol`.
    The `custom-protocol` feature makes the binary serve the embedded
    `build/` instead of the Vite dev server. The result is
-   `src-tauri/target/release/clavix`.
+   `src-tauri/target/release/clavix`. Run cargo from `src-tauri/`
+   rather than with `--manifest-path`: cargo reads `.cargo/config.toml`,
+   where vendored crates are usually set up, from the current directory,
+   not from the manifest's.
 
-The build-time system libraries are the ones listed under
-[Ubuntu / Debian](#ubuntu--debian) above.
+The frontend build needs prebuilt rolldown and lightningcss binaries and
+a WebAssembly module, which not every build system can produce. Each
+release therefore also attaches `clavix-X.Y.Z-frontend.tar.gz`: the
+`build/` directory of that tag, built by CI. Packagers can unpack it at
+the repository root instead of step 1, and then need neither Node.js nor
+npm packages. Check that it was built by the release workflow from that
+tag:
+
+```bash
+gh attestation verify clavix-X.Y.Z-frontend.tar.gz --repo Upellift99/clavix \
+  --signer-workflow Upellift99/clavix/.github/workflows/release.yml \
+  --source-ref refs/tags/vX.Y.Z
+```
+
+The build and the tarball are reproducible, so a rebuild from the tag,
+packed the way `release.yml` does it, gives the same SHA-256.
+
+The build looks up these system libraries through pkg-config:
+`webkit2gtk-4.1`, `javascriptcoregtk-4.1`, `libsoup-3.0`, `gtk+-3.0`,
+`dbus-1` and `libudev`. The [Ubuntu / Debian](#ubuntu--debian) list
+above is Tauri's generic one: a plain cargo build of Clavix doesn't use
+OpenSSL, libxdo or librsvg.
 
 What to install:
 
 - the `clavix` binary;
-- the icons: `assets/clavix-logo.svg` is the scalable source (install
-  it as `icons/hicolor/scalable/apps/clavix.svg`), and `src-tauri/icons/`
-  holds the PNG sizes;
-- a desktop entry named `clavix.desktop`, to match the window's Wayland
-  app_id, with `StartupWMClass=clavix` for X11.
+- [`packaging/linux/clavix.desktop`](packaging/linux/clavix.desktop) as
+  `/usr/share/applications/clavix.desktop`. Its name matches the
+  window's Wayland app_id, and `StartupWMClass=clavix` covers X11;
+- [`packaging/linux/org.clavix.Clavix.metainfo.xml`](packaging/linux/org.clavix.Clavix.metainfo.xml)
+  as `/usr/share/metainfo/org.clavix.Clavix.metainfo.xml`, so that
+  software centers list the app;
+- the icons, as `/usr/share/icons/hicolor/<size>/apps/clavix.png`:
+  `src-tauri/icons/32x32.png` (32x32), `128x128.png` (128x128),
+  `128x128@2x.png` (256x256) and `icon.png` (512x512), plus
+  `assets/clavix-logo.svg` as `scalable/apps/clavix.svg`. The other
+  PNGs in `src-tauri/icons/` are for Windows.
 
 The tray icon loads `libayatana-appindicator3` at runtime, so declare it
-as a runtime dependency.
+as a runtime dependency. It isn't needed at build time.
 
 To link the system SQLite instead of the bundled one, build with
-`LIBSQLITE3_SYS_USE_PKG_CONFIG=1`.
+`LIBSQLITE3_SYS_USE_PKG_CONFIG=1`, which needs `sqlite3` ≥ 3.34.1
+through pkg-config. Set it for `cargo test` too, otherwise the tests
+rebuild the bundled copy.
+
+The unit tests run offline against the vendored crates:
+`cargo test --release --locked --workspace --lib --features tauri/custom-protocol`
+reuses the release build. Of the prebuilt native packages in
+`node_modules`, `vite build` only loads rolldown and lightningcss; the
+esbuild, oxc-minify and jco-node-fs bindings can be left out, for
+example with pnpm's `ignoredOptionalDependencies`.
 
 The update check (a request to the GitHub Releases API at startup and
 from the About dialog) is a default Cargo feature. Distribution packages,

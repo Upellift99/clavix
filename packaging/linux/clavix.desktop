@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Clavix
+GenericName=Password Manager
+GenericName[fr]=Gestionnaire de mots de passe
+Comment=Desktop client for Vaultwarden and Bitwarden
+Comment[fr]=Client de bureau pour Vaultwarden et Bitwarden
+Exec=clavix
+Icon=clavix
+Terminal=false
+Categories=Utility;Security;
+Keywords=password;vault;bitwarden;vaultwarden;totp;2fa;ssh;
+Keywords[fr]=mot de passe;coffre-fort;bitwarden;vaultwarden;totp;2fa;ssh;
+StartupWMClass=clavix
