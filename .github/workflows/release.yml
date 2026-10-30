@@ -143,6 +143,7 @@ jobs:
             echo "- \`.rpm\` : Fedora / openSUSE package"
             echo "- \`.dmg\` / \`.app.tar.gz\` : macOS (universal)"
             echo "- \`.msi\` / \`-setup.exe\` : Windows (x64)"
+            echo "- \`-frontend.tar.gz\` : the built web UI, for distribution packagers"
             echo "CLAVIX_RELEASE_NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -199,6 +200,77 @@ jobs:
           # Short on purpose: this is a rescue copy to grab by hand right after
           # a failed publication, not an archive.
           retention-days: 7
+
+  # The built web UI as its own release asset, so distribution packages can
+  # compile only the Rust side: the frontend build needs prebuilt rolldown and
+  # lightningcss binaries and a wasm module that not every architecture's build
+  # system can produce. The build is reproducible (vite.config.js pins
+  # SvelteKit's version name) and so is the tarball, so a packager can rebuild
+  # from the tag and compare checksums. Runs after `build` because tauri-action
+  # is what creates the release; `!cancelled()` still attaches it when only
+  # one platform failed and the release exists anyway.
+  frontend:
+    name: Frontend tarball
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Built twice and compared, so a change that brings back a per-build
+      # value (a timestamp, a random id) fails here instead of in a packager's
+      # rebuild.
+      - name: Build the frontend twice and check the outputs match
+        run: |
+          pnpm run build
+          mv build "$RUNNER_TEMP/first-build"
+          pnpm run build
+          diff -r "$RUNNER_TEMP/first-build" build
+
+      # Sorted entries, fixed owner, modes and mtime (the tagged commit's), and
+      # no name or timestamp in the gzip header: the same build/ always gives
+      # the same checksum.
+      - name: Pack the tarball
+        id: pack
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          file="clavix-${TAG#v}-frontend.tar.gz"
+          tar --sort=name --format=gnu \
+            --owner=0 --group=0 --numeric-owner \
+            --mode='u+rwX,go+rX,go-w' \
+            --mtime="@$(git log -1 --format=%ct)" \
+            -cf - build | gzip -9 -n > "$file"
+          sha256sum "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.pack.outputs.file }}
+
+      - name: Attach the tarball to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          FILE: ${{ steps.pack.outputs.file }}
+        run: gh release upload "$TAG" "$FILE" --clobber
 
   # Posts a release notification to a Discord channel after every
   # platform-build job has succeeded. Silently no-ops when the secret
