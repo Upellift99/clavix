@@ -123,8 +123,10 @@ export class PrefsController {
       if (savedLocale === "fr" || savedLocale === "en") {
         this.applyLocale(savedLocale);
       } else {
-        const browser = (navigator.language || "fr").toLowerCase();
-        this.applyLocale(browser.startsWith("en") ? "en" : "fr");
+        // French only for a French system language; English for every
+        // other one, since the UI ships in just those two.
+        const browser = (navigator.language || "en").toLowerCase();
+        this.applyLocale(browser.startsWith("fr") ? "fr" : "en");
       }
     } catch {
       this.applyLocale(getLocale() === "en" ? "en" : "fr");
