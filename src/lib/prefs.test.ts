@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PrefsController } from "./prefs.svelte";
 
@@ -223,5 +223,63 @@ describe("blurNotes", () => {
     const prefs = new PrefsController();
     prefs.bootstrap();
     expect(prefs.blurNotes).toBe(true);
+  });
+});
+
+describe("locale", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function bootstrapWithSystemLanguage(language: string): PrefsController {
+    vi.spyOn(navigator, "language", "get").mockReturnValue(language);
+    const prefs = new PrefsController();
+    prefs.bootstrap();
+    return prefs;
+  }
+
+  // The UI ships in French and English only: a system language that is
+  // neither gets the one more people can read.
+  it.each(["en-US", "en-GB", "de-DE", "es-ES", "pt-BR", "ja-JP", "zh-Hans-CN"])(
+    "starts in English for the system language %j",
+    (language) => {
+      expect(bootstrapWithSystemLanguage(language).currentLocale).toBe("en");
+    },
+  );
+
+  it.each(["fr", "fr-FR", "fr-CA", "FR-be"])(
+    "starts in French for the system language %j",
+    (language) => {
+      expect(bootstrapWithSystemLanguage(language).currentLocale).toBe("fr");
+    },
+  );
+
+  it("starts in English when the system reports no language", () => {
+    expect(bootstrapWithSystemLanguage("").currentLocale).toBe("en");
+  });
+
+  it("remembers the language it picked", () => {
+    bootstrapWithSystemLanguage("de-DE");
+    expect(localStorage.getItem("clavix.locale")).toBe("en");
+  });
+
+  // A profile that already landed on French, by choice or through the old
+  // fallback, keeps it: only a profile with nothing saved follows the
+  // system language.
+  it.each([
+    ["fr", "en-US"],
+    ["en", "fr-FR"],
+    ["fr", "de-DE"],
+  ])("keeps the saved %s over the system language %s", (saved, language) => {
+    localStorage.setItem("clavix.locale", saved);
+    expect(bootstrapWithSystemLanguage(language).currentLocale).toBe(saved);
+  });
+
+  it.each(["", "de", "FR", "null"])("ignores the saved value %j", (saved) => {
+    localStorage.setItem("clavix.locale", saved);
+    expect(bootstrapWithSystemLanguage("de-DE").currentLocale).toBe("en");
   });
 });
