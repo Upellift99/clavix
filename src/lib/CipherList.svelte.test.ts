@@ -33,6 +33,7 @@ function item(id: string, name: string): CipherSummary {
     revisionDate: null,
     deletedDate: null,
     archivedDate: null,
+    notes: null,
   };
 }
 

@@ -151,6 +151,11 @@ export const api = {
 
   loadCachedVault: () => invoke<SyncSummary | null>("load_cached_vault"),
 
+  /** Mirror the "search in notes" preference. Returns the item list
+      rebuilt under the new value when a vault is open, null otherwise. */
+  setSearchNotes: (value: boolean) =>
+    invoke<SyncSummary | null>("set_search_notes", { value }),
+
   createFolder: (name: string) => invoke<string>("create_folder", { name }),
 
   deleteFolder: (folderId: string) => invoke<void>("delete_folder", { folderId }),

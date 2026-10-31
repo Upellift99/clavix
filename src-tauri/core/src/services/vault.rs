@@ -8,10 +8,20 @@ use crate::models::{
     SyncSummary, TypeCounts,
 };
 
+/// What the item list carries beyond the fields it always shows.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SummaryOptions {
+    /// Decrypt every item's notes into `CipherSummary::notes` so the
+    /// search box can match them. Items flagged for reprompt are left
+    /// out regardless — see the field's doc comment.
+    pub include_notes: bool,
+}
+
 pub fn build_sync_summary(
     response: &SyncResponse,
     user_key: &SymmetricKey,
     org_keys: &HashMap<String, SymmetricKey>,
+    options: SummaryOptions,
 ) -> SyncSummary {
     // Trashed items are excluded, matching every other count in the app:
     // the sidebar's per-type rows, its "all items" total, and the SSH
@@ -62,6 +72,18 @@ pub fn build_sync_summary(
                 .and_then(|l| l.username.as_deref())
                 .and_then(|s| decrypt_name(s, key).ok());
 
+            // Reprompt is advisory on the server, so the check lives
+            // here, on the only path that puts notes into the list.
+            let reprompt = c.reprompt.unwrap_or(0) != 0;
+            let notes = if options.include_notes && !reprompt {
+                c.notes
+                    .as_deref()
+                    .and_then(|s| decrypt_name(s, key).ok())
+                    .filter(|s| !s.is_empty())
+            } else {
+                None
+            };
+
             CipherSummary {
                 id: c.id.clone(),
                 kind: c.kind as u8,
@@ -75,6 +97,7 @@ pub fn build_sync_summary(
                 revision_date: c.revision_date.clone(),
                 deleted_date: c.deleted_date.clone(),
                 archived_date: c.archived_date.clone(),
+                notes,
             }
         })
         .collect();
@@ -349,6 +372,101 @@ mod tests {
         SymmetricKey::from_bytes(&bytes).unwrap()
     }
 
+    fn with_notes(mut c: Cipher, notes: &str, key: &SymmetricKey) -> Cipher {
+        c.notes = Some(encrypt_string(notes, key).unwrap());
+        c
+    }
+
+    const WITH_NOTES: SummaryOptions = SummaryOptions {
+        include_notes: true,
+    };
+
+    #[test]
+    fn sync_summary_carries_decrypted_notes_when_asked() {
+        let uk = user_key();
+        let c = with_notes(
+            make_login_cipher("c1", "Box", Some("admin"), None, &uk, None),
+            "recovery code: 1234-5678",
+            &uk,
+        );
+        let resp = response_with(vec![], vec![], vec![c], vec![]);
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), WITH_NOTES);
+        assert_eq!(
+            s.ciphers[0].notes.as_deref(),
+            Some("recovery code: 1234-5678")
+        );
+    }
+
+    #[test]
+    fn sync_summary_leaves_notes_out_by_default() {
+        let uk = user_key();
+        let c = with_notes(
+            make_login_cipher("c1", "Box", Some("admin"), None, &uk, None),
+            "recovery code: 1234-5678",
+            &uk,
+        );
+        let resp = response_with(vec![], vec![], vec![c], vec![]);
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
+        assert_eq!(s.ciphers[0].notes, None);
+        // The fields the list always shows are untouched by the option.
+        assert_eq!(s.ciphers[0].name, "Box");
+        assert_eq!(s.ciphers[0].username.as_deref(), Some("admin"));
+    }
+
+    /// The decisive case. A note guarded by the master password must not
+    /// leak through the search box: type "1234" and watch whether the
+    /// item shows up. The flag is advisory server-side, so this is the
+    /// only place that can enforce it for the list.
+    #[test]
+    fn sync_summary_never_carries_the_notes_of_a_reprompt_item() {
+        let uk = user_key();
+        let mut c = with_notes(
+            make_login_cipher("c1", "Box", Some("admin"), None, &uk, None),
+            "recovery code: 1234-5678",
+            &uk,
+        );
+        c.reprompt = Some(1);
+        let resp = response_with(vec![], vec![], vec![c], vec![]);
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), WITH_NOTES);
+        assert_eq!(s.ciphers[0].notes, None);
+        assert_eq!(s.ciphers[0].name, "Box");
+    }
+
+    #[test]
+    fn sync_summary_notes_use_the_item_key_when_the_item_has_one() {
+        let uk = user_key();
+        let ik = item_key_fixture();
+        let c = with_notes(
+            make_item_keyed_cipher("c1", "Perso", "moi@example.com", &ik, &uk, None),
+            "note under the item key",
+            &ik,
+        );
+        let resp = response_with(vec![], vec![], vec![c], vec![]);
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), WITH_NOTES);
+        assert_eq!(
+            s.ciphers[0].notes.as_deref(),
+            Some("note under the item key")
+        );
+    }
+
+    #[test]
+    fn sync_summary_turns_empty_notes_into_none() {
+        let uk = user_key();
+        let c = with_notes(
+            make_login_cipher("c1", "Box", None, None, &uk, None),
+            "",
+            &uk,
+        );
+        let resp = response_with(vec![], vec![], vec![c], vec![]);
+
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), WITH_NOTES);
+        assert_eq!(s.ciphers[0].notes, None);
+    }
+
     #[test]
     fn sync_summary_decrypts_an_org_item_that_carries_its_own_key() {
         let uk = user_key();
@@ -371,7 +489,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &org_keys);
+        let s = build_sync_summary(&resp, &uk, &org_keys, SummaryOptions::default());
         assert_eq!(s.ciphers[0].name, "Omada - TP-Link Cloud");
         assert_eq!(s.ciphers[0].username.as_deref(), Some("omada@example.com"));
     }
@@ -395,7 +513,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.ciphers[0].name, "Perso");
         assert_eq!(s.ciphers[0].username.as_deref(), Some("moi@example.com"));
     }
@@ -422,7 +540,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.ciphers[0].name, "[decrypt failed]");
     }
 
@@ -440,7 +558,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.item_count, 3);
         assert_eq!(s.folder_count, 1);
         assert_eq!(s.collection_count, 0);
@@ -474,7 +592,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.type_counts.ssh_key, 1, "trashed SSH key must not count");
         assert_eq!(s.type_counts.login, 1, "trashed login must not count");
         assert_eq!(s.item_count, 2, "item_count must skip the trash too");
@@ -496,7 +614,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.type_counts.login, 1);
         assert_eq!(s.type_counts.secure_note, 1);
         assert_eq!(s.type_counts.card, 1);
@@ -517,7 +635,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.folders[0].name, "Work");
         assert_eq!(s.folders[1].name, "Personal/Notes");
     }
@@ -546,7 +664,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &org_keys);
+        let s = build_sync_summary(&resp, &uk, &org_keys, SummaryOptions::default());
         assert_eq!(s.ciphers[0].name, "Org item");
         assert_eq!(s.ciphers[0].username.as_deref(), Some("alice"));
         assert_eq!(
@@ -580,7 +698,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.ciphers[0].name, "[decrypt failed]");
         assert_eq!(s.ciphers[0].organization_id.as_deref(), Some("org-1"));
     }
@@ -605,7 +723,7 @@ mod tests {
             vec![],
         );
 
-        let s = build_sync_summary(&resp, &uk, &org_keys);
+        let s = build_sync_summary(&resp, &uk, &org_keys, SummaryOptions::default());
         assert_eq!(s.collections[0].name, "Shared");
         assert_eq!(s.collections[0].organization_id, "org-1");
     }
@@ -621,7 +739,7 @@ mod tests {
         c.revision_date = Some("2026-01-02T00:00:00Z".into());
 
         let resp = response_with(vec![], vec![], vec![c], vec![]);
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         let cs = &s.ciphers[0];
         assert!(cs.favorite);
         assert_eq!(cs.folder_id.as_deref(), Some("f1"));
@@ -650,7 +768,7 @@ mod tests {
         });
 
         let resp = response_with(vec![], vec![], vec![c], vec![]);
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(
             s.ciphers[0].primary_uri.as_deref(),
             Some("https://second.example")
@@ -670,7 +788,7 @@ mod tests {
                 key: None,
             }],
         );
-        let s = build_sync_summary(&resp, &uk, &HashMap::new());
+        let s = build_sync_summary(&resp, &uk, &HashMap::new(), SummaryOptions::default());
         assert_eq!(s.email, "u@e.com");
         assert_eq!(s.name.as_deref(), Some("Utilisateur"));
         assert_eq!(s.organization_count, 1);

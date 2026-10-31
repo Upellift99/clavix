@@ -77,7 +77,8 @@ Against a real Vaultwarden instance, Clavix:
 - **exports an encrypted backup** protected by a password of your choosing
   (Argon2id, every item type), and can reopen one **with no server and no
   account** — the emergency-restore path;
-- shows all items with live substring search and **favicons** for logins
+- shows all items with live substring search (name, username, URL and,
+  unless turned off, notes) and **favicons** for logins
   (emoji fallback per type when unavailable);
 - navigates a hierarchical **TreeView** from the Bitwarden `/` naming
   convention (personal folders + org collections), with a draggable

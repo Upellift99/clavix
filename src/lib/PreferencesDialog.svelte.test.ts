@@ -60,6 +60,8 @@ function mount() {
       sshAgentAutoStart: false,
       blurNotes: true,
       onApplyBlurNotes: vi.fn(),
+      searchNotes: true,
+      onApplySearchNotes: vi.fn(),
       onApplyLocale: vi.fn(),
       onApplyTheme,
       onApplyAutoLock: vi.fn(),

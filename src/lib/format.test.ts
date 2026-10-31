@@ -27,6 +27,7 @@ function cipher(p: Partial<CipherSummary>): CipherSummary {
     revisionDate: null,
     deletedDate: null,
     archivedDate: null,
+    notes: null,
   };
 }
 

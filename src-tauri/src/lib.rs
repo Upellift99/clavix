@@ -157,6 +157,7 @@ pub fn run() {
             commands::auth::verify_master_password,
             commands::vault::sync,
             commands::vault::load_cached_vault,
+            commands::vault::set_search_notes,
             commands::vault::create_folder,
             commands::vault::delete_folder,
             commands::vault::rename_folder,
