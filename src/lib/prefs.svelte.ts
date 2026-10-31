@@ -19,6 +19,7 @@ const REQUIRE_NARROWING_STORAGE_KEY = "clavix.requireNarrowing";
 const SSH_AGENT_CONFIRM_STORAGE_KEY = "clavix.sshAgentConfirm";
 const SSH_AGENT_AUTOSTART_STORAGE_KEY = "clavix.sshAgentAutoStart";
 const BLUR_NOTES_STORAGE_KEY = "clavix.blurNotes";
+const SEARCH_NOTES_STORAGE_KEY = "clavix.searchNotes";
 const TOOLBAR_ALIGN_STORAGE_KEY = "clavix.toolbarAlign";
 const AUTO_SYNC_STORAGE_KEY = "clavix.autoSyncMinutes";
 
@@ -106,6 +107,11 @@ export class PrefsController {
   /** On unless the user turned it off: a malformed or absent value keeps
       notes blurred. */
   blurNotes = $state<boolean>(true);
+  /** Whether the search box also looks inside notes. On by default, as
+      in Bitwarden and KeePassXC; only an explicit "false" turns it
+      off. The backend applies it (`api.setSearchNotes`) because the
+      notes only reach the list when it says so — see `VaultController`. */
+  searchNotes = $state<boolean>(true);
   toolbarAlign = $state<ToolbarAlign>(TOOLBAR_ALIGN_DEFAULT);
   autoSyncMinutes = $state<number>(AUTO_SYNC_DEFAULT_MINUTES);
 
@@ -220,6 +226,7 @@ export class PrefsController {
       this.sshAgentAutoStart =
         localStorage.getItem(SSH_AGENT_AUTOSTART_STORAGE_KEY) === "true";
       this.blurNotes = localStorage.getItem(BLUR_NOTES_STORAGE_KEY) !== "false";
+      this.searchNotes = localStorage.getItem(SEARCH_NOTES_STORAGE_KEY) !== "false";
       const savedAlign = localStorage.getItem(TOOLBAR_ALIGN_STORAGE_KEY);
       if (savedAlign === "left" || savedAlign === "center") {
         this.toolbarAlign = savedAlign;
@@ -279,6 +286,15 @@ export class PrefsController {
     this.blurNotes = value;
     try {
       localStorage.setItem(BLUR_NOTES_STORAGE_KEY, String(value));
+    } catch {
+      // best-effort
+    }
+  }
+
+  setSearchNotes(value: boolean) {
+    this.searchNotes = value;
+    try {
+      localStorage.setItem(SEARCH_NOTES_STORAGE_KEY, String(value));
     } catch {
       // best-effort
     }

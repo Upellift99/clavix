@@ -184,6 +184,26 @@ export class VaultController {
     this.quickFilter = "all";
   }
 
+  /**
+   * Push the "search in notes" preference to the backend, which is the
+   * only side that can act on it: notes reach the list only when it
+   * decrypts them into the summary. When a vault is already open the
+   * backend hands the list back rebuilt, so a toggle takes effect at
+   * once instead of at the next sync.
+   *
+   * Called before the first `loadCached()` on bootstrap — the default
+   * is on in both places, so a failure here only matters to a user who
+   * turned it off, and then it is logged rather than fatal.
+   */
+  async applySearchNotes(value: boolean) {
+    try {
+      const rebuilt = await api.setSearchNotes(value);
+      if (rebuilt && this.summary) this.summary = rebuilt;
+    } catch (e) {
+      console.warn("[clavix] setSearchNotes failed:", e);
+    }
+  }
+
   async loadCached() {
     try {
       const cached = await api.loadCachedVault();

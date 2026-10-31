@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use parking_lot::Mutex;
@@ -11,6 +11,7 @@ use crate::ssh_agent::SshAgentHandle;
 // are vault state, not desktop state, and a second front end needs them
 // as much as this one does. `AppState` below is what stays: the tray
 // flags, the SSH agent, the auto-lock bookkeeping.
+use clavix_core::services::vault::SummaryOptions;
 use clavix_core::session::{PendingTwoFactor, Session};
 
 /// What starts the auto-lock countdown. Crosses the IPC boundary, so the
@@ -126,6 +127,22 @@ pub struct AppState {
     /// people who expect their app to always be there. Updated
     /// through `commands::tray::set_hide_dock_on_tray`.
     pub hide_dock_on_tray: AtomicBool,
+    /// Mirrors the renderer's `prefs.searchNotes`: whether the item
+    /// list carries each item's decrypted notes for the search box.
+    /// On by default, like every other client; the renderer pushes the
+    /// stored value through `commands::vault::set_search_notes` before
+    /// it loads the first list. Read wherever a `SyncSummary` is built.
+    pub search_notes: AtomicBool,
+}
+
+impl AppState {
+    /// The options every `build_sync_summary` call site passes, so the
+    /// preference is read in one place.
+    pub fn summary_options(&self) -> SummaryOptions {
+        SummaryOptions {
+            include_notes: self.search_notes.load(Ordering::Relaxed),
+        }
+    }
 }
 
 impl Default for AppState {
@@ -151,6 +168,7 @@ impl Default for AppState {
             close_to_tray: AtomicBool::new(!cfg!(target_os = "linux")),
             minimize_to_tray: AtomicBool::new(!cfg!(target_os = "linux")),
             hide_dock_on_tray: AtomicBool::new(false),
+            search_notes: AtomicBool::new(true),
         }
     }
 }

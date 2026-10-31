@@ -24,6 +24,8 @@
     sshAgentAutoStart: boolean;
     blurNotes: boolean;
     onApplyBlurNotes: (value: boolean) => void;
+    searchNotes: boolean;
+    onApplySearchNotes: (value: boolean) => void;
     onApplyLocale: (loc: Locale) => void;
     onApplyTheme: (pref: ThemePref) => void;
     onApplyAutoLock: (trigger: AutoLockTrigger, minutes: number) => void;
@@ -56,6 +58,8 @@
     sshAgentAutoStart,
     blurNotes,
     onApplyBlurNotes,
+    searchNotes,
+    onApplySearchNotes,
     onApplyLocale,
     onApplyTheme,
     onApplyAutoLock,
@@ -456,6 +460,15 @@
               {m.settings_blur_notes_label()}
             </label>
             <p class="hint">{m.settings_blur_notes_hint()}</p>
+            <label class="ssh-agent-autostart">
+              <input
+                type="checkbox"
+                checked={searchNotes}
+                onchange={(e) => onApplySearchNotes((e.currentTarget as HTMLInputElement).checked)}
+              />
+              {m.settings_search_notes_label()}
+            </label>
+            <p class="hint">{m.settings_search_notes_hint()}</p>
           </dd>
         </dl>
       </div>

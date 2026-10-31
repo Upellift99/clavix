@@ -802,6 +802,9 @@
 
   onMount(async () => {
     prefs.bootstrap();
+    // Before the first list is built: whether it carries notes for the
+    // search box is decided in Rust at build time, not in the renderer.
+    await vault.applySearchNotes(prefs.searchNotes);
     await auth.bootstrap({ onboarded: prefs.isOnboarded() });
     // Tray menu "Verrouiller maintenant" clears the Rust session
     // out-of-band — without this listener the UI would stay on the
@@ -1260,6 +1263,11 @@
   sshAgentAutoStart={prefs.sshAgentAutoStart}
   blurNotes={prefs.blurNotes}
   onApplyBlurNotes={(v) => prefs.setBlurNotes(v)}
+  searchNotes={prefs.searchNotes}
+  onApplySearchNotes={(v) => {
+    prefs.setSearchNotes(v);
+    void vault.applySearchNotes(v);
+  }}
   onApplyLocale={(loc) => prefs.applyLocale(loc, { reload: true })}
   onApplyTheme={(t) => prefs.applyTheme(t)}
   onApplyAutoLock={(trigger, min) => prefs.setAutoLock(trigger, min)}

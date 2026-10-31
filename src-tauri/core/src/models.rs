@@ -770,6 +770,15 @@ pub struct CipherSummary {
     /// Non-null when the item sits in the archive. Trash wins: an item
     /// that is both archived and deleted shows only in the trash.
     pub archived_date: Option<String>,
+    /// The decrypted notes, present only so the search box can look
+    /// inside them. `None` when the "search in notes" preference is
+    /// off, when the item has no notes, and always on an item flagged
+    /// for master-password reprompt: a note that must not be read
+    /// without the master password must not be guessable through the
+    /// search box either, one character at a time. The detail panel
+    /// never reads this; it fetches the notes with the rest of the
+    /// item through `get_cipher`.
+    pub notes: Option<String>,
 }
 
 #[cfg(test)]

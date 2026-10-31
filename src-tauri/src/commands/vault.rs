@@ -42,7 +42,12 @@ pub async fn sync(state: State<'_, AppState>) -> Result<SyncSummary> {
         }
     }
 
-    let summary = build_sync_summary(&response, &session.user_key, &session.org_keys);
+    let summary = build_sync_summary(
+        &response,
+        &session.user_key,
+        &session.org_keys,
+        state.summary_options(),
+    );
 
     let cache_result = (|| -> Result<()> {
         let persisted = store::load_session()?.ok_or_else(|| Error::Storage {
@@ -208,7 +213,41 @@ pub fn load_cached_vault(state: State<'_, AppState>) -> Result<Option<SyncSummar
         }
     }
 
-    let summary = build_sync_summary(&response, &session.user_key, &session.org_keys);
+    let summary = build_sync_summary(
+        &response,
+        &session.user_key,
+        &session.org_keys,
+        state.summary_options(),
+    );
     session.vault = Some(response);
     Ok(Some(summary))
+}
+
+/// Mirror the renderer's "search in notes" preference and, when a vault
+/// is open, hand back its item list rebuilt under the new setting.
+///
+/// One command for both so the renderer cannot observe a list built
+/// under the previous value: the flag changes and the list is rebuilt
+/// under the same lock. Called once on bootstrap, before the first
+/// `load_cached_vault`, and again on every toggle. Returns `None` when
+/// nothing is open yet — the next `sync`, `load_cached_vault` or
+/// `standalone_summary` reads the flag.
+#[tauri::command]
+pub fn set_search_notes(state: State<'_, AppState>, value: bool) -> Result<Option<SyncSummary>> {
+    state
+        .search_notes
+        .store(value, std::sync::atomic::Ordering::Relaxed);
+    let guard = state.session.lock();
+    let Some(session) = guard.as_ref() else {
+        return Ok(None);
+    };
+    let Some(vault) = session.vault.as_ref() else {
+        return Ok(None);
+    };
+    Ok(Some(build_sync_summary(
+        vault,
+        &session.user_key,
+        &session.org_keys,
+        state.summary_options(),
+    )))
 }

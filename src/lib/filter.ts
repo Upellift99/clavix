@@ -37,10 +37,16 @@ export function normalizeForSearch(s: string): string {
 
 /**
  * Every whitespace-separated term must appear somewhere in the item —
- * name, username or URL — but not necessarily in the *same* field. That
- * is what lets "claude clicface" find the login whose username is
- * claudeai9358@alias.clicface.fr: matching the query as one substring
- * finds nothing, since no single field contains "claude clicface".
+ * name, username, URL or notes — but not necessarily in the *same*
+ * field. That is what lets "claude clicface" find the login whose
+ * username is claudeai9358@alias.clicface.fr: matching the query as one
+ * substring finds nothing, since no single field contains "claude
+ * clicface".
+ *
+ * The notes are whatever the backend put in the summary: nothing when
+ * the "search in notes" preference is off, and never those of an item
+ * guarded by the master password. The decision is made there, not
+ * here, so the list cannot be tricked into searching what it holds.
  *
  * Fields are joined on a newline so a term cannot straddle two of them.
  */
@@ -49,7 +55,7 @@ export function matchesSearch(c: CipherSummary, q: string): boolean {
   if (terms.length === 0) return true;
 
   const haystack = normalizeForSearch(
-    [c.name, c.username ?? "", c.primaryUri ?? ""].join("\n"),
+    [c.name, c.username ?? "", c.primaryUri ?? "", c.notes ?? ""].join("\n"),
   );
   return terms.every((t) => haystack.includes(t));
 }

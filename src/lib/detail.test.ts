@@ -15,6 +15,7 @@ const row: CipherSummary = {
   revisionDate: "2026-09-12T10:21:00Z",
   deletedDate: null,
   archivedDate: null,
+  notes: null,
 };
 
 describe("provisionalDetail", () => {

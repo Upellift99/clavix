@@ -23,8 +23,35 @@ function cipher(p: Partial<CipherSummary>): CipherSummary {
     revisionDate: null,
     deletedDate: p.deletedDate ?? null,
     archivedDate: p.archivedDate ?? null,
+    notes: p.notes ?? null,
   };
 }
+
+describe("matchesSearch", () => {
+  it("finds a term that only appears in the notes", () => {
+    const c = cipher({ name: "Box", notes: "recovery code: 1234-5678" });
+    expect(matchesSearch(c, "recovery")).toBe(true);
+    expect(matchesSearch(c, "1234")).toBe(true);
+  });
+
+  it("matches terms spread across the notes and another field", () => {
+    const c = cipher({ name: "Box", username: "admin", notes: "rack 3, shelf B" });
+    expect(matchesSearch(c, "admin rack")).toBe(true);
+  });
+
+  it("ignores diacritics in the notes like everywhere else", () => {
+    const c = cipher({ notes: "Téléphonie du bureau" });
+    expect(matchesSearch(c, "telephonie")).toBe(true);
+  });
+
+  // The summary carries no notes for a reprompt item, or when the
+  // preference is off: nothing to match, whatever the query.
+  it("matches nothing in the notes when the summary carries none", () => {
+    const c = cipher({ name: "Box", notes: null });
+    expect(matchesSearch(c, "recovery")).toBe(false);
+    expect(matchesSearch(c, "box")).toBe(true);
+  });
+});
 
 describe("matchesQuickFilter", () => {
   it("keeps only trashed items under 'trash'", () => {

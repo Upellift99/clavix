@@ -89,6 +89,7 @@ pub fn standalone_summary(state: State<'_, AppState>) -> Result<SyncSummary> {
         vault,
         &session.user_key,
         &session.org_keys,
+        state.summary_options(),
     ))
 }
 

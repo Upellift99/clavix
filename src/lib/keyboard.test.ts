@@ -22,6 +22,7 @@ const LOGIN_ROW: CipherSummary = {
   revisionDate: null,
   deletedDate: null,
   archivedDate: null,
+  notes: null,
 };
 
 const NOTE_ROW: CipherSummary = { ...LOGIN_ROW, id: "row-note", kind: 2, username: null, primaryUri: null };

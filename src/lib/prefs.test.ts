@@ -247,6 +247,33 @@ describe("blurNotes", () => {
   });
 });
 
+describe("searchNotes", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("defaults to on", () => {
+    const prefs = new PrefsController();
+    prefs.bootstrap();
+    expect(prefs.searchNotes).toBe(true);
+  });
+
+  it("turns off only on an explicit false", () => {
+    const a = new PrefsController();
+    a.setSearchNotes(false);
+    const b = new PrefsController();
+    b.bootstrap();
+    expect(b.searchNotes).toBe(false);
+  });
+
+  it.each(["", "0", "no", "FALSE", "null"])("stays on for a stored %j", (stored) => {
+    localStorage.setItem("clavix.searchNotes", stored);
+    const prefs = new PrefsController();
+    prefs.bootstrap();
+    expect(prefs.searchNotes).toBe(true);
+  });
+});
+
 describe("locale", () => {
   beforeEach(() => {
     localStorage.clear();
