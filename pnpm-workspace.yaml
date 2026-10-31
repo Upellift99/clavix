@@ -86,7 +86,24 @@ overrides:
   # @wdio/mocha-framework > mocha > js-yaml.
   js-yaml@<4.3.2: ^4.3.2
   kysely@<0.28.17: ^0.28.17
-  minimatch@<3.1.3: ^3.1.3
+  # GHSA-g3hv-75wg-m249 (minimatch < 11.0.1, moderate: globparts
+  # amplification) and GHSA-3g3m-2fjr-6pw4 (glob 9.0.0 to 14.0.1, moderate:
+  # the walk keeps reading directories after its AbortSignal fires), both
+  # surfaced in the audit on 2026-10-31 (master was green the day before)
+  # and fixed only across a major. The tree carries one
+  # copy of each: glob@13 under @wdio/config and mocha (both declare ^13),
+  # minimatch@10 under glob@13 and readdir-glob (archiver, under webdriverio).
+  # None of the three has moved its range, so Dependabot opens no PR.
+  #
+  # devDependency only — `pnpm audit --prod` is clean — and the patterns are
+  # wdio's spec globs and mocha's file lookup, never input. Crossing the
+  # majors is safe for what they call: glob's `sync`/`hasMagic` and
+  # `new Minimatch().match()` survive in 14 / 11; what 11 drops (`makeRe`,
+  # the AST class, `matchOne`) nothing here uses. The previous
+  # `minimatch@<3.1.3` floor is subsumed. Drop both once @wdio/config and
+  # mocha declare glob ^14 and readdir-glob minimatch ^11.
+  glob@>=9.0.0 <14.0.2: ^14.0.2
+  minimatch@<11.0.1: ^11.0.1
   # GHSA-2v37-7h3g-55p8, reached only through vite > postcss at build time.
   nanoid@<3.3.17: ^3.3.17
   # Raised from 7.0.5 for GHSA-m5mm-p8h7-m29v (low), published 2026-10-23,
