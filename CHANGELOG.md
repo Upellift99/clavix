@@ -5,6 +5,22 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0](https://github.com/Upellift99/clavix/compare/v0.29.0...v0.30.0) (2026-10-31)
+
+
+### Features
+
+* **search:** look inside notes, with a preference and no reprompt leak ([#458](https://github.com/Upellift99/clavix/issues/458)) ([89bfdb6](https://github.com/Upellift99/clavix/commit/89bfdb64cd6d702a91e832be84bf23f5556a5622))
+
+
+### Bug Fixes
+
+* **audit:** keep the space between reused-password item names ([f95d74c](https://github.com/Upellift99/clavix/commit/f95d74c144381b2aa5fb17b63565bb8ca9d1c36a))
+* **i18n:** keep the document language in sync with the UI ([#455](https://github.com/Upellift99/clavix/issues/455)) ([aa9b39a](https://github.com/Upellift99/clavix/commit/aa9b39a8d02b69eeaa191a7bb37934620495031c))
+* **i18n:** start in English for other system languages ([ee51423](https://github.com/Upellift99/clavix/commit/ee51423aa3225a6d1a9e87a6b1a3b19abef45b42)), closes [#436](https://github.com/Upellift99/clavix/issues/436)
+* **net:** trust the system certificate store ([38c00e3](https://github.com/Upellift99/clavix/commit/38c00e3127328b56141fcea9bffe8e005f3d2338)), closes [#436](https://github.com/Upellift99/clavix/issues/436)
+* **windows:** set the bundle publisher to clavix ([#454](https://github.com/Upellift99/clavix/issues/454)) ([a85910a](https://github.com/Upellift99/clavix/commit/a85910af57f0b1c14498fd57a9dc7948d72515d3))
+
 ## [0.29.0](https://github.com/Upellift99/clavix/compare/v0.28.0...v0.29.0) (2026-10-30)
 
 
