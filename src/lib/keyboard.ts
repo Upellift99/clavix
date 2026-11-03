@@ -85,7 +85,8 @@ function fromSummary(summary: CipherSummary): ShortcutTarget {
  * type, Ctrl+C.
  *
  * Esc in a search box holding text clears it; otherwise Esc closes the
- * detail panel.
+ * detail panel, and with the panel closed it clears the query from the
+ * list as well.
  */
 export function makeVaultKeyHandler(deps: VaultKeyDeps) {
   return async function handle(event: KeyboardEvent) {
@@ -100,10 +101,11 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
     const inSearch = search !== null && document.activeElement === search;
 
     if (event.key === "Escape") {
-      // One thing per press: a query to clear comes before the panel,
-      // and the default is cancelled so WebKit's own search-field Esc
-      // doesn't run alongside.
-      if (inSearch && search.value !== "") {
+      // One thing per press, nearest first: in the search box the query
+      // comes before the panel, and the default is cancelled so WebKit's
+      // own search-field Esc doesn't run alongside.
+      const hasQuery = search !== null && search.value !== "";
+      if (inSearch && hasQuery) {
         event.preventDefault();
         deps.clearSearch();
         return;
@@ -111,6 +113,16 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
       if (detail) {
         event.preventDefault();
         deps.closeDetail();
+        return;
+      }
+      // Nothing left open: Esc from the list clears the query too (Enter
+      // in the search box moves focus onto the row it opens), and puts
+      // the cursor back in the box for the next one. Another field's own
+      // Esc (a folder rename) is left alone.
+      if (hasQuery && !isTypingContext() && !event.defaultPrevented) {
+        event.preventDefault();
+        deps.clearSearch();
+        search.focus();
         return;
       }
     }

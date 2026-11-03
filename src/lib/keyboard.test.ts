@@ -249,6 +249,49 @@ describe("search box", () => {
     expect(d.closeDetail).toHaveBeenCalledTimes(1);
   });
 
+  it("Esc on a row after Enter closes the panel, then clears the query", async () => {
+    const input = focusSearch("paypal");
+    let open: CipherDetail | null = detail();
+    const d = deps({
+      getDetail: () => open,
+      getSearchInput: () => input,
+      closeDetail: vi.fn(() => (open = null)),
+    });
+    focusRow(LOGIN_ROW.id);
+    const handle = makeVaultKeyHandler(d);
+
+    await handle(esc());
+    expect(d.closeDetail).toHaveBeenCalledTimes(1);
+    expect(d.clearSearch).not.toHaveBeenCalled();
+
+    const second = esc();
+    await handle(second);
+    expect(d.clearSearch).toHaveBeenCalledTimes(1);
+    expect(second.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("leaves the query alone when another field handles its own Esc", async () => {
+    const search = focusSearch("paypal");
+    const rename = document.createElement("input");
+    document.body.appendChild(rename);
+    rename.focus();
+    const d = deps({ getSearchInput: () => search });
+    await makeVaultKeyHandler(d)(esc());
+    expect(d.clearSearch).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(rename);
+  });
+
+  it("does nothing on Esc with no query and nothing open", async () => {
+    const input = focusSearch("");
+    const d = deps({ getSearchInput: () => input });
+    focusRow(LOGIN_ROW.id);
+    const event = esc();
+    await makeVaultKeyHandler(d)(event);
+    expect(d.clearSearch).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it("Ctrl+C copies the sole match's password, over another open item", async () => {
     const input = focusSearch("git");
     const d = deps({
