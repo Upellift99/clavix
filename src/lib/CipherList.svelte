@@ -16,6 +16,9 @@
     gated: boolean;
     onShowAll: () => void;
     selectedId: string | null;
+    /** The single row a search leaves: outlined while the search box
+        has focus, since Ctrl+C/B/T/U reach it from there. */
+    soleMatchId?: string | null;
     currentLocale: Locale;
     /** Where the list is (quick filter or node path), shown in the header. */
     pathSegments?: string[];
@@ -65,6 +68,7 @@
     gated,
     onShowAll,
     selectedId,
+    soleMatchId = null,
     currentLocale,
     pathSegments = [],
     sortKey,
@@ -138,10 +142,20 @@
   let listScrollTop = $state(0);
   let listViewportHeight = $state(600);
   let searchInputEl = $state<HTMLInputElement | null>(null);
+  // The sole-match outline means "Ctrl+C lands here", which only holds
+  // while the cursor is in the box.
+  let searchFocused = $state(false);
 
   $effect(() => {
     onSearchInputRef(searchInputEl);
   });
+
+  // Back to the box afterwards: the button vanishes with the query, and
+  // focus would otherwise drop to the page.
+  function clearSearch() {
+    search = "";
+    searchInputEl?.focus();
+  }
 
   function onListScroll(event: Event) {
     listScrollTop = (event.currentTarget as HTMLElement).scrollTop;
@@ -315,11 +329,19 @@
       bind:this={searchInputEl}
       use:focusOnMount
       onkeydown={onSearchKeydown}
+      onfocus={() => (searchFocused = true)}
+      onblur={() => (searchFocused = false)}
       placeholder={m.items_search_placeholder()}
       class="search"
     />
     {#if search.trim()}
-      <button type="button" class="secondary small" onclick={() => (search = "")}>
+      <button
+        type="button"
+        class="secondary small"
+        title="{m.items_search_clear()} · Esc"
+        aria-keyshortcuts="Escape"
+        onclick={clearSearch}
+      >
         {m.items_search_clear()}
       </button>
     {/if}
@@ -401,7 +423,7 @@
         <button
           type="button"
           class="secondary small"
-          onclick={() => (search = "")}
+          onclick={clearSearch}
         >
           {m.items_search_clear()}
         </button>
@@ -494,6 +516,7 @@
                 class="cipher-row cipher-columns"
                 class:zebra={(virtualWindow.start + i) % 2 === 1}
                 class:selected={selectedId === c.id}
+                class:sole-match={searchFocused && soleMatchId === c.id}
                 class:ticked={selectedIds.has(c.id)}
                 class:dragging={drag.cipherId === c.id}
                 class:hide-username={!visibleColumns.username}
