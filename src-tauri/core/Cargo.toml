@@ -51,7 +51,7 @@ rsa = "0.9"
 sha1 = "0.10"
 dirs = "6"
 rand = "0.8"
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 parking_lot = "0.13"
 rayon = "1"
 futures = "0.3"
