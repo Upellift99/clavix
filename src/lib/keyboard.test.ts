@@ -61,6 +61,8 @@ function deps(overrides: Partial<VaultKeyDeps> = {}) {
     getDetail: () => null,
     getSummary: (id) => [LOGIN_ROW, NOTE_ROW].find((c) => c.id === id) ?? null,
     getSearchInput: () => null,
+    clearSearch: vi.fn(),
+    getSoleMatch: () => null,
     closeDetail: vi.fn(),
     lock: vi.fn(),
     copy: vi.fn(),
@@ -84,6 +86,21 @@ function focusRow(id: string) {
   document.body.appendChild(button);
   button.focus();
   return button;
+}
+
+/** Mount the search box holding `value`, caret at the end, and focus it. */
+function focusSearch(value: string) {
+  const input = document.createElement("input");
+  input.type = "search";
+  document.body.appendChild(input);
+  input.value = value;
+  input.focus();
+  input.setSelectionRange(value.length, value.length);
+  return input;
+}
+
+function esc() {
+  return new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
 }
 
 beforeEach(() => {
@@ -199,6 +216,100 @@ describe("vault shortcuts with the detail panel open", () => {
     const dialog = document.createElement("dialog");
     dialog.setAttribute("open", "");
     document.body.appendChild(dialog);
+    await makeVaultKeyHandler(d)(ctrl("c"));
+    expect(d.getPassword).not.toHaveBeenCalled();
+  });
+});
+
+describe("search box", () => {
+  it("Esc clears a search box holding text and leaves the panel open", async () => {
+    const input = focusSearch("git");
+    const d = deps({ getDetail: () => detail(), getSearchInput: () => input });
+    const event = esc();
+    await makeVaultKeyHandler(d)(event);
+    expect(d.clearSearch).toHaveBeenCalledTimes(1);
+    expect(d.closeDetail).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("Esc in an empty search box closes the panel", async () => {
+    const input = focusSearch("");
+    const d = deps({ getDetail: () => detail(), getSearchInput: () => input });
+    await makeVaultKeyHandler(d)(esc());
+    expect(d.clearSearch).not.toHaveBeenCalled();
+    expect(d.closeDetail).toHaveBeenCalledTimes(1);
+  });
+
+  it("Esc outside the search box closes the panel even with a query", async () => {
+    const input = focusSearch("git");
+    const d = deps({ getDetail: () => detail(), getSearchInput: () => input });
+    focusRow(LOGIN_ROW.id);
+    await makeVaultKeyHandler(d)(esc());
+    expect(d.clearSearch).not.toHaveBeenCalled();
+    expect(d.closeDetail).toHaveBeenCalledTimes(1);
+  });
+
+  it("Ctrl+C copies the sole match's password, over another open item", async () => {
+    const input = focusSearch("git");
+    const d = deps({
+      getDetail: () => detail(),
+      getSearchInput: () => input,
+      getSoleMatch: () => LOGIN_ROW,
+    });
+    const event = ctrl("c");
+    await makeVaultKeyHandler(d)(event);
+    expect(d.getPassword).toHaveBeenCalledWith(LOGIN_ROW.id);
+    expect(d.copy).toHaveBeenCalledWith("s3cret", "password");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("Ctrl+B copies the sole match's username", async () => {
+    const input = focusSearch("git");
+    const d = deps({ getSearchInput: () => input, getSoleMatch: () => LOGIN_ROW });
+    await makeVaultKeyHandler(d)(ctrl("b"));
+    expect(d.copy).toHaveBeenCalledWith("octocat", "username");
+  });
+
+  it("uses the open item's detail when it is the sole match", async () => {
+    const input = focusSearch("git");
+    const open = detail({
+      id: LOGIN_ROW.id,
+      login: { username: null, hasPassword: false, hasTotp: false, uris: [] } as CipherDetail["login"],
+    });
+    const d = deps({
+      getDetail: () => open,
+      getSearchInput: () => input,
+      getSoleMatch: () => LOGIN_ROW,
+    });
+    const event = ctrl("c");
+    await makeVaultKeyHandler(d)(event);
+    expect(d.getPassword).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("leaves Ctrl+C to the query when its text is selected", async () => {
+    const input = focusSearch("git");
+    input.select();
+    const d = deps({ getSearchInput: () => input, getSoleMatch: () => LOGIN_ROW });
+    const event = ctrl("c");
+    await makeVaultKeyHandler(d)(event);
+    expect(d.getPassword).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("does nothing from the search box without a sole match", async () => {
+    const input = focusSearch("g");
+    const d = deps({ getSearchInput: () => input });
+    await makeVaultKeyHandler(d)(ctrl("c"));
+    expect(d.getPassword).not.toHaveBeenCalled();
+  });
+
+  it("ignores the sole match while another field has focus", async () => {
+    const search = focusSearch("git");
+    const other = document.createElement("input");
+    document.body.appendChild(other);
+    other.focus();
+    const d = deps({ getSearchInput: () => search, getSoleMatch: () => LOGIN_ROW });
     await makeVaultKeyHandler(d)(ctrl("c"));
     expect(d.getPassword).not.toHaveBeenCalled();
   });

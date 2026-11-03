@@ -286,6 +286,20 @@
       (vault.summary?.ciphers.length ?? 0) > 0,
   );
 
+  // The one row a settled search leaves: outlined in the list, and the
+  // target of Ctrl+C/B/T/U from the search box. "Settled" because the
+  // list follows the debounced query: for a moment after a keystroke it
+  // still shows the previous result, and Ctrl+C must not copy a match
+  // the user has already typed past.
+  const soleMatch = $derived(
+    !listGated &&
+      vault.search.trim() !== "" &&
+      vault.search === vault.searchDebounced &&
+      vault.filteredCiphers.length === 1
+      ? vault.filteredCiphers[0]
+      : null,
+  );
+
   auth.on(async (event) => {
     if (event === "loggedIn") {
       // A file-backed standalone session already holds its vault; it
@@ -710,6 +724,8 @@
     getDetail: () => vault.detail,
     getSummary: (id) => vault.filteredCiphers.find((c) => c.id === id) ?? null,
     getSearchInput: () => searchInput,
+    clearSearch: () => (vault.search = ""),
+    getSoleMatch: () => soleMatch,
     closeDetail: () => vault.closeDetail(),
     lock: () => lockAndReset(),
     copy: copyToClipboard,
@@ -987,6 +1003,7 @@
               gated={listGated}
               onShowAll={() => (showAllOnce = true)}
               selectedId={vault.detail?.id ?? null}
+              soleMatchId={soleMatch?.id ?? null}
               currentLocale={prefs.currentLocale}
               pathSegments={listPath}
               sortKey={vault.sortKey}

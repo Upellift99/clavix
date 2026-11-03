@@ -184,6 +184,30 @@ describe("CipherList keyboard flow", () => {
     expect(container.querySelector(".empty-title")?.textContent).toContain("vide");
   });
 
+  it("outlines the sole match and no other row", async () => {
+    const { rows } = mount({ soleMatchId: "b" });
+    await flush();
+    expect(rows().map((r) => r.classList.contains("sole-match"))).toEqual([false, true, false]);
+  });
+
+  it("outlines nothing without a sole match", async () => {
+    const { container } = mount();
+    await flush();
+    expect(container.querySelector(".sole-match")).toBeNull();
+  });
+
+  it("Clear empties the search and hands focus back to the box", async () => {
+    const { container, search } = mount({ search: "x" });
+    await flush();
+    const clear = container.querySelector<HTMLButtonElement>(".search-row button");
+    expect(clear?.getAttribute("aria-keyshortcuts")).toBe("Escape");
+    clear?.focus();
+    clear?.click();
+    await flush();
+    expect(search.value).toBe("");
+    expect(document.activeElement).toBe(search);
+  });
+
   it("names every row so truncated titles still read in full", async () => {
     const { container } = mount();
     await flush();

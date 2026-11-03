@@ -16,6 +16,9 @@
     gated: boolean;
     onShowAll: () => void;
     selectedId: string | null;
+    /** The single row a search leaves: outlined, since Ctrl+C/B/T/U
+        reach it from the search box. */
+    soleMatchId?: string | null;
     currentLocale: Locale;
     /** Where the list is (quick filter or node path), shown in the header. */
     pathSegments?: string[];
@@ -65,6 +68,7 @@
     gated,
     onShowAll,
     selectedId,
+    soleMatchId = null,
     currentLocale,
     pathSegments = [],
     sortKey,
@@ -142,6 +146,13 @@
   $effect(() => {
     onSearchInputRef(searchInputEl);
   });
+
+  // Back to the box afterwards: the button vanishes with the query, and
+  // focus would otherwise drop to the page.
+  function clearSearch() {
+    search = "";
+    searchInputEl?.focus();
+  }
 
   function onListScroll(event: Event) {
     listScrollTop = (event.currentTarget as HTMLElement).scrollTop;
@@ -319,7 +330,13 @@
       class="search"
     />
     {#if search.trim()}
-      <button type="button" class="secondary small" onclick={() => (search = "")}>
+      <button
+        type="button"
+        class="secondary small"
+        title="{m.items_search_clear()} · Esc"
+        aria-keyshortcuts="Escape"
+        onclick={clearSearch}
+      >
         {m.items_search_clear()}
       </button>
     {/if}
@@ -401,7 +418,7 @@
         <button
           type="button"
           class="secondary small"
-          onclick={() => (search = "")}
+          onclick={clearSearch}
         >
           {m.items_search_clear()}
         </button>
@@ -494,6 +511,7 @@
                 class="cipher-row cipher-columns"
                 class:zebra={(virtualWindow.start + i) % 2 === 1}
                 class:selected={selectedId === c.id}
+                class:sole-match={soleMatchId === c.id}
                 class:ticked={selectedIds.has(c.id)}
                 class:dragging={drag.cipherId === c.id}
                 class:hide-username={!visibleColumns.username}

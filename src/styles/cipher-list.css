@@ -316,6 +316,15 @@
   outline-offset: -2px;
 }
 
+/* A search's only match: where Ctrl+C/B/T/U land while the cursor is
+   still in the search box. Drawn like the focus ring because it stands
+   in for keyboard focus; kept apart from `.selected`, which means "open
+   in the detail panel". */
+.cipher-row.sole-match {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
 /* Multi-selection (Ctrl/Shift-click). Deliberately a different visual
    register from `.selected`, which means "this is the item the detail
    panel is showing" — a row can be both at once. A left bar plus a

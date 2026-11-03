@@ -30,6 +30,10 @@ export type VaultKeyDeps = {
    *  before the detail panel is open. */
   getSummary: (id: string) => CipherSummary | null;
   getSearchInput: () => HTMLInputElement | null;
+  /** Empty the search box (what its Clear button does). */
+  clearSearch: () => void;
+  /** The one row a settled, non-empty search leaves; null otherwise. */
+  getSoleMatch: () => CipherSummary | null;
   closeDetail: () => void;
   lock: () => Promise<void> | void;
   copy: (value: string, kind: ClipboardKind) => Promise<void> | void;
@@ -76,7 +80,12 @@ function fromSummary(summary: CipherSummary): ShortcutTarget {
  *
  * Ctrl+C/B/T/U act on the item the detail panel shows; with the panel
  * closed they act on the list row that has keyboard focus, so the
- * keyboard path is type, Enter or Down, Ctrl+C.
+ * keyboard path is type, Enter or Down, Ctrl+C. When the search leaves
+ * a single row, that row is the target straight from the search box:
+ * type, Ctrl+C.
+ *
+ * Esc in a search box holding text clears it; otherwise Esc closes the
+ * detail panel.
  */
 export function makeVaultKeyHandler(deps: VaultKeyDeps) {
   return async function handle(event: KeyboardEvent) {
@@ -87,11 +96,23 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
     // confirmation copied the password of the item underneath.
     if (document.querySelector("dialog[open]")) return;
     const detail = deps.getDetail();
+    const search = deps.getSearchInput();
+    const inSearch = search !== null && document.activeElement === search;
 
-    if (event.key === "Escape" && detail) {
-      event.preventDefault();
-      deps.closeDetail();
-      return;
+    if (event.key === "Escape") {
+      // One thing per press: a query to clear comes before the panel,
+      // and the default is cancelled so WebKit's own search-field Esc
+      // doesn't run alongside.
+      if (inSearch && search.value !== "") {
+        event.preventDefault();
+        deps.clearSearch();
+        return;
+      }
+      if (detail) {
+        event.preventDefault();
+        deps.closeDetail();
+        return;
+      }
     }
     if (event.key === "/" && !isTypingContext()) {
       event.preventDefault();
@@ -116,12 +137,24 @@ export function makeVaultKeyHandler(deps: VaultKeyDeps) {
       await deps.lock();
       return;
     }
-    if (isTypingContext()) return;
-    const selectionLength = window.getSelection()?.toString().length ?? 0;
-    if (selectionLength > 0) return;
+    const sole = inSearch ? deps.getSoleMatch() : null;
+    if (inSearch && sole) {
+      // After / or Ctrl+F the query is selected, and Ctrl+C then means
+      // the query. window.getSelection() does not see inside an input.
+      if (search.selectionStart !== search.selectionEnd) return;
+    } else {
+      if (isTypingContext()) return;
+      const selectionLength = window.getSelection()?.toString().length ?? 0;
+      if (selectionLength > 0) return;
+    }
 
     let target: ShortcutTarget | null = null;
-    if (detail) {
+    if (sole) {
+      // The outlined row is what the user is looking at, even when the
+      // panel shows some other item; the panel's copy knows more when
+      // it is the same one.
+      target = detail?.id === sole.id ? fromDetail(detail) : fromSummary(sole);
+    } else if (detail) {
       target = fromDetail(detail);
     } else {
       const rowId = focusedRowId();
