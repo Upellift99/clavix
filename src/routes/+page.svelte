@@ -286,8 +286,8 @@
       (vault.summary?.ciphers.length ?? 0) > 0,
   );
 
-  // The one row a settled search leaves: outlined in the list, and the
-  // target of Ctrl+C/B/T/U from the search box. "Settled" because the
+  // The one row a settled search leaves: the target of Ctrl+C/B/T/U from
+  // the search box, outlined while it has focus. "Settled" because the
   // list follows the debounced query: for a moment after a keystroke it
   // still shows the previous result, and Ctrl+C must not copy a match
   // the user has already typed past.

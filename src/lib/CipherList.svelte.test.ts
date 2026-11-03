@@ -185,9 +185,21 @@ describe("CipherList keyboard flow", () => {
   });
 
   it("outlines the sole match and no other row", async () => {
-    const { rows } = mount({ soleMatchId: "b" });
+    const { rows, search } = mount({ soleMatchId: "b" });
     await flush();
+    expect(document.activeElement).toBe(search);
     expect(rows().map((r) => r.classList.contains("sole-match"))).toEqual([false, true, false]);
+  });
+
+  it("outlines the sole match only while the search box has focus", async () => {
+    const { container, rows, search } = mount({ soleMatchId: "b" });
+    await flush();
+    container.querySelector<HTMLElement>(".columns-chooser summary")?.focus();
+    await flush();
+    expect(container.querySelector(".sole-match")).toBeNull();
+    search.focus();
+    await flush();
+    expect(rows()[1].classList.contains("sole-match")).toBe(true);
   });
 
   it("outlines nothing without a sole match", async () => {
