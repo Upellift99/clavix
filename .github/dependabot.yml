@@ -72,6 +72,12 @@ updates:
       - dependency-name: cbc
         update-types: ["version-update:semver-major"]
       - dependency-name: "tauri*"
+      # p256 is a dev-dependency that builds the ECDSA test key handed to
+      # ssh-key (src/ssh_agent.rs), so it must be the p256 ssh-key itself
+      # uses: 0.13 for ssh-key 0.6. 0.14 fails to compile (#480). Lift
+      # this together with the ssh-key 0.7 migration.
+      - dependency-name: p256
+        versions: [">= 0.14"]
     groups:
       rust-crypto:
         patterns:
