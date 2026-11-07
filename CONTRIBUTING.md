@@ -9,7 +9,7 @@ guide before opening an issue or a pull request.
 - Read the [DISCLAIMER](DISCLAIMER.md) to understand the current
   maturity of the project.
 - If you found a **security issue**, do NOT open a public issue. Use a
-  [private Security Advisory](https://github.com/Upellift99/clavix/security/advisories/new)
+  [private Security Advisory](https://github.com/clavix-org/clavix/security/advisories/new)
   instead.
 - For features that touch crypto, storage, or the IPC surface between
   Rust and Svelte, open a discussion first so we can align on the
