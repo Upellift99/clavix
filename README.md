@@ -101,10 +101,13 @@ Against a real Vaultwarden instance, Clavix:
   cards, identities and SSH keys included, which the CSV schema cannot
   carry;
 - embeds an **SSH agent** on every platform: exposes the Ed25519, RSA
-  and ECDSA (NIST P-256/384/521) keys from your vault so `ssh`, `git`, `scp`, … use them without the
-  private keys ever touching disk — over a Unix socket on Linux and
-  macOS, over the `openssh-ssh-agent` named pipe and PuTTY's Pageant
-  IPC on Windows.
+  and ECDSA (NIST P-256/384/521) keys from your vault so `ssh`, `git`,
+  `scp`, … use them without the private keys ever touching disk — over
+  a Unix socket on Linux and macOS, over the `openssh-ssh-agent` named
+  pipe and PuTTY's Pageant IPC on Windows. **Prefer Ed25519:** ECDSA
+  signing relies on `crypto-bigint` 0.5, which has an open timing
+  advisory ([RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387.html))
+  with no fix on that line yet. Ed25519 and RSA keys don't use it.
 
 The master password never hits the server nor the disk: only derived
 values are exchanged (master password hash for authentication, master
