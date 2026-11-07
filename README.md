@@ -211,7 +211,8 @@ above, or [CHANGELOG.md](CHANGELOG.md) for what landed in each version.
 - 🛂 **ECDSA / DSA** SSH keys in the agent.
 - 🌐 **Server-side error translation** (`data.message` from the
   Vaultwarden API is still returned as-is).
-- 📦 **Flatpak / Flathub** packaging.
+- 📦 **Flathub** submission (the [Flatpak manifest](#flatpak) is in the
+  repository), with start-at-login through the Background portal.
 - ✅ **Code signing** for macOS and Windows builds.
 - 🗄️ **KDBX** (direct native KeePass file) import.
 
@@ -329,6 +330,45 @@ which get updates from their package manager, should add
 `--no-default-features` to the `cargo build` command: the check is then
 not compiled in, and the About dialog says that updates come from the
 distribution.
+
+## Flatpak
+
+[`packaging/flatpak/org.clavix.Clavix.yml`](packaging/flatpak/org.clavix.Clavix.yml)
+builds Clavix as a Flatpak on the GNOME 51 runtime, from the working
+tree and without network access. It is not on Flathub yet. To build and
+install it:
+
+```bash
+flatpak install --user flathub org.gnome.Sdk//51 \
+  org.freedesktop.Sdk.Extension.rust-stable//26.08 \
+  org.freedesktop.Sdk.Extension.node22//26.08
+flatpak-builder --user --install --force-clean flatpak-build \
+  packaging/flatpak/org.clavix.Clavix.yml
+flatpak run org.clavix.Clavix
+```
+
+Every crate and npm tarball is listed in
+`packaging/flatpak/cargo-sources.json` and `node-sources.json`. After
+changing `src-tauri/Cargo.lock` or `pnpm-lock.yaml`, regenerate both
+with `scripts/flatpak-sources.sh` (it needs `pipx install
+flatpak-cargo-generator` and PyYAML) and commit them.
+
+What the sandbox changes:
+
+- **SSH agent:** the socket stays at `/run/user/<uid>/clavix/agent.sock`
+  on the host (the manifest shares that one directory), so the [setup
+  above](#linux--macos) applies unchanged.
+- **Security keys and camera:** FIDO2 over HID and the QR scanner need
+  `--device=all`, as Flatpak has no narrower permission for either.
+- **Tray:** works where the desktop has a StatusNotifier host, as
+  outside the sandbox (GNOME still needs the AppIndicator extension).
+- **Exports and attachments** are saved to your Downloads folder, the
+  only host folder Clavix can write to. Imports go through the file
+  chooser portal, so any file you pick can be read.
+- **Start at login does not work yet.** The toggle in Preferences writes
+  its entry inside the sandbox, where the desktop never reads it. Until
+  Clavix uses the Background portal, add `flatpak run org.clavix.Clavix
+  --tray` to your desktop's startup applications by hand.
 
 ## Run the app in development
 

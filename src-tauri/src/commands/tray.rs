@@ -117,6 +117,24 @@ pub fn set_hide_dock_on_tray(state: State<'_, AppState>, value: bool) -> Result<
     Ok(())
 }
 
+/// Where the tray writes its icon file when running as a Flatpak.
+///
+/// On Linux the StatusNotifier protocol hands the desktop a *path* to the
+/// icon, which the tray writes under `$XDG_RUNTIME_DIR/tray-icon` by
+/// default. Inside the sandbox that directory is private, so the host's
+/// tray reads nothing and draws an empty slot. `$XDG_RUNTIME_DIR/app/<id>`
+/// is the one runtime directory Flatpak mounts at the same path on both
+/// sides. `None` outside Flatpak keeps the default.
+#[cfg(target_os = "linux")]
+fn flatpak_tray_temp_dir() -> Option<std::path::PathBuf> {
+    let app_id = std::env::var_os("FLATPAK_ID")?;
+    let mut dir = dirs::runtime_dir()?;
+    dir.push("app");
+    dir.push(app_id);
+    dir.push("tray-icon");
+    Some(dir)
+}
+
 /// Wire the tray icon onto an `AppHandle`. Failure is non-fatal: a
 /// CI runner or a Linux desktop without a system tray (xvfb, plain
 /// Sway without `waybar` etc.) just gets a working app without the
@@ -143,7 +161,13 @@ pub fn build_tray(app: &AppHandle) -> bool {
     let result = (|| -> tauri::Result<()> {
         let menu = build_menu(app, "fr")?;
 
-        TrayIconBuilder::with_id(TRAY_ID)
+        let builder = TrayIconBuilder::with_id(TRAY_ID);
+        #[cfg(target_os = "linux")]
+        let builder = match flatpak_tray_temp_dir() {
+            Some(dir) => builder.temp_dir_path(dir),
+            None => builder,
+        };
+        builder
             .icon(icon)
             .tooltip("Clavix")
             .menu(&menu)
