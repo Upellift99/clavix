@@ -106,7 +106,7 @@ export function thirdPartyLicenses() {
         "",
         "This build of the Clavix web UI contains code and fonts from the",
         "packages below. Each is listed with its license text. Clavix itself is",
-        "licensed under the GPL-3.0-or-later; see https://github.com/Upellift99/clavix.",
+        "licensed under the GPL-3.0-or-later; see https://github.com/clavix-org/clavix.",
         "",
         ...entries.map((e) => e.text),
       ].join("\n");

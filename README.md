@@ -1,10 +1,10 @@
 # Clavix
 
-[![CI](https://github.com/Upellift99/clavix/actions/workflows/ci.yml/badge.svg)](https://github.com/Upellift99/clavix/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Upellift99/clavix/actions/workflows/codeql.yml/badge.svg)](https://github.com/Upellift99/clavix/actions/workflows/codeql.yml)
-[![Latest release](https://img.shields.io/github/v/release/Upellift99/clavix?include_prereleases&sort=semver)](https://github.com/Upellift99/clavix/releases)
+[![CI](https://github.com/clavix-org/clavix/actions/workflows/ci.yml/badge.svg)](https://github.com/clavix-org/clavix/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/clavix-org/clavix/actions/workflows/codeql.yml/badge.svg)](https://github.com/clavix-org/clavix/actions/workflows/codeql.yml)
+[![Latest release](https://img.shields.io/github/v/release/clavix-org/clavix?include_prereleases&sort=semver)](https://github.com/clavix-org/clavix/releases)
 [![License: GPL v3+](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows-lightgrey)](https://github.com/Upellift99/clavix/releases)
+[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows-lightgrey)](https://github.com/clavix-org/clavix/releases)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 [![Website](https://img.shields.io/badge/website-clavix.org-175ddc)](https://clavix.org)
 
@@ -303,8 +303,8 @@ npm packages. Check that it was built by the release workflow from that
 tag:
 
 ```bash
-gh attestation verify clavix-X.Y.Z-frontend.tar.gz --repo Upellift99/clavix \
-  --signer-workflow Upellift99/clavix/.github/workflows/release.yml \
+gh attestation verify clavix-X.Y.Z-frontend.tar.gz --repo clavix-org/clavix \
+  --signer-workflow clavix-org/clavix/.github/workflows/release.yml \
   --source-ref refs/tags/vX.Y.Z
 ```
 
@@ -536,7 +536,7 @@ clavix/
   releases made after this was added): a Sigstore-signed statement that
   the file was built by this repository's release workflow from the
   tagged commit. Check a download with
-  `gh attestation verify <file> --repo Upellift99/clavix`. It proves
+  `gh attestation verify <file> --repo clavix-org/clavix`. It proves
   where the binary came from, not that the code is free of bugs, and it
   is not OS code signing: macOS Gatekeeper and Windows SmartScreen still
   warn on first launch.

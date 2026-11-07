@@ -38,7 +38,7 @@ instance filled with test data only.
 If you find a security vulnerability, **do not open a public GitHub
 issue**. Instead:
 
-1. Open a [private Security Advisory](https://github.com/Upellift99/clavix/security/advisories/new)
+1. Open a [private Security Advisory](https://github.com/clavix-org/clavix/security/advisories/new)
    on the repository. This is the preferred channel — it keeps the
    discussion private until a fix is ready, and gives us the tooling to
    assign a CVE if needed.

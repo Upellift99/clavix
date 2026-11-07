@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use clavix_core::error::{Error, Result};
 
-const RELEASES_LATEST_API: &str = "https://api.github.com/repos/Upellift99/clavix/releases/latest";
+const RELEASES_LATEST_API: &str = "https://api.github.com/repos/clavix-org/clavix/releases/latest";
 const USER_AGENT: &str = concat!("Clavix/", env!("CARGO_PKG_VERSION"));
 
 /// Verdict handed to the WebView. `update_available` is the only thing the UI

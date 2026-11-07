@@ -25,7 +25,7 @@ permissions:
   id-token: write
   # Build provenance: each bundle gets a Sigstore-signed attestation that it
   # was built by this workflow from the tagged commit. Users check it with
-  # `gh attestation verify <file> --repo Upellift99/clavix`. id-token above is
+  # `gh attestation verify <file> --repo clavix-org/clavix`. id-token above is
   # what lets the job obtain the signing certificate.
   attestations: write
 

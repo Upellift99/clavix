@@ -2,7 +2,7 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as m from "#lib/paraglide/messages.js";
 
-  const DISCLAIMER_URL = "https://github.com/Upellift99/clavix/blob/master/DISCLAIMER.md";
+  const DISCLAIMER_URL = "https://github.com/clavix-org/clavix/blob/master/DISCLAIMER.md";
 
   let { onComplete }: { onComplete: () => void } = $props();
 

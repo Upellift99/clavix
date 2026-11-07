@@ -9,7 +9,7 @@ body:
         Thanks for taking the time to report a bug.
 
         **Do not** use this form for security vulnerabilities — use a
-        [private Security Advisory](https://github.com/Upellift99/clavix/security/advisories/new)
+        [private Security Advisory](https://github.com/clavix-org/clavix/security/advisories/new)
         instead.
 
   - type: textarea
