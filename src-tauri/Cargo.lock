@@ -838,6 +838,7 @@ dependencies = [
  "ctap-hid-fido2",
  "dirs 7.0.0",
  "ed25519-dalek",
+ "futures-util",
  "gtk",
  "hkdf",
  "hmac 0.12.1",

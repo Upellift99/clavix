@@ -3,9 +3,13 @@
 // needs a desktop: the IPC surface, the tray, the SSH agent, the USB
 // security key, the auto-lock watchdog and the screen-lock probe.
 mod auto_lock;
+#[cfg(target_os = "linux")]
+mod background_portal;
 mod commands;
 #[cfg(target_os = "linux")]
 mod dbus;
+#[cfg(target_os = "linux")]
+mod flatpak_instance;
 mod legacy_app_dirs;
 mod screen_lock;
 // Adapts `AppState` to the engine's session slots — see the module docs.
@@ -48,7 +52,32 @@ pub fn run() {
     // pointing at SSH_AUTH_SOCK would then be served by a vault that is
     // very likely still locked, with no error explaining why the keys
     // vanished.
-    if std::env::var_os(ALLOW_MULTIPLE_INSTANCES_ENV).is_none() {
+    //
+    // Under Flatpak the plugin can't work (see `flatpak_instance`), so a
+    // lock in the app's runtime directory takes its place. A second launch
+    // forwards its arguments and exits here, before Tauri starts.
+    let guard_instances = std::env::var_os(ALLOW_MULTIPLE_INSTANCES_ENV).is_none();
+    #[cfg(target_os = "linux")]
+    let in_flatpak = dbus::in_flatpak();
+    #[cfg(not(target_os = "linux"))]
+    let in_flatpak = false;
+    #[cfg(target_os = "linux")]
+    let mut flatpak_primary = None;
+    #[cfg(target_os = "linux")]
+    if guard_instances && in_flatpak {
+        let args: Vec<String> = std::env::args().collect();
+        match flatpak_instance::runtime_dir()
+            .ok_or_else(|| std::io::Error::other("no XDG_RUNTIME_DIR or FLATPAK_ID"))
+            .and_then(|dir| flatpak_instance::acquire(&dir, &args))
+        {
+            Ok(flatpak_instance::Instance::Primary(primary)) => flatpak_primary = Some(primary),
+            Ok(flatpak_instance::Instance::Forwarded) => return,
+            // Fail open: refusing to start over a guard we can't set up
+            // would be worse than the duplicate it prevents.
+            Err(e) => eprintln!("[clavix] single-instance guard unavailable: {e}"),
+        }
+    }
+    if guard_instances && !in_flatpak {
         builder = builder.plugin(
             tauri_plugin_single_instance::Builder::new()
                 // On Linux the guard is a session D-Bus name, by default
@@ -96,7 +125,17 @@ pub fn run() {
             // process up. See `commands::tray` for the full story.
             commands::tray::handle_window_event(window.app_handle(), event);
         })
-        .setup(|app| {
+        .setup(move |app| {
+            #[cfg(target_os = "linux")]
+            if let Some(primary) = flatpak_primary.take() {
+                let handle = app.handle().clone();
+                primary.serve(move |argv| {
+                    // Same rule as the plugin's callback above.
+                    if !argv.iter().any(|arg| arg == "--tray") {
+                        commands::tray::raise_main_window(&handle);
+                    }
+                });
+            }
             // Tray icon + right-click menu (Ouvrir / Verrouiller /
             // Quitter). Non-fatal if it fails — environments without
             // a system tray (CI under xvfb, some minimal WMs) just

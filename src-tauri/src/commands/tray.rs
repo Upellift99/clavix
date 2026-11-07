@@ -205,7 +205,12 @@ pub fn build_tray(app: &AppHandle) -> bool {
 /// Read the OS registration instead of keeping a second, possibly stale,
 /// localStorage setting. Merely starting the app never enables autostart.
 #[tauri::command]
-pub fn autostart_enabled(app: AppHandle) -> std::result::Result<bool, String> {
+pub async fn autostart_enabled(app: AppHandle) -> std::result::Result<bool, String> {
+    #[cfg(target_os = "linux")]
+    if crate::dbus::in_flatpak() {
+        let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+        return Ok(crate::background_portal::is_enabled(&dir));
+    }
     use tauri_plugin_autostart::ManagerExt;
     app.autolaunch().is_enabled().map_err(|e| e.to_string())
 }
@@ -218,7 +223,14 @@ pub fn quit_app(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn set_autostart(app: AppHandle, enabled: bool) -> std::result::Result<(), String> {
+pub async fn set_autostart(app: AppHandle, enabled: bool) -> std::result::Result<(), String> {
+    // The plugin's ~/.config/autostart entry is invisible to the host from
+    // inside the sandbox; the Background portal writes the real one.
+    #[cfg(target_os = "linux")]
+    if crate::dbus::in_flatpak() {
+        let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+        return crate::background_portal::set_enabled(&dir, enabled).await;
+    }
     use tauri_plugin_autostart::ManagerExt;
     let manager = app.autolaunch();
     if enabled {

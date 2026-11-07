@@ -60,7 +60,7 @@ pub async fn system() -> zbus::Result<Connection> {
     connect_sequential(&path).await
 }
 
-fn in_flatpak() -> bool {
+pub fn in_flatpak() -> bool {
     Path::new("/.flatpak-info").exists()
 }
 
