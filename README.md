@@ -174,6 +174,27 @@ it, Clavix says so rather than starting half-working — stop that
 service, or use Pageant-side clients. A real Pageant already running is
 not a conflict; Clavix skips its own Pageant window and leaves it alone.
 
+### Where is this signature going? (`session-bind`)
+
+OpenSSH 8.9 and later tell the agent which server each connection is for
+(`session-bind@openssh.com`), with a signature by that server's host key
+that Clavix verifies. When signatures need confirmation (Preferences →
+*Confirm before signing*), the dialog then shows:
+
+- **Destination**: the server you are authenticating to, named from your
+  `known_hosts` (hashed entries can't be named, so you get the host-key
+  fingerprint instead);
+- **Via**: the hosts the agent was forwarded through (`ssh -A`), if any;
+- **From**, plus a warning, when the request comes from a process on a
+  remote machine you forwarded the agent to.
+
+On a connection bound for authentication, Clavix also refuses to sign a
+login challenge that belongs to a different session, the same check
+OpenSSH's own `ssh-agent` makes. Older clients, `git` commit signing and
+PuTTY send no binding: the prompt looks as it did before. Ed25519 and
+RSA host keys are verified. A server that only offers an ECDSA host key
+gets no destination line, and authentication still works.
+
 ---
 
 ## Why this project

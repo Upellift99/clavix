@@ -26,6 +26,101 @@ pub struct ConfirmRequest {
     pub caller_name: Option<String>,
     /// Pid of the requesting client, when it could be resolved.
     pub caller_pid: Option<u32>,
+    /// Hosts the requesting `ssh` is bound to (`session-bind@openssh.com`),
+    /// outermost first; the last one is the destination. Empty when the
+    /// client sent no binding (OpenSSH < 8.9, git signing, PuTTY).
+    pub hops: Vec<ConfirmHop>,
+}
+
+/// One verified session binding, ready for display.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmHop {
+    /// Names `known_hosts` gives this host key, e.g. `"github.com"`.
+    /// `None` when the key is absent or only in hashed entries — the
+    /// dialog then falls back to the fingerprint.
+    pub host: Option<String>,
+    /// `"SHA256:…"` fingerprint of the server host key.
+    pub fingerprint: String,
+    /// The agent is forwarded through this host (`ssh -A`).
+    pub forwarded: bool,
+}
+
+/// Plain-text `known_hosts` names recorded for `key_blob`, comma-joined.
+///
+/// Hashed entries (`|1|salt|hash`, `HashKnownHosts yes`) can't be turned
+/// back into a name and are skipped, as are `@revoked` lines; a
+/// `@cert-authority` key is a CA, not this host's key, so it never
+/// matches a host key blob anyway. Names are labels the user already
+/// accepted for that key — nothing here is trusted beyond display.
+fn known_host_names(key_blob: &[u8], known_hosts: &str) -> Option<String> {
+    use base64::Engine as _;
+    let engine = base64::engine::general_purpose::STANDARD;
+    let mut names: Vec<String> = Vec::new();
+    for line in known_hosts.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut fields = line.split_whitespace();
+        let Some(mut hosts) = fields.next() else {
+            continue;
+        };
+        if hosts.starts_with('@') {
+            if hosts == "@revoked" {
+                continue;
+            }
+            hosts = match fields.next() {
+                Some(h) => h,
+                None => continue,
+            };
+        }
+        let (Some(_keytype), Some(b64)) = (fields.next(), fields.next()) else {
+            continue;
+        };
+        if hosts.starts_with('|') || engine.decode(b64).ok().as_deref() != Some(key_blob) {
+            continue;
+        }
+        for h in hosts.split(',') {
+            let h: String = h.chars().filter(|c| !c.is_control()).take(64).collect();
+            if !h.is_empty() && !h.starts_with('!') && !names.contains(&h) {
+                names.push(h);
+            }
+        }
+    }
+    (!names.is_empty()).then(|| names.join(", "))
+}
+
+/// Read the user's and the system `known_hosts` files, best effort.
+fn read_known_hosts() -> String {
+    let mut out = String::new();
+    let mut paths = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        paths.push(home.join(".ssh").join("known_hosts"));
+    }
+    #[cfg(unix)]
+    paths.push(std::path::PathBuf::from("/etc/ssh/ssh_known_hosts"));
+    for p in paths {
+        if let Ok(text) = std::fs::read_to_string(p) {
+            out.push_str(&text);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+fn confirm_hops(hops: &[ssh_agent::HostHop]) -> Vec<ConfirmHop> {
+    if hops.is_empty() {
+        return Vec::new();
+    }
+    let known_hosts = read_known_hosts();
+    hops.iter()
+        .map(|h| ConfirmHop {
+            host: known_host_names(&h.key_blob, &known_hosts),
+            fingerprint: h.fingerprint.clone(),
+            forwarded: h.forwarded,
+        })
+        .collect()
 }
 
 /// Turn one SSH-key cipher into either agent-loadable material
@@ -102,6 +197,7 @@ async fn request_confirmation(app: &AppHandle, req: SignRequest) -> bool {
         fingerprint: req.key.fingerprint,
         caller_name: req.caller.as_ref().and_then(|c| c.name.clone()),
         caller_pid: req.caller.as_ref().map(|c| c.pid),
+        hops: confirm_hops(&req.hops),
     };
     if app.emit("ssh-agent-confirm", &payload).is_err() {
         state.ssh_confirms.lock().remove(&id);
@@ -633,6 +729,70 @@ mod generate_tests {
         assert_ne!(a.key_fingerprint, b.key_fingerprint);
         assert_ne!(a.private_key, b.private_key);
         assert_ne!(a.public_key, b.public_key);
+    }
+}
+
+#[cfg(test)]
+mod known_hosts_tests {
+    use super::known_host_names;
+    use base64::Engine as _;
+
+    fn b64(b: &[u8]) -> String {
+        base64::engine::general_purpose::STANDARD.encode(b)
+    }
+
+    #[test]
+    fn plain_entries_name_the_host() {
+        let key = b"host-key-blob";
+        let other = b"another-key";
+        let text = format!(
+            "# comment\n\
+             other.example {t} {o}\n\
+             github.com,140.82.121.4 {t} {k} a comment\n\
+             [git.example]:2222 {t} {k}\n",
+            t = "ssh-ed25519",
+            k = b64(key),
+            o = b64(other),
+        );
+        assert_eq!(
+            known_host_names(key, &text).as_deref(),
+            Some("github.com, 140.82.121.4, [git.example]:2222")
+        );
+        assert_eq!(
+            known_host_names(other, &text).as_deref(),
+            Some("other.example")
+        );
+        assert_eq!(known_host_names(b"absent", &text), None);
+    }
+
+    #[test]
+    fn hashed_revoked_and_negated_entries_give_no_name() {
+        let key = b"host-key-blob";
+        let text = format!(
+            "|1|c2FsdA==|aGFzaA== ssh-ed25519 {k}\n\
+             @revoked evil.example ssh-ed25519 {k}\n\
+             !negated.example ssh-ed25519 {k}\n\
+             malformed-line-without-key\n",
+            k = b64(key)
+        );
+        assert_eq!(known_host_names(key, &text), None);
+    }
+
+    #[test]
+    fn markers_are_skipped_before_the_host_field() {
+        let key = b"ca-key";
+        let text = format!("@cert-authority *.example ssh-ed25519 {}\n", b64(key));
+        assert_eq!(known_host_names(key, &text).as_deref(), Some("*.example"));
+    }
+
+    #[test]
+    fn control_characters_are_stripped() {
+        let key = b"k";
+        let text = format!("evil\u{1b}[31mhost ssh-ed25519 {}\n", b64(key));
+        assert_eq!(
+            known_host_names(key, &text).as_deref(),
+            Some("evil[31mhost")
+        );
     }
 }
 
