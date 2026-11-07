@@ -14,6 +14,18 @@
     // `CallerInfo` docs on why this must not drive a trust decision.
     callerName: string | null;
     callerPid: number | null;
+    // Verified `session-bind@openssh.com` bindings, outermost first; the
+    // last one is where the signature is headed. Empty for clients that
+    // don't bind (OpenSSH < 8.9, git commit signing, PuTTY).
+    hops: ConfirmHop[];
+  };
+
+  // Mirrors the Rust `ConfirmHop`. `host` is the known_hosts name of the
+  // (verified) host key, null when unknown or only in hashed entries.
+  type ConfirmHop = {
+    host: string | null;
+    fingerprint: string;
+    forwarded: boolean;
   };
 
   // Client-side auto-deny mirrors the backend's 30 s timeout so a prompt
@@ -119,7 +131,22 @@
     if (callerPid !== null) return m.ssh_confirm_caller_pid({ pid: String(callerPid) });
     return null;
   });
+
+  // The last hop is the destination when it is an auth binding. When it
+  // is a forwarding binding, the request comes from a process on that
+  // (remote) host using the forwarded agent — the dialog says so.
+  const destination = $derived(current?.hops.at(-1) ?? null);
+  const via = $derived(current ? current.hops.slice(0, -1) : []);
 </script>
+
+{#snippet hostLabel(hop: ConfirmHop)}
+  {#if hop.host}
+    {hop.host}
+  {:else}
+    <span class="ssh-confirm-caller-unknown">{m.ssh_confirm_host_unknown()}</span>
+  {/if}
+  <code class="ssh-confirm-hostfp" title={hop.fingerprint}>{hop.fingerprint}</code>
+{/snippet}
 
 <dialog
   bind:this={dialog}
@@ -154,7 +181,24 @@
           <span class="ssh-confirm-caller-unknown">{m.ssh_confirm_caller_unknown()}</span>
         {/if}
       </dd>
+      {#if destination}
+        <dt>
+          {destination.forwarded ? m.ssh_confirm_from_remote_label() : m.ssh_confirm_dest_label()}
+        </dt>
+        <dd class="ssh-confirm-dest">{@render hostLabel(destination)}</dd>
+      {/if}
+      {#if via.length > 0}
+        <dt>{m.ssh_confirm_via_label()}</dt>
+        <dd>
+          {#each via as hop, i (i)}
+            <div class="ssh-confirm-hop">{@render hostLabel(hop)}</div>
+          {/each}
+        </dd>
+      {/if}
     </dl>
+    {#if destination?.forwarded}
+      <p class="ssh-confirm-remote-hint">{m.ssh_confirm_remote_hint()}</p>
+    {/if}
     <p class="ssh-confirm-caller-hint">{m.ssh_confirm_caller_hint()}</p>
     <div class="ssh-confirm-actions">
       <button type="button" class="secondary" onclick={() => respond(false)}>
@@ -211,6 +255,27 @@
   .ssh-confirm-caller-unknown {
     color: var(--text-muted);
     font-style: italic;
+  }
+  .ssh-confirm-dest {
+    font-weight: 600;
+  }
+  .ssh-confirm-hostfp {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8em;
+    font-weight: normal;
+  }
+  .ssh-confirm-hop + .ssh-confirm-hop {
+    margin-top: 0.25rem;
+  }
+  .ssh-confirm-remote-hint {
+    margin: -0.5rem 0 1rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--warning-border);
+    border-radius: 6px;
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    font-size: 0.85rem;
   }
   .ssh-confirm-caller-hint {
     margin: -0.5rem 0 1rem;

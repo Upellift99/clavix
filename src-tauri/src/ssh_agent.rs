@@ -38,6 +38,19 @@ mod proto {
     pub const SSH_AGENTC_SIGN_REQUEST: u8 = 13;
     pub const SSH_AGENT_SIGN_RESPONSE: u8 = 14;
     pub const SSH_AGENT_FAILURE: u8 = 5;
+    pub const SSH_AGENT_SUCCESS: u8 = 6;
+    pub const SSH_AGENTC_EXTENSION: u8 = 27;
+
+    /// OpenSSH >= 8.9 binds each agent connection to the SSH session it
+    /// serves (PROTOCOL.agent, "session-bind@openssh.com").
+    pub const EXT_SESSION_BIND: &[u8] = b"session-bind@openssh.com";
+    /// Same cap as OpenSSH's `AGENT_MAX_SESSION_IDS`: a forwarding chain
+    /// deeper than this is not a real use case, only a memory sink.
+    pub const MAX_SESSION_BINDS: usize = 16;
+    /// `SSH_MSG_USERAUTH_REQUEST` (RFC 4252), the byte that follows the
+    /// session identifier in the data a client asks us to sign for
+    /// public-key authentication.
+    const SSH_MSG_USERAUTH_REQUEST: u8 = 50;
 
     // Flags on `SSH_AGENTC_SIGN_REQUEST`: which SHA variant for RSA.
     pub const SSH_AGENT_RSA_SHA2_256: u32 = 2;
@@ -93,11 +106,55 @@ mod proto {
         pub name: Option<String>,
     }
 
+    /// One `session-bind@openssh.com` binding: a server host key whose
+    /// signature over the session identifier we verified, so we know the
+    /// SSH client really holds a session with that host.
+    ///
+    /// Unlike `CallerInfo`, the host key IS authenticated — but a host key
+    /// is not a host name. The name shown to the user comes from matching
+    /// the key against `known_hosts`, i.e. from what the user already
+    /// accepted for that key.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct HostHop {
+        /// SSH wire-format public host key.
+        pub key_blob: Vec<u8>,
+        /// `"SHA256:…"` fingerprint of the host key.
+        pub fingerprint: String,
+        /// `true` when this hop carries a forwarded agent (`ssh -A`),
+        /// `false` when the binding is for authenticating to that host.
+        pub forwarded: bool,
+        /// Exchange hash of the bound session.
+        pub session_id: Vec<u8>,
+    }
+
     /// What the user is being asked to approve: the key, plus whoever asked.
     #[derive(Debug, Clone)]
     pub struct SignRequest {
         pub key: KeyInfo,
         pub caller: Option<CallerInfo>,
+        /// Session bindings of the requesting connection, outermost first:
+        /// `[host1 (forwarded), host2 (auth)]` means "authenticate to
+        /// host2 from host1, through the agent forwarded to host1". Empty
+        /// for clients that don't bind (OpenSSH < 8.9, git signing, PuTTY).
+        pub hops: Vec<HostHop>,
+    }
+
+    /// Per-connection agent state. `session-bind` is scoped to the
+    /// connection it arrives on, so every transport creates one of these
+    /// per client connection (Pageant, which has no connections, uses a
+    /// fresh one per message).
+    #[derive(Debug, Default)]
+    pub struct ConnState {
+        pub hops: Vec<HostHop>,
+    }
+
+    impl ConnState {
+        /// The last binding, if it was for authentication. OpenSSH treats
+        /// such a connection as spent for further binds, and expects any
+        /// user-auth signature on it to be for that very session.
+        fn bound_for_auth(&self) -> Option<&HostHop> {
+            self.hops.last().filter(|h| !h.forwarded)
+        }
     }
 
     impl From<&AgentKey> for KeyInfo {
@@ -169,10 +226,15 @@ mod proto {
         /// Decide whether a signature with `key` may proceed. Awaits the
         /// user only when the policy requires it; the caller must NOT hold
         /// the key-store lock across this call (it can block on a human).
-        async fn authorize(&self, key: &KeyInfo, caller: Option<&CallerInfo>) -> bool {
+        async fn authorize(
+            &self,
+            key: &KeyInfo,
+            caller: Option<&CallerInfo>,
+            hops: &[HostHop],
+        ) -> bool {
             match self.policy {
                 SignPolicy::Never => true,
-                SignPolicy::Always => self.ask(key, caller).await,
+                SignPolicy::Always => self.ask(key, caller, hops).await,
                 SignPolicy::PerSession => {
                     // Keyed on the fingerprint alone, deliberately: the
                     // documented contract is "ask once per key per agent
@@ -182,7 +244,7 @@ mod proto {
                     if self.approved.lock().await.contains(&key.fingerprint) {
                         return true;
                     }
-                    let ok = self.ask(key, caller).await;
+                    let ok = self.ask(key, caller, hops).await;
                     if ok {
                         self.approved.lock().await.insert(key.fingerprint.clone());
                     }
@@ -191,7 +253,7 @@ mod proto {
             }
         }
 
-        async fn ask(&self, key: &KeyInfo, caller: Option<&CallerInfo>) -> bool {
+        async fn ask(&self, key: &KeyInfo, caller: Option<&CallerInfo>, hops: &[HostHop]) -> bool {
             use std::sync::atomic::Ordering;
 
             // A confirming policy with no callback wired can't be
@@ -205,6 +267,7 @@ mod proto {
             let answer = confirm(SignRequest {
                 key: key.clone(),
                 caller: caller.cloned(),
+                hops: hops.to_vec(),
             });
             // Register the cancellation waiter *before* the second flag
             // check (`enable` closes the create-vs-notify race), so a
@@ -310,15 +373,118 @@ mod proto {
         keys: &KeyStore,
         guard: &SignGuard,
         caller: Option<&CallerInfo>,
+        conn: &mut ConnState,
     ) -> Vec<u8> {
         let Some((&msg_type, body)) = msg.split_first() else {
             return vec![SSH_AGENT_FAILURE];
         };
         match msg_type {
             SSH_AGENTC_REQUEST_IDENTITIES => handle_list(keys).await,
-            SSH_AGENTC_SIGN_REQUEST => handle_sign(keys, guard, body, caller).await,
+            SSH_AGENTC_SIGN_REQUEST => handle_sign(keys, guard, body, caller, conn).await,
+            SSH_AGENTC_EXTENSION => handle_extension(body, conn),
             _ => vec![SSH_AGENT_FAILURE],
         }
+    }
+
+    /// `SSH_AGENTC_EXTENSION`. Only `session-bind@openssh.com` is
+    /// understood; anything else gets the generic failure, which is what
+    /// PROTOCOL.agent prescribes for an unsupported extension.
+    fn handle_extension(body: &[u8], conn: &mut ConnState) -> Vec<u8> {
+        let mut reader = SshReader::new(body);
+        match reader.read_string() {
+            Ok(EXT_SESSION_BIND) => match session_bind(&mut reader, conn) {
+                Some(()) => vec![SSH_AGENT_SUCCESS],
+                None => vec![SSH_AGENT_FAILURE],
+            },
+            _ => vec![SSH_AGENT_FAILURE],
+        }
+    }
+
+    /// Parse, verify and record one session binding:
+    ///
+    /// ```text
+    /// string  hostkey
+    /// string  session identifier
+    /// string  signature (by hostkey, over the session identifier)
+    /// bool    is_forwarding
+    /// ```
+    ///
+    /// The rules mirror OpenSSH's `process_ext_session_bind`, so a client
+    /// sees the same answers from Clavix as from `ssh-agent`. `None` means
+    /// "refuse".
+    fn session_bind(reader: &mut SshReader<'_>, conn: &mut ConnState) -> Option<()> {
+        use rsa::signature::Verifier;
+        use ssh_key::{PublicKey, Signature};
+
+        let key_blob = reader.read_string().ok()?;
+        let session_id = reader.read_string().ok()?;
+        let sig_blob = reader.read_string().ok()?;
+        let forwarded = match reader.read_u8().ok()? {
+            0 => false,
+            1 => true,
+            _ => return None,
+        };
+        if !reader.is_empty() {
+            return None;
+        }
+
+        // The signature is what turns "the client says it talks to this
+        // host" into "the client holds a session that this host key
+        // signed". Without it a binding would be an unverified label.
+        let host_key = PublicKey::from_bytes(key_blob).ok()?;
+        let signature = Signature::try_from(sig_blob).ok()?;
+        // Fully qualified: `PublicKey` also has an inherent `verify` for
+        // SSHSIG (namespace + message), which is not this.
+        Verifier::verify(&host_key, session_id, &signature).ok()?;
+
+        // Re-binding a session already seen is fine (OpenSSH re-sends the
+        // forwarding bind on every forwarded channel) as long as it names
+        // the same host key; a different key for the same session is a lie.
+        if let Some(existing) = conn.hops.iter().find(|h| h.session_id == session_id) {
+            return (existing.key_blob == key_blob).then_some(());
+        }
+        // A connection bound for authentication is spent: nothing may be
+        // chained after it.
+        if conn.bound_for_auth().is_some() || conn.hops.len() >= MAX_SESSION_BINDS {
+            return None;
+        }
+        conn.hops.push(HostHop {
+            key_blob: key_blob.to_vec(),
+            fingerprint: host_key.fingerprint(HashAlg::Sha256).to_string(),
+            forwarded,
+            session_id: session_id.to_vec(),
+        });
+        Some(())
+    }
+
+    /// If `data` is a public-key user-auth request (RFC 4252 §7, plus
+    /// OpenSSH's `publickey-hostbound-v00@openssh.com`), return its session
+    /// identifier and, for the host-bound variant, the server host key it
+    /// names. `None` for anything else (git's `SSHSIG`, arbitrary data).
+    pub fn parse_userauth_request(data: &[u8]) -> Option<(&[u8], Option<&[u8]>)> {
+        let mut r = SshReader::new(data);
+        let session_id = r.read_string().ok()?;
+        if r.read_u8().ok()? != SSH_MSG_USERAUTH_REQUEST {
+            return None;
+        }
+        let _user = r.read_string().ok()?;
+        let _service = r.read_string().ok()?;
+        let hostbound = match r.read_string().ok()? {
+            b"publickey" => false,
+            b"publickey-hostbound-v00@openssh.com" => true,
+            _ => return None,
+        };
+        if r.read_u8().ok()? != 1 {
+            return None;
+        }
+        let _alg = r.read_string().ok()?;
+        let _key = r.read_string().ok()?;
+        let host_key = if hostbound {
+            Some(r.read_string().ok()?)
+        } else {
+            None
+        };
+        r.is_empty().then_some((session_id, host_key))
     }
 
     /// Serve one connection: read length-prefixed requests until the peer
@@ -334,6 +500,7 @@ mod proto {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        let mut conn = ConnState::default();
         loop {
             let len = match stream.read_u32().await {
                 Ok(n) => n as usize,
@@ -346,7 +513,7 @@ mod proto {
             let mut buf = vec![0u8; len];
             stream.read_exact(&mut buf).await?;
 
-            let response = process_message(&buf, &keys, &guard, caller.as_ref()).await;
+            let response = process_message(&buf, &keys, &guard, caller.as_ref(), &mut conn).await;
 
             let len_bytes = u32::to_be_bytes(response.len() as u32);
             stream.write_all(&len_bytes).await?;
@@ -372,6 +539,7 @@ mod proto {
         guard: &SignGuard,
         payload: &[u8],
         caller: Option<&CallerInfo>,
+        conn: &ConnState,
     ) -> Vec<u8> {
         let mut reader = SshReader::new(payload);
         let Ok(key_blob) = reader.read_string() else {
@@ -381,6 +549,22 @@ mod proto {
             return vec![SSH_AGENT_FAILURE];
         };
         let flags = reader.read_u32().unwrap_or(0);
+
+        // On a connection bound for authentication, a user-auth signature
+        // must be for THAT session (and, host-bound, that host): otherwise
+        // a hostile server holding a forwarded agent could relay another
+        // session's challenge through a connection whose binding the user
+        // is looking at. Same check as OpenSSH's ssh-agent. Data that
+        // isn't a user-auth request (git commit signing) is left alone.
+        if let Some(bound) = conn.bound_for_auth() {
+            if let Some((sid, host_key)) = parse_userauth_request(data) {
+                if sid != bound.session_id.as_slice()
+                    || host_key.is_some_and(|hk| hk != bound.key_blob.as_slice())
+                {
+                    return vec![SSH_AGENT_FAILURE];
+                }
+            }
+        }
 
         // Identify the key (and grab its public summary for the prompt)
         // under the lock, then release it: `authorize` can block on a
@@ -394,7 +578,7 @@ mod proto {
             KeyInfo::from(k)
         };
 
-        if !guard.authorize(&key_info, caller).await {
+        if !guard.authorize(&key_info, caller, &conn.hops).await {
             return vec![SSH_AGENT_FAILURE];
         }
 
@@ -461,6 +645,20 @@ mod proto {
             let n = u32::from_be_bytes(self.buf[self.pos..self.pos + 4].try_into().unwrap());
             self.pos += 4;
             Ok(n)
+        }
+
+        pub fn read_u8(&mut self) -> std::io::Result<u8> {
+            let b = *self
+                .buf
+                .get(self.pos)
+                .ok_or(std::io::ErrorKind::UnexpectedEof)?;
+            self.pos += 1;
+            Ok(b)
+        }
+
+        /// `true` once every byte has been consumed.
+        pub fn is_empty(&self) -> bool {
+            self.pos >= self.buf.len()
         }
 
         pub fn read_string(&mut self) -> std::io::Result<&'a [u8]> {
@@ -537,7 +735,13 @@ mod proto {
             payload.extend_from_slice(&u32::to_be_bytes(0)); // flags
 
             let guard = SignGuard::new(SignPolicy::Never, None);
-            let out = rt.block_on(handle_sign(&keys, &guard, &payload, None));
+            let out = rt.block_on(handle_sign(
+                &keys,
+                &guard,
+                &payload,
+                None,
+                &ConnState::default(),
+            ));
             assert_eq!(out, vec![SSH_AGENT_FAILURE]);
         }
 
@@ -547,10 +751,11 @@ mod proto {
             let rt = Runtime::new().unwrap();
             let keys: KeyStore = Arc::new(Mutex::new(Vec::new()));
             let guard = SignGuard::new(SignPolicy::Never, None);
-            let out = rt.block_on(process_message(&[0x42], &keys, &guard, None));
+            let mut conn = ConnState::default();
+            let out = rt.block_on(process_message(&[0x42], &keys, &guard, None, &mut conn));
             assert_eq!(out, vec![SSH_AGENT_FAILURE]);
             // A truncated message (no type byte) must fail, not panic.
-            let out = rt.block_on(process_message(&[], &keys, &guard, None));
+            let out = rt.block_on(process_message(&[], &keys, &guard, None, &mut conn));
             assert_eq!(out, vec![SSH_AGENT_FAILURE]);
         }
 
@@ -580,7 +785,7 @@ mod proto {
                 SignPolicy::Never,
                 Some(counting_confirm(false, calls.clone())),
             );
-            assert!(rt.block_on(g.authorize(&dummy_key("SHA256:a"), None)));
+            assert!(rt.block_on(g.authorize(&dummy_key("SHA256:a"), None, &[])));
             assert_eq!(rt.block_on(async { *calls.lock().await }), 0);
         }
 
@@ -593,8 +798,8 @@ mod proto {
                 Some(counting_confirm(true, calls.clone())),
             );
             let k = dummy_key("SHA256:a");
-            assert!(rt.block_on(g.authorize(&k, None)));
-            assert!(rt.block_on(g.authorize(&k, None)));
+            assert!(rt.block_on(g.authorize(&k, None, &[])));
+            assert!(rt.block_on(g.authorize(&k, None, &[])));
             assert_eq!(rt.block_on(async { *calls.lock().await }), 2);
         }
 
@@ -603,7 +808,7 @@ mod proto {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let calls = Arc::new(Mutex::new(0u32));
             let g = SignGuard::new(SignPolicy::Always, Some(counting_confirm(false, calls)));
-            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"), None)));
+            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"), None, &[])));
         }
 
         #[test]
@@ -616,9 +821,9 @@ mod proto {
             );
             let a = dummy_key("SHA256:a");
             let b = dummy_key("SHA256:b");
-            assert!(rt.block_on(g.authorize(&a, None)));
-            assert!(rt.block_on(g.authorize(&a, None))); // remembered — no second ask
-            assert!(rt.block_on(g.authorize(&b, None))); // different key — asks again
+            assert!(rt.block_on(g.authorize(&a, None, &[])));
+            assert!(rt.block_on(g.authorize(&a, None, &[]))); // remembered — no second ask
+            assert!(rt.block_on(g.authorize(&b, None, &[]))); // different key — asks again
             assert_eq!(rt.block_on(async { *calls.lock().await }), 2);
         }
 
@@ -631,8 +836,8 @@ mod proto {
                 Some(counting_confirm(false, calls.clone())),
             );
             let a = dummy_key("SHA256:a");
-            assert!(!rt.block_on(g.authorize(&a, None)));
-            assert!(!rt.block_on(g.authorize(&a, None)));
+            assert!(!rt.block_on(g.authorize(&a, None, &[])));
+            assert!(!rt.block_on(g.authorize(&a, None, &[])));
             assert_eq!(rt.block_on(async { *calls.lock().await }), 2); // re-asked
         }
 
@@ -640,7 +845,7 @@ mod proto {
         fn authorize_confirming_policy_without_callback_denies() {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let g = SignGuard::new(SignPolicy::Always, None);
-            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"), None)));
+            assert!(!rt.block_on(g.authorize(&dummy_key("SHA256:a"), None, &[])));
         }
 
         /// RFC 8032 §7.1 "TEST 2" Ed25519 vector. Pins the two things a
@@ -696,7 +901,13 @@ mod proto {
 
             let rt = Runtime::new().unwrap();
             let guard = SignGuard::new(SignPolicy::Never, None);
-            let out = rt.block_on(handle_sign(&keys, &guard, &payload, None));
+            let out = rt.block_on(handle_sign(
+                &keys,
+                &guard,
+                &payload,
+                None,
+                &ConnState::default(),
+            ));
 
             assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE);
             let mut reader = SshReader::new(&out[1..]);
@@ -705,6 +916,297 @@ mod proto {
             let mut inner = SshReader::new(sig_blob);
             assert_eq!(inner.read_string().unwrap(), b"ssh-ed25519");
             assert_eq!(inner.read_string().unwrap(), expected_sig.as_slice());
+        }
+
+        fn sign_with(keys: &KeyStore, pub_blob: &[u8], data: &[u8], conn: &ConnState) -> Vec<u8> {
+            let mut payload = Vec::new();
+            write_string(&mut payload, pub_blob);
+            write_string(&mut payload, data);
+            payload.extend_from_slice(&u32::to_be_bytes(0));
+            let guard = SignGuard::new(SignPolicy::Never, None);
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(handle_sign(keys, &guard, &payload, None, conn))
+        }
+
+        // ---- session-bind@openssh.com ------------------------------------
+
+        /// A fake server host key (Ed25519, fixed seed) able to sign
+        /// session identifiers the way sshd does during key exchange.
+        struct HostKey(SigningKey);
+
+        impl HostKey {
+            fn new(seed: u8) -> Self {
+                Self(SigningKey::from_bytes(&[seed; 32]))
+            }
+            fn blob(&self) -> Vec<u8> {
+                let mut b = Vec::new();
+                write_string(&mut b, b"ssh-ed25519");
+                write_string(&mut b, self.0.verifying_key().as_bytes());
+                b
+            }
+            fn sign(&self, sid: &[u8]) -> Vec<u8> {
+                let mut b = Vec::new();
+                write_string(&mut b, b"ssh-ed25519");
+                write_string(&mut b, &self.0.sign(sid).to_bytes());
+                b
+            }
+        }
+
+        fn bind_msg(host_blob: &[u8], sid: &[u8], sig: &[u8], forwarded: bool) -> Vec<u8> {
+            let mut m = vec![SSH_AGENTC_EXTENSION];
+            write_string(&mut m, EXT_SESSION_BIND);
+            write_string(&mut m, host_blob);
+            write_string(&mut m, sid);
+            write_string(&mut m, sig);
+            m.push(forwarded as u8);
+            m
+        }
+
+        fn bind(conn: &mut ConnState, host: &HostKey, sid: &[u8], forwarded: bool) -> Vec<u8> {
+            let msg = bind_msg(&host.blob(), sid, &host.sign(sid), forwarded);
+            run(&msg, conn)
+        }
+
+        fn run(msg: &[u8], conn: &mut ConnState) -> Vec<u8> {
+            let keys: KeyStore = Arc::new(Mutex::new(Vec::new()));
+            let guard = SignGuard::new(SignPolicy::Never, None);
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(process_message(msg, &keys, &guard, None, conn))
+        }
+
+        fn userauth(sid: &[u8], hostbound: Option<&[u8]>) -> Vec<u8> {
+            let mut d = Vec::new();
+            write_string(&mut d, sid);
+            d.push(SSH_MSG_USERAUTH_REQUEST);
+            write_string(&mut d, b"git");
+            write_string(&mut d, b"ssh-connection");
+            match hostbound {
+                Some(_) => write_string(&mut d, b"publickey-hostbound-v00@openssh.com"),
+                None => write_string(&mut d, b"publickey"),
+            }
+            d.push(1);
+            write_string(&mut d, b"ssh-ed25519");
+            write_string(&mut d, b"client-key-blob");
+            if let Some(hk) = hostbound {
+                write_string(&mut d, hk);
+            }
+            d
+        }
+
+        #[test]
+        fn session_bind_records_a_verified_binding() {
+            let host = HostKey::new(7);
+            let mut conn = ConnState::default();
+            assert_eq!(
+                bind(&mut conn, &host, b"sid-1", false),
+                vec![SSH_AGENT_SUCCESS]
+            );
+            assert_eq!(conn.hops.len(), 1);
+            let hop = &conn.hops[0];
+            assert_eq!(hop.key_blob, host.blob());
+            assert!(!hop.forwarded);
+            assert!(hop.fingerprint.starts_with("SHA256:"));
+        }
+
+        #[test]
+        fn session_bind_rejects_a_signature_from_another_key() {
+            let (host, impostor) = (HostKey::new(7), HostKey::new(8));
+            let mut conn = ConnState::default();
+            let msg = bind_msg(&host.blob(), b"sid-1", &impostor.sign(b"sid-1"), false);
+            assert_eq!(run(&msg, &mut conn), vec![SSH_AGENT_FAILURE]);
+            // Signed by the right key but over another session id.
+            let msg = bind_msg(&host.blob(), b"sid-1", &host.sign(b"sid-2"), false);
+            assert_eq!(run(&msg, &mut conn), vec![SSH_AGENT_FAILURE]);
+            assert!(conn.hops.is_empty());
+        }
+
+        #[test]
+        fn session_bind_rejects_malformed_bodies() {
+            let host = HostKey::new(7);
+            let mut conn = ConnState::default();
+            let mut msg = bind_msg(&host.blob(), b"sid", &host.sign(b"sid"), false);
+            msg.push(0); // trailing garbage
+            assert_eq!(run(&msg, &mut conn), vec![SSH_AGENT_FAILURE]);
+            let mut msg = bind_msg(&host.blob(), b"sid", &host.sign(b"sid"), false);
+            *msg.last_mut().unwrap() = 2; // not a boolean
+            assert_eq!(run(&msg, &mut conn), vec![SSH_AGENT_FAILURE]);
+            let msg = bind_msg(&host.blob(), b"sid", &host.sign(b"sid"), false);
+            assert_eq!(
+                run(&msg[..msg.len() - 1], &mut conn),
+                vec![SSH_AGENT_FAILURE]
+            );
+            assert!(conn.hops.is_empty());
+        }
+
+        #[test]
+        fn unknown_extensions_fail() {
+            let mut m = vec![SSH_AGENTC_EXTENSION];
+            write_string(&mut m, b"query");
+            assert_eq!(run(&m, &mut ConnState::default()), vec![SSH_AGENT_FAILURE]);
+        }
+
+        #[test]
+        fn forwarding_chain_is_recorded_outermost_first() {
+            let (jump, dest) = (HostKey::new(1), HostKey::new(2));
+            let mut conn = ConnState::default();
+            assert_eq!(
+                bind(&mut conn, &jump, b"sid-jump", true),
+                vec![SSH_AGENT_SUCCESS]
+            );
+            // OpenSSH re-sends the forwarding bind per channel: idempotent.
+            assert_eq!(
+                bind(&mut conn, &jump, b"sid-jump", true),
+                vec![SSH_AGENT_SUCCESS]
+            );
+            assert_eq!(
+                bind(&mut conn, &dest, b"sid-dest", false),
+                vec![SSH_AGENT_SUCCESS]
+            );
+            let shape: Vec<_> = conn
+                .hops
+                .iter()
+                .map(|h| (h.key_blob.clone(), h.forwarded))
+                .collect();
+            assert_eq!(shape, vec![(jump.blob(), true), (dest.blob(), false)]);
+        }
+
+        #[test]
+        fn same_session_with_another_host_key_is_refused() {
+            let (a, b) = (HostKey::new(1), HostKey::new(2));
+            let mut conn = ConnState::default();
+            assert_eq!(bind(&mut conn, &a, b"sid", true), vec![SSH_AGENT_SUCCESS]);
+            assert_eq!(bind(&mut conn, &b, b"sid", true), vec![SSH_AGENT_FAILURE]);
+            assert_eq!(conn.hops.len(), 1);
+        }
+
+        #[test]
+        fn a_connection_bound_for_auth_accepts_no_further_binding() {
+            let (a, b) = (HostKey::new(1), HostKey::new(2));
+            let mut conn = ConnState::default();
+            assert_eq!(
+                bind(&mut conn, &a, b"sid-a", false),
+                vec![SSH_AGENT_SUCCESS]
+            );
+            assert_eq!(bind(&mut conn, &b, b"sid-b", true), vec![SSH_AGENT_FAILURE]);
+            assert_eq!(conn.hops.len(), 1);
+        }
+
+        #[test]
+        fn binding_count_is_capped() {
+            let host = HostKey::new(3);
+            let mut conn = ConnState::default();
+            for i in 0..MAX_SESSION_BINDS {
+                let sid = format!("sid-{i}");
+                assert_eq!(
+                    bind(&mut conn, &host, sid.as_bytes(), true),
+                    vec![SSH_AGENT_SUCCESS]
+                );
+            }
+            assert_eq!(
+                bind(&mut conn, &host, b"one-too-many", true),
+                vec![SSH_AGENT_FAILURE]
+            );
+        }
+
+        fn ed25519_store() -> (KeyStore, Vec<u8>) {
+            let pub_blob = b"client-key-blob".to_vec();
+            let keys = Arc::new(Mutex::new(vec![AgentKey {
+                pub_blob: pub_blob.clone(),
+                comment: "c".into(),
+                algorithm: "ssh-ed25519".into(),
+                fingerprint: "SHA256:c".into(),
+                kind: SignerKind::Ed25519(SigningKey::from_bytes(&[9; 32])),
+            }]));
+            (keys, pub_blob)
+        }
+
+        #[test]
+        fn auth_bound_connection_only_signs_its_own_session() {
+            let host = HostKey::new(4);
+            let mut conn = ConnState::default();
+            bind(&mut conn, &host, b"sid-ok", false);
+            let (keys, blob) = ed25519_store();
+
+            let ok = sign_with(&keys, &blob, &userauth(b"sid-ok", None), &conn);
+            assert_eq!(ok[0], SSH_AGENT_SIGN_RESPONSE);
+            let relayed = sign_with(&keys, &blob, &userauth(b"sid-other", None), &conn);
+            assert_eq!(relayed, vec![SSH_AGENT_FAILURE]);
+
+            // Host-bound variant: the named host key must be the bound one.
+            let ok = sign_with(
+                &keys,
+                &blob,
+                &userauth(b"sid-ok", Some(&host.blob())),
+                &conn,
+            );
+            assert_eq!(ok[0], SSH_AGENT_SIGN_RESPONSE);
+            let wrong = HostKey::new(5).blob();
+            let bad = sign_with(&keys, &blob, &userauth(b"sid-ok", Some(&wrong)), &conn);
+            assert_eq!(bad, vec![SSH_AGENT_FAILURE]);
+
+            // Data that is not a user-auth request (e.g. SSHSIG for git
+            // commit signing) is not subject to the session check.
+            let other = sign_with(&keys, &blob, b"SSHSIG\0\0\0\x01", &conn);
+            assert_eq!(other[0], SSH_AGENT_SIGN_RESPONSE);
+        }
+
+        #[test]
+        fn forwarded_binding_does_not_restrict_the_session() {
+            // The last hop being a forwarding bind means "a process on that
+            // host is using the forwarded agent" — its own sessions are
+            // unknown to us, so the session check must not fire.
+            let host = HostKey::new(6);
+            let mut conn = ConnState::default();
+            bind(&mut conn, &host, b"sid-fwd", true);
+            let (keys, blob) = ed25519_store();
+            let out = sign_with(&keys, &blob, &userauth(b"sid-elsewhere", None), &conn);
+            assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE);
+        }
+
+        #[test]
+        fn parse_userauth_request_accepts_only_publickey_requests() {
+            assert_eq!(
+                parse_userauth_request(&userauth(b"s", None)),
+                Some((&b"s"[..], None))
+            );
+            let hb = userauth(b"s", Some(b"hk"));
+            assert_eq!(
+                parse_userauth_request(&hb),
+                Some((&b"s"[..], Some(&b"hk"[..])))
+            );
+            let mut trailing = userauth(b"s", None);
+            trailing.push(0);
+            assert_eq!(parse_userauth_request(&trailing), None);
+            assert_eq!(parse_userauth_request(b"SSHSIG"), None);
+            assert_eq!(parse_userauth_request(&[]), None);
+        }
+
+        #[test]
+        fn confirmation_receives_the_bindings() {
+            let seen: Arc<std::sync::Mutex<Vec<HostHop>>> = Arc::default();
+            let seen2 = seen.clone();
+            let confirm: ConfirmFn = Arc::new(move |req: SignRequest| {
+                *seen2.lock().unwrap() = req.hops.clone();
+                Box::pin(async { true })
+            });
+            let guard = SignGuard::new(SignPolicy::Always, Some(confirm));
+            let (jump, dest) = (HostKey::new(1), HostKey::new(2));
+            let mut conn = ConnState::default();
+            bind(&mut conn, &jump, b"sid-j", true);
+            bind(&mut conn, &dest, b"sid-d", false);
+            let (keys, blob) = ed25519_store();
+
+            let mut payload = Vec::new();
+            write_string(&mut payload, &blob);
+            write_string(&mut payload, &userauth(b"sid-d", None));
+            payload.extend_from_slice(&u32::to_be_bytes(0));
+            let out = tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(handle_sign(&keys, &guard, &payload, None, &conn));
+            assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE);
+            assert_eq!(*seen.lock().unwrap(), conn.hops);
         }
     }
 } // mod proto
@@ -1011,7 +1513,7 @@ mod windows {
         };
 
         use super::super::proto::{
-            process_message, KeyStore, SignGuard, MAX_MESSAGE, SSH_AGENT_FAILURE,
+            process_message, ConnState, KeyStore, SignGuard, MAX_MESSAGE, SSH_AGENT_FAILURE,
         };
 
         /// Class and window name PuTTY clients search for. (`w!` yields
@@ -1454,9 +1956,15 @@ mod windows {
             // mapping) gets a failure response rather than silence: the
             // client is parked on SendMessage and must see *something*.
             let response = match msg {
-                Some(msg) => ctx
-                    .rt
-                    .block_on(process_message(msg, &ctx.keys, &ctx.guard, None)),
+                Some(msg) => ctx.rt.block_on(process_message(
+                    msg,
+                    &ctx.keys,
+                    &ctx.guard,
+                    None,
+                    // Pageant has no connection to bind; PuTTY doesn't
+                    // send session-bind anyway.
+                    &mut ConnState::default(),
+                )),
                 None => vec![SSH_AGENT_FAILURE],
             };
             if 4 + response.len() > bound {
@@ -2566,7 +3074,7 @@ mod stub {
     }
 }
 
-pub use proto::{try_load_agent_key, ConfirmFn, SignGuard, SignPolicy, SignRequest};
+pub use proto::{try_load_agent_key, ConfirmFn, HostHop, SignGuard, SignPolicy, SignRequest};
 
 #[cfg(not(any(unix, windows)))]
 pub use stub::{default_socket_path, start_agent, SshAgentHandle};

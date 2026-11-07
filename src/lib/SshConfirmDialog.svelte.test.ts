@@ -53,6 +53,7 @@ const REQ = {
   fingerprint: "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
   callerName: "git",
   callerPid: 4321,
+  hops: [] as { host: string | null; fingerprint: string; forwarded: boolean }[],
 };
 
 // `show()` awaits a tick before opening (so the buttons exist when focus
@@ -141,5 +142,58 @@ describe("SshConfirmDialog keyboard defaults", () => {
     allow.click();
     await flush();
     expect(apiMock.respondSshAgentConfirm).toHaveBeenCalledWith(2, true);
+  });
+});
+
+describe("SshConfirmDialog session-bind display", () => {
+  const JUMP = { host: "bastion.example", fingerprint: "SHA256:JUMP", forwarded: true };
+  const DEST = { host: "git.example", fingerprint: "SHA256:DEST", forwarded: false };
+
+  function rows() {
+    const dts = Array.from(document.querySelectorAll("dialog dt")).map((e) => e.textContent?.trim());
+    const dds = Array.from(document.querySelectorAll("dialog dd")).map((e) => e.textContent ?? "");
+    return { dts, dds };
+  }
+
+  it("shows no destination row when the client sent no binding", async () => {
+    render(SshConfirmDialog);
+    await flush();
+    await emit();
+    expect(rows().dts).not.toContain("Destination");
+    expect(document.querySelector(".ssh-confirm-remote-hint")).toBeNull();
+  });
+
+  it("names the destination and the hosts it is reached through", async () => {
+    render(SshConfirmDialog);
+    await flush();
+    await emit({ ...REQ, hops: [JUMP, DEST] });
+    const { dts, dds } = rows();
+    const dest = dts.indexOf("Destination");
+    expect(dest).toBeGreaterThan(-1);
+    expect(dds[dest]).toContain("git.example");
+    expect(dds[dest]).toContain("SHA256:DEST");
+    const via = dts.indexOf("Via");
+    expect(dds[via]).toContain("bastion.example");
+    expect(document.querySelector(".ssh-confirm-remote-hint")).toBeNull();
+  });
+
+  it("flags a request coming from a forwarded agent on a remote host", async () => {
+    render(SshConfirmDialog);
+    await flush();
+    await emit({ ...REQ, hops: [JUMP] });
+    const { dts, dds } = rows();
+    expect(dts).not.toContain("Destination");
+    expect(dds[dts.indexOf("Depuis")]).toContain("bastion.example");
+    expect(document.querySelector(".ssh-confirm-remote-hint")).not.toBeNull();
+  });
+
+  it("falls back to the fingerprint for a host missing from known_hosts", async () => {
+    render(SshConfirmDialog);
+    await flush();
+    await emit({ ...REQ, hops: [{ ...DEST, host: null }] });
+    const { dts, dds } = rows();
+    const dest = dds[dts.indexOf("Destination")];
+    expect(dest).toContain("hôte absent de known_hosts");
+    expect(dest).toContain("SHA256:DEST");
   });
 });
