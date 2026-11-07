@@ -5,6 +5,21 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0](https://github.com/clavix-org/clavix/compare/v0.31.0...v0.32.0) (2026-11-07)
+
+
+### Features
+
+* **packaging:** add a Flatpak manifest ([#471](https://github.com/clavix-org/clavix/issues/471)) ([fd82e64](https://github.com/clavix-org/clavix/commit/fd82e64d19a05d7059183ee6bde98e997c7bf812))
+* **ssh-agent:** show where a signature goes (session-bind) ([#472](https://github.com/clavix-org/clavix/issues/472)) ([53bcb88](https://github.com/clavix-org/clavix/commit/53bcb885e909e46765513d782ed721e612f1f6d5))
+* **ssh-agent:** sign with ECDSA keys, verify ECDSA host keys ([#473](https://github.com/clavix-org/clavix/issues/473)) ([a7297f9](https://github.com/clavix-org/clavix/commit/a7297f9b7641cfd3e305ef1e56229cd2a94bae25))
+
+
+### Bug Fixes
+
+* **flatpak:** single instance and start at login inside the sandbox ([#485](https://github.com/clavix-org/clavix/issues/485)) ([17bf330](https://github.com/clavix-org/clavix/commit/17bf330ccbc36596f16f067123ecd452dae3f363))
+* **linux:** reach the session and system bus from inside Flatpak ([#483](https://github.com/clavix-org/clavix/issues/483)) ([7b036da](https://github.com/clavix-org/clavix/commit/7b036dacf18c3aa878cb6daa9399c951335592f9))
+
 ## [0.31.0](https://github.com/Upellift99/clavix/compare/v0.30.0...v0.31.0) (2026-11-03)
 
 
