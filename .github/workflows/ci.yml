@@ -34,7 +34,9 @@ jobs:
 
       - name: Install Tauri system dependencies
         working-directory: .
-        run: .github/scripts/install-linux-deps.sh
+        # xdg-dbus-proxy and dbus-daemon let src/dbus.rs test its
+        # handshake against the real Flatpak bus proxy.
+        run: .github/scripts/install-linux-deps.sh xdg-dbus-proxy dbus-daemon
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

@@ -4,6 +4,8 @@
 // security key, the auto-lock watchdog and the screen-lock probe.
 mod auto_lock;
 mod commands;
+#[cfg(target_os = "linux")]
+mod dbus;
 mod legacy_app_dirs;
 mod screen_lock;
 // Adapts `AppState` to the engine's session slots — see the module docs.
