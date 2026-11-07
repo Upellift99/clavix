@@ -110,6 +110,10 @@ zbus = { version = "6", default-features = false, features = ["tokio"] }
 # connection (`src/dbus.rs`) are `#[async_trait]`. Already in the tree
 # through zbus itself.
 async-trait = "0.1"
+# StreamExt over zbus' MessageStream, to wait for the Background
+# portal's Response signal (`src/background_portal.rs`). Already in the
+# tree through zbus and Tauri.
+futures-util = { version = "0.3", default-features = false }
 # Only to reach the window's GdkWindow (see `pin_wayland_restore_size`
 # in commands/tray.rs). Pinned to the gtk-rs release Tauri itself builds
 # against.

@@ -431,3 +431,34 @@ jobs:
           path: tests/e2e/screenshots/
           if-no-files-found: ignore
           retention-days: 7
+
+  # The Flatpak build is offline: every crate and npm tarball comes from
+  # packaging/flatpak/{cargo,node}-sources.json. A lockfile change that
+  # forgets scripts/flatpak-sources.sh only breaks the Flatpak build, far
+  # from the PR that caused it (#484 did). Not a required check: it guards
+  # packaging, not the app.
+  flatpak-sources:
+    name: Flatpak sources up to date
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install the generators' dependencies
+        run: sudo apt-get install -y --no-install-recommends python3-yaml
+
+      - name: Regenerate the offline sources
+        # pipx is on the runner image. Pinned so a generator release can't
+        # turn this red on its own.
+        run: |
+          pipx run flatpak-cargo-generator==0.1.5 src-tauri/Cargo.lock -o packaging/flatpak/cargo-sources.json
+          python3 scripts/flatpak-node-sources.py pnpm-lock.yaml > packaging/flatpak/node-sources.json
+
+      - name: Fail on drift
+        run: |
+          if ! git diff --quiet -- packaging/flatpak/; then
+            git diff --stat -- packaging/flatpak/
+            echo "::error::packaging/flatpak/*-sources.json are stale: run scripts/flatpak-sources.sh and commit the result."
+            exit 1
+          fi

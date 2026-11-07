@@ -6,8 +6,8 @@
 # after any change to src-tauri/Cargo.lock or pnpm-lock.yaml, and commit the
 # two JSON files it rewrites in packaging/flatpak/.
 #
-# Needs flatpak-cargo-generator (`pipx install flatpak-cargo-generator`) and
-# PyYAML. The npm side uses our own scripts/flatpak-node-sources.py: see its
+# Needs flatpak-cargo-generator 0.1.5, the version CI checks with
+# (`pipx install flatpak-cargo-generator==0.1.5`), and PyYAML. The npm side uses our own scripts/flatpak-node-sources.py: see its
 # docstring for why a static registry is enough for a frozen pnpm lockfile.
 set -euo pipefail
 

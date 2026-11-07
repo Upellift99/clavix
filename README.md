@@ -388,10 +388,13 @@ What the sandbox changes:
 - **Exports and attachments** are saved to your Downloads folder, the
   only host folder Clavix can write to. Imports go through the file
   chooser portal, so any file you pick can be read.
-- **Start at login does not work yet.** The toggle in Preferences writes
-  its entry inside the sandbox, where the desktop never reads it. Until
-  Clavix uses the Background portal, add `flatpak run org.clavix.Clavix
-  --tray` to your desktop's startup applications by hand.
+- **Start at login** goes through the Background portal, which writes
+  the desktop's autostart entry for Clavix; your desktop may ask you to
+  allow it. If you later revoke it in the system settings, the toggle
+  in Preferences won't notice until you switch it off and on again.
+- **Single instance:** a second launch raises the running window, as
+  outside the sandbox, through a lock in the app's runtime directory
+  rather than a D-Bus name.
 
 ## Run the app in development
 
