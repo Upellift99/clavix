@@ -62,6 +62,10 @@ mod proto {
     pub enum SignerKind {
         Ed25519(SigningKey),
         Rsa(RsaPrivateKey),
+        /// NIST P-256/384/521. Signed through `ssh-key`, which picks the
+        /// curve's hash (SHA-256/384/512) and encodes the `(r, s)` pair the
+        /// way RFC 5656 wants it.
+        Ecdsa(Box<PrivateKey>),
     }
 
     pub struct AgentKey {
@@ -304,8 +308,9 @@ mod proto {
     }
 
     /// Parse an OpenSSH private key and wrap it as an `AgentKey` if we can
-    /// sign with it. Today: Ed25519 and RSA. Returns `Ok(None)` for key
-    /// types we intentionally skip (ECDSA, DSA), `Err` for malformed or
+    /// sign with it. Today: Ed25519, RSA and ECDSA (NIST P-256/384/521).
+    /// Returns `Ok(None)` for key types we intentionally skip (DSA, FIDO
+    /// `sk-*` keys, which need the hardware token), `Err` for malformed or
     /// encrypted input.
     pub fn try_load_agent_key(
         private_key_pem: &str,
@@ -354,6 +359,7 @@ mod proto {
                     })?;
                 SignerKind::Rsa(rsa_key)
             }
+            Algorithm::Ecdsa { .. } => SignerKind::Ecdsa(Box::new(pk)),
             _ => return Ok(None),
         };
         Ok(Some(AgentKey {
@@ -590,6 +596,22 @@ mod proto {
         };
 
         let (algo_name, sig_bytes): (&'static [u8], Vec<u8>) = match &key.kind {
+            SignerKind::Ecdsa(pk) => {
+                // `ssh-key` emits the complete wire signature (algorithm
+                // name + RFC 5656 `(r, s)` blob) — answer with it as is.
+                use rsa::signature::Signer as _;
+                let Some(sig_blob) = pk
+                    .try_sign(data)
+                    .ok()
+                    .and_then(|sig| Vec::<u8>::try_from(sig).ok())
+                else {
+                    return vec![SSH_AGENT_FAILURE];
+                };
+                let mut out = Vec::with_capacity(sig_blob.len() + 5);
+                out.push(SSH_AGENT_SIGN_RESPONSE);
+                write_string(&mut out, &sig_blob);
+                return out;
+            }
             SignerKind::Ed25519(signer) => (b"ssh-ed25519", signer.sign(data).to_bytes().to_vec()),
             SignerKind::Rsa(rsa_key) => {
                 // flags=4 → SHA-512, flags=2 → SHA-256, legacy flags=0
@@ -918,6 +940,8 @@ mod proto {
             assert_eq!(inner.read_string().unwrap(), expected_sig.as_slice());
         }
 
+        // ---- ECDSA -------------------------------------------------------
+
         fn sign_with(keys: &KeyStore, pub_blob: &[u8], data: &[u8], conn: &ConnState) -> Vec<u8> {
             let mut payload = Vec::new();
             write_string(&mut payload, pub_blob);
@@ -927,6 +951,105 @@ mod proto {
             tokio::runtime::Runtime::new()
                 .unwrap()
                 .block_on(handle_sign(keys, &guard, &payload, None, conn))
+        }
+
+        /// Every NIST curve OpenSSH generates must load and produce a
+        /// signature that verifies against the key's public half, with the
+        /// algorithm name ssh expects. A verification against the public
+        /// key (not a byte comparison) is the right oracle here: ECDSA
+        /// signatures are not reproducible byte for byte.
+        #[test]
+        fn ecdsa_keys_load_and_sign_verifiably_on_every_curve() {
+            use rsa::signature::Verifier;
+            for (pem, algo) in [
+                (
+                    include_str!("../tests/fixtures/ssh/ecdsa-p256"),
+                    "ecdsa-sha2-nistp256",
+                ),
+                (
+                    include_str!("../tests/fixtures/ssh/ecdsa-p384"),
+                    "ecdsa-sha2-nistp384",
+                ),
+                (
+                    include_str!("../tests/fixtures/ssh/ecdsa-p521"),
+                    "ecdsa-sha2-nistp521",
+                ),
+            ] {
+                let key = try_load_agent_key(pem, "fallback")
+                    .unwrap()
+                    .expect("ECDSA must no longer be skipped");
+                assert_eq!(key.algorithm, algo);
+                assert!(key.comment.starts_with("clavix-test-p"));
+                let pub_blob = key.pub_blob.clone();
+                let keys: KeyStore = Arc::new(Mutex::new(vec![key]));
+
+                let out = sign_with(&keys, &pub_blob, b"challenge", &ConnState::default());
+                assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE, "{algo}");
+                let sig_blob = SshReader::new(&out[1..]).read_string().unwrap();
+                assert_eq!(
+                    SshReader::new(sig_blob).read_string().unwrap(),
+                    algo.as_bytes()
+                );
+
+                let public = ssh_key::PublicKey::from_bytes(&pub_blob).unwrap();
+                let sig = ssh_key::Signature::try_from(sig_blob).unwrap();
+                Verifier::verify(&public, b"challenge", &sig).expect(algo);
+                assert!(
+                    Verifier::verify(&public, b"something else", &sig).is_err(),
+                    "{algo}: signature must be bound to the data"
+                );
+            }
+        }
+
+        /// Known-answer test: RFC 6979 appendix A.2.5 (P-256, SHA-256,
+        /// message "sample"). `ssh-key` signs ECDSA deterministically, so
+        /// the agent's answer must be exactly the RFC's `(r, s)`. Run it
+        /// on any `ssh-key` / `p256` / `ecdsa` bump: a verifying-but-wrong
+        /// nonce derivation would still pass the round-trip test above.
+        #[test]
+        fn ecdsa_p256_matches_rfc6979_vector() {
+            fn unhex(s: &str) -> Vec<u8> {
+                (0..s.len())
+                    .step_by(2)
+                    .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+                    .collect()
+            }
+            let x = unhex("C9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721");
+            let secret = p256::SecretKey::from_slice(&x).unwrap();
+            let keypair = ssh_key::private::EcdsaKeypair::NistP256 {
+                public: secret.public_key().into(),
+                private: secret.into(),
+            };
+            let pk = PrivateKey::from(keypair);
+            let pub_blob = pk.public_key().to_bytes().unwrap();
+            let keys: KeyStore = Arc::new(Mutex::new(vec![AgentKey {
+                pub_blob: pub_blob.clone(),
+                comment: "rfc6979".into(),
+                algorithm: "ecdsa-sha2-nistp256".into(),
+                fingerprint: "SHA256:rfc6979".into(),
+                kind: SignerKind::Ecdsa(Box::new(pk)),
+            }]));
+
+            let out = sign_with(&keys, &pub_blob, b"sample", &ConnState::default());
+            assert_eq!(out[0], SSH_AGENT_SIGN_RESPONSE);
+            let sig_blob = SshReader::new(&out[1..]).read_string().unwrap();
+            let mut sig = SshReader::new(sig_blob);
+            assert_eq!(sig.read_string().unwrap(), b"ecdsa-sha2-nistp256");
+            // RFC 5656: the signature is `mpint r, mpint s`; an mpint
+            // with its top bit set carries a leading zero byte.
+            let mut rs = SshReader::new(sig.read_string().unwrap());
+            let strip = |m: &[u8]| m.strip_prefix(&[0]).unwrap_or(m).to_vec();
+            let r = strip(rs.read_string().unwrap());
+            let s = strip(rs.read_string().unwrap());
+            assert!(rs.is_empty());
+            assert_eq!(
+                r,
+                unhex("EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716")
+            );
+            assert_eq!(
+                s,
+                unhex("F7CB1C942D657C41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8")
+            );
         }
 
         // ---- session-bind@openssh.com ------------------------------------

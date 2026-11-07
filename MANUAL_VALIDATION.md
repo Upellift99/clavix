@@ -125,7 +125,7 @@ button.
 
 - An unlocked Clavix vault containing **at least one Ed25519 key**
   and **at least one RSA key** (cipher type 5). Skipped key types
-  (ECDSA, DSA) are intentional; the agent should report them as
+  (DSA, FIDO `sk-*`) are intentional; the agent should report them as
   "skipped" rather than fail to start.
 - A reachable SSH test target. A throwaway Git host
   (`gitea`/`gitlab` self-hosted) or a local container running
@@ -197,9 +197,8 @@ individual sign call's.
 
 ### Known limitations
 
-- **ECDSA / DSA keys are not signed.** They appear in the vault but
-  are skipped by the agent. Adding ECDSA is tracked as part of the
-  SSH-agent roadmap.
+- **DSA and FIDO (`sk-*`) keys are not signed.** They appear in the vault
+  but are skipped by the agent. ECDSA (NIST P-256/384/521) is signed.
 - **One agent per running Clavix instance.** Two simultaneous
   sessions would race on the same socket path; the single-instance
   guard (see that checklist) now prevents the accidental case.

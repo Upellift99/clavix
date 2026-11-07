@@ -26,6 +26,22 @@ ignore = [
   # constant-time release.
   "RUSTSEC-2023-0071",
 
+  # crypto-bigint 0.5.5: some "constant-time" operations (subtraction,
+  # zero counting, division, Montgomery multiplication) can branch on
+  # secrets depending on compiler and CPU. Fixed only in 0.7.6; the 0.5
+  # line has no fix, and it reaches us through elliptic-curve 0.13 under
+  # ssh-key 0.6's p256/p384/p521 features (ECDSA SSH keys in the agent and
+  # ECDSA host keys in session-bind). Exposure: host-key verification only
+  # touches public data. ECDSA signing does use the secret scalar, but the
+  # agent signs locally, on demand, behind the optional confirmation
+  # prompt. Exploiting this would take fine-grained timing or
+  # microarchitectural observation of many signatures on the user's
+  # machine, and an attacker with that access can usually reach the agent
+  # socket anyway. Ed25519 and RSA keys don't go through this crate. Drop
+  # this entry once ssh-key moves to elliptic-curve 0.14 / crypto-bigint
+  # 0.7 (the ssh-key 0.7 line).
+  "RUSTSEC-2026-0387",
+
   # -- unmaintained: gtk-rs GTK3 bindings ----------------------------------
   # Ten crates, one upstream decision: the gtk-rs project stopped
   # maintaining its GTK3 bindings. They reach us through Tauri's Linux

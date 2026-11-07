@@ -100,8 +100,8 @@ Against a real Vaultwarden instance, Clavix:
   *Group* on the fly (📥), and reads back its own encrypted backups —
   cards, identities and SSH keys included, which the CSV schema cannot
   carry;
-- embeds an **SSH agent** on every platform: exposes the Ed25519 and RSA
-  keys from your vault so `ssh`, `git`, `scp`, … use them without the
+- embeds an **SSH agent** on every platform: exposes the Ed25519, RSA
+  and ECDSA (NIST P-256/384/521) keys from your vault so `ssh`, `git`, `scp`, … use them without the
   private keys ever touching disk — over a Unix socket on Linux and
   macOS, over the `openssh-ssh-agent` named pipe and PuTTY's Pageant
   IPC on Windows.
@@ -191,9 +191,8 @@ that Clavix verifies. When signatures need confirmation (Preferences →
 On a connection bound for authentication, Clavix also refuses to sign a
 login challenge that belongs to a different session, the same check
 OpenSSH's own `ssh-agent` makes. Older clients, `git` commit signing and
-PuTTY send no binding: the prompt looks as it did before. Ed25519 and
-RSA host keys are verified. A server that only offers an ECDSA host key
-gets no destination line, and authentication still works.
+PuTTY send no binding: the prompt looks as it did before. Ed25519, RSA
+and ECDSA host keys are all verified.
 
 ---
 
@@ -229,7 +228,7 @@ above, or [CHANGELOG.md](CHANGELOG.md) for what landed in each version.
 
 ### Planned
 
-- 🛂 **ECDSA / DSA** SSH keys in the agent.
+- 🛂 **FIDO (`sk-*`)** SSH keys in the agent. (DSA stays out: OpenSSH itself has dropped it.)
 - 🌐 **Server-side error translation** (`data.message` from the
   Vaultwarden API is still returned as-is).
 - 📦 **Flathub** submission (the [Flatpak manifest](#flatpak) is in the

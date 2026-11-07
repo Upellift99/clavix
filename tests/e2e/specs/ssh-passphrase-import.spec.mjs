@@ -17,9 +17,10 @@
 //      the cipher with publicKey + keyFingerprint auto-filled, and
 //      a fresh sync confirms the stored privateKey is no longer
 //      encrypted.
-//   2. ECDSA → algorithm check runs *before* the passphrase prompt,
-//      so the editor surfaces "unsupported SSH algorithm" without
-//      ever asking for a passphrase.
+//   2. Unencrypted ECDSA (NIST P-256) → saves straight away, no
+//      passphrase prompt: ECDSA keys are loadable into the agent. The
+//      algorithm-rejection branch (DSA) is covered by a Rust unit test,
+//      since recent ssh-keygen builds can no longer generate DSA keys.
 //
 // The unencrypted-key happy path is already covered by the seed
 // (e2e_seed::ssh_key_input) and the smoke flows that read it back.
@@ -33,7 +34,7 @@ import { loginAsSeededUser } from "../helpers/auth.mjs";
 
 const PASSPHRASE = "test-passphrase-do-not-use";
 const ITEM_NAME_OK = "E2E SSH ▸ encrypted import";
-const ITEM_NAME_ECDSA = "E2E SSH ▸ ecdsa rejection";
+const ITEM_NAME_ECDSA = "E2E SSH ▸ ecdsa import";
 // The cipher-type selector is the first field of the create form. A bare
 // "select" also matches the owner / collection / folder selectors below
 // it, which wdio 10's strict `$` rejects instead of taking the first.
@@ -90,8 +91,7 @@ describe("Import an encrypted SSH key", () => {
   before(() => {
     workdir = mkdtempSync(join(tmpdir(), "clavix-e2e-ssh-"));
     encryptedPem = genKey("ed25519", join(workdir, "encrypted"), PASSPHRASE);
-    // ECDSA NIST P-256 — the algorithm rejection branch in the
-    // command. Default curve, no passphrase needed for the test.
+    // ECDSA NIST P-256, default curve, no passphrase.
     ecdsaPem = genKey("ecdsa", join(workdir, "ecdsa"), "");
   });
 
@@ -228,7 +228,7 @@ describe("Import an encrypted SSH key", () => {
     }
   });
 
-  it("rejects an ECDSA key up front, no passphrase prompt", async () => {
+  it("saves an unencrypted ECDSA key with no passphrase prompt", async () => {
     // Same describe block, same browser session — the seeded user is
     // still logged in from the previous it().
 
@@ -250,36 +250,25 @@ describe("Import an encrypted SSH key", () => {
     const submit = await editor.$('button[type="submit"]');
     await submit.click();
 
-    // The algorithm check in decrypt_ssh_private_key runs before the
-    // passphrase logic. The error surfaces in the main .editor-error
-    // line, not in a passphrase hint, and the prompt never renders.
-    const editorError = await editor.$(".editor-error");
-    await editorError.waitForDisplayed({
-      timeout: 5_000,
-      timeoutMsg: "ECDSA rejection never surfaced as an error",
-    });
-    const errorText = (await editorError.getText()).toLowerCase();
-    if (!errorText.includes("unsupported") && !errorText.includes("algorithm")) {
-      throw new Error(
-        `expected "unsupported SSH algorithm" in editor error, got: ${errorText}`,
-      );
-    }
-
-    const promptLabel = await editor.$("label*=Phrase de passe de la clé SSH");
-    if (await promptLabel.isExisting()) {
-      throw new Error(
-        "passphrase prompt appeared for an ECDSA key — algorithm check should have run first",
-      );
-    }
-
-    // Cancel out so we don't leak a half-typed cipher into the vault
-    // for any spec running after this one in alphabetical order.
-    const cancel = await editor.$("button=Annuler");
-    await cancel.click();
+    // Accepted by the algorithm gate and unencrypted, so the editor
+    // closes on the first save: no error line, no passphrase prompt.
     await editor.waitForExist({
       reverse: true,
-      timeout: 5_000,
-      timeoutMsg: "editor did not close after Annuler",
+      timeout: 15_000,
+      timeoutMsg: "editor did not close after saving an ECDSA key",
     });
+
+    // The command the editor runs on save hands back the public half;
+    // check it directly so a silent algorithm mix-up can't pass.
+    const decrypted = await browser.execute(
+      (pem) => window.__TAURI__.core.invoke("decrypt_ssh_private_key", { privateKey: pem }),
+      ecdsaPem,
+    );
+    if (!decrypted.publicKey.startsWith("ecdsa-sha2-nistp256 ")) {
+      throw new Error(`expected an ecdsa-sha2-nistp256 public key, got: ${decrypted.publicKey}`);
+    }
+    if (!decrypted.keyFingerprint.startsWith("SHA256:")) {
+      throw new Error(`expected a SHA256 fingerprint, got: ${decrypted.keyFingerprint}`);
+    }
   });
 });
