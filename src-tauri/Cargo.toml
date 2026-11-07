@@ -165,7 +165,7 @@ sha1 = "0.10"
 tauri = { version = "2", features = ["test"] }
 # Builds an ECDSA key from a raw RFC 6979 test scalar for the agent's
 # known-answer test. Already in the tree through ssh-key's p256 feature.
-p256 = "0.13"
+p256 = "0.14"
 
 # Optimise les dépendances même en mode dev : crucial pour la crypto (PBKDF2, Argon2id)
 # qui serait sinon plusieurs secondes par login. Notre code reste compilé en debug.
