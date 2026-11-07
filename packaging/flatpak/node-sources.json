@@ -204,17 +204,17 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@inlang/paraglide-js/-/paraglide-js-2.29.3.tgz",
-    "sha512": "688f604fbcc64e9aff97cb5933b3971eb806aee67a8dcbb6888a88c3c41728e18e6386a4177bb57082ba101b2db419be0c72341468b00a5f315548f3ee40d91e",
+    "url": "https://registry.npmjs.org/@inlang/paraglide-js/-/paraglide-js-3.1.0.tgz",
+    "sha512": "57ca416b665d68f0eae923bb3fb3115ecf8565117b30c212f2c41a99cd698e3cee60517b683dfd040c9972566f7fd0f38e22ee2820d730e2cea023de6e3073ab",
     "dest": "npm-registry/@inlang/paraglide-js/-",
-    "dest-filename": "paraglide-js-2.29.3.tgz"
+    "dest-filename": "paraglide-js-3.1.0.tgz"
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@inlang/plugin-message-format/-/plugin-message-format-4.5.6.tgz",
-    "sha512": "e8e473388e43daf111febfec2bf1b9103902829bc82814c9789434c0743cea8b508899ebd967ae95b89804ccf70f9a33ec261bd504afb5f2b42f18e9af1e30ab",
+    "url": "https://registry.npmjs.org/@inlang/plugin-message-format/-/plugin-message-format-4.6.0.tgz",
+    "sha512": "0cad8666fca90f280b7219d46852bf45d0889b66da8919507ed3a27ac18d283b6336a8a8a961e79eed3383a34a365a37903e36879c6544291eef3123045cd9ae",
     "dest": "npm-registry/@inlang/plugin-message-format/-",
-    "dest-filename": "plugin-message-format-4.5.6.tgz"
+    "dest-filename": "plugin-message-format-4.6.0.tgz"
   },
   {
     "type": "file",
@@ -225,17 +225,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@inlang/sdk/-/sdk-4.0.4.tgz",
-    "sha512": "38985548625afc0939d969dc82a20f1ebf53c952750eea2e6e5726b4da3d1fc6a9a159f80ebd4324dc54c5ac0209cd3542631283caa863c1ab4d5f12548bb596",
+    "url": "https://registry.npmjs.org/@inlang/sdk/-/sdk-4.2.0.tgz",
+    "sha512": "0a66aabe7df8c2cc62176ef7d7c670dab83ed35ec71cd256579307f2b7f254a540359369ce5cedc7345b1627a713f80048c2c3f2896e6071e89486ffa7a120af",
     "dest": "npm-registry/@inlang/sdk/-",
-    "dest-filename": "sdk-4.0.4.tgz"
-  },
-  {
-    "type": "file",
-    "url": "https://registry.npmjs.org/@inlang/sdk/-/sdk-4.1.0.tgz",
-    "sha512": "a4f95ac727a6705301730071df5cdb48d5b028e4522dcdb2bfddefd2e182878420361fe4051b8b941c5bb9b98c13a50916c8fee676daa36583663cf7173b3e14",
-    "dest": "npm-registry/@inlang/sdk/-",
-    "dest-filename": "sdk-4.1.0.tgz"
+    "dest-filename": "sdk-4.2.0.tgz"
   },
   {
     "type": "file",
@@ -708,6 +701,13 @@
   },
   {
     "type": "file",
+    "url": "https://registry.npmjs.org/@types/estree/-/estree-1.0.10.tgz",
+    "sha512": "953c8e32739c991073742bfaff8cd4642ac4855d31aea422519059b5571b98b1c15ca2e737cabcf6fff029117f4341dbc15b2a6c81b7a391c3a0597db1db8cfa",
+    "dest": "npm-registry/@types/estree/-",
+    "dest-filename": "estree-1.0.10.tgz"
+  },
+  {
+    "type": "file",
     "url": "https://registry.npmjs.org/@types/estree/-/estree-1.0.9.tgz",
     "sha512": "1a174f832d5e978fc898fd395f4e54c38730dbf33ddc10949a712f599352b650b310a304e05924f98a680393a21cd426a12ec269f6fc5dadcfc9af26d50af37a",
     "dest": "npm-registry/@types/estree/-",
@@ -747,13 +747,6 @@
     "sha512": "536f8336bfb04a3a6c4d2ff0646607abb19cc1fb9298a88abe83ef2b6db3c13951854f75c8e9e2378a914792a1223be27fbcacc3f773fe12a67c31f4462b3868",
     "dest": "npm-registry/@types/node/-",
     "dest-filename": "node-22.20.5.tgz"
-  },
-  {
-    "type": "file",
-    "url": "https://registry.npmjs.org/@types/node/-/node-26.6.5.tgz",
-    "sha512": "b8ccecbfdb2d0dda1f219071e141a1e19f598179c60bdb1e443b1c8a505c4c701e38593aecc660fe4f5b5957cef9b938a99986fa5e768519cbc14887d8b9c94e",
-    "dest": "npm-registry/@types/node/-",
-    "dest-filename": "node-26.6.5.tgz"
   },
   {
     "type": "file",
@@ -813,10 +806,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@vitest/mocker/-/mocker-5.0.5.tgz",
-    "sha512": "c4b2f79640de809670f8c1a819a082b056b20d9b611a0a40b6bdd5ce2c9f738a7bc47f3d2bb2913dc441061fe41189b402a92de43b539a462906d455fc5ac766",
+    "url": "https://registry.npmjs.org/@vitest/mocker/-/mocker-5.1.0.tgz",
+    "sha512": "e6e981f7f8e559ca954ba7ecac59afe46767a6eeb00148a8fe510ec009af07bbfe945a3f216d81f458400f4a75f460942d380cccb09d526b820c29c0cd6829a5",
     "dest": "npm-registry/@vitest/mocker/-",
-    "dest-filename": "mocker-5.0.5.tgz"
+    "dest-filename": "mocker-5.1.0.tgz"
   },
   {
     "type": "file",
@@ -834,10 +827,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@vitest/spy/-/spy-5.0.5.tgz",
-    "sha512": "970251131b87e35ef6e7b439c2ff5062e80df48309928c5cacaad8c463d0901ce5ef094da535310ffe72357e0448a55421284a3e090672160f14c58e3a4d30cf",
+    "url": "https://registry.npmjs.org/@vitest/spy/-/spy-5.1.0.tgz",
+    "sha512": "d833cee4e30758aac19e00be7c299342a7a6345d2089d461a779716c1991856f8cd5726b7e03e9a8da9655ebd7b67d9fdae7c3e59691d41e81eb8d5a025717e4",
     "dest": "npm-registry/@vitest/spy/-",
-    "dest-filename": "spy-5.0.5.tgz"
+    "dest-filename": "spy-5.1.0.tgz"
   },
   {
     "type": "file",
@@ -2115,13 +2108,6 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/jsonc-parser/-/jsonc-parser-3.3.1.tgz",
-    "sha512": "1d4807eb92b27a3ad414fbc714f6ea398d2bb058a9dc1a39c1be2782f762d44a426165100c2e55f98ee6670b3e0cb92be0cfffcd02686a7bb548ffbcec3bf5a1",
-    "dest": "npm-registry/jsonc-parser/-",
-    "dest-filename": "jsonc-parser-3.3.1.tgz"
-  },
-  {
-    "type": "file",
     "url": "https://registry.npmjs.org/jsqr/-/jsqr-1.4.0.tgz",
     "sha512": "7712e86fbabae578360efb2d624469918b662a6dac3c9f68161ae19ae753d5d66f34515396ba1a8b70164a92decbfc39bcc70b057460389b1b5e974df47cd4fc",
     "dest": "npm-registry/jsqr/-",
@@ -2280,6 +2266,13 @@
     "sha512": "cf5d8ec6668f184d05e3196919d8ee0147248a92e94254c0b809b21a13680fb383a58533bc37efb7151b8ccfe3c339f23f5efca23bbf2837728b6db4c0d27445",
     "dest": "npm-registry/magic-string/-",
     "dest-filename": "magic-string-1.4.3.tgz"
+  },
+  {
+    "type": "file",
+    "url": "https://registry.npmjs.org/magic-string/-/magic-string-1.4.5.tgz",
+    "sha512": "a0b2c2dbe62f4147c06bebf1a2e7c4ff273589c6fceccf625c846a02847fd84844ffc71bdd217ff868b4736072d41fb9573d9edaf42d52f1e2bb5fbadd99e1fb",
+    "dest": "npm-registry/magic-string/-",
+    "dest-filename": "magic-string-1.4.5.tgz"
   },
   {
     "type": "file",
@@ -2941,10 +2934,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/svelte-check/-/svelte-check-4.7.7.tgz",
-    "sha512": "19ed8831d793a5b26eccd14646288c83445681b49ccac290bbbc70732149db6f8353d1799cf5f9d7e437807986a91c5840cc76927ade556b79a02b5f7b4bdfda",
+    "url": "https://registry.npmjs.org/svelte-check/-/svelte-check-4.7.8.tgz",
+    "sha512": "95a678f461476776f4cf63d68a72562f4b327a173f3d347c68769469388191627ee18dfc9e1c63997b12cfb09b19add574aa2956255bac11f76c636a2002346d",
     "dest": "npm-registry/svelte-check/-",
-    "dest-filename": "svelte-check-4.7.7.tgz"
+    "dest-filename": "svelte-check-4.7.8.tgz"
   },
   {
     "type": "file",
@@ -2983,10 +2976,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/tinybench/-/tinybench-6.2.2.tgz",
-    "sha512": "9c8676376745a6306c8368608ad2aeee603e16fb0826e1893b0cac4678265514665a047f5323e3c098fc73f7d3fdd866f049079c5e443a88117fed19daaae298",
+    "url": "https://registry.npmjs.org/tinybench/-/tinybench-6.2.3.tgz",
+    "sha512": "025d350b62480673b60970803dba4097ab1488e647793846b4760d4dae75251c3d3f258e09dafef4e9e0d39478aa0fd2937f87eb8e44f28bf5876739f22b7237",
     "dest": "npm-registry/tinybench/-",
-    "dest-filename": "tinybench-6.2.2.tgz"
+    "dest-filename": "tinybench-6.2.3.tgz"
   },
   {
     "type": "file",
@@ -3200,10 +3193,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/vitest/-/vitest-5.0.5.tgz",
-    "sha512": "70f38338c17c627922898b43747a3a9f8c16981ace0416ce2181f6777dcce25dc274d9fbda1faa3263bab977df50de80e406455cd343fddfa4ad2f668245d17e",
+    "url": "https://registry.npmjs.org/vitest/-/vitest-5.1.0.tgz",
+    "sha512": "33398d167af06bcbfc945d5b2f1c37509e04444c153956fbe55a8966650346327a125b8aff1f6d87ba936da783938d56c44d46c56aa64d771db1fa1b7c7e6c38",
     "dest": "npm-registry/vitest/-",
-    "dest-filename": "vitest-5.0.5.tgz"
+    "dest-filename": "vitest-5.1.0.tgz"
   },
   {
     "type": "file",
@@ -3725,13 +3718,13 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"2.29.3\"}, \"name\": \"@inlang/paraglide-js\", \"time\": {\"2.29.3\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"2.29.3\": {\"dist\": {\"integrity\": \"sha512-aI9gT7zGTpr/l8tZM7OXHrgGruZ6jcu2iIqIw8QXKOGOY4akF3u1cIK6EBsttBm+DHI0FGiwCl8xVUjz7kDZHg==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/paraglide-js/-/paraglide-js-2.29.3.tgz\"}, \"name\": \"@inlang/paraglide-js\", \"version\": \"2.29.3\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"3.1.0\"}, \"name\": \"@inlang/paraglide-js\", \"time\": {\"3.1.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"3.1.0\": {\"dist\": {\"integrity\": \"sha512-V8pBa2ZdaPDq6SO7P7MRXs+FZRF7MMIS8sQamc1pjjzuYFF7aD39BAyZclZvf9DzjiLuKCDXMOLOoCPebjBzqw==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/paraglide-js/-/paraglide-js-3.1.0.tgz\"}, \"name\": \"@inlang/paraglide-js\", \"version\": \"3.1.0\"}}}",
     "dest": "npm-registry/@inlang/paraglide-js",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"4.5.6\"}, \"name\": \"@inlang/plugin-message-format\", \"time\": {\"4.5.6\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"4.5.6\": {\"dist\": {\"integrity\": \"sha512-6ORzOI5D2vER/r/sK/G5EDkCgpvIKBTJeJQ0wHQ86otQiJnr2WeulbiYBMz3D5oz7CYb1QSvtfK0Lxjprx4wqw==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/plugin-message-format/-/plugin-message-format-4.5.6.tgz\"}, \"name\": \"@inlang/plugin-message-format\", \"version\": \"4.5.6\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"4.6.0\"}, \"name\": \"@inlang/plugin-message-format\", \"time\": {\"4.6.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"4.6.0\": {\"dist\": {\"integrity\": \"sha512-DK2GZvypDygLchnUaFK/RdCIm2baiRlQftOiesGNKDtjNqioqWHnnu0zg6NKNlo3kD42h5xlRCke7zEjBFzZrg==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/plugin-message-format/-/plugin-message-format-4.6.0.tgz\"}, \"name\": \"@inlang/plugin-message-format\", \"version\": \"4.6.0\"}}}",
     "dest": "npm-registry/@inlang/plugin-message-format",
     "dest-filename": "packument.json"
   },
@@ -3743,7 +3736,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"4.0.4\"}, \"name\": \"@inlang/sdk\", \"time\": {\"4.0.4\": \"2000-01-01T00:00:00.000Z\", \"4.1.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"4.0.4\": {\"dist\": {\"integrity\": \"sha512-OJhVSGJa/Ak52WncgqIPHr9TyVJ1DuoublcmtNo9H8apoVn4Dr1DJNxUxawCCc01QmMSg8qoY8GrTV8SVIu1lg==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/sdk/-/sdk-4.0.4.tgz\"}, \"name\": \"@inlang/sdk\", \"version\": \"4.0.4\"}, \"4.1.0\": {\"dist\": {\"integrity\": \"sha512-pPlaxyemcFMBcwBx31zbSNWwKORSLc2yv93v0uGCh4QgNh/kBRuLlBxbubmME6UJFsj+5nbao2WDZjz3Fzs+FA==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/sdk/-/sdk-4.1.0.tgz\"}, \"name\": \"@inlang/sdk\", \"version\": \"4.1.0\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"4.2.0\"}, \"name\": \"@inlang/sdk\", \"time\": {\"4.2.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"4.2.0\": {\"dist\": {\"integrity\": \"sha512-Cmaqvn34wsxiF27318Zw2rg+017HHNJWV5MH8rfyVKVANZNpzlztxzRbFienE/gASMLD8oluYHHolIb/p6Egrw==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/sdk/-/sdk-4.2.0.tgz\"}, \"name\": \"@inlang/sdk\", \"version\": \"4.2.0\"}}}",
     "dest": "npm-registry/@inlang/sdk",
     "dest-filename": "packument.json"
   },
@@ -4349,7 +4342,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.0.9\"}, \"name\": \"@types/estree\", \"time\": {\"1.0.9\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.0.9\": {\"dist\": {\"integrity\": \"sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==\", \"tarball\": \"http://127.0.0.1:4873/@types/estree/-/estree-1.0.9.tgz\"}, \"name\": \"@types/estree\", \"version\": \"1.0.9\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.0.10\"}, \"name\": \"@types/estree\", \"time\": {\"1.0.10\": \"2000-01-01T00:00:00.000Z\", \"1.0.9\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.0.10\": {\"dist\": {\"integrity\": \"sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g==\", \"tarball\": \"http://127.0.0.1:4873/@types/estree/-/estree-1.0.10.tgz\"}, \"name\": \"@types/estree\", \"version\": \"1.0.10\"}, \"1.0.9\": {\"dist\": {\"integrity\": \"sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==\", \"tarball\": \"http://127.0.0.1:4873/@types/estree/-/estree-1.0.9.tgz\"}, \"name\": \"@types/estree\", \"version\": \"1.0.9\"}}}",
     "dest": "npm-registry/@types/estree",
     "dest-filename": "packument.json"
   },
@@ -4379,7 +4372,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"22.20.5\"}, \"name\": \"@types/node\", \"time\": {\"22.20.5\": \"2000-01-01T00:00:00.000Z\", \"26.6.5\": \"2000-01-01T00:00:00.000Z\", \"26.6.6\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"22.20.5\": {\"dist\": {\"integrity\": \"sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==\", \"tarball\": \"http://127.0.0.1:4873/@types/node/-/node-22.20.5.tgz\"}, \"name\": \"@types/node\", \"version\": \"22.20.5\"}, \"26.6.5\": {\"dist\": {\"integrity\": \"sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg==\", \"tarball\": \"http://127.0.0.1:4873/@types/node/-/node-26.6.5.tgz\"}, \"name\": \"@types/node\", \"version\": \"26.6.5\"}, \"26.6.6\": {\"dist\": {\"integrity\": \"sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==\", \"tarball\": \"http://127.0.0.1:4873/@types/node/-/node-26.6.6.tgz\"}, \"name\": \"@types/node\", \"version\": \"26.6.6\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"22.20.5\"}, \"name\": \"@types/node\", \"time\": {\"22.20.5\": \"2000-01-01T00:00:00.000Z\", \"26.6.6\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"22.20.5\": {\"dist\": {\"integrity\": \"sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==\", \"tarball\": \"http://127.0.0.1:4873/@types/node/-/node-22.20.5.tgz\"}, \"name\": \"@types/node\", \"version\": \"22.20.5\"}, \"26.6.6\": {\"dist\": {\"integrity\": \"sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==\", \"tarball\": \"http://127.0.0.1:4873/@types/node/-/node-26.6.6.tgz\"}, \"name\": \"@types/node\", \"version\": \"26.6.6\"}}}",
     "dest": "npm-registry/@types/node",
     "dest-filename": "packument.json"
   },
@@ -4427,7 +4420,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"5.0.5\"}, \"name\": \"@vitest/mocker\", \"time\": {\"5.0.5\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"5.0.5\": {\"dist\": {\"integrity\": \"sha512-xLL3lkDegJZw+MGoGaCCsFayDZthGgpAtr3Vziyfc4p7xH89K7KRPcRBBh/kEYm0Aqkt5DtTmkYpBtRV/FrHZg==\", \"tarball\": \"http://127.0.0.1:4873/@vitest/mocker/-/mocker-5.0.5.tgz\"}, \"name\": \"@vitest/mocker\", \"version\": \"5.0.5\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"5.1.0\"}, \"name\": \"@vitest/mocker\", \"time\": {\"5.1.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"5.1.0\": {\"dist\": {\"integrity\": \"sha512-5umB9/jlWcqVS6fsrFmv5Gdnpu6wAUio/lEOwAmvB7v+lFo/IW2B9FhAD0p19GCULTgMzLCdUmuCDCnAzWgppQ==\", \"tarball\": \"http://127.0.0.1:4873/@vitest/mocker/-/mocker-5.1.0.tgz\"}, \"name\": \"@vitest/mocker\", \"version\": \"5.1.0\"}}}",
     "dest": "npm-registry/@vitest/mocker",
     "dest-filename": "packument.json"
   },
@@ -4445,7 +4438,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"5.0.5\"}, \"name\": \"@vitest/spy\", \"time\": {\"5.0.5\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"5.0.5\": {\"dist\": {\"integrity\": \"sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==\", \"tarball\": \"http://127.0.0.1:4873/@vitest/spy/-/spy-5.0.5.tgz\"}, \"name\": \"@vitest/spy\", \"version\": \"5.0.5\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"5.1.0\"}, \"name\": \"@vitest/spy\", \"time\": {\"5.1.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"5.1.0\": {\"dist\": {\"integrity\": \"sha512-2DPO5OMHWKrBngC+fCmTQqemNF0gidRhp3lxbBmRhW+M1XJrfgPpqNqWVevXtn2f2ufD5ZaR1B6B641aAlcX5A==\", \"tarball\": \"http://127.0.0.1:4873/@vitest/spy/-/spy-5.1.0.tgz\"}, \"name\": \"@vitest/spy\", \"version\": \"5.1.0\"}}}",
     "dest": "npm-registry/@vitest/spy",
     "dest-filename": "packument.json"
   },
@@ -5459,12 +5452,6 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"3.3.1\"}, \"name\": \"jsonc-parser\", \"time\": {\"3.3.1\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"3.3.1\": {\"dist\": {\"integrity\": \"sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==\", \"tarball\": \"http://127.0.0.1:4873/jsonc-parser/-/jsonc-parser-3.3.1.tgz\"}, \"name\": \"jsonc-parser\", \"version\": \"3.3.1\"}}}",
-    "dest": "npm-registry/jsonc-parser",
-    "dest-filename": "packument.json"
-  },
-  {
-    "type": "inline",
     "contents": "{\"dist-tags\": {\"latest\": \"1.4.0\"}, \"name\": \"jsqr\", \"time\": {\"1.4.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.4.0\": {\"dist\": {\"integrity\": \"sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==\", \"tarball\": \"http://127.0.0.1:4873/jsqr/-/jsqr-1.4.0.tgz\"}, \"name\": \"jsqr\", \"version\": \"1.4.0\"}}}",
     "dest": "npm-registry/jsqr",
     "dest-filename": "packument.json"
@@ -5627,7 +5614,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"0.30.21\"}, \"name\": \"magic-string\", \"time\": {\"0.30.21\": \"2000-01-01T00:00:00.000Z\", \"1.2.3\": \"2000-01-01T00:00:00.000Z\", \"1.4.3\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"0.30.21\": {\"dist\": {\"integrity\": \"sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==\", \"tarball\": \"http://127.0.0.1:4873/magic-string/-/magic-string-0.30.21.tgz\"}, \"name\": \"magic-string\", \"version\": \"0.30.21\"}, \"1.2.3\": {\"dist\": {\"integrity\": \"sha512-Bpb0W2TbLKOZ7vJnOUnVRGq3WL2p+ISV29M6hYPL1AFCpyKZpdr5ytiXoTSSxRVhg8YW7f65+6gbG8WG6PCa/g==\", \"tarball\": \"http://127.0.0.1:4873/magic-string/-/magic-string-1.2.3.tgz\"}, \"name\": \"magic-string\", \"version\": \"1.2.3\"}, \"1.4.3\": {\"dist\": {\"integrity\": \"sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==\", \"tarball\": \"http://127.0.0.1:4873/magic-string/-/magic-string-1.4.3.tgz\"}, \"name\": \"magic-string\", \"version\": \"1.4.3\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"0.30.21\"}, \"name\": \"magic-string\", \"time\": {\"0.30.21\": \"2000-01-01T00:00:00.000Z\", \"1.2.3\": \"2000-01-01T00:00:00.000Z\", \"1.4.3\": \"2000-01-01T00:00:00.000Z\", \"1.4.5\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"0.30.21\": {\"dist\": {\"integrity\": \"sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==\", \"tarball\": \"http://127.0.0.1:4873/magic-string/-/magic-string-0.30.21.tgz\"}, \"name\": \"magic-string\", \"version\": \"0.30.21\"}, \"1.2.3\": {\"dist\": {\"integrity\": \"sha512-Bpb0W2TbLKOZ7vJnOUnVRGq3WL2p+ISV29M6hYPL1AFCpyKZpdr5ytiXoTSSxRVhg8YW7f65+6gbG8WG6PCa/g==\", \"tarball\": \"http://127.0.0.1:4873/magic-string/-/magic-string-1.2.3.tgz\"}, \"name\": \"magic-string\", \"version\": \"1.2.3\"}, \"1.4.3\": {\"dist\": {\"integrity\": \"sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==\", \"tarball\": \"http://127.0.0.1:4873/magic-string/-/magic-string-1.4.3.tgz\"}, \"name\": \"magic-string\", \"version\": \"1.4.3\"}, \"1.4.5\": {\"dist\": {\"integrity\": \"sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w==\", \"tarball\": \"http://127.0.0.1:4873/magic-string/-/magic-string-1.4.5.tgz\"}, \"name\": \"magic-string\", \"version\": \"1.4.5\"}}}",
     "dest": "npm-registry/magic-string",
     "dest-filename": "packument.json"
   },
@@ -6131,7 +6118,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"4.7.7\"}, \"name\": \"svelte-check\", \"time\": {\"4.7.7\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"4.7.7\": {\"dist\": {\"integrity\": \"sha512-Ge2IMdeTpbJuzNFGRiiMg0RWgbScysKQu7xwcyFJ22+DU9F5nPX51+Q3gHmGqRxYQMx2knreVWt5oCtfe0vf2g==\", \"tarball\": \"http://127.0.0.1:4873/svelte-check/-/svelte-check-4.7.7.tgz\"}, \"name\": \"svelte-check\", \"version\": \"4.7.7\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"4.7.8\"}, \"name\": \"svelte-check\", \"time\": {\"4.7.8\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"4.7.8\": {\"dist\": {\"integrity\": \"sha512-laZ49GFHZ3b0z2PWinJWL0syehc/PTR8aHaUaTiBkWJ+4Y38nhxjmXsSz7CbGa3VdKopViVbrBH3bGNqIAI0bQ==\", \"tarball\": \"http://127.0.0.1:4873/svelte-check/-/svelte-check-4.7.8.tgz\"}, \"name\": \"svelte-check\", \"version\": \"4.7.8\"}}}",
     "dest": "npm-registry/svelte-check",
     "dest-filename": "packument.json"
   },
@@ -6161,7 +6148,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"6.2.2\"}, \"name\": \"tinybench\", \"time\": {\"6.2.2\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"6.2.2\": {\"dist\": {\"integrity\": \"sha512-nIZ2N2dFpjBsg2hgitKu7mA+FvsIJuGJOwysRngmVRRmWgR/UyPjwJj8c/fT/dhm8EkHnF5EOogRf+0Z2qrimA==\", \"tarball\": \"http://127.0.0.1:4873/tinybench/-/tinybench-6.2.2.tgz\"}, \"name\": \"tinybench\", \"version\": \"6.2.2\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"6.2.3\"}, \"name\": \"tinybench\", \"time\": {\"6.2.3\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"6.2.3\": {\"dist\": {\"integrity\": \"sha512-Al01C2JIBnO2CXCAPbpAl6sUiOZHeThGtHYNTa51JRw9PyWOCdr+9Ong05R4qg/Sk3+H645E8ov1h2c58ityNw==\", \"tarball\": \"http://127.0.0.1:4873/tinybench/-/tinybench-6.2.3.tgz\"}, \"name\": \"tinybench\", \"version\": \"6.2.3\"}}}",
     "dest": "npm-registry/tinybench",
     "dest-filename": "packument.json"
   },
@@ -6311,7 +6298,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"5.0.5\"}, \"name\": \"vitest\", \"time\": {\"5.0.5\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"5.0.5\": {\"dist\": {\"integrity\": \"sha512-cPODOMF8YnkiiYtDdHo6n4wWmBrOBBbOIYH2d33M4l3CdNn72h+qMmO6uXffUN6A5AZFXNND/d+krS9mgkXRfg==\", \"tarball\": \"http://127.0.0.1:4873/vitest/-/vitest-5.0.5.tgz\"}, \"name\": \"vitest\", \"version\": \"5.0.5\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"5.1.0\"}, \"name\": \"vitest\", \"time\": {\"5.1.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"5.1.0\": {\"dist\": {\"integrity\": \"sha512-MzmNFnrwa8v8lF1bLxw3UJ4EREwVOVb75VqJZmUDRjJ6EluK/x9th7qTbaeDk41WxE1GxWqmTXcdsfobfH5sOA==\", \"tarball\": \"http://127.0.0.1:4873/vitest/-/vitest-5.1.0.tgz\"}, \"name\": \"vitest\", \"version\": \"5.1.0\"}}}",
     "dest": "npm-registry/vitest",
     "dest-filename": "packument.json"
   },
