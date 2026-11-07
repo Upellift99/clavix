@@ -82,8 +82,8 @@ describe("CipherEditor close guards", () => {
   });
 
   // Annuler and ✕ are unambiguous, so they close a dirty form outright.
-  // The E2E SSH spec depends on this: it fills the key field, gets the
-  // ECDSA rejection, then clicks Annuler and expects the dialog gone.
+  // Users rely on this to back out of a half-filled form, e.g. after a
+  // key the algorithm gate rejects.
   it("closes on Annuler even with unsaved changes", async () => {
     const { onCancel, container } = mount();
     await tick();

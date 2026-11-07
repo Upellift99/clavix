@@ -247,7 +247,7 @@ pub struct SkippedKey {
     pub name: String,
     /// Human-readable reason — surfaced to the user so they know whether
     /// the key was skipped because of an unsupported algorithm
-    /// (ECDSA / DSA), a leftover passphrase-encrypted PEM that pre-dates
+    /// (DSA, FIDO `sk-*`), a leftover passphrase-encrypted PEM that pre-dates
     /// the import-time decrypt flow, or a malformed key.
     pub reason: String,
 }
@@ -475,14 +475,14 @@ pub fn decrypt_ssh_private_key(
 
     // Check the algorithm BEFORE prompting for or consuming a passphrase.
     // The algorithm header is in the unencrypted portion of the OpenSSH
-    // format, so we can reject ECDSA / DSA up front instead of having the
-    // user type a passphrase that turns out to be useless.
+    // format, so we can reject DSA / FIDO keys up front instead of having
+    // the user type a passphrase that turns out to be useless.
     match pk.algorithm() {
-        Algorithm::Ed25519 | Algorithm::Rsa { .. } => {}
+        Algorithm::Ed25519 | Algorithm::Rsa { .. } | Algorithm::Ecdsa { .. } => {}
         other => {
             return Err(Error::Crypto {
                 reason: format!(
-                    "unsupported SSH algorithm: {other} — only Ed25519 and RSA can be loaded into the agent"
+                    "unsupported SSH algorithm: {other} — only Ed25519, RSA and ECDSA can be loaded into the agent"
                 ),
             });
         }
@@ -729,6 +729,24 @@ mod generate_tests {
         assert_ne!(a.key_fingerprint, b.key_fingerprint);
         assert_ne!(a.private_key, b.private_key);
         assert_ne!(a.public_key, b.public_key);
+    }
+
+    #[test]
+    fn ecdsa_keys_are_accepted_by_the_editor_gate() {
+        let pem = include_str!("../../tests/fixtures/ssh/ecdsa-p256");
+        let out = decrypt_ssh_private_key(pem.into(), None).unwrap();
+        assert!(out.public_key.starts_with("ecdsa-sha2-nistp256 "));
+    }
+
+    #[test]
+    fn dsa_keys_are_rejected_before_any_passphrase() {
+        let pem = include_str!("../../tests/fixtures/ssh/dsa");
+        match decrypt_ssh_private_key(pem.into(), None) {
+            Err(Error::Crypto { reason }) => {
+                assert!(reason.contains("unsupported SSH algorithm"), "{reason}")
+            }
+            other => panic!("expected an algorithm rejection, got {other:?}"),
+        }
     }
 }
 
