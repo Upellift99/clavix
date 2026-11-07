@@ -390,7 +390,7 @@ pub(crate) fn spawn_tray_host_fallback(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         // No session bus means no indicator host either.
-        if let Ok(conn) = zbus::Connection::session().await {
+        if let Ok(conn) = crate::dbus::session().await {
             for _ in 0..ATTEMPTS {
                 if tray_host_present(&conn).await {
                     return;

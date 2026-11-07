@@ -124,7 +124,7 @@ mod imp {
     /// the well-known name for both screensaver flavours.
     async fn screensaver_active(name: &str, path: &str) -> Option<bool> {
         let conn = SESSION_BUS
-            .get_or_try_init(Connection::session)
+            .get_or_try_init(crate::dbus::session)
             .await
             .ok()?;
         let reply = tokio::time::timeout(
@@ -141,7 +141,7 @@ mod imp {
     /// is logind's alias for "the session this process belongs to", so
     /// we don't have to resolve an id out of `XDG_SESSION_ID`.
     async fn logind_locked_hint() -> Option<bool> {
-        let conn = SYSTEM_BUS.get_or_try_init(Connection::system).await.ok()?;
+        let conn = SYSTEM_BUS.get_or_try_init(crate::dbus::system).await.ok()?;
         let reply = tokio::time::timeout(
             CALL_TIMEOUT,
             conn.call_method(
