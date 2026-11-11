@@ -4,6 +4,7 @@
   import QrScanner from "#lib/QrScanner.svelte";
   import GeneratorDialog from "#lib/GeneratorDialog.svelte";
   import PasswordStrength from "#lib/PasswordStrength.svelte";
+  import SuggestInput from "#lib/SuggestInput.svelte";
   import { api } from "#lib/api.ts";
   import { focusOnMount, trapFocus } from "#lib/focus.ts";
   import type { ClipboardKind } from "#lib/clipboard.svelte.ts";
@@ -160,13 +161,6 @@
         that closes it can say what was lost. */
     onDirtyChange?: (dirty: boolean) => void;
   } = $props();
-
-  // A native <datalist> rather than a home-made popover (DESIGN.md: don't
-  // invent controls). Its id has to be unique per instance: the inline
-  // editor and the dialog can both be mounted at once.
-  const uid = $props.id();
-  const usernameListId = `${uid}-usernames`;
-  const usernameList = $derived(usernames.length > 0 ? usernameListId : undefined);
 
   let cipherType = $state<CipherKind>(1);
   let name = $state("");
@@ -554,7 +548,7 @@
     {#if cipherType === 1}
       <label>
         {m.detail_field_username()}
-        <input type="text" bind:value={username} autocomplete="off" list={usernameList} />
+        <SuggestInput bind:value={username} suggestions={usernames} />
       </label>
       <label>
         {m.detail_field_password()}
@@ -657,7 +651,7 @@
       </div>
       <label>
         {m.identity_username()}
-        <input type="text" bind:value={identity.username} autocomplete="off" list={usernameList} />
+        <SuggestInput bind:value={identity.username} suggestions={usernames} />
       </label>
       <label>
         {m.identity_email()}
@@ -863,14 +857,6 @@
         {submitting ? m.editor_saving() : m.action_save()}
       </button>
     </div>
-
-    {#if usernameList}
-      <datalist id={usernameListId}>
-        {#each usernames as u (u)}
-          <option value={u}></option>
-        {/each}
-      </datalist>
-    {/if}
   </form>
 {/snippet}
 
@@ -1071,6 +1057,8 @@
   input[type="email"],
   input[type="tel"],
   input[type="password"],
+  /* SuggestInput's input lives in a child component. */
+  label > :global(input[role="combobox"]),
   select,
   textarea {
     font: inherit;
@@ -1087,6 +1075,7 @@
   input[type="email"],
   input[type="tel"],
   input[type="password"],
+  label > :global(input[role="combobox"]),
   textarea {
     font-family: var(--font-data);
   }
