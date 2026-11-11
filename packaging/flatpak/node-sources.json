@@ -204,10 +204,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@inlang/paraglide-js/-/paraglide-js-3.1.0.tgz",
-    "sha512": "57ca416b665d68f0eae923bb3fb3115ecf8565117b30c212f2c41a99cd698e3cee60517b683dfd040c9972566f7fd0f38e22ee2820d730e2cea023de6e3073ab",
+    "url": "https://registry.npmjs.org/@inlang/paraglide-js/-/paraglide-js-3.2.0.tgz",
+    "sha512": "9a371533e1936ebe96af8eb780c1d21941c5d31ef2d56d158b32523f25fc823cb134560a5b40b4ad17f5404b5658c0fc774341773a388bbb677dc6a04751722a",
     "dest": "npm-registry/@inlang/paraglide-js/-",
-    "dest-filename": "paraglide-js-3.1.0.tgz"
+    "dest-filename": "paraglide-js-3.2.0.tgz"
   },
   {
     "type": "file",
@@ -435,10 +435,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@napi-rs/wasm-runtime/-/wasm-runtime-1.2.5.tgz",
-    "sha512": "1ec852bd7ce6071373a9e8ddde4fca7a6810de1751114605451ae0c4e67e80f9630c8b0ed920d9ad564c77867f1ecc6e7506c4eb6395c95144f33f410aeadf8c",
+    "url": "https://registry.npmjs.org/@napi-rs/wasm-runtime/-/wasm-runtime-1.2.7.tgz",
+    "sha512": "cc971cc2994e01b81f663bbde485076b32e7c7d4403ed3cdd981895c8e946eb81e691f507cf8c6ad02fa11191202d9d5080e10fbcdc0a46c9a5f9cdda4268a91",
     "dest": "npm-registry/@napi-rs/wasm-runtime/-",
-    "dest-filename": "wasm-runtime-1.2.5.tgz"
+    "dest-filename": "wasm-runtime-1.2.7.tgz"
   },
   {
     "type": "file",
@@ -2122,10 +2122,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/kysely/-/kysely-0.28.18.tgz",
-    "sha512": "95fea7107c0f95a59b503c39af270f4a41151950bbb05ee1cd8ee41f43abca57aa2bc626d3367e46323ca3e4691c7971a5b2950b577e5284125bc185c4641fe1",
+    "url": "https://registry.npmjs.org/kysely/-/kysely-0.28.19.tgz",
+    "sha512": "b17a0a5ae423b68af0c432e2c2cd1948f1869defe1b3e7c61c8208eef5eab92045807c0b5e01481cdf6d4efde435d564279777c6d5c2f381a38d63182ea7455a",
     "dest": "npm-registry/kysely/-",
-    "dest-filename": "kysely-0.28.18.tgz"
+    "dest-filename": "kysely-0.28.19.tgz"
   },
   {
     "type": "file",
@@ -3039,10 +3039,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
-    "sha512": "a0916ef781d06fe29576e49440bef09e99aa9df98bb0e03f9c087a6fa107d30084a0ad3f98f79753a737c0a0d5f373243ae1cf447b525ca294f7d2016b34bfdb",
+    "url": "https://registry.npmjs.org/tslib/-/tslib-2.9.1.tgz",
+    "sha512": "6b8531f552ae20c1ec392ec435b12aea12b66466084f6ed1b65d04e1e0fd2aac3184a89078c644ffdc5bdc8758c166923b220140b1318508170d3628882c6758",
     "dest": "npm-registry/tslib/-",
-    "dest-filename": "tslib-2.8.1.tgz"
+    "dest-filename": "tslib-2.9.1.tgz"
   },
   {
     "type": "file",
@@ -3718,7 +3718,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"3.1.0\"}, \"name\": \"@inlang/paraglide-js\", \"time\": {\"3.1.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"3.1.0\": {\"dist\": {\"integrity\": \"sha512-V8pBa2ZdaPDq6SO7P7MRXs+FZRF7MMIS8sQamc1pjjzuYFF7aD39BAyZclZvf9DzjiLuKCDXMOLOoCPebjBzqw==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/paraglide-js/-/paraglide-js-3.1.0.tgz\"}, \"name\": \"@inlang/paraglide-js\", \"version\": \"3.1.0\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"3.2.0\"}, \"name\": \"@inlang/paraglide-js\", \"time\": {\"3.2.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"3.2.0\": {\"dist\": {\"integrity\": \"sha512-mjcVM+GTbr6Wr463gMHSGUHF0x7y1W0VizJSPyX8gjyxNFYKW0C0rRf1QEtWWMD8d0NBdzo4i7tnfcagR1FyKg==\", \"tarball\": \"http://127.0.0.1:4873/@inlang/paraglide-js/-/paraglide-js-3.2.0.tgz\"}, \"name\": \"@inlang/paraglide-js\", \"version\": \"3.2.0\"}}}",
     "dest": "npm-registry/@inlang/paraglide-js",
     "dest-filename": "packument.json"
   },
@@ -3916,7 +3916,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.5\"}, \"name\": \"@napi-rs/wasm-runtime\", \"time\": {\"1.2.5\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.5\": {\"dist\": {\"integrity\": \"sha512-HshSvXzmBxNzqejd3k/KemgQ3hdREUYFRRrgxOZ+gPljDIsO2SDZrVZMd4Z/HsxudQbE62OVyVFE8z9BCurfjA==\", \"tarball\": \"http://127.0.0.1:4873/@napi-rs/wasm-runtime/-/wasm-runtime-1.2.5.tgz\"}, \"name\": \"@napi-rs/wasm-runtime\", \"version\": \"1.2.5\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.7\"}, \"name\": \"@napi-rs/wasm-runtime\", \"time\": {\"1.2.7\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.7\": {\"dist\": {\"integrity\": \"sha512-zJccwplOAbgfZju95IUHazLnx9RAPtPN2YGJXI6UbrgeaR9QfPjGrQL6ERkSAtnVCA4Q+83ApGyaX5zdpCaKkQ==\", \"tarball\": \"http://127.0.0.1:4873/@napi-rs/wasm-runtime/-/wasm-runtime-1.2.7.tgz\"}, \"name\": \"@napi-rs/wasm-runtime\", \"version\": \"1.2.7\"}}}",
     "dest": "npm-registry/@napi-rs/wasm-runtime",
     "dest-filename": "packument.json"
   },
@@ -5464,7 +5464,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"0.28.18\"}, \"name\": \"kysely\", \"time\": {\"0.28.18\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"0.28.18\": {\"dist\": {\"integrity\": \"sha512-lf6nEHwPlaWbUDw5rycPSkEVGVC7sF7hzY7kH0OryleqK8Ym0zZ+RjI8o+RpHHlxpbKVC1d+UoQSW8GFxGQf4Q==\", \"tarball\": \"http://127.0.0.1:4873/kysely/-/kysely-0.28.18.tgz\"}, \"name\": \"kysely\", \"version\": \"0.28.18\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"0.28.19\"}, \"name\": \"kysely\", \"time\": {\"0.28.19\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"0.28.19\": {\"dist\": {\"integrity\": \"sha512-sXoKWuQjtorwxDLiws0ZSPGGne/hs+fGHIII7vXquSBFgHwLXgFIHN9tTv3kNdVkJ5d3xtXC84GjjWMYLqdFWg==\", \"tarball\": \"http://127.0.0.1:4873/kysely/-/kysely-0.28.19.tgz\"}, \"name\": \"kysely\", \"version\": \"0.28.19\"}}}",
     "dest": "npm-registry/kysely",
     "dest-filename": "packument.json"
   },
@@ -6202,7 +6202,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"2.8.1\"}, \"name\": \"tslib\", \"time\": {\"2.8.1\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"2.8.1\": {\"dist\": {\"integrity\": \"sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==\", \"tarball\": \"http://127.0.0.1:4873/tslib/-/tslib-2.8.1.tgz\"}, \"name\": \"tslib\", \"version\": \"2.8.1\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"2.9.1\"}, \"name\": \"tslib\", \"time\": {\"2.9.1\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"2.9.1\": {\"dist\": {\"integrity\": \"sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==\", \"tarball\": \"http://127.0.0.1:4873/tslib/-/tslib-2.9.1.tgz\"}, \"name\": \"tslib\", \"version\": \"2.9.1\"}}}",
     "dest": "npm-registry/tslib",
     "dest-filename": "packument.json"
   },
