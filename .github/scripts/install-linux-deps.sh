@@ -18,6 +18,10 @@
 #   27 minutes on the 25 MB libwebkit2gtk package. A healthy install takes
 #   under a minute, so each attempt gets a hard time limit and the next one
 #   switches to another mirror.
+# - On 2026-11-11 the runners could not resolve any *.archive.ubuntu.com
+#   host for hours (`Temporary failure resolving`), so every Ubuntu-hosted
+#   fallback died with the default mirror. The last fallback is kernel.org's
+#   full mirror, outside that domain.
 set -euo pipefail
 
 packages=(
@@ -57,8 +61,26 @@ attempt() {
     timeout 5m sudo apt-get install -y --no-install-recommends "${packages[@]}"
 }
 
-attempt && exit 0
-for mirror in http://archive.ubuntu.com/ubuntu http://us.archive.ubuntu.com/ubuntu; do
+# A mirror whose name does not resolve is skipped instead of tried: apt
+# spends minutes on its own retries before giving up on it, enough to push
+# the job past its timeout before the last fallback gets a turn.
+resolves() {
+  local host=${1#*://}
+  host=${host%%/*}
+  timeout 10s getent hosts "$host" >/dev/null
+}
+
+default=$(awk 'NR == 1 { print $1 }' /etc/apt/apt-mirrors.txt 2>/dev/null || true)
+if [ -z "$default" ] || resolves "$default"; then
+  attempt && exit 0
+else
+  echo "::warning::$default does not resolve; skipping it"
+fi
+for mirror in http://archive.ubuntu.com/ubuntu http://us.archive.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu; do
+  if ! resolves "$mirror"; then
+    echo "::warning::$mirror does not resolve; skipping it"
+    continue
+  fi
   echo "::warning::apt install failed or exceeded 5 minutes; retrying from $mirror"
   # A kill during unpacking leaves dpkg half-configured; finish that first.
   sudo dpkg --configure -a || true
