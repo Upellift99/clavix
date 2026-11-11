@@ -470,10 +470,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@oxc-project/types/-/types-0.155.0.tgz",
-    "sha512": "49e13c24fc16d71b35b4778dc9c8d4b5405d868ad16bca388e5be3c24e3d47bfd9dbdd62fb80d06bb2492203a6fd3698419c7e42b3d06d527ff5cf1d30864df1",
+    "url": "https://registry.npmjs.org/@oxc-project/types/-/types-0.156.0.tgz",
+    "sha512": "d43bb2838f1374935dca1101f179f52f7e9b4fd3efe8652d94a8c7c4ecacf3191a17fad0ab75c913e6c0bab48afc0808cf998616c6fbedc9fd3dbdb4f9609273",
     "dest": "npm-registry/@oxc-project/types/-",
-    "dest-filename": "types-0.155.0.tgz"
+    "dest-filename": "types-0.156.0.tgz"
   },
   {
     "type": "file",
@@ -498,31 +498,31 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.15.tgz",
-    "sha512": "8930635f1f81e504af808f3d9497e6aa1e304e1f0d69b47561920837784dc78cd21b41157d5aa43af2ee94da46e36e75a5b77afc802667f2de7d5935638acf87",
+    "url": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.16.tgz",
+    "sha512": "14988b1806e53c132504475b3aac3a916e907170d601ffe826eee062cf59259c2683e2beff38c52f13d3218f62cc9533c73736e051ef9ac7b203422f252975ef",
     "dest": "npm-registry/@rolldown/binding-linux-arm64-gnu/-",
-    "dest-filename": "binding-linux-arm64-gnu-1.2.15.tgz"
+    "dest-filename": "binding-linux-arm64-gnu-1.2.16.tgz"
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.15.tgz",
-    "sha512": "b8ddba5ce9d547baea42ea46dd5f68006d841866ad5a37091ce7833875050a1e1305698fdad1d316854dd776986f07e6d1a1ea240126730840bbab28a088dfa9",
+    "url": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.16.tgz",
+    "sha512": "86b2696e532cad0e7c53dbde5a96d7ce4855e734adba776ce8758ba6baaad6a6aebe006bd44e8ffb6e242e3ea548b23dbe3467fd16298e9ae190740f2865a936",
     "dest": "npm-registry/@rolldown/binding-linux-arm64-musl/-",
-    "dest-filename": "binding-linux-arm64-musl-1.2.15.tgz"
+    "dest-filename": "binding-linux-arm64-musl-1.2.16.tgz"
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.15.tgz",
-    "sha512": "14783ad2b4ba0c178f01867d5fd17aef1f8939b15d9a09fab6ea40d42fdadc1f82b9f1664c3e265fe7bc33be6d0a200eddfa11ffac70541234290888eec9ffaf",
+    "url": "https://registry.npmjs.org/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.16.tgz",
+    "sha512": "4cd2a1804dee253b13cdab5449262dd0a828f8e6b6b929528f3e2bd5a10879aec75fa50b0729b87c09585211b58baa6335fda78df09401f2b0afa0b713d5e0d7",
     "dest": "npm-registry/@rolldown/binding-linux-x64-gnu/-",
-    "dest-filename": "binding-linux-x64-gnu-1.2.15.tgz"
+    "dest-filename": "binding-linux-x64-gnu-1.2.16.tgz"
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.15.tgz",
-    "sha512": "fdcbd5ffbbf9546cff9a88b3d172918f6744f03cec2b2848bb52a93af2463e3472c20df2b1c38df3cf541af01ef337e224b1eea7b54b8c176ea065a2dc7bac59",
+    "url": "https://registry.npmjs.org/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.16.tgz",
+    "sha512": "edc8577698d767ca86d3e988c4408dddc4fd92f859dffa1984c5fa3e9f3be8fec20eb232f2726cc2f6ba32adf9ec947b7985dfbac93067131e5754b3a19747ac",
     "dest": "npm-registry/@rolldown/binding-linux-x64-musl/-",
-    "dest-filename": "binding-linux-x64-musl-1.2.15.tgz"
+    "dest-filename": "binding-linux-x64-musl-1.2.16.tgz"
   },
   {
     "type": "file",
@@ -2514,10 +2514,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/postcss/-/postcss-8.5.31.tgz",
-    "sha512": "6146d6602804af09cc01592352761af8a94c0731a91f0888b7f0c4edfd06df702e5f62c7f5471393a2a05b1777cd153ea4ddeefc2f9797712730b3381de6bb4a",
+    "url": "https://registry.npmjs.org/postcss/-/postcss-8.5.32.tgz",
+    "sha512": "2c994a08201414a3ae6718a951d630d4dcc821312c3dc832386f4b92f449bee2a3fdb4736ee458d00457bcbd29586a6c66f9fc8e4bbe2cc7a9d9e534b1e1e9f2",
     "dest": "npm-registry/postcss/-",
-    "dest-filename": "postcss-8.5.31.tgz"
+    "dest-filename": "postcss-8.5.32.tgz"
   },
   {
     "type": "file",
@@ -2668,10 +2668,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/rolldown/-/rolldown-1.2.15.tgz",
-    "sha512": "ea874d0fe7de979cd5c3723861cd9eebd82f82e0e75f408000688d0d94aae2293959471a2eb903d862eea20d1770e0dba2bdf5859e5ac843205439e8f8a3d5e6",
+    "url": "https://registry.npmjs.org/rolldown/-/rolldown-1.2.16.tgz",
+    "sha512": "6d6be532914a8937c329f9caec50b630f80f79609ffcaa70b2ae3d029756f8541a0596fa3ba759e0c00f6cf523a7b85842bc3f4686ea0b39fae0146b41e7061f",
     "dest": "npm-registry/rolldown/-",
-    "dest-filename": "rolldown-1.2.15.tgz"
+    "dest-filename": "rolldown-1.2.16.tgz"
   },
   {
     "type": "file",
@@ -3179,10 +3179,10 @@
   },
   {
     "type": "file",
-    "url": "https://registry.npmjs.org/vite/-/vite-8.3.5.tgz",
-    "sha512": "cf56298e2789f60d1e6d3990a4b06ffe8abd13717d10894e7beecb6a15bc4ab1372d3886dee7414545d03a56173fd6fe202daada9847795c63f711a5c37e0e11",
+    "url": "https://registry.npmjs.org/vite/-/vite-8.3.6.tgz",
+    "sha512": "508edd2b6f4d9d2e78164fa69a8ee8fa323a53c169ee10e5f97e50d64e39587f9de1d4a56cb554113190fa17e4360bcb406ca81253e3f37ee7672bf830173454",
     "dest": "npm-registry/vite/-",
-    "dest-filename": "vite-8.3.5.tgz"
+    "dest-filename": "vite-8.3.6.tgz"
   },
   {
     "type": "file",
@@ -4042,7 +4042,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"0.155.0\"}, \"name\": \"@oxc-project/types\", \"time\": {\"0.155.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"0.155.0\": {\"dist\": {\"integrity\": \"sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q==\", \"tarball\": \"http://127.0.0.1:4873/@oxc-project/types/-/types-0.155.0.tgz\"}, \"name\": \"@oxc-project/types\", \"version\": \"0.155.0\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"0.156.0\"}, \"name\": \"@oxc-project/types\", \"time\": {\"0.156.0\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"0.156.0\": {\"dist\": {\"integrity\": \"sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==\", \"tarball\": \"http://127.0.0.1:4873/@oxc-project/types/-/types-0.156.0.tgz\"}, \"name\": \"@oxc-project/types\", \"version\": \"0.156.0\"}}}",
     "dest": "npm-registry/@oxc-project/types",
     "dest-filename": "packument.json"
   },
@@ -4066,91 +4066,91 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-android-arm-eabi\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-android-arm-eabi/-/binding-android-arm-eabi-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-android-arm-eabi\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-android-arm-eabi\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-ia3DwAs0OsMGS7+IConptSiyk9pEXkOx/AbJ2n/lAGxH3QkWQus1t8d7gnAT38FCU2sQu8lUbeR6AiZFv4JxaA==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-android-arm-eabi/-/binding-android-arm-eabi-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-android-arm-eabi\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-android-arm-eabi",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-android-arm64\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-xD7DdZCrbThKuxNg7ooQmvp07ys4J/pnSEMTG3/OdOWl6daC67m/Q4fL78sRHMxTH/N4fGUbYhcPM0MF5WFHkg==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-android-arm64/-/binding-android-arm64-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-android-arm64\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-android-arm64\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-kx5wBiMB6E7TEvpl2B9gjLU004BkvEm2Dr941BFjx/SontPwSzNuQUIoVKxHHoSjpFIfHMmcguyLOtyn0hObRg==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-android-arm64/-/binding-android-arm64-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-android-arm64\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-android-arm64",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-darwin-arm64\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-m2WuQ6r0B4OTYxyPpNLtXaMRbRDUbG8YQV2Q3KTdSSK8Th6KHCnC8jVCJt8bvYeSB5WivkkNbc85mKadaSdOxA==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-darwin-arm64/-/binding-darwin-arm64-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-darwin-arm64\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-darwin-arm64\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-qslZrXnKJU4cUpjoAmtAo/KQM9e2IRMlmpig6Zpwj+8KWxW8v+nkAf9216Bsek9lOC1jvg2yCjygCFo2f83msQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-darwin-arm64/-/binding-darwin-arm64-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-darwin-arm64\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-darwin-arm64",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-darwin-x64\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-5RtnsHM36nodM9WbMy+zip0LGS/G+y5wro5RHrpOlr4ac24+1zSi9kiV2MP1myZeZ/ifEHfulQcWjnAXzc2C2A==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-darwin-x64/-/binding-darwin-x64-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-darwin-x64\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-darwin-x64\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-FdF+y48ND13eAyM2mQn+85kvAqNlvRWROy2rhgA463X/0Gv4vGtazZtfaF1mRBLscYvtOlh4QnLjOWiFzX69OQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-darwin-x64/-/binding-darwin-x64-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-darwin-x64\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-darwin-x64",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-freebsd-x64\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-g3l09pyFqhu+135JKkbkwiKGQmwU5hUMUPJ4VdBADvuqR8d33L6H578rh8m7rtxbdp+VmX/+nzI7nvhSZlzpUQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-freebsd-x64/-/binding-freebsd-x64-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-freebsd-x64\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-freebsd-x64\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-ddjqFM5e95AgLbUPtKIS7V1KTVlA0RUgCVr5mn+/IEhsdy3pr+Vuj/HZ7nlMN2FyxIwUktOH1LEPIQXO1v9y1Q==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-freebsd-x64/-/binding-freebsd-x64-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-freebsd-x64\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-freebsd-x64",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-linux-arm-gnueabihf\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-nIe3VugI97nGQtspPxDqA4sXMUpeiocKIP/CqpY/u/vgbT+alX+cVxu1C/oVBPKg4feNTmYovE91v4DgXvXNwQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-arm-gnueabihf/-/binding-linux-arm-gnueabihf-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-linux-arm-gnueabihf\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-linux-arm-gnueabihf\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-tHdKWbFkFBI687iim3LIyIvyL7j66VvQYkDPss5Stn/qyE2tWkR1YD0dXmXPFKKqT/o5ZEJVsaRsWS2meQwGOA==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-arm-gnueabihf/-/binding-linux-arm-gnueabihf-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-linux-arm-gnueabihf\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-linux-arm-gnueabihf",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-linux-arm64-gnu\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-iTBjXx+B5QSvgI89lJfmqh4wTh8NabR1YZIIN3hNx4zSG0EVfVqkOvLulNpG4251pbd6/IAmZ/LefVk1Y4rPhw==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-linux-arm64-gnu\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-linux-arm64-gnu\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-FJiLGAblPBMlBEdbOqw6kW6QcXDWAf/oJu7gYs9ZJZwmg+K+/zjFLxPTIY9izJUzxzc24FHvmseyA0IvJSl17w==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-linux-arm64-gnu\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-linux-arm64-gnu",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-linux-arm64-musl\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-uN26XOnVR7rqQupG3V9oAG2EGGatWjcJHOeDOHUFCh4TBWmP2tHTFoVN13aYbwfm0aHqJAEmcwhAu6sooIjfqQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-linux-arm64-musl\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-linux-arm64-musl\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-hrJpblMsrQ58U9veWpbXzkhV5zStunds6HWLprqq1qauvgBr1E6P+24kLj6lSLI9vjRn/RYpjprhkHQPKGWpNg==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-linux-arm64-musl\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-linux-arm64-musl",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-linux-ppc64-gnu\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-9nWkcdd+H+XhaA3fQIwpHnKIrfx/PQ6rO0pivr78Og07tXlUlctBBJoEYLPfhTmCR/QxEVdn6uPjHV5SymPhdw==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-ppc64-gnu/-/binding-linux-ppc64-gnu-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-linux-ppc64-gnu\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-linux-ppc64-gnu\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-qJd/dC6j6CwLG9/s/RP2nb1RZ0GIgj7Ioj7x/SYa3RzjVrlzrmH0fhIOpfvqQDeIsdP0loi+kHaMhJzY1PBIaA==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-ppc64-gnu/-/binding-linux-ppc64-gnu-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-linux-ppc64-gnu\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-linux-ppc64-gnu",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-linux-s390x-gnu\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-Ggh0ciFjLwIusLSLz7LZYEaGdxOAUJXI+Qu5JCbhPJJHEt8vP+IjRATTJheiJsdzzTYgUiHUiw3X1Ea3ZpMBdA==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-s390x-gnu/-/binding-linux-s390x-gnu-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-linux-s390x-gnu\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-linux-s390x-gnu\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-Vx7Xg5uUJuNcujJjI70OICaH0EYj80BtOLZTSN7uOYg8QOLlyKnaG0IW7Fn/J0IpJsaKzmDKMhOQv1JBM9m9vg==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-s390x-gnu/-/binding-linux-s390x-gnu-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-linux-s390x-gnu\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-linux-s390x-gnu",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-linux-x64-gnu\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-FHg60rS6DBePAYZ9X9F67x+JObFdmgn6tupA1C/a3B+CufFmTD4mX+e8M75tCiAO3foR/6xwVBI0KQiI7sn/rw==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-linux-x64-gnu\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-linux-x64-gnu\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-TNKhgE3uJTsTzatUSSYt0Kgo+Oa2uSlSjz4r1aEIea7HX6ULBym4fAlYUhG1i6pjNf2njfCUAfKwr6C3E9Xg1w==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-linux-x64-gnu\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-linux-x64-gnu",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-linux-x64-musl\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-/cvV/7v5VGz/moiz0XKRj2dE8DzsKyhIu1KpOvJGPjRywg3yscON889UGvAe8zfiJLHup7VLjBduoGWi3HusWQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-linux-x64-musl\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-linux-x64-musl\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-7chXdpjXZ8qG0+mIxECN3cT9kvhZ3/oZhMX6Pp876P7CDrIy8nJswva6Mq357JR7eYXfuskwZxMeV1SzoZdHrA==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-linux-x64-musl\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-linux-x64-musl",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-openharmony-arm64\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-MyzC5Hrv/sm+Z7TSGKP/j8001RO2xQm1zOpCNVL4j0cY/VhBZviludA2YFQ7i4lH6ZAXxQm0lcMdBzM+99mE7w==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-openharmony-arm64/-/binding-openharmony-arm64-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-openharmony-arm64\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-openharmony-arm64\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-Kwjt+7uNTJK5/MDkGWGVO2KQPnj8yAV75dMpfwyHZrJSXWHrniOB0aUEWlVYf3H1hOqFLIStLdM5QXq6bnKmOQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-openharmony-arm64/-/binding-openharmony-arm64-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-openharmony-arm64\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-openharmony-arm64",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-win32-arm64-msvc\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-+PgYiS+AH5omy6L45ZLxybasauJaj3M8buoT83D+nzPmCayXlxUV9hydhciCKVyIg0B/v0BtXPDE1uGqNwCPpg==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-win32-arm64-msvc/-/binding-win32-arm64-msvc-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-win32-arm64-msvc\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-win32-arm64-msvc\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-/LH6WfjDRXXJz/p5xl4TmU+jpcnwcxbKEQBW/GZE0JHfN0lGIyTtsUEGaQ/q/GikkGJ2yLKe6pwm7AnEWO8pdw==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-win32-arm64-msvc/-/binding-win32-arm64-msvc-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-win32-arm64-msvc\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-win32-arm64-msvc",
     "dest-filename": "packument.json"
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"@rolldown/binding-win32-x64-msvc\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-HFZd2QNQYn1JbIi+Hpd7H+r/lkWxcfIu28nirZ6eCn2LafuvmExMlb/P96Sfx5tf7pPArw39IdhmCF8vmV+NhQ==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.2.15.tgz\"}, \"name\": \"@rolldown/binding-win32-x64-msvc\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"@rolldown/binding-win32-x64-msvc\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-1lv1KvX0Z871zfk7vw+dnXMMnHNyDwMzWG8Kv3HxDXMOhzCX4SHc7HK319fInP0i+0p9D8brkfzL7pJOaGl+tw==\", \"tarball\": \"http://127.0.0.1:4873/@rolldown/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.2.16.tgz\"}, \"name\": \"@rolldown/binding-win32-x64-msvc\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/@rolldown/binding-win32-x64-msvc",
     "dest-filename": "packument.json"
   },
@@ -5806,7 +5806,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"8.5.31\"}, \"name\": \"postcss\", \"time\": {\"8.5.31\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"8.5.31\": {\"dist\": {\"integrity\": \"sha512-YUbWYCgErwnMAVkjUnYa+KlMBzGpHwiIt/DE7f0G33AuX2LH9UcTk6KgWxd3zRU+pN3u/C+Xl3EnMLM4Hea7Sg==\", \"tarball\": \"http://127.0.0.1:4873/postcss/-/postcss-8.5.31.tgz\"}, \"name\": \"postcss\", \"version\": \"8.5.31\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"8.5.32\"}, \"name\": \"postcss\", \"time\": {\"8.5.32\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"8.5.32\": {\"dist\": {\"integrity\": \"sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==\", \"tarball\": \"http://127.0.0.1:4873/postcss/-/postcss-8.5.32.tgz\"}, \"name\": \"postcss\", \"version\": \"8.5.32\"}}}",
     "dest": "npm-registry/postcss",
     "dest-filename": "packument.json"
   },
@@ -5908,7 +5908,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"1.2.15\"}, \"name\": \"rolldown\", \"time\": {\"1.2.15\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.15\": {\"dist\": {\"integrity\": \"sha512-6odND+fel5zVw3I4Yc2e69gvguDnX0CAAGiNDZSq4ik5WUcaLrkD2GLuog0XcODbor31hZ5ayEMgVDno+KPV5g==\", \"tarball\": \"http://127.0.0.1:4873/rolldown/-/rolldown-1.2.15.tgz\"}, \"name\": \"rolldown\", \"version\": \"1.2.15\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"1.2.16\"}, \"name\": \"rolldown\", \"time\": {\"1.2.16\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"1.2.16\": {\"dist\": {\"integrity\": \"sha512-bWvlMpFKiTfDKfnK7FC2MPgPeWCf/Kpwsq49ApdW+FQaBZb6O6dZ4MAPbPUjp7hYQrw/RobqCzn64BRrQecGHw==\", \"tarball\": \"http://127.0.0.1:4873/rolldown/-/rolldown-1.2.16.tgz\"}, \"name\": \"rolldown\", \"version\": \"1.2.16\"}}}",
     "dest": "npm-registry/rolldown",
     "dest-filename": "packument.json"
   },
@@ -6286,7 +6286,7 @@
   },
   {
     "type": "inline",
-    "contents": "{\"dist-tags\": {\"latest\": \"8.3.5\"}, \"name\": \"vite\", \"time\": {\"8.3.5\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"8.3.5\": {\"dist\": {\"integrity\": \"sha512-z1YpjieJ9g0ebTmQpLBv/oq9E3F9EIlOe+7LahW8SrE3LTiG3udBRUXQOlYXP9b+IC2q2phHeVxj9xGlw34OEQ==\", \"tarball\": \"http://127.0.0.1:4873/vite/-/vite-8.3.5.tgz\"}, \"name\": \"vite\", \"version\": \"8.3.5\"}}}",
+    "contents": "{\"dist-tags\": {\"latest\": \"8.3.6\"}, \"name\": \"vite\", \"time\": {\"8.3.6\": \"2000-01-01T00:00:00.000Z\"}, \"versions\": {\"8.3.6\": {\"dist\": {\"integrity\": \"sha512-UI7dK29NnS54Fk+mmo7o+jI6U8Fp7hDl+X5Q1k45WH+d4dSlbLVUETGQ+hfkNgvLQGyoElPj837nZyv4MBc0VA==\", \"tarball\": \"http://127.0.0.1:4873/vite/-/vite-8.3.6.tgz\"}, \"name\": \"vite\", \"version\": \"8.3.6\"}}}",
     "dest": "npm-registry/vite",
     "dest-filename": "packument.json"
   },
