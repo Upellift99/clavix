@@ -492,13 +492,6 @@
 
 {#snippet editorForm()}
   <form onsubmit={handleSubmit}>
-    {#if usernameList}
-      <datalist id={usernameListId}>
-        {#each usernames as u (u)}
-          <option value={u}></option>
-        {/each}
-      </datalist>
-    {/if}
     {#if mode === "create"}
       <label>
         {m.editor_type()}
@@ -870,6 +863,14 @@
         {submitting ? m.editor_saving() : m.action_save()}
       </button>
     </div>
+
+    {#if usernameList}
+      <datalist id={usernameListId}>
+        {#each usernames as u (u)}
+          <option value={u}></option>
+        {/each}
+      </datalist>
+    {/if}
   </form>
 {/snippet}
 
