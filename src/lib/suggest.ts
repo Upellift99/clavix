@@ -23,3 +23,27 @@ export function usernameSuggestions(ciphers: CipherSummary[] | undefined): strin
     .sort(([a, na], [b, nb]) => nb - na || compareBy(a, b))
     .map(([u]) => u);
 }
+
+/** How many suggestions the editor shows at once. */
+export const MAX_SUGGESTIONS = 8;
+
+/**
+ * The suggestions worth showing for what is typed so far: case-insensitive,
+ * entries that start with the text first, then those that merely contain
+ * it, each group keeping the incoming (most used first) order. An entry
+ * equal to the text is left out, there is nothing left to complete.
+ * Empty text offers the head of the list.
+ */
+export function matchSuggestions(all: string[], typed: string, max = MAX_SUGGESTIONS): string[] {
+  const q = typed.trim().toLowerCase();
+  if (!q) return all.slice(0, max);
+  const starts: string[] = [];
+  const contains: string[] = [];
+  for (const s of all) {
+    const l = s.toLowerCase();
+    if (l === q) continue;
+    if (l.startsWith(q)) starts.push(s);
+    else if (l.includes(q)) contains.push(s);
+  }
+  return [...starts, ...contains].slice(0, max);
+}

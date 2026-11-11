@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { usernameSuggestions } from "./suggest";
+import { matchSuggestions, usernameSuggestions } from "./suggest";
 import type { CipherSummary } from "./types";
 
 function cipher(p: Partial<CipherSummary>): CipherSummary {
@@ -69,5 +69,25 @@ describe("usernameSuggestions", () => {
       cipher({ kind: 1, username: "login" }),
     ]);
     expect(list).toEqual(["login"]);
+  });
+});
+
+describe("matchSuggestions", () => {
+  const all = ["root", "raoul@example.com", "admin", "Robert", "bar"];
+
+  it("puts prefix matches before substring matches, keeping order", () => {
+    expect(matchSuggestions(all, "r")).toEqual(["root", "raoul@example.com", "Robert", "bar"]);
+  });
+
+  it("ignores case and surrounding spaces", () => {
+    expect(matchSuggestions(all, "  ROB ")).toEqual(["Robert"]);
+  });
+
+  it("drops an entry equal to the text", () => {
+    expect(matchSuggestions(all, "admin")).toEqual([]);
+  });
+
+  it("caps the list", () => {
+    expect(matchSuggestions(all, "", 2)).toEqual(["root", "raoul@example.com"]);
   });
 });

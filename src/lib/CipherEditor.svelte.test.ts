@@ -212,20 +212,30 @@ describe("CipherEditor inline presentation", () => {
 });
 
 describe("CipherEditor username suggestions", () => {
-  function suggestionInputs(container: HTMLElement) {
-    return [...container.querySelectorAll<HTMLInputElement>("input[list]")];
+  function combos(container: HTMLElement) {
+    return [...container.querySelectorAll<HTMLInputElement>('input[role="combobox"]')];
+  }
+
+  async function type(input: HTMLInputElement, text: string) {
+    input.focus();
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await tick();
+  }
+
+  function shownOptions() {
+    return [...document.querySelectorAll('[role="listbox"] [role="option"]')].map((o) => o.textContent?.trim());
   }
 
   it("offers the vault's usernames on a login's username field", async () => {
     const { container } = mount({ usernames: ["me@example.com", "admin"] });
     await tick();
-    const inputs = suggestionInputs(container);
+    const inputs = combos(container);
     expect(inputs).toHaveLength(1);
-    const list = container.querySelector(`datalist#${CSS.escape(inputs[0].getAttribute("list")!)}`);
-    expect([...list!.querySelectorAll("option")].map((o) => o.value)).toEqual([
-      "me@example.com",
-      "admin",
-    ]);
+    await type(inputs[0], "m");
+    expect(shownOptions()).toEqual(["me@example.com", "admin"]);
+    await type(inputs[0], "ad");
+    expect(shownOptions()).toEqual(["admin"]);
   });
 
   it("offers the same list on an identity's username field", async () => {
@@ -234,15 +244,36 @@ describe("CipherEditor username suggestions", () => {
       initial: { ...EMPTY_EDITOR_INITIAL, cipherType: 4 },
     });
     await tick();
-    const inputs = suggestionInputs(container);
+    const inputs = combos(container);
     expect(inputs).toHaveLength(1);
-    expect(container.querySelector("datalist")?.id).toBe(inputs[0].getAttribute("list"));
+    await type(inputs[0], "me");
+    expect(shownOptions()).toEqual(["me@example.com"]);
   });
 
-  it("renders no list when the vault has no usernames", async () => {
+  it("fills the field from the keyboard and closes on Escape without leaving the form", async () => {
+    const { container, onCancel } = mount({ inline: true, usernames: ["me@example.com", "admin"] });
+    await tick();
+    const [input] = combos(container);
+    await type(input, "a");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    await tick();
+    expect(input.getAttribute("aria-activedescendant")).toBeTruthy();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await tick();
+    expect(input.value).toBe("admin");
+    expect(shownOptions()).toEqual([]);
+
+    await type(input, "m");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await tick();
+    expect(shownOptions()).toEqual([]);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("shows no list when the vault has no usernames", async () => {
     const { container } = mount();
     await tick();
-    expect(container.querySelector("datalist")).toBeNull();
-    expect(suggestionInputs(container)).toHaveLength(0);
+    await type(combos(container)[0], "a");
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
   });
 });
