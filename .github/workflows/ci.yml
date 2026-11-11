@@ -98,7 +98,7 @@ jobs:
           fi
 
       - name: Install cargo-audit
-        uses: taiki-e/install-action@v2.90.1
+        uses: taiki-e/install-action@v2.90.2
         with:
           tool: cargo-audit
 
@@ -326,7 +326,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install tauri-driver
-        uses: taiki-e/install-action@v2.90.1
+        uses: taiki-e/install-action@v2.90.2
         with:
           tool: tauri-driver
 
@@ -396,7 +396,7 @@ jobs:
           key: release
 
       - name: Install tauri-driver
-        uses: taiki-e/install-action@v2.90.1
+        uses: taiki-e/install-action@v2.90.2
         with:
           tool: tauri-driver
 
