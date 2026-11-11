@@ -210,3 +210,39 @@ describe("CipherEditor inline presentation", () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 });
+
+describe("CipherEditor username suggestions", () => {
+  function suggestionInputs(container: HTMLElement) {
+    return [...container.querySelectorAll<HTMLInputElement>("input[list]")];
+  }
+
+  it("offers the vault's usernames on a login's username field", async () => {
+    const { container } = mount({ usernames: ["me@example.com", "admin"] });
+    await tick();
+    const inputs = suggestionInputs(container);
+    expect(inputs).toHaveLength(1);
+    const list = container.querySelector(`datalist#${CSS.escape(inputs[0].getAttribute("list")!)}`);
+    expect([...list!.querySelectorAll("option")].map((o) => o.value)).toEqual([
+      "me@example.com",
+      "admin",
+    ]);
+  });
+
+  it("offers the same list on an identity's username field", async () => {
+    const { container } = mount({
+      usernames: ["me@example.com"],
+      initial: { ...EMPTY_EDITOR_INITIAL, cipherType: 4 },
+    });
+    await tick();
+    const inputs = suggestionInputs(container);
+    expect(inputs).toHaveLength(1);
+    expect(container.querySelector("datalist")?.id).toBe(inputs[0].getAttribute("list"));
+  });
+
+  it("renders no list when the vault has no usernames", async () => {
+    const { container } = mount();
+    await tick();
+    expect(container.querySelector("datalist")).toBeNull();
+    expect(suggestionInputs(container)).toHaveLength(0);
+  });
+});

@@ -129,6 +129,7 @@
     folders,
     organizations,
     collections,
+    usernames = [],
     currentLocale,
     onCancel,
     onSubmit,
@@ -142,6 +143,9 @@
     folders: FolderSummary[];
     organizations: OrganizationSummary[];
     collections: CollectionSummary[];
+    /** Usernames already in the vault, most used first, offered as
+        suggestions on the login and identity username fields. */
+    usernames?: string[];
     /** Only forwarded to the generator dialog, which re-renders on it. */
     currentLocale: Locale;
     onCancel: () => void;
@@ -156,6 +160,13 @@
         that closes it can say what was lost. */
     onDirtyChange?: (dirty: boolean) => void;
   } = $props();
+
+  // A native <datalist> rather than a home-made popover (DESIGN.md: don't
+  // invent controls). Its id has to be unique per instance: the inline
+  // editor and the dialog can both be mounted at once.
+  const uid = $props.id();
+  const usernameListId = `${uid}-usernames`;
+  const usernameList = $derived(usernames.length > 0 ? usernameListId : undefined);
 
   let cipherType = $state<CipherKind>(1);
   let name = $state("");
@@ -543,7 +554,7 @@
     {#if cipherType === 1}
       <label>
         {m.detail_field_username()}
-        <input type="text" bind:value={username} autocomplete="off" />
+        <input type="text" bind:value={username} autocomplete="off" list={usernameList} />
       </label>
       <label>
         {m.detail_field_password()}
@@ -646,7 +657,7 @@
       </div>
       <label>
         {m.identity_username()}
-        <input type="text" bind:value={identity.username} autocomplete="off" />
+        <input type="text" bind:value={identity.username} autocomplete="off" list={usernameList} />
       </label>
       <label>
         {m.identity_email()}
@@ -852,6 +863,14 @@
         {submitting ? m.editor_saving() : m.action_save()}
       </button>
     </div>
+
+    {#if usernameList}
+      <datalist id={usernameListId}>
+        {#each usernames as u (u)}
+          <option value={u}></option>
+        {/each}
+      </datalist>
+    {/if}
   </form>
 {/snippet}
 

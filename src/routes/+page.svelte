@@ -1149,6 +1149,7 @@
     folders={vault.summary?.folders ?? []}
     organizations={vault.summary?.organizations ?? []}
     collections={vault.summary?.collections ?? []}
+    usernames={vault.knownUsernames}
     currentLocale={prefs.currentLocale}
     onCancel={() => vault.closeEditor()}
     onSubmit={(input) => vault.submitEditor(input)}
@@ -1326,6 +1327,7 @@
     folders={vault.summary?.folders ?? []}
     organizations={vault.summary?.organizations ?? []}
     collections={vault.summary?.collections ?? []}
+    usernames={vault.knownUsernames}
     currentLocale={prefs.currentLocale}
     onCancel={() => vault.closeEditor()}
     onSubmit={(input) => vault.submitEditor(input)}

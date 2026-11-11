@@ -2,6 +2,7 @@ import { api } from "./api";
 import { applyVaultFilters } from "./filter";
 import { formatError } from "./format";
 import { provisionalDetail } from "./detail";
+import { usernameSuggestions } from "./suggest";
 import {
   buildCipherIndex,
   buildFolderTree,
@@ -67,6 +68,8 @@ export class VaultController {
   private effectCleanup: (() => void) | null = null;
 
   cipherIndex = $derived.by(() => buildCipherIndex(this.summary?.ciphers));
+  /** Offered by the editor's username fields, most used first. */
+  knownUsernames = $derived.by(() => usernameSuggestions(this.summary?.ciphers));
   folderTree = $derived.by(() =>
     this.summary ? buildFolderTree(this.summary.folders, this.cipherIndex.byFolder) : null,
   );
