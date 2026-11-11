@@ -5,6 +5,18 @@ All notable changes to Clavix are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0](https://github.com/clavix-org/clavix/compare/v0.32.0...v0.33.0) (2026-11-11)
+
+
+### Features
+
+* **editor:** suggest known usernames in the username fields ([#491](https://github.com/clavix-org/clavix/issues/491)) ([54f88f2](https://github.com/clavix-org/clavix/commit/54f88f2679ea3a8ab74b2abdeb17ac6717da1d50))
+
+
+### Bug Fixes
+
+* **deps:** bump rustix to 1.1.6 for RUSTSEC-2026-0486 ([69f5d41](https://github.com/clavix-org/clavix/commit/69f5d41f71956eb59a6ad636173e4ced8f65dcfe))
+
 ## [0.32.0](https://github.com/clavix-org/clavix/compare/v0.31.0...v0.32.0) (2026-11-07)
 
 
