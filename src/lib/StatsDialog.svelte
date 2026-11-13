@@ -152,6 +152,8 @@
           <p class="about-status about-status--ok">✔ {m.about_up_to_date()}</p>
         {/if}
       {/if}
+
+      <p class="about-credit">{m.about_credit()}</p>
     </div>
   {/key}
 </dialog>
@@ -225,6 +227,12 @@
 
   .about-status--warn {
     color: var(--warning-text);
+  }
+
+  .about-credit {
+    margin: 0.4rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
   }
 
   .about-status--update {
